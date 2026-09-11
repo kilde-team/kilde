@@ -30,10 +30,18 @@ cleanup() {
         "$KILDE" audio monitor teardown >/dev/null 2>&1 && echo "[cleanup] 既定出力を復元しました"
     fi
     [ -n "$SOUNDAPP_PID" ] && kill "$SOUNDAPP_PID" 2>/dev/null
-    # T11 が書いたテスト用の設定を消してから、退避したユーザーの設定を戻す
-    [ "${CONFIG_TOUCHED:-0}" = "1" ] && rm -f "$CONFIG"
+    # T11 が書いたテスト用の設定だけを消す (中身が一致するときのみ。テスト中に別プロセスが
+    # 保存した設定を消さないため)
+    if [ "${CONFIG_TOUCHED:-0}" = "1" ] && cmp -s "$CONFIG" "$WORK/t11-config.json"; then
+        rm -f "$CONFIG"
+    fi
+    # 退避したユーザーの設定を戻す。テスト中に新しい設定が保存されていたら上書きしない
     if [ "${CONFIG_MOVED:-0}" = "1" ]; then
-        mv -f "$CONFIG_BACKUP" "$CONFIG" && echo "[cleanup] 設定ファイルを復元しました"
+        if [ -e "$CONFIG" ]; then
+            echo "[cleanup] テスト中に別の設定が保存されたため上書きしません。退避した設定: $CONFIG_BACKUP"
+        else
+            mv "$CONFIG_BACKUP" "$CONFIG" && echo "[cleanup] 設定ファイルを復元しました"
+        fi
     fi
     echo ""
     echo "作業ディレクトリ (失敗時の調査用に残します): $WORK"
@@ -53,7 +61,12 @@ if [ -e "$CONFIG_BACKUP" ]; then
     exit 1
 fi
 if [ -f "$CONFIG" ]; then
-    mv "$CONFIG" "$CONFIG_BACKUP" && CONFIG_MOVED=1
+    # 退避に失敗したまま進むと T11 がユーザーの設定を上書きするので、ここで中止する
+    if ! mv "$CONFIG" "$CONFIG_BACKUP"; then
+        echo "設定ファイルを退避できません: $CONFIG" >&2
+        exit 1
+    fi
+    CONFIG_MOVED=1
     echo "[setup] 設定ファイルをテスト中だけ退避します: $CONFIG_BACKUP"
 fi
 
@@ -317,28 +330,36 @@ fi
 
 log "T11: 設定ファイル — outputDirectory が既定の保存先になる / 存在しない保存先は録画前に失敗"
 CFG_OUT="$WORK/t11-out"
-mkdir -p "$CFG_OUT" "$(dirname "$CONFIG")"
-CONFIG_TOUCHED=1
-printf '{"outputDirectory": "%s", "defaultAudioSources": ["system"]}\n' "$CFG_OUT" > "$CONFIG"
-if (cd "$WORK" && "$KILDE" rec --no-video --duration 3s > "$WORK/t11a.log" 2>&1) \
-    && [ "$(ls "$CFG_OUT"/kilde-*.m4a 2>/dev/null | wc -l | tr -d ' ')" = "1" ]; then
-    ok "T11a outputDirectory: 設定した保存先に既定名で保存"
+# テスト用の設定は $WORK/t11-config.json に書いてから置く。cleanup はこれと中身が一致する
+# ときだけ消す (テスト中に別プロセスが保存した設定を巻き込まないため)
+write_test_config() { printf "$@" > "$WORK/t11-config.json" && cp "$WORK/t11-config.json" "$CONFIG"; }
+if [ -e "$CONFIG" ]; then
+    # 冒頭で退避したのにまた設定がある = テスト中に誰かが保存した。上書きしない
+    skip "T11: テスト中に $CONFIG が作られたため実行しません"
 else
-    bad "T11a outputDirectory: 保存先に出力がない — $WORK/t11a.log"
+    mkdir -p "$CFG_OUT" "$(dirname "$CONFIG")"
+    CONFIG_TOUCHED=1
+    write_test_config '{"outputDirectory": "%s", "defaultAudioSources": ["system"]}\n' "$CFG_OUT"
+    if (cd "$WORK" && "$KILDE" rec --no-video --duration 3s > "$WORK/t11a.log" 2>&1) \
+        && [ "$(ls "$CFG_OUT"/kilde-*.m4a 2>/dev/null | wc -l | tr -d ' ')" = "1" ]; then
+        ok "T11a outputDirectory: 設定した保存先に既定名で保存"
+    else
+        bad "T11a outputDirectory: 保存先に出力がない — $WORK/t11a.log"
+    fi
+    write_test_config '{"outputDirectory": "%s/no-such-dir"}\n' "$WORK"
+    START=$(date +%s)
+    # 誤って録画が始まっても 30 秒で止まる。録画前に失敗すれば数秒で返る
+    (cd "$WORK" && "$KILDE" rec --no-video --duration 30s > "$WORK/t11b.log" 2>&1)
+    EXIT_CODE=$?
+    ELAPSED=$(( $(date +%s) - START ))
+    if [ "$EXIT_CODE" = "1" ] && [ "$ELAPSED" -lt 5 ] && grep -q "出力先ディレクトリが存在しません" "$WORK/t11b.log"; then
+        ok "T11b 存在しない保存先: 録画前に exit=1 (${ELAPSED}s)"
+    else
+        bad "T11b 存在しない保存先: exit=$EXIT_CODE elapsed=${ELAPSED}s — $WORK/t11b.log"
+    fi
+    cmp -s "$CONFIG" "$WORK/t11-config.json" && rm -f "$CONFIG"
+    CONFIG_TOUCHED=0
 fi
-printf '{"outputDirectory": "%s/no-such-dir"}\n' "$WORK" > "$CONFIG"
-START=$(date +%s)
-# 誤って録画が始まっても 30 秒で止まる。録画前に失敗すれば数秒で返る
-(cd "$WORK" && "$KILDE" rec --no-video --duration 30s > "$WORK/t11b.log" 2>&1)
-EXIT_CODE=$?
-ELAPSED=$(( $(date +%s) - START ))
-if [ "$EXIT_CODE" = "1" ] && [ "$ELAPSED" -lt 5 ] && grep -q "出力先ディレクトリが存在しません" "$WORK/t11b.log"; then
-    ok "T11b 存在しない保存先: 録画前に exit=1 (${ELAPSED}s)"
-else
-    bad "T11b 存在しない保存先: exit=$EXIT_CODE elapsed=${ELAPSED}s — $WORK/t11b.log"
-fi
-rm -f "$CONFIG"
-CONFIG_TOUCHED=0
 
 # ---- サマリ -------------------------------------------------------------------
 

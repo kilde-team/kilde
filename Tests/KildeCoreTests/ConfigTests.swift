@@ -230,6 +230,10 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(KildeConfig(defaultAudioSources: ["system", "mic"]).value(for: .defaultAudioSources),
                        "system,mic")
         XCTAssertThrowsError(try config.set(.defaultAudioSources, "[not json"))
+        // JSON 配列の要素もカンマ区切りと同じく前後空白を落とす (save() の検証で 1 にならないため)
+        try config.set(.defaultAudioSources, #"["device:X ", " mic"]"#)
+        XCTAssertEqual(config.defaultAudioSources, ["device:X", "mic"])
+        XCTAssertNoThrow(try config.validate())
     }
 
     /// --fps 0 は黙って無視されず失敗する

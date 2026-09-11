@@ -163,7 +163,9 @@ extension KildeConfig {
                   let list = try? JSONDecoder().decode([String].self, from: data) else {
                 throw KilError.failed("defaultAudioSources の JSON 配列が不正です: \(value)")
             }
-            return list
+            // カンマ区切り形式と同じく要素の前後空白を落とす (落とさないと set の検証 (64) を通った後、
+            // save() の validate() で弾かれて終了コードが 1 になる)
+            return list.map { $0.trimmingCharacters(in: .whitespaces) }
         }
         return value.split(separator: ",", omittingEmptySubsequences: false)
             .map { $0.trimmingCharacters(in: .whitespaces) }
