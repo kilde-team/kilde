@@ -75,7 +75,13 @@ kilde rec --no-video --window zoom 会議.m4a          # 特定アプリの音�
 kilde rec --duration 30s --codec hevc out.mov       # 30 秒で自動停止
 kilde devices                                       # 収録対象の ID を調べる
 kilde inspect out.mov                               # 出来上がりの検証
+kilde config set outputDirectory ~/Movies/kilde     # 既定の保存先 (~/.kilde/config.json)
+kilde config show                                   # 設定値と既定値の一覧
 ```
+
+設定ファイルの値は `kilde rec` の既定値になり、CLI 引数が常に優先されます
+(キーと優先順位は DESIGN.md §6「設定ファイル」)。開発中に実環境の設定の影響を
+避けたいときは `kilde config show` で確認し、`kilde config unset <key>` で戻してください。
 
 `--window` は windowID の完全一致 / ウィンドウタイトル / bundleID の部分一致で解決し、
 複数ヒットしたら**面積が最大のもの**を選びます。曖昧なときは `kilde devices` で
@@ -151,6 +157,7 @@ SCK / AVCapture / CoreAudio の実デバイスには触れません。
 | `AudioMixerTests` | 2 ソース合成とクリップ、44.1k mono → 48k stereo、ギャップの無音埋め / 重複の無視、初回データ待ち (`firstDataGraceFrames`) と `flush()`、非数値 PTS / `decodeFailures` |
 | `MonitorDeviceStateTests` | `~/.kilde/monitor-state.json` の入出力 (`MonitorDevice.stateDirectory` を一時ディレクトリに差し替える) |
 | `KilErrorTests` | `KilError.exitCode` の 1/2/3 契約 |
+| `ConfigTests` | `~/.kilde/config.json` の入出力と不正値 (壊れた JSON・未知のキー・型違い・範囲外)、`rec` 既定値の優先順位 (CLI > プリセット > `KILDE_OUTPUT_DIR` > 設定 > 既定)、存在しない保存先の事前検出 (`ConfigStore.directory` を一時ディレクトリに差し替える) |
 | `AudioSampleBufferTestHelper` | テスト用の Float32 / Int16 `CMSampleBuffer` 生成 |
 
 `RecCommand.validate()` は CLI ターゲット (実行ファイル) 側にあるため対象外です。

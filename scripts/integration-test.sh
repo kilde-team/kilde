@@ -35,6 +35,14 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# 設定ファイル (~/.kilde/config.json) と KILDE_OUTPUT_DIR は rec の既定値を変える (issue #14)。
+# T3 / T4b / T5 などは「既定 = system / mixed」を前提にしているため、環境変数は外し、
+# 設定ファイルがある場合は失敗の原因として気付けるよう警告する (ユーザーの設定は書き換えない)
+unset KILDE_OUTPUT_DIR
+if [ -f "$HOME/.kilde/config.json" ]; then
+    printf '\033[33mWARNING\033[0m  %s が存在します。rec の既定値が変わるため既定値を前提とするテストが失敗しえます (`kilde config show` で確認)\n' "$HOME/.kilde/config.json"
+fi
+
 log()  { printf '\n\033[1m== %s ==\033[0m\n' "$*"; }
 ok()   { PASS=$((PASS+1)); printf '\033[32mPASS\033[0m  %s\n' "$*"; }
 bad()  { FAIL=$((FAIL+1)); printf '\033[31mFAIL\033[0m  %s\n' "$*"; }
