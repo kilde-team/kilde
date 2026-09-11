@@ -1,0 +1,94 @@
+Sources/Spike/SckCapture.swift
+  s_f77637b1782bc2::t_998c017db4f3c8 47
+  s_f77637b1782bc2::t_3861ff197fabc6 1-46,48-53
+Sources/Spike/MicCapture.swift
+  s_f77637b1782bc2::t_524577e99adee8 18
+  s_f77637b1782bc2::t_3174bf95138356 1-17,19-61
+Sources/Spike/main.swift
+  s_f77637b1782bc2::t_a4933d6d76964c 18
+  s_f77637b1782bc2::t_10ffe5d57a5896 37-39
+  s_f77637b1782bc2::t_434224bc2b15ef 2-7
+  s_f77637b1782bc2::t_dbcfe94915eee1 16-17,19-20
+Sources/Spike/Util.swift
+  s_f77637b1782bc2::t_2e49e0ecb32e4b 96
+  s_f77637b1782bc2::t_f39b520ac9d8a9 17-20,22
+  s_f77637b1782bc2::t_c977274b2c021f 1-16,21,23-72,74-87,92,94,97-122,124
+  s_f77637b1782bc2::t_301f50a540fa0d 95
+  s_f77637b1782bc2::t_dacebbfcdc5b1a 73
+  s_f77637b1782bc2::t_90081fc9f28ac3 88-91,93,123
+Sources/Spike/AggregateDevice.swift
+  s_f77637b1782bc2::t_b7cc363fb298ef 1-16,20-54
+  s_f77637b1782bc2::t_ad75dd05b1b069 17-19
+Sources/Spike/MonitorCmd.swift
+  s_f77637b1782bc2::t_64e40cb6922536 1-88
+Sources/Spike/AudioDevices.swift
+  s_f77637b1782bc2::t_cd3eb8108379ce 14
+  s_f77637b1782bc2::t_b4e84628ac078e 102-105,108
+  s_f77637b1782bc2::t_8cf44b02425084 1-13,15-101,106-107,109-113
+docs/SPIKE-NOTES.md
+  s_f77637b1782bc2::t_39596c8311e390 1-106
+Sources/Spike/RecSystemCmd.swift
+  s_f77637b1782bc2::t_e4c91519a59570 40
+  s_f77637b1782bc2::t_c9a37db964cc71 99
+  s_f77637b1782bc2::t_81ba66480b77e6 1-23,27-30,35-39,41-98,100-110,112-135
+  s_f77637b1782bc2::t_30cb36f2643ad9 111
+  s_f77637b1782bc2::t_c2e64e51bc6f98 31-34
+  s_f77637b1782bc2::t_d78ef09b62f6d7 24-26
+Sources/Spike/RecAudioOnlyCmd.swift
+  s_f77637b1782bc2::t_e2b1974424fe86 36-52
+  s_f77637b1782bc2::t_42b77cc12b4568 1-14,16-22,24-28,30-35,53-68
+  s_f77637b1782bc2::t_9d8d989e668b36 23
+  s_f77637b1782bc2::t_43a6d8d707112e 29
+  s_f77637b1782bc2::t_4eafdec66d2543 15
+docs/DESIGN.md
+  s_f77637b1782bc2::t_8ef14ad1eeb2f4 39,41-48
+  s_f77637b1782bc2::t_facacf273c74e7 36-37
+  s_f77637b1782bc2::t_b5f3268c848087 162-167
+  s_f77637b1782bc2::t_1727cac42c5163 58-59
+  s_f77637b1782bc2::t_0327674ea1a605 228-229,231-232
+  s_f77637b1782bc2::t_52666ec7280b6f 3,5
+  s_f77637b1782bc2::t_111ee5e3d3673e 267-272
+  s_f77637b1782bc2::t_3e86768e0c594a 305,307
+  s_f77637b1782bc2::t_1bb92e58f65d14 310-323
+Sources/Spike/Doctor.swift
+  s_f77637b1782bc2::t_4000155bece366 36
+  s_f77637b1782bc2::t_6288d71a5ebb5a 1-35,37-67
+Sources/Spike/DevicesCmd.swift
+  s_f77637b1782bc2::t_b413abf0ef7081 10
+  s_f77637b1782bc2::t_112326abd00820 18
+  s_f77637b1782bc2::t_13fc95ec79ba94 1-9,11-17,19-48
+Package.swift
+  s_f77637b1782bc2::t_ec1cf092012d8d 1-14
+Sources/Spike/RecDeviceCmd.swift
+  s_f77637b1782bc2::t_0c5e3416e7544a 1-44
+Sources/Spike/RecWindowCmd.swift
+  s_f77637b1782bc2::t_efff11783d0c94 1-23,25-30,32-40,42-45,47,49-73
+  s_f77637b1782bc2::t_289bd28e4ed87c 46
+  s_f77637b1782bc2::t_4320731e2cd882 48
+  s_f77637b1782bc2::t_494b3b2d17ac27 41
+  s_f77637b1782bc2::t_885b6951ed11a4 31
+  s_f77637b1782bc2::t_8678be5e05e43b 24
+Sources/Spike/MovieWriter.swift
+  s_f77637b1782bc2::t_1a7aba958149ed 1-28,31-36,41-42,45-139,142-147,149,151-153,156-164,168-207
+  s_f77637b1782bc2::t_496db4c12e1bfe 29-30,37-40,43-44
+  s_f77637b1782bc2::t_d26c0ec6d3eb3d 140-141
+  s_f77637b1782bc2::t_008092378ccc9e 148,150,155
+  s_f77637b1782bc2::t_bbceceac618fbf 154
+  s_f77637b1782bc2::t_44324dea366856 165-167
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "80ec65d71f80f14bae364659ad03f9b4327e4424",
+  "prompts": {},
+  "sessions": {
+    "s_f77637b1782bc2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b41dad5c-a91d-4514-a4af-90ec4067d8a1",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
