@@ -9,6 +9,9 @@ struct ContentView: View {
     @State private var windows: [WindowInfo] = []
     @State private var audioDevices: [AudioDeviceInfo] = []
     @State private var loadError: String?
+    /// 列挙の多重発火を防ぐ (onAppear と didBecomeKey が同一開で両方来るため)。
+    /// reload 自体は @MainActor なのでこの読み書きに競合は無い
+    @State private var reloading = false
 
     var body: some View {
         // 画面上のウィンドウは通常 15〜25 件あり固定高さに収まらないため、
@@ -84,6 +87,8 @@ struct ContentView: View {
     /// ブロッキング呼び出しがメインに留まる — detached が必須。
     /// (issue #35 で snapshot() の async 版が入ったら .task {} + await に移行する)
     private func reload() {
+        guard !reloading else { return }
+        reloading = true
         Task.detached {
             let result: Result<(displays: [DisplayInfo], windows: [WindowInfo]), Error>
             do {
@@ -105,6 +110,7 @@ struct ContentView: View {
                     loadError = "画面/ウィンドウの列挙に失敗: \(error)"
                 }
                 audioDevices = devices
+                reloading = false
             }
         }
     }
