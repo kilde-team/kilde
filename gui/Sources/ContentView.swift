@@ -38,6 +38,18 @@ struct ContentView: View {
                         .foregroundStyle(.orange)
                         .font(.caption)
                         .padding(.bottom, 4)
+                } else if reloading {
+                    // SCShareableContent の初回列挙は数百 ms かかる。ハングした場合も
+                    // 「デバイス無し」と混同されないよう、読み込み中であることを示す
+                    // (列挙自体のタイムアウトは issue #35 の async 化で扱う)
+                    HStack(spacing: 4) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("読み込み中…")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.bottom, 4)
                 }
 
                 section("ディスプレイ") {
