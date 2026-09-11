@@ -1,0 +1,22 @@
+Tests/KildeCoreTests/AudioSampleBufferTestHelper.swift
+  s_4a81b712cd34b8::t_13638447ed7b39 17-20
+  s_4a81b712cd34b8::t_41f5aa836d465b 43-45
+docs/DEVELOPMENT.md
+  s_4a81b712cd34b8::t_b90eb1691d1c1e 145-146
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "34f5c1e29ccc75343903c641b6d894a1fbca7b96",
+  "prompts": {},
+  "sessions": {
+    "s_4a81b712cd34b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e105894-1af4-4be4-b31a-cf222ebe28db",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
