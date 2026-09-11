@@ -152,8 +152,9 @@ KILDE_GUI_SELFTEST_RECORD=3 KILDE_GUI_SELFTEST_OUTPUT=/tmp "$APP/Contents/MacOS/
 ../.build/debug/kilde inspect /tmp/kilde-*.mov   # CLI の録画と同じトラック構成か確認
 ```
 
-`KILDE_GUI_SELFTEST_AUDIO=none` を付けると映像だけを録ります (音声出力が使えない環境でも
-GUI → Recorder の経路だけは確かめられる)。
+`KILDE_GUI_SELFTEST_AUDIO` で音声ソースを変えられます: `system` (既定) / `none` (映像のみ — 音声出力が
+使えない環境でも GUI → Recorder の経路は確かめられる) / `device:<UID または名前>`
+(例: `device:BlackHole 2ch`。スピーカーを介さずに信号を入れて検証でき、既定の出力デバイスも変えずに済む)。
 
 > **検証時の環境の注意**: 画面がロックされていると SCK はフレームを出さないため、録画は成功
 > (exit 0) するのに `kilde inspect` が `duration=0.00s` になります (CLI も同じ)。実録画の検証は

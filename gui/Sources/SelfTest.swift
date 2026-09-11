@@ -25,19 +25,23 @@ enum SelfTest {
             setup.request.outputDirectory = URL(fileURLWithPath: dir, isDirectory: true)
         }
         setup.request.target = .display(index: 0)
-        // KILDE_GUI_SELFTEST_AUDIO=none で映像だけにできる。音声出力が使えない環境
-        // (蓋を閉じたクラムシェルで既定出力が内蔵スピーカー等 — SCK の音声開始が -3818 で失敗する) でも
-        // GUI → Recorder の経路自体は確かめられるようにするため
+        // KILDE_GUI_SELFTEST_AUDIO: system (既定) / none / device:<UID or 名前>。
+        // none は音声出力が使えない環境 (既定出力が鳴らないデバイスだと SCK の音声開始が -3818 で
+        // 失敗する) でも GUI → Recorder の経路を確かめるため。device: は BlackHole ループバックのように
+        // スピーカーを介さずに信号を入れて検証するため (既定の出力デバイスを変えずに済む)
+        setup.request.captureMic = false
+        setup.request.inputDevices = []
         switch env["KILDE_GUI_SELFTEST_AUDIO"] ?? "system" {
         case "system":
             setup.request.captureSystemAudio = true
         case "none":
             setup.request.captureSystemAudio = false
+        case let value where value.hasPrefix("device:"):
+            setup.request.captureSystemAudio = false
+            setup.request.inputDevices = [String(value.dropFirst("device:".count))]
         case let other:
-            fail("KILDE_GUI_SELFTEST_AUDIO は system か none を指定してください: \(other)")
+            fail("KILDE_GUI_SELFTEST_AUDIO は system / none / device:<名前> を指定してください: \(other)")
         }
-        setup.request.captureMic = false
-        setup.request.inputDevices = []
 
         let options: RecordOptions
         do {
