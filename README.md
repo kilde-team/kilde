@@ -53,6 +53,15 @@ kilde rec --no-video --window zoom 会議.m4a
 # BlackHole 経由で「聞きながら録音」
 kilde rec --no-video --audio "device:BlackHole 2ch" --monitor 会議.m4a
 
+# 既定値を設定ファイル (~/.kilde/config.json) で変更
+#   優先順位: CLI 引数 > --preset > KILDE_OUTPUT_DIR > 設定ファイル > 既定値
+#   不正な設定や存在しない保存先は、録画を始める前にエラー (終了コード 1)
+#   rec --fps 0 のような値の誤りはオプション検証エラー (終了コード 64)
+kilde config set outputDirectory ~/Movies/kilde
+kilde config set defaultAudioSources system,mic
+kilde config set showsCursor false   # その回だけ写したいときは kilde rec --cursor
+kilde config show                    # 現在値と既定値 (unset <key> で既定に戻す / path でファイルの場所)
+
 kilde devices      # ディスプレイ / ウィンドウ / オーディオ機器の一覧
 kilde doctor       # 権限と環境の診断
 kilde inspect FILE # 録画ファイルのトラック構成と音声レベル
@@ -65,12 +74,29 @@ kilde inspect FILE # 録画ファイルのトラック構成と音声レベル
 - 統合テスト (ローカル・実録画): `scripts/integration-test.sh`
   — 権限と音量が必要、所要 ~2 分
 
+## GUI (M3 開発中)
+
+メニューバーアプリ (`NSStatusItem` + `NSPopover` — macOS 26 で SwiftUI
+`MenuBarExtra` の `.window` パネルが開かないため AppKit で手動管理)。
+録画エンジンは CLI と同じ
+`KildeCore` をローカルパッケージ依存で共有する。`.xcodeproj` はコミットせず
+[XcodeGen](https://github.com/yonaskolb/XcodeGen) の `project.yml` から生成する:
+
+```sh
+brew install xcodegen   # 初回のみ
+cd gui && xcodegen
+open KildeGUI.xcodeproj # Xcode で KildeGUI スキームを Run
+```
+
+ビルドするとメニューバーに ● アイコンが出る。現在はディスプレイ・
+ウィンドウ・オーディオ機器の一覧表示のみ (録画 UI は後続のマイルストーン)。
+
 ## ロードマップ
 
 - **M0** ✅ 技術スパイク (ScreenCaptureKit の音声経路の検証)
 - **M1** ✅ CLI MVP (`kilde rec / devices / doctor / audio monitor / inspect`)
 - **M2** 領域指定の収録、グローバルホットキー、一時停止/再開
-- **M3** メニューバー GUI アプリ
+- **M3** メニューバー GUI アプリ (骨格 ✅ / 録画 UI・権限オンボーディング・通知は今後)
 
 ## コントリビューション
 

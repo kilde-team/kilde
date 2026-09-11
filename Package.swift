@@ -4,6 +4,12 @@ import PackageDescription
 let package = Package(
     name: "kilde",
     platforms: [.macOS(.v14)],
+    products: [
+        // GUI (gui/) からローカルパッケージ依存で参照される。
+        // unsafeFlags は kilde 実行ターゲット限定なので KildeCore は
+        // 外部から依存可能 (issue #17 の確認事項)
+        .library(name: "KildeCore", targets: ["KildeCore"]),
+    ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.5.0"),
     ],

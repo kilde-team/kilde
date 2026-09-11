@@ -24,16 +24,57 @@ DELAY=2        # 録画開始から音声再生までの遅延 (秒)
 PASS=0; FAIL=0; SKIP=0
 MONITOR_SET_UP=0
 SOUNDAPP_PID=""
+GUI_PID=""
 
 cleanup() {
     if [ "$MONITOR_SET_UP" = "1" ]; then
         "$KILDE" audio monitor teardown >/dev/null 2>&1 && echo "[cleanup] 既定出力を復元しました"
     fi
     [ -n "$SOUNDAPP_PID" ] && kill "$SOUNDAPP_PID" 2>/dev/null
+    # T12 が書いたテスト用の設定だけを消す。比較対象は「最後まで書き込みが成功した」
+    # 内容 (lastok) — 書き込み途中の失敗で前回の内容が残っていても消せるようにする。
+    # テスト中に別プロセスが保存した設定を消さないための一致チェックでもある
+    if [ "${CONFIG_TOUCHED:-0}" = "1" ] && cmp -s "$CONFIG" "$WORK/t12-config-lastok"; then
+        rm -f "$CONFIG"
+    fi
+    # 退避したユーザーの設定を戻す。テスト中に新しい設定が保存されていたら上書きしない
+    if [ "${CONFIG_MOVED:-0}" = "1" ]; then
+        if [ -e "$CONFIG" ] || [ -L "$CONFIG" ]; then
+            echo "[cleanup] テスト中に別の設定が保存されたため上書きしません。退避した設定: $CONFIG_BACKUP"
+        else
+            mv "$CONFIG_BACKUP" "$CONFIG" && echo "[cleanup] 設定ファイルを復元しました"
+        fi
+    fi
+    # T11 の GUI プロセスもどの分岐で失敗しても残さない
+    [ -n "$GUI_PID" ] && kill "$GUI_PID" 2>/dev/null
     echo ""
     echo "作業ディレクトリ (失敗時の調査用に残します): $WORK"
 }
 trap cleanup EXIT
+
+# 設定ファイル (~/.kilde/config.json) と KILDE_OUTPUT_DIR は rec の既定値を変える (issue #14)。
+# T3 / T4b / T5 などは「既定 = system / mixed」を前提にしているため、環境変数は外し、
+# ユーザーの設定ファイルはテスト中だけ退避して trap で必ず戻す (T9 の既定出力と同じ扱い)。
+# 強制終了 (kill -9 等) で戻らなかった場合は config.json.kilde-it-backup を手で戻す
+unset KILDE_OUTPUT_DIR
+CONFIG="$HOME/.kilde/config.json"
+CONFIG_BACKUP="$CONFIG.kilde-it-backup"
+if [ -e "$CONFIG_BACKUP" ] || [ -L "$CONFIG_BACKUP" ]; then
+    echo "前回の統合テストの退避ファイルが残っています: $CONFIG_BACKUP"
+    echo "中身を確認して $CONFIG に戻してから再実行してください"
+    exit 1
+fi
+# -f (通常ファイル) 限定だとディレクトリや symlink を取りこぼし、退避しないまま
+# T3〜T10 が ConfigStore の読み込みエラーで失敗する。存在するなら種類を問わず退避
+if [ -e "$CONFIG" ] || [ -L "$CONFIG" ]; then
+    # 退避に失敗したまま進むと T11 がユーザーの設定を上書きするので、ここで中止する
+    if ! mv "$CONFIG" "$CONFIG_BACKUP"; then
+        echo "設定ファイルを退避できません: $CONFIG" >&2
+        exit 1
+    fi
+    CONFIG_MOVED=1
+    echo "[setup] 設定ファイルをテスト中だけ退避します: $CONFIG_BACKUP"
+fi
 
 log()  { printf '\n\033[1m== %s ==\033[0m\n' "$*"; }
 ok()   { PASS=$((PASS+1)); printf '\033[32mPASS\033[0m  %s\n' "$*"; }
@@ -288,6 +329,93 @@ if [ "$EXIT_CODE" = "0" ] && num_between "${VD:-0}" 2.5 8; then
     ok "T10 SIGINT: exit=0・再生可能なファイル (duration=${VD}s)"
 else
     bad "T10 SIGINT: exit=$EXIT_CODE duration=${VD:-N/A}s — $WORK/t10.log"
+fi
+
+# ---- T11: GUI (メニューバーアプリ) のビルドと起動 ------------------------------
+# .xcodeproj はコミットされていないため xcodegen で生成する (未導入なら SKIP)。
+# メニューバーのアイコン表示そのものは目視確認になるため、ここでは
+# 「ビルドできる・起動する・正常終了する」を機械検証する
+
+if command -v xcodegen >/dev/null 2>&1; then
+    log "T11: GUI — KildeGUI のビルドと起動/終了"
+    # project.yml は kilde-dev 証明書での手動署名のため、証明書が無い環境では
+    # codesign が失敗する。作成手順は docs/DEVELOPMENT.md §3。
+    # find-identity は自己署名証明書が「信頼」設定でないと一覧に出ない
+    # (codesign 自体は動く) ため、存在確認は find-certificate で行う
+    if ! security find-certificate -c "kilde-dev" >/dev/null 2>&1; then
+        skip "T11 GUI: 署名用証明書 kilde-dev なし (docs/DEVELOPMENT.md §3 の手順で作成可)"
+    # 既に起動している KildeGUI は open が再利用してしまう (検証にも利用中アプリの
+    # 終了にも使えない) ので、その場合は検証しない
+    elif pgrep -x KildeGUI >/dev/null 2>&1; then
+        skip "T11 GUI: KildeGUI が既に起動中のためスキップ (終了してから再実行)"
+    elif (cd "$ROOT/gui" && xcodegen -q > "$WORK/t11-xcodegen.log" 2>&1 \
+        && xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI -configuration Debug build \
+           >> "$WORK/t11-xcodegen.log" 2>&1); then
+        GUI_APP=$(cd "$ROOT/gui" && xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI \
+            -configuration Debug -showBuildSettings 2>/dev/null \
+            | grep -m1 "BUILT_PRODUCTS_DIR" | awk '{print $3}')/KildeGUI.app
+        if open "$GUI_APP" && sleep 3 && GUI_PID=$(pgrep -x KildeGUI); then
+            if osascript -e 'tell application "KildeGUI" to quit' >/dev/null 2>&1 && sleep 1 \
+                && ! pgrep -x KildeGUI >/dev/null; then
+                GUI_PID=""
+                ok "T11 GUI: ビルド・起動・正常終了 (メニューバー表示は目視確認)"
+            else
+                bad "T11 GUI: 終了に失敗 — cleanup trap が kill します"
+            fi
+        else
+            bad "T11 GUI: 起動に失敗 — $WORK/t11-xcodegen.log"
+        fi
+    else
+        bad "T11 GUI: ビルドに失敗 — $WORK/t11-xcodegen.log"
+    fi
+else
+    skip "T11 GUI: xcodegen 未導入 (brew install xcodegen で実行可)"
+fi
+
+# ---- T12: 設定ファイル (issue #14) ----------------------------------------------
+# テスト用の設定を書き、終わったら消す (ユーザーの設定は冒頭で退避済み、cleanup で戻る)
+
+log "T12: 設定ファイル — outputDirectory が既定の保存先になる / 存在しない保存先は録画前に失敗"
+CFG_OUT="$WORK/t12-out"
+# テスト用の設定は $WORK に書いてから置く。3 段階の書き込みのうちどこで失敗しても、
+# cleanup が「最後まで書けた内容」(lastok) だけを比較して消せるようにする:
+#   tmp に printf → 成功したら CONFIG に cp → そこまで成功したら lastok に cp
+# 失敗したら戻り値 1 で呼び出し側に伝え、その場でテストを打ち切る
+write_test_config() {
+    printf "$@" > "$WORK/t12-config.tmp" || return 1
+    cp "$WORK/t12-config.tmp" "$CONFIG" || return 1
+    cp "$WORK/t12-config.tmp" "$WORK/t12-config-lastok" || return 1
+}
+if [ -e "$CONFIG" ] || [ -L "$CONFIG" ]; then
+    # 冒頭で退避したのにまた設定がある = テスト中に誰かが保存した。上書きしない
+    skip "T12: テスト中に $CONFIG が作られたため実行しません"
+else
+    mkdir -p "$CFG_OUT" "$(dirname "$CONFIG")"
+    CONFIG_TOUCHED=1
+    if ! write_test_config '{"outputDirectory": "%s", "defaultAudioSources": ["system"]}\n' "$CFG_OUT"; then
+        bad "T12a outputDirectory: テスト設定の書き込みに失敗 — $WORK/t12-config.tmp"
+    elif (cd "$WORK" && "$KILDE" rec --no-video --duration 3s > "$WORK/t12a.log" 2>&1) \
+        && [ "$(ls "$CFG_OUT"/kilde-*.m4a 2>/dev/null | wc -l | tr -d ' ')" = "1" ]; then
+        ok "T12a outputDirectory: 設定した保存先に既定名で保存"
+    else
+        bad "T12a outputDirectory: 保存先に出力がない — $WORK/t12a.log"
+    fi
+    if write_test_config '{"outputDirectory": "%s/no-such-dir"}\n' "$WORK"; then
+        START=$(date +%s)
+        # 誤って録画が始まっても 30 秒で止まる。録画前に失敗すれば数秒で返る
+        (cd "$WORK" && "$KILDE" rec --no-video --duration 30s > "$WORK/t12b.log" 2>&1)
+        EXIT_CODE=$?
+        ELAPSED=$(( $(date +%s) - START ))
+        if [ "$EXIT_CODE" = "1" ] && [ "$ELAPSED" -lt 5 ] && grep -q "出力先ディレクトリが存在しません" "$WORK/t12b.log"; then
+            ok "T12b 存在しない保存先: 録画前に exit=1 (${ELAPSED}s)"
+        else
+            bad "T12b 存在しない保存先: exit=$EXIT_CODE elapsed=${ELAPSED}s — $WORK/t12b.log"
+        fi
+    else
+        bad "T12b 存在しない保存先: テスト設定の書き込みに失敗 — $WORK/t12-config.tmp"
+    fi
+    cmp -s "$CONFIG" "$WORK/t12-config-lastok" && rm -f "$CONFIG"
+    CONFIG_TOUCHED=0
 fi
 
 # ---- サマリ -------------------------------------------------------------------

@@ -83,7 +83,7 @@ macOS 標準の QuickTime Player による画面収録は**システム音声を
 ```
 ┌─────────────────────────────┐    ┌─────────────────────────────┐
 │  kilde (CLI)                 │    │  KildeGUI (M3, メニューバー) │
-│  swift-argument-parser       │    │  SwiftUI + MenuBarExtra      │
+│  swift-argument-parser       │    │  NSStatusItem + NSPopover     │
 └──────────────┬──────────────┘    └──────────────┬──────────────┘
                │                                  │
                └────────────┬─────────────────────┘
@@ -220,6 +220,7 @@ kilde doctor                              権限と環境の診断 (不足して
 kilde audio monitor [status|setup|teardown]
                                           マルチ出力デバイス "kilde Monitor" の管理 (既定 status)
 kilde inspect <file>                      録画ファイルのトラック構成と音声レベル (RMS / peak)
+kilde config [show|set|unset|path]        設定ファイル ~/.kilde/config.json の表示・変更 (既定 show)
 ```
 
 `audio monitor` の操作は位置引数 (`--setup` / `--teardown` 形式ではない)。
@@ -228,19 +229,50 @@ kilde inspect <file>                      録画ファイルのトラック構�
 
 | オプション | 既定 | 説明 |
 |-----------|------|------|
-| `[<出力パス>]` / `--output, -o <path>` | 自動生成 | 既定 `kilde-yyyyMMdd-HHmmss.mov` (音声のみは `.m4a`)。位置引数と `-o` は同時指定不可。`~` は展開する |
+| `[<出力パス>]` / `--output, -o <path>` | 自動生成 | 既定 `kilde-yyyyMMdd-HHmmss.mov` (音声のみは `.m4a`)。保存先は `KILDE_OUTPUT_DIR` > 設定 `outputDirectory` > カレントディレクトリ (前二者が存在しないディレクトリなら録画開始前に終了コード 1)。位置引数と `-o` は同時指定不可。`~` は展開する |
 | `--display <番号>` | `0` | 収録ディスプレイ (`kilde devices` の番号)。範囲外は終了コード 3。`--window` 指定時は無視される (`all` は M2 — #12) |
 | `--window <windowID\|文字列>` | なし | ウィンドウ単位で収録。windowID の完全一致、またはタイトル / bundleID の部分一致 (大文字小文字を区別しない)。複数ヒット時は面積が最大のもの。見つからなければ終了コード 3。音声もそのアプリにスコープされる |
-| `--audio <source>` | `system` | `system` / `mic` / `device:<名前 or UID>` / `none`。複数回指定可。`device:` は入力デバイスの UID 完全一致または名前の部分一致。`none` は他ソースと併用不可、`--no-video` とも併用不可 |
-| `--audio-tracks <mixed\|separate>` | `mixed` | 音声ソースが複数のとき 1 トラックに合成 (既定) か、ソースごとにトラック分離か |
+| `--audio <source>` | `system` (設定 `defaultAudioSources`) | `system` / `mic` / `device:<名前 or UID>` / `none`。複数回指定可。`device:` は入力デバイスの UID 完全一致または名前の部分一致。`none` は他ソースと併用不可、`--no-video` とも併用不可 |
+| `--audio-tracks <mixed\|separate>` | `mixed` (設定 `audioTracks`) | 音声ソースが複数のとき 1 トラックに合成 (既定) か、ソースごとにトラック分離か |
 | `--no-video` | off | 録音 (音声のみ) モード。出力は M4A |
 | `--monitor` | off | 録画中だけ "kilde Monitor" を自動 setup し、終了時に teardown する。手動 setup 済みの Monitor には触れない。BlackHole 未導入なら終了コード 3、復元に失敗したら WARNING を出して終了コード 1 |
 | `--duration <dur>` | なし | `30` (秒) / `30s` / `5m` / `1h` / `1.5m`。経過で自動停止 (SIGINT と同じ経路) |
-| `--codec <c>` | `h264` | `h264` / `hevc` / `prores` |
-| `--fps <n>` | 指定なし (SCK 既定) | 上限フレームレート |
-| `--no-cursor` | off (写り込む) | カーソルを写し込まない |
+| `--codec <c>` | `h264` (設定 `codec`) | `h264` / `hevc` / `prores` |
+| `--fps <n>` | 指定なし (SCK 既定。設定 `fps`) | 上限フレームレート。1 以上 (0 以下は終了コード 64 — 以前は黙って無視していた) |
+| `--cursor` / `--no-cursor` | 写り込む (設定 `showsCursor`) | カーソルを写し込むか。`--cursor` は設定 `showsCursor: false` をその回だけ打ち消す用 (M1 の `--no-cursor` はそのまま使える) |
 | `--countdown <sec>` | `0` | 開始前カウントダウン |
-| `--preset meeting` | なし | `--audio system --audio mic` + mixed。`--window` 未指定なら on-screen ウィンドウを面積順に列挙して対話選択 (空欄 Enter = ディスプレイ全体)。EOF (非対話実行) と 3 回連続の無効入力は終了コード 1 で中止。明示した `--audio` / `--audio-tracks` はプリセットより優先 |
+| `--preset meeting` | なし | `--audio system --audio mic` + mixed。`--window` 未指定なら on-screen ウィンドウを面積順に列挙して対話選択 (空欄 Enter = ディスプレイ全体)。EOF (非対話実行) と 3 回連続の無効入力は終了コード 1 で中止。明示した `--audio` / `--audio-tracks` はプリセットより優先。プリセットは設定ファイルより優先 |
+
+### 設定ファイル (`~/.kilde/config.json`, M2 — #14)
+
+`kilde rec` の既定値を変える。CLI と GUI (M3) で共有するため、読み込みと解決は
+KildeCore (`ConfigStore` / `RecordSettings`) にある。値は CLI 引数と同じ文字列表現。
+
+| キー | 型 | 対応するオプション |
+|------|----|------------------|
+| `outputDirectory` | 文字列 (絶対パスか `~` 始まり。相対パスは GUI と共有できないため不可) | 出力パス省略時の保存先 |
+| `defaultAudioSources` | 文字列の配列 (`["system", "mic"]`、`["none"]` で音声なし) | `--audio` |
+| `audioTracks` | `mixed` / `separate` | `--audio-tracks` |
+| `codec` | `h264` / `hevc` / `prores` | `--codec` |
+| `fps` | 1 以上の整数 | `--fps` |
+| `showsCursor` | 真偽値 | `--cursor` / `--no-cursor` |
+| `hotkey` | 文字列 | 予約 (グローバルホットキー — #10) |
+
+- 優先順位: **CLI 引数 > `--preset` > 環境変数 > 設定ファイル > 既定値**。
+  環境変数は `KILDE_OUTPUT_DIR` (保存先) のみ
+- ファイルが無ければすべて既定値。壊れた JSON・未知のキー (typo)・不正値は、黙って既定値に
+  倒さず `kilde rec` を録画開始前に終了コード 1 で止める (「設定したのに効かない」を防ぐ)
+- `kilde config set <key> <value>` は値を検証してから書く (不正値・未知のキーは終了コード 64)。
+  `defaultAudioSources` はカンマ区切り (`kilde config set defaultAudioSources system,mic`)。
+  名前にカンマを含むデバイスは JSON 配列 (`'["device:A, B","mic"]'`) で指定し、`show` もその場合だけ
+  JSON 配列で表示する (表示をそのまま `set` に戻せる)。
+  `kilde config unset <key>` で既定値に戻す。`kilde config show` は未設定の項目に既定値を併記する
+- 手編集のファイルも `set` と同じ基準で検証する (値の前後の空白も不正)。`ConfigStore.save()` も
+  保存前に検証する (不正値を書くと次回の `kilde rec` が自分の書いたファイルで失敗するため)
+- 壊れたファイルに対する `set` / `unset` は、空の設定で上書きせずに失敗する (他の設定を黙って
+  失わないため)。手で直すか削除してから再実行する (`kilde config path` で場所を表示)
+- 設定と保存先の検証は `--preset meeting` の対話と `--countdown` より前に行う。
+  既定の出力名の時刻は、その後の録画開始時点で取り直す
 
 ### 使用例
 
@@ -327,10 +359,14 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
 
 ## 9. GUI (M3) 概要
 
-- SwiftUI `MenuBarExtra`。アイコンの状態反映 (待機/録画中 + 経過時間)。
+- メニューバー UI: `NSStatusItem` + `NSPopover` を AppDelegate で手動管理、
+  中身は SwiftUI (macOS 26 実機で SwiftUI `MenuBarExtra` の `.window` パネルが
+  開かないことを切り分け済み — 詳細は issue #17 の PR)。アイコンの状態反映
+  (待機/録画中 + 経過時間)。
 - ポップオーバー: ディスプレイ・音声ソース選択、Rec/Stop、出力先指定、
   レベルメーター、録音結果の通知 (Finder reveal)。
-- グローバルホットキー (開始/停止)。CLI と設定 (出力先・既定ソース) を共有。
+- グローバルホットキー (開始/停止)。CLI と設定 (出力先・既定ソース) を共有
+  (`~/.kilde/config.json` と `KildeCore.ConfigStore` / `RecordSettings` — §6、#14 で実装済み)。
 - 権限の初回ガイドを GUI で丁寧に出す (CLI の `doctor` と同一ロジック)。
 
 ## 10. リポジトリ構成と開発プロセス
@@ -347,9 +383,10 @@ kilde/
 │   └── kilde/               # CLI (引数解析と表示のみ) + Info.plist (リンカで埋め込み)
 ├── Tests/KildeCoreTests/    # 単体テスト (権限不要・CI で実行 — issue #5)
 ├── scripts/
-│   ├── integration-test.sh  # 実録画の統合テスト T1〜T10 (要権限・音量、ローカルのみ)
+│   ├── integration-test.sh  # 実録画の統合テスト T1〜T12 (要権限・音量、ローカルのみ)
 │   └── soundapp.swift       # 統合テスト用の「音を鳴らすウィンドウ」アプリ
-├── gui/                     # M3: Xcode プロジェクト (KildeCore を参照 — 未作成)
+├── gui/                     # M3: メニューバー GUI (XcodeGen project.yml が正本で
+│                            #   .xcodeproj は生成物 — 骨格は #17、録画 UI は #18 以降)
 ├── docs/                    # DESIGN.md / SPIKE-NOTES.md / DEVELOPMENT.md
 ├── CLAUDE.md / AGENTS.md    # AI エージェント向けの作業指示
 └── README.md
@@ -359,7 +396,7 @@ kilde/
   `scripts/integration-test.sh` に置き換えた (権限が必要なため CI には載せない)。
 - Swift 6 相当・SPM。依存は `swift-argument-parser` のみで始める。
 - **ローカル統合テスト**: `scripts/integration-test.sh` — 実際に録画・音声再生を
-  行い、出力ファイルのトラック構成と RMS を機械検証する (T1〜T10、権限と
+  行い、出力ファイルのトラック構成と RMS を機械検証する (T1〜T12、権限と
   音量が必要、所要 ~2 分)。テスト用の音鳴らしウィンドウアプリ
   (`scripts/soundapp.swift`) を同梱。
 - CI: GitHub Actions で `swift build` / `swift test` (単体のみ。スモークは

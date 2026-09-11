@@ -16,11 +16,12 @@ struct RecCommand: ParsableCommand {
     @Option(help: "ウィンドウ単位で収録 (title / bundleID / windowID の部分一致)。音声もそのアプリにスコープされる")
     var window: String?
 
-    @Option(help: "音声ソース。system / mic / device:<名前orUID> / none。複数回指定可 (既定 system)")
+    @Option(help: "音声ソース。system / mic / device:<名前orUID> / none。複数回指定可 (既定 system。設定 defaultAudioSources で変更可)")
     var audio: [String] = []
 
-    @Option(help: "複数音声ソースの処理: mixed = 1 トラックに合成 (既定) / separate = トラック分離")
-    var audioTracks: String = "mixed"
+    // 設定ファイルの値と区別するため、既定値を持たせず「未指定 = nil」にしている
+    @Option(help: "複数音声ソースの処理: mixed = 1 トラックに合成 (既定) / separate = トラック分離 (設定 audioTracks で変更可)")
+    var audioTracks: String?
 
     @Flag(help: "録音 (音声のみ) モード。出力は M4A")
     var noVideo: Bool = false
@@ -28,7 +29,7 @@ struct RecCommand: ParsableCommand {
     @Flag(help: "BlackHole マルチ出力デバイスをセッションに紐付けて自動 setup/teardown (--audio device:BlackHole... と組み合わせる)")
     var monitor: Bool = false
 
-    @Option(name: .shortAndLong, help: "出力先パス (既定 kilde-yyyyMMdd-HHmmss.mov / .m4a)")
+    @Option(name: .shortAndLong, help: "出力先パス (既定 kilde-yyyyMMdd-HHmmss.mov / .m4a。保存先は KILDE_OUTPUT_DIR > 設定 outputDirectory > カレントディレクトリ)")
     var output: String?
 
     @Argument(help: "出力先パス (--output と同じ。kilde rec demo.mov のように使える)")
@@ -37,14 +38,15 @@ struct RecCommand: ParsableCommand {
     @Option(help: "自動停止までの時間 (例: 30s, 5m)")
     var duration: String?
 
-    @Option(help: "映像コーデック: h264 (既定) / hevc / prores")
-    var codec: String = "h264"
+    @Option(help: "映像コーデック: h264 (既定) / hevc / prores (設定 codec で変更可)")
+    var codec: String?
 
-    @Option(help: "上限フレームレート")
+    @Option(help: "上限フレームレート (1 以上。0 以下は終了コード 64。未指定は設定 fps、どちらも無ければ SCK 既定)")
     var fps: Int?
 
-    @Flag(help: "カーソルを写し込まない")
-    var noCursor: Bool = false
+    // --no-cursor は M1 からの互換。設定 showsCursor=false を 1 回だけ打ち消せるよう --cursor も受ける
+    @Flag(inversion: .prefixedNo, help: "カーソルを写り込む / 写り込まない (既定: 写り込む。設定 showsCursor で変更可、--cursor は false をその回だけ打ち消す)")
+    var cursor: Bool?
 
     @Option(help: "開始前カウントダウン (秒)")
     var countdown: Int = 0
@@ -65,14 +67,17 @@ struct RecCommand: ParsableCommand {
         if let preset, preset != "meeting" {
             throw ValidationError("不明なプリセット: \(preset) (利用可能: meeting)")
         }
-        guard audioTracks == "mixed" || audioTracks == "separate" else {
+        if let audioTracks, AudioTrackPolicy(name: audioTracks) == nil {
             throw ValidationError("--audio-tracks は mixed か separate を指定してください")
         }
-        guard VideoCodecKind(rawValue: codec) != nil else {
+        if let fps, fps <= 0 {
+            throw ValidationError("--fps は 1 以上の整数を指定してください")
+        }
+        if let codec, VideoCodecKind(rawValue: codec) == nil {
             throw ValidationError("--codec は h264 / hevc / prores を指定してください")
         }
-        for a in audio {
-            _ = try parseAudioSource(a)
+        for a in audio where a != "none" && AudioSourceSpec.parse(a) == nil {
+            throw ValidationError("--audio の値が不正: \(a) (system / mic / device:<名前> / none)")
         }
         if let d = duration, parseDuration(d) == nil {
             throw ValidationError("--duration の形式が不正: \(d) (例: 30s, 5m)")
@@ -85,40 +90,49 @@ struct RecCommand: ParsableCommand {
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
 
+        // 設定ファイルの不正は対話 (meeting のウィンドウ選択) より前に失敗させる
+        let config: KildeConfig
+        do {
+            config = try ConfigStore.load()
+        } catch {
+            cliError(error)
+        }
+
         var options = RecordOptions()
-
-        if preset == "meeting" {
-            options.audioSources = [.system, .mic]
-            options.trackPolicy = .mixed
-            if window == nil {
-                do {
-                    if let picked = try promptWindowSelection() {
-                        window = picked
-                    }
-                } catch {
-                    cliError(error)
-                }
-            }
-        }
-
         options.displayIndex = display ?? 0
-        options.windowMatch = window
-        if !audio.isEmpty {
-            if audio.contains("none") {
-                options.audioSources = []
-            } else {
-                options.audioSources = audio.compactMap { try? parseAudioSource($0) }
+        options.wantsVideo = !noVideo
+        options.duration = parseDuration(duration)
+        options.autoMonitor = monitor
+
+        // CLI 引数 > プリセット > 環境変数 > 設定ファイル > 既定値 の解決は KildeCore 側
+        // (GUI も同じ規則で設定を読むため)。出力 URL もここで一度だけ決まる
+        var overrides = RecordOverrides()
+        overrides.outputPath = output ?? outputPositional
+        overrides.audio = audio
+        overrides.audioTracks = audioTracks
+        overrides.codec = codec
+        overrides.fps = fps
+        overrides.showsCursor = cursor
+        overrides.meetingPreset = preset == "meeting"
+        do {
+            try RecordSettings.apply(overrides, config: config,
+                                     environment: ProcessInfo.processInfo.environment,
+                                     to: &options)
+        } catch {
+            cliError(error)
+        }
+
+        // meeting のウィンドウ選択は設定・保存先の検証を通ってから (不正な設定で対話後に失敗させない)
+        if preset == "meeting" && window == nil {
+            do {
+                if let picked = try promptWindowSelection() {
+                    window = picked
+                }
+            } catch {
+                cliError(error)
             }
         }
-        options.trackPolicy = audioTracks == "separate" ? .separate : .mixed
-        options.wantsVideo = !noVideo
-        let outputPath = output ?? outputPositional
-        options.outputURL = outputPath.map { URL(fileURLWithPath: NSString(string: $0).expandingTildeInPath) }
-        options.duration = parseDuration(duration)
-        options.codec = VideoCodecKind(rawValue: codec) ?? .h264
-        options.fps = fps
-        options.showsCursor = !noCursor
-        options.autoMonitor = monitor
+        options.windowMatch = window
 
         if countdown > 0 {
             for i in stride(from: countdown, through: 1, by: -1) {
@@ -128,11 +142,18 @@ struct RecCommand: ParsableCommand {
             }
             print("                        \r", terminator: "")
         }
+        if overrides.outputPath == nil && (countdown > 0 || preset == "meeting") {
+            // 既定の出力名は録画開始時刻にしたい。検証は対話・カウントダウンより前に済ませたが、
+            // その間に時刻が進むので既定名だけ取り直す (解決規則を揃えるため同じ apply を再実行する)
+            do {
+                try RecordSettings.apply(overrides, config: config,
+                                         environment: ProcessInfo.processInfo.environment,
+                                         to: &options)
+            } catch {
+                cliError(error)
+            }
+        }
 
-        // 表示と Recorder が同一 URL を使うように一度だけ解決する
-        // (defaultOutputName を別々に評価すると秒の境界で不一致になり得る)
-        options.outputURL = options.outputURL
-            ?? URL(fileURLWithPath: defaultOutputName(ext: options.wantsVideo ? "mov" : "m4a"))
         let recorder = Recorder(options: options)
         installStopSignalHandler { [weak recorder] in
             recorder?.stop()
@@ -160,19 +181,6 @@ struct RecCommand: ParsableCommand {
     }
 
     // MARK: - 内部
-
-    private func parseAudioSource(_ s: String) throws -> AudioSourceSpec {
-        switch s {
-        case "system": return .system
-        case "mic": return .mic
-        case "none": return .system  // "none" は run() 内で個別処理 (ソースなし)
-        default:
-            if s.hasPrefix("device:") {
-                return .device(String(s.dropFirst("device:".count)))
-            }
-            throw ValidationError("--audio の値が不正: \(s) (system / mic / device:<名前> / none)")
-        }
-    }
 
     /// meeting プリセット用のウィンドウ対話選択。nil ならディスプレイ全体。
     /// 戻り値は windowID (選択したウィンドウを確実に再解決できる)。

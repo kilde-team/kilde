@@ -26,10 +26,10 @@ QuickTime Player では録れない**システム音声を含む録画・録音*
 | ブランチ | `main` (M1 CLI MVP = PR #1 を 2026-09-11 にマージ済み)。作業は issue ごとに `feature/<N>-<slug>` |
 | M0 技術スパイク | ✅ 完了 (S1–S9)。S10 会議アプリ実地検証は issue #2 |
 | M1 CLI MVP | ✅ 実装済み — `rec` / `devices` / `doctor` / `audio monitor` / `inspect` |
-| 統合テスト | `scripts/integration-test.sh` (T1–T10)。ローカル実録画、全 PASS 実績あり |
-| 単体テスト (`Tests/`) | **未作成** — issue #5 |
-| CI (`.github/`) | **未作成** — issue #6 |
-| GUI (`gui/`) | **未作成** — M3 (issue #17〜#20) |
+| 統合テスト | `scripts/integration-test.sh` (T1–T12)。ローカル実録画、全 PASS 実績あり。T11 (GUI) は xcodegen・kilde-dev 証明書が無い環境や KildeGUI 起動中は SKIP |
+| 単体テスト (`Tests/`) | ✅ KildeCoreTests (権限不要、CI で実行 — issue #5 完了) |
+| CI (`.github/`) | ✅ swift build / swift test (macos-15) — issue #6 完了 |
+| GUI (`gui/`) | 骨格 ✅ (issue #17: NSStatusItem + NSPopover + KildeCore 参照 — macOS 26 の MenuBarExtra 不具合を回避)。録画 UI・オンボーディングは #18〜#20 |
 | ライセンス / OSS 整備 | ✅ `LICENSE` (MIT)、`CONTRIBUTING.md`、`.github/` の Issue・PR テンプレート (issue #21) |
 | 残タスク全体 | GitHub issue #2〜#25 (4 マイルストーン)。§8 の役割分担・依存順を参照 |
 
@@ -45,6 +45,7 @@ Sources/kilde/           CLI 層 — 引数解析とコンソール出力のみ�
   DoctorCommand.swift      doctor (権限診断 + 要求)
   AudioCommand.swift       audio monitor status|setup|teardown
   InspectCommand.swift     inspect FILE
+  ConfigCommand.swift      config show|set|unset|path
   Info.plist               リンカで実行ファイルに埋め込む (§5 参照)
 Sources/KildeCore/       UI 非依存のコア。将来 GUI と共用する
   Recording/Recorder.swift     セッションの指揮 (RecordOptions → 実行 → Summary)
@@ -58,9 +59,15 @@ Sources/KildeCore/       UI 非依存のコア。将来 GUI と共用する
   Support/Permissions.swift        TCC 権限の確認・要求
   Support/FileInspection.swift     出力ファイルの検証 (inspect / 統合テストが使用)
   Support/Errors.swift             KilError → 終了コード
+  Support/Config.swift             ~/.kilde/config.json (ConfigStore) と rec 既定値の優先順位解決 (RecordSettings)
   Support/{AsyncUtil,Misc}.swift   awaitSync (同期コンテキスト専用・noasync) / parseDuration / 出力名生成
-scripts/integration-test.sh  T1–T10 の実録画テスト
+scripts/integration-test.sh  T1–T12 の実録画テスト (T11 GUI / T12 設定ファイル)
 scripts/soundapp.swift       テスト用「音を鳴らすウィンドウ」アプリ
+gui/                         M3 メニューバー GUI (XcodeGen: project.yml が正本)
+  Sources/KildeGUIApp.swift    アプリのエントリポイント (AppDelegate 接続)
+  Sources/AppDelegate.swift     NSStatusItem + NSPopover の手動管理
+  Sources/ContentView.swift    ディスプレイ/ウィンドウ/オーディオ一覧の最小パネル
+  Resources/Info.plist         LSUIElement・権限説明文字列 (バンドル用)
 ```
 
 **レイヤ規約: CLI 層にロジックを足さない。** 録画の挙動に関わる変更は必ず
@@ -75,12 +82,17 @@ swift build                       # ビルド (バイナリは .build/debug/kild
 .build/debug/kilde rec [出力パス]  # 録画・録音 (Ctrl+C で停止)
 .build/debug/kilde audio monitor status|setup|teardown
 .build/debug/kilde inspect FILE   # トラック構成・RMS/peak
+.build/debug/kilde config show|set|unset|path  # ~/.kilde/config.json (rec の既定値)
 ```
 
 `rec` の主なオプション: `--display` / `--window` / `--audio`(複数可) /
 `--audio-tracks mixed|separate` / `--no-video` / `--monitor` / `--output,-o` /
-`--duration` / `--codec h264|hevc|prores` / `--fps` / `--no-cursor` /
+`--duration` / `--codec h264|hevc|prores` / `--fps` / `--cursor|--no-cursor` /
 `--countdown` / `--preset meeting`
+
+既定値の優先順位は **CLI 引数 > `--preset` > 環境変数 (`KILDE_OUTPUT_DIR`) > 設定ファイル > 既定値**
+(DESIGN.md §6「設定ファイル」)。CLI のオプションは「未指定 = nil」で受け、解決は
+`RecordSettings.apply()` に任せる — CLI 側に既定値を書くと設定ファイルが効かなくなる
 
 **変えてはいけない契約 (DESIGN.md §6 / Errors.swift):**
 
