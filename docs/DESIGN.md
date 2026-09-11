@@ -200,7 +200,7 @@ SCStream(contentFilter, configuration)
   (`MovieWriter.firstPTSOffsets` は書き込み先ラベルがキー。mixed では `mixed` トラックの差になる)。
   これが同期の健全性指標で、マイクは起動遅延ぶん +0.3s 前後までを想定内とする
   (マイクを SCStream より先に起動して吸収 — SPIKE-NOTES F-D)。
-  長時間録画でのドリフトは未計測 (issue #3)。
+  長時間録画でのドリフトは `scripts/drift-test.sh` で計測する (手順と結果は SPIKE-NOTES F-E、issue #3)。
 
 ### 停止の確実性 (最重要 UX)
 
@@ -409,6 +409,8 @@ kilde/
   行い、出力ファイルのトラック構成と RMS を機械検証する (T1〜T12、権限と
   音量が必要、所要 ~2 分)。テスト用の音鳴らしウィンドウアプリ
   (`scripts/soundapp.swift`) を同梱。
+  T11 (GUI のビルド・起動・終了) は xcodegen 未導入 / kilde-dev 証明書なし /
+  KildeGUI 起動中の環境では SKIP する (docs/DEVELOPMENT.md §4 の T11 参照)。
 - CI: GitHub Actions で `swift build` / `swift test` (単体のみ。スモークは
   手動マトリクス)。
 - ロードマップ:
