@@ -365,6 +365,16 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
   (待機/録画中 + 経過時間)。
 - ポップオーバー: ディスプレイ・音声ソース選択、Rec/Stop、出力先指定、
   レベルメーター、録音結果の通知 (Finder reveal)。
+
+> **実装 (issue #18):** 録画の状態は AppDelegate が持つ `RecordingController` にあり、
+> `Recorder.start()` + `events` を購読して状態・経過時間・ソース別ピークを出す。
+> ポップオーバー (`ContentView`) は表示と操作の受け渡しだけなので、閉じても録画は続く。
+> 選択 (収録対象・音声ソース・トラック方針・保存先) は KildeCore の `RecordRequest` が
+> `RecordSettings.apply()` を通して `RecordOptions` にする — CLI と同じ解決規則・同じ
+> `Recorder`。設定ファイルは初期値として読み、「既定にする」を押したときだけ書き戻す
+> (GUI の操作で CLI の既定を黙って変えないため)。保存先の既定は `~/Movies`
+> (GUI はカレントディレクトリが `/`)。録画中の終了は停止 → ファイナライズを待ってから。
+> ウィンドウ一覧のサムネイルは `DisplayCatalog.windowThumbnails` (SCScreenshotManager)。
 - グローバルホットキー (開始/停止)。CLI と設定 (出力先・既定ソース) を共有
   (`~/.kilde/config.json` と `KildeCore.ConfigStore` / `RecordSettings` — §6、#14 で実装済み)。
 - 権限の初回ガイドを GUI で丁寧に出す (CLI の `doctor` と同一ロジック)。

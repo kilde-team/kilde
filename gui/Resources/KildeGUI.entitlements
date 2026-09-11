@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Hardened Runtime 下でマイク・入力デバイス (MicStream / AVCaptureSession) を使うのに必須。
+	     欠けるとクラッシュもエラーもなく無音のトラックになる (issue #17 の project.yml コメント参照) -->
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
+</dict>
+</plist>
