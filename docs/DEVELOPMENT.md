@@ -152,9 +152,14 @@ KILDE_GUI_SELFTEST_RECORD=3 KILDE_GUI_SELFTEST_OUTPUT=/tmp "$APP/Contents/MacOS/
 ../.build/debug/kilde inspect /tmp/kilde-*.mov   # CLI の録画と同じトラック構成か確認
 ```
 
-`KILDE_GUI_SELFTEST_AUDIO=none` を付けると映像だけを録ります (音声出力が使えない環境 —
-MacBook を閉じたクラムシェルで既定出力が内蔵スピーカーのとき等は SCK の音声開始が
-`-3818` で失敗するため、その場合でも GUI → Recorder の経路だけは確かめられる)。
+`KILDE_GUI_SELFTEST_AUDIO=none` を付けると映像だけを録ります (音声出力が使えない環境でも
+GUI → Recorder の経路だけは確かめられる)。
+
+> **検証時の環境の注意**: 画面がロックされていると SCK はフレームを出さないため、録画は成功
+> (exit 0) するのに `kilde inspect` が `duration=0.00s` になります (CLI も同じ)。実録画の検証は
+> ロックを解除してから行ってください。また、蓋を閉じたクラムシェル運用で既定出力が内蔵スピーカーだと、
+> `afplay` が `AudioQueueStart failed (-66681)`、SCK のシステム音声が `-3818` で失敗します。
+> 既定出力を外部スピーカーや BlackHole ループバックに変えてから検証してください。
 
 > **マイクのエンタイトルメント**: Hardened Runtime 下でマイク・入力デバイスを使うには
 > `com.apple.security.device.audio-input` が必要です (`gui/Resources/KildeGUI.entitlements`)。
