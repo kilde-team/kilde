@@ -1,0 +1,19 @@
+AGENTS.md
+  s_4a81b712cd34b8::t_e9174a0792f22d 34-56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "27e645bf669460884f54deaf8933982c4728f128",
+  "prompts": {},
+  "sessions": {
+    "s_4a81b712cd34b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e105894-1af4-4be4-b31a-cf222ebe28db",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
