@@ -75,7 +75,13 @@ kilde rec --no-video --window zoom 会議.m4a          # 特定アプリの音�
 kilde rec --duration 30s --codec hevc out.mov       # 30 秒で自動停止
 kilde devices                                       # 収録対象の ID を調べる
 kilde inspect out.mov                               # 出来上がりの検証
+kilde config set outputDirectory ~/Movies/kilde     # 既定の保存先 (~/.kilde/config.json)
+kilde config show                                   # 設定値と既定値の一覧
 ```
+
+設定ファイルの値は `kilde rec` の既定値になり、CLI 引数が常に優先されます
+(キーと優先順位は DESIGN.md §6「設定ファイル」)。開発中に実環境の設定の影響を
+避けたいときは `kilde config show` で確認し、`kilde config unset <key>` で戻してください。
 
 `--window` は windowID の完全一致 / ウィンドウタイトル / bundleID の部分一致で解決し、
 複数ヒットしたら**面積が最大のもの**を選びます。曖昧なときは `kilde devices` で
@@ -160,6 +166,9 @@ scripts/integration-test.sh
 - テスト中に一時的に既定の出力デバイスが `kilde Monitor` に切り替わります
   (T9)。スクリプトは `trap` で必ず復元しますが、強制終了した場合は
   `kilde audio monitor teardown` を手動で実行してください
+- `~/.kilde/config.json` がある場合、テスト中だけ `config.json.kilde-it-backup` に退避して
+  終了時に戻します (T3 などは既定値が前提のため)。強制終了して退避ファイルが残った場合は
+  手で戻してください (残っているとスクリプトは実行を拒否します)
 
 **テスト項目:**
 
@@ -177,6 +186,7 @@ scripts/integration-test.sh
 | T9 | `audio monitor` + `--audio device:BlackHole...` — BlackHole 未導入なら SKIP |
 | T10 | SIGINT — Ctrl+C 相当で exit 0・再生可能なファイルが残る |
 | T11 | GUI — KildeGUI のビルド・起動・正常終了 (xcodegen 未導入 / kilde-dev 証明書なし / KildeGUI 起動中は SKIP。メニューバー表示は目視確認) |
+| T12 | 設定ファイル — `outputDirectory` が既定の保存先になる / 存在しない保存先は録画前に exit 1 |
 
 作業ディレクトリ (録画物とログ) は失敗調査のため削除されず、最後に
 パスが表示されます。
@@ -184,6 +194,18 @@ scripts/integration-test.sh
 テスト用に「自分で音を鳴らすウィンドウ」を持つ最小アプリ
 `scripts/soundapp.swift` を同梱しており、スクリプトが自動でコンパイルして使います
 (T6–T8 のウィンドウ音声スコープ検証用)。
+
+### A/V ドリフト計測 (長時間録画)
+
+```sh
+scripts/drift-test.sh [録画時間 (既定 15m)] [マーカー間隔秒 (既定 30)] [separate|mixed|both]
+```
+
+点滅 + ビープのマーカーを出すウィンドウを収録し、映像 / system / mic のずれが
+録画中に増えていかないかを ms 単位で出します (issue #3)。統合テストとは別物で、
+既定の 15 分 × 2 モードで ~31 分かかります。前提は統合テストと同じ (権限・スピーカー音量) に加えて、
+静かな環境で行い、計測中は `KildeDriftMarker` ウィンドウを隠さないこと。
+仕組みと結果の記録先は SPIKE-NOTES.md F-E です。
 
 ### 単体テスト
 
@@ -201,6 +223,7 @@ SCK / AVCapture / CoreAudio の実デバイスには触れません。
 | `AudioMixerTests` | 2 ソース合成とクリップ、44.1k mono → 48k stereo、ギャップの無音埋め / 重複の無視、初回データ待ち (`firstDataGraceFrames`) と `flush()`、非数値 PTS / `decodeFailures` |
 | `MonitorDeviceStateTests` | `~/.kilde/monitor-state.json` の入出力 (`MonitorDevice.stateDirectory` を一時ディレクトリに差し替える) |
 | `KilErrorTests` | `KilError.exitCode` の 1/2/3 契約 |
+| `ConfigTests` | `~/.kilde/config.json` の入出力と不正値 (壊れた JSON・未知のキー・型違い・範囲外)、`rec` 既定値の優先順位 (CLI > プリセット > `KILDE_OUTPUT_DIR` > 設定 > 既定)、存在しない保存先の事前検出 (`ConfigStore.directory` を一時ディレクトリに差し替える) |
 | `FileInspectionTests` | 生成した正弦波ファイルに対し、`FileInspection.report(url:)` の同期版と async 版 (issue #35) が同じ RMS / peak / 長さを返す |
 | `AudioSampleBufferTestHelper` | テスト用の Float32 / Int16 `CMSampleBuffer` 生成 |
 
