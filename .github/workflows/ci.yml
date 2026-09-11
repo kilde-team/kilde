@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Swift build and test
+    # macos-15 の既定 Xcode を使用する。ローカルの Xcode 26.5 との差異は
+    # swift --version + SDK バージョンのハッシュをキャッシュキーに含めて混在を防ぐ。
+    # macOS 14 / 15 の実機差異は手動検証 issue #4 の対象とする。
+    runs-on: macos-15
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: swift --version
+
+      - name: Hash toolchain version
+        id: toolchain
+        # swift --version だけだと SDK のマイナーアップデート (コンパイラ不変) を
+        # 捕捉できないため、SDK バージョンもハッシュに含める
+        run: |
+          hash="$( { swift --version 2>&1; xcrun --show-sdk-version; } | shasum | cut -c1-12)"
+          echo "hash=$hash" >> "$GITHUB_OUTPUT"
+
+      - name: Cache SwiftPM build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            .build
+            ~/Library/Caches/org.swift.swiftpm
+          key: ${{ runner.os }}-swift-${{ steps.toolchain.outputs.hash }}-${{ hashFiles('Package.resolved', 'Package.swift') }}
+          restore-keys: |
+            ${{ runner.os }}-swift-${{ steps.toolchain.outputs.hash }}-
+
+      - name: Build release binary
+        run: swift build -c release
+
+      - name: Verify embedded Info.plist
+        run: otool -P .build/release/kilde | grep -q NSMicrophoneUsageDescription
+
+      - name: Run unit tests
+        run: swift test
+
+      # 統合テストは画面収録・マイク権限、スピーカー音量、実録画デバイスが必要なため
+      # CI では実行しない。ローカルの scripts/integration-test.sh で実行する。
