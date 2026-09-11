@@ -52,6 +52,11 @@ stop_rec() {
 }
 trap stop_rec INT TERM HUP
 
+# プロセスが生きているか。終了してまだ回収されていないゾンビにも kill -0 は成功するので、ps で状態を見る
+alive() {
+    [ -n "$1" ] && [ -n "$(ps -o stat= -p "$1" 2>/dev/null | grep -v Z)" ]
+}
+
 case "$MODE" in separate|mixed|both) ;; *) echo "モードは separate / mixed / both"; exit 2 ;; esac
 
 # マーカー間隔は drift-analyze の探索窓 (−0.5〜+1.0 秒、幅 1.5 秒) より長くないと、
@@ -95,37 +100,57 @@ run_one() { # run_one <separate|mixed>
     echo "== $tracks: ${DUR} 録画 (マーカー ${INTERVAL}s 間隔、マイク: $MIC) =="
     "$WORK/drift-marker" "$INTERVAL" "$LIFETIME" > "$WORK/marker-$tracks.log" 2>&1 &
     MARKER_PID=$!
-    sleep 2   # ウィンドウが出てから --window で解決させる
+    # ウィンドウが表示されてから --window で解決させる。固定の sleep だと起動が遅いときに解決に失敗するので、
+    # drift-marker の "ready" を最大 15 秒待つ (マーカーの寿命の余裕 30 秒の内側に収める)
+    local waited=0
+    until grep -q '^ready' "$WORK/marker-$tracks.log" 2>/dev/null; do
+        if ! alive "$MARKER_PID"; then
+            echo "drift-marker が起動直後に終了しました: $WORK/marker-$tracks.log"
+            tail -5 "$WORK/marker-$tracks.log"
+            wait "$MARKER_PID" 2>/dev/null; MARKER_PID=""
+            return 1
+        fi
+        [ $INTERRUPTED -eq 1 ] && return 130
+        [ $waited -ge 30 ] && { echo "drift-marker のウィンドウが 15 秒以内に表示されませんでした"; return 1; }
+        sleep 0.5; waited=$((waited + 1))
+    done
+    sleep 1   # 表示の直後は画面収録の一覧 (SCShareableContent) への反映が遅れうるので少し余裕を置く
     [ $INTERRUPTED -eq 1 ] && return 130
-    # kilde rec はバックグラウンドで起動して wait する。フォアグラウンドで実行すると、ラッパーが受けた
-    # シグナルを録画終了まで処理できず、stop_rec で kilde に転送できないため
+    # kilde rec はバックグラウンドで起動し、終わるまで 1 秒ごとに見張る。フォアグラウンドで実行すると、
+    # ラッパーが受けたシグナルを録画終了まで処理できず、kilde に転送できないため。見張りの間にやること:
+    # - 中断中は SIGINT を送り続ける。kilde がシグナルハンドラを登録する前 (起動直後) に届いた SIGINT は
+    #   失われる (バックグラウンドのジョブは SIGINT を無視した状態で起動する) ので、1 回では足りない。
+    #   Recorder.stop() は 2 回目以降を無視するので送り続けても問題ない
+    # - マーカーが落ちたら (ビープの再生失敗など) その録画はマーカーが欠けるので、録画を止めて失敗にする。
+    #   録画を最後まで (最大 15 分) 続けてから捨てることになるのを避けるため
     "$KILDE" rec --window KildeDriftMarker --audio system --audio "$MIC" --audio-tracks "$tracks" \
         --duration "$DUR" --output "$out" > "$WORK/rec-$tracks.log" 2>&1 &
     REC_PID=$!
+    local marker_died=0
+    while alive "$REC_PID"; do
+        alive "$MARKER_PID" || marker_died=1
+        if [ $INTERRUPTED -eq 1 ] || [ $marker_died -eq 1 ]; then kill -INT "$REC_PID" 2>/dev/null; fi
+        sleep 1
+    done
     local rc=0
-    # trap したシグナルが来ると wait はその場で戻る (rc > 128)。kilde がファイナライズを終えて
-    # 終了するまで wait し直し、kilde 自身の終了コードを得る
     wait "$REC_PID"; rc=$?
-    while kill -0 "$REC_PID" 2>/dev/null; do wait "$REC_PID"; rc=$?; done
     REC_PID=""
-    # マーカーは録画より長く生きるはずなので、録画終了時点で居なければ途中で落ちている
-    # (ビープの再生失敗など)。その録画はマーカーが欠けているので計測として扱わない
-    local marker_alive=1
-    kill -0 "$MARKER_PID" 2>/dev/null || marker_alive=0
+    # 見張りの隙間で落ちた場合も含め、録画終了時点でマーカーが居なければ失敗にする
+    alive "$MARKER_PID" || marker_died=1
     kill "$MARKER_PID" 2>/dev/null; wait "$MARKER_PID" 2>/dev/null; MARKER_PID=""
     if [ $INTERRUPTED -eq 1 ]; then
         echo "中断しました (kilde rec exit=$rc)。途中までの録画の解析と、以降のモードは行いません"
         echo "途中までを解析する場合: $WORK/drift-analyze \"$out\" $INTERVAL"
         return 130
     fi
+    if [ $marker_died -eq 1 ]; then
+        echo "drift-marker が録画中に終了したため、録画を止めました (kilde rec exit=$rc): $WORK/marker-$tracks.log"
+        tail -5 "$WORK/marker-$tracks.log"
+        return 1
+    fi
     if [ $rc -ne 0 ]; then
         echo "kilde rec が失敗しました (exit=$rc): $WORK/rec-$tracks.log"
         tail -5 "$WORK/rec-$tracks.log"
-        return 1
-    fi
-    if [ $marker_alive -eq 0 ]; then
-        echo "drift-marker が録画中に終了しました: $WORK/marker-$tracks.log"
-        tail -5 "$WORK/marker-$tracks.log"
         return 1
     fi
     grep "first-PTS" "$WORK/rec-$tracks.log"

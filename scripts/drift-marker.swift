@@ -99,4 +99,10 @@ Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in fire() }
 Timer.scheduledTimer(withTimeInterval: lifetime, repeats: false) { _ in
     NSApp.terminate(nil)
 }
+// 起動の遅れ (WindowServer 等) を固定の sleep で待つと --window の解決に失敗しうるので、
+// イベントループが回り始めた (ウィンドウが表示された) 時点で drift-test.sh に準備完了を知らせる
+DispatchQueue.main.async {
+    print("ready")
+    fflush(stdout)
+}
 app.run()
