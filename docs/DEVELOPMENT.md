@@ -176,7 +176,8 @@ scripts/integration-test.sh
 
 - **AI エージェント向けの運用ルール (issue 起点の作業、ブランチ命名、PR とレビュー対応) は
   リポジトリ直下の [AGENTS.md](../AGENTS.md) にある。**
-- 作業ブランチ: `feature/m1-cli-mvp` (現在の HEAD、`origin` と同期済み、`main` 未マージ)
+- 作業ブランチ: issue ごとに `origin/main` から `feature/<issue番号>-<slug>` を切る
+  (M1 の `feature/m1-cli-mvp` は PR #1 でマージ済み。今後は使わない)
 - リモート: https://github.com/takezou621/kilde
 - コミットメッセージは英語。既存履歴のスタイル (命令形の要約行) に合わせる
 - ドキュメントとコードコメントは日本語。特に macOS 26 固有の回避策は

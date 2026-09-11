@@ -272,7 +272,8 @@ kilde rec --duration 30s --codec hevc out.mov
 ### コンソール出力
 
 - 録画中: `REC mm:ss | ファイルサイズ | ソース別ピーク` を 0.5 秒ごとに 1 行で更新する。
-- 停止後: 映像・音声ソースごとの appended / dropped 件数、映像との first-PTS 差、
+- 停止後: 映像・音声トラックごとの appended / dropped 件数、映像との first-PTS 差
+  (mixed ではトラックが `mixed` の 1 本なのでソース別には出ない)、
   ファイルパスとサイズ、解像度と長さ、音声トラックごとの RMS / peak を出力する。
   ミックスできなかった音声バッファがあれば警告する。
 - エラーは stderr に `ERROR: ...`、後始末の失敗 (monitor の復元失敗) は `WARNING: ...`。

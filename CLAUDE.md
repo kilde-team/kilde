@@ -191,4 +191,5 @@ AI レビュー指摘の処理・完了報告) を毎回自動で適用する。
 **タスクの正本は GitHub issue** (https://github.com/takezou621/kilde/issues)。
 このファイルに個別タスクを列挙しない (陳腐化するため)。着手順は §8 の依存順と
 マイルストーンに従い、M1 仕上げ → M2 → M3 → 配布の順で進める。
-PR #1 (`feature/m1-cli-mvp`) が `main` にマージされていることが全 issue の前提。
+M1 の `feature/m1-cli-mvp` は PR #1 で `main` にマージ済み (2026-09-11)。
+新しい作業は必ず `origin/main` から issue ごとのブランチを切る (AGENTS.md §2)。
