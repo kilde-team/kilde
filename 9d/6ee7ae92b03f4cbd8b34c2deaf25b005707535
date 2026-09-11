@@ -1,0 +1,24 @@
+docs/DESIGN.md
+  s_35faeec28b4c4b::t_8498f4ad6b2f90 203-205
+docs/SPIKE-NOTES.md
+  s_35faeec28b4c4b::t_470dc160487b5d 150-161
+  s_35faeec28b4c4b::t_b796dff9139931 140-141
+docs/DEVELOPMENT.md
+  s_35faeec28b4c4b::t_491a4aee19aeff 265
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "9d6ee7ae92b03f4cbd8b34c2deaf25b005707535",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
