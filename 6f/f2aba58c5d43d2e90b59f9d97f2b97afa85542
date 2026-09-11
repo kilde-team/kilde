@@ -1,0 +1,118 @@
+docs/DEVELOPMENT.md
+  s_14688823243adc::t_84049d17a87771 129-135
+  s_14688823243adc::t_4ce12db2ef060b 147-149,151
+  s_6e1b71b77323e6::t_f111022c689d6e 188-189
+  s_6e1b71b77323e6::t_6fadb7ab58ef0b 243
+  s_6e1b71b77323e6::t_bfa2d5f0663052 215
+  s_14688823243adc::t_7f449e574349e0 103-128
+  s_14688823243adc::t_5241eba6ea2d49 146
+  s_14688823243adc::t_fc0ad5a076c1b1 150
+  s_14688823243adc::t_4efc2efc7805cd 136-145
+gui/Sources/KildeGUIApp.swift
+  s_14688823243adc::t_0dfecf928456e9 1-3,11-12,15,19-21
+  s_14688823243adc::t_bfe1d2fb65685a 4-10,13-14,16-18
+Package.swift
+  s_14688823243adc::t_6eb3e2bab7f4a2 7-12
+AGENTS.md
+  s_14688823243adc::t_e61e28f4c9bc60 24-42,45-46,48,52-58
+  s_14688823243adc::t_f5b46cb1f7fb08 43-44,47,49-51
+.github/ISSUE_TEMPLATE/config.yml
+  s_6e1b71b77323e6::t_1a151d426781ce 1-5
+gui/Resources/Info.plist
+  s_14688823243adc::t_b285d44d060c15 30-32
+  s_14688823243adc::t_571a1307af8475 1-29,33-37
+CONTRIBUTING.md
+  s_6e1b71b77323e6::t_ec463e46177e46 1-63,65-80
+  s_6e1b71b77323e6::t_3137b81462a30a 64
+gui/.gitignore
+  s_14688823243adc::t_853ca6d24396dc 1-2
+.github/ISSUE_TEMPLATE/feature_request.yml
+  s_6e1b71b77323e6::t_e0ecccaa1c9e79 1-24
+Sources/KildeCore/Devices/DisplayCatalog.swift
+  s_6e1b71b77323e6::t_bdf4a8aedd21b5 33-38,41-42,44-49,65-66,68,71-79,94-96,102-109
+Sources/KildeCore/Support/Permissions.swift
+  s_6e1b71b77323e6::t_1b07cf66330155 35-37,56-60
+  s_6e1b71b77323e6::t_9ce0123dfc7408 65
+Sources/KildeCore/Capture/ScreenAudioStream.swift
+  s_6e1b71b77323e6::t_ec7663022ca7d7 78-79
+  s_6e1b71b77323e6::t_7f206306d27bc0 90-93
+  s_6e1b71b77323e6::t_51a3dc5a7a9110 58-62,66-67,69-72
+  s_6e1b71b77323e6::t_3d693df51ca125 48-50,52,55-57,63,65,68,73
+  s_6e1b71b77323e6::t_db58223231d816 19-20
+docs/DESIGN.md
+  s_14688823243adc::t_5494247aae7fd4 388-389
+  s_6e1b71b77323e6::t_9846c51d705f86 443,445
+scripts/integration-test.sh
+  s_6e1b71b77323e6::t_38e02fd92ea8f2 334,375,378-379
+  s_14688823243adc::t_38b9bc8cec66dc 341,346,349
+  s_6e1b71b77323e6::t_a5a7d5bbef7bc1 391,396-397,399,401
+  s_14688823243adc::t_30b9481aa6ddaa 27,48-49
+  s_14688823243adc::t_8140ea81abc5f7 34,37
+  s_14688823243adc::t_75df6907f11466 385-387
+  s_14688823243adc::t_e67ee098d1ca9f 342-345
+  s_14688823243adc::t_5c7136be7b3248 347-348,350-351,357,360,363
+  s_14688823243adc::t_af140a1866be48 335-340,352-356,358-359,361-362,364-372
+Sources/KildeCore/Recording/Recorder.swift
+  s_6e1b71b77323e6::t_b55d6ea69ff7ea 288-293
+  s_6e1b71b77323e6::t_d03867c2e37922 349
+  s_6e1b71b77323e6::t_729e486b68a2b6 413
+  s_6e1b71b77323e6::t_392d39293165a6 433-434
+  s_6e1b71b77323e6::t_1a712a2ba23dc6 341
+gui/project.yml
+  s_14688823243adc::t_6d4ac149d699cf 39-43
+  s_14688823243adc::t_e87df2d7f29047 1-29,44,49-52
+  s_14688823243adc::t_bbb322be25143a 30-34
+  s_14688823243adc::t_01a2e8b6c5ee77 45-48
+  s_14688823243adc::t_559442edf198ed 35-38
+gui/Sources/AppDelegate.swift
+  s_14688823243adc::t_ba8f1945dc38cd 1-49
+README.md
+  s_14688823243adc::t_90c018a6bc1f6c 77-93,99
+  s_6e1b71b77323e6::t_ca246e6fffb2d9 101-103,107
+CLAUDE.md
+  s_6e1b71b77323e6::t_b9b8b746894241 33
+  s_14688823243adc::t_7e4d94a2b35c16 66-70
+  s_6e1b71b77323e6::t_276fdc61d3ad0d 152-159
+  s_14688823243adc::t_b622ea0ce1a8ee 30-31
+  s_14688823243adc::t_7d167eb8d445de 184-188,191-195
+  s_6e1b71b77323e6::t_f59c6dbe4920f0 63
+Sources/KildeCore/Support/FileInspection.swift
+  s_6e1b71b77323e6::t_47061c52386df1 23-24,26,29-30
+  s_6e1b71b77323e6::t_663806df730905 40-49
+  s_6e1b71b77323e6::t_1739be3ff06741 2-4
+Sources/KildeCore/Support/AsyncUtil.swift
+  s_6e1b71b77323e6::t_88843f8f94e9eb 7-11
+LICENSE
+  s_6e1b71b77323e6::t_51e7c5c09a5468 1-21
+.github/ISSUE_TEMPLATE/bug_report.yml
+  s_6e1b71b77323e6::t_5a5f59419b0457 14
+  s_6e1b71b77323e6::t_78a2521b1bf968 1-2,4-13,15-71
+  s_6e1b71b77323e6::t_1a4af78f6215ec 3
+.github/PULL_REQUEST_TEMPLATE.md
+  s_6e1b71b77323e6::t_24ec9d87e2d089 34-37
+  s_6e1b71b77323e6::t_2240c56d8e2e43 1-33
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "6ff2aba58c5d43d2e90b59f9d97f2b97afa85542",
+  "prompts": {},
+  "sessions": {
+    "s_14688823243adc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ddbf470b-d6da-4876-8dbc-a2c696d20b1c",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    },
+    "s_6e1b71b77323e6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0f56a8e5-68cd-4330-8471-cbfa3a206358",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
