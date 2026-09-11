@@ -1,0 +1,22 @@
+scripts/integration-test.sh
+  s_14688823243adc::t_38b9bc8cec66dc 303-306,309
+docs/DEVELOPMENT.md
+  s_14688823243adc::t_fc0ad5a076c1b1 144
+  s_14688823243adc::t_5241eba6ea2d49 140
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "4a49037c6c07db1596a75c5caed67bf3a3dba066",
+  "prompts": {},
+  "sessions": {
+    "s_14688823243adc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ddbf470b-d6da-4876-8dbc-a2c696d20b1c",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
