@@ -15,6 +15,9 @@ struct ContentView: View {
     /// 実行中に来た再読込要求はドロップせず記録して、完了時に再実行する
     @State private var reloading = false
     @State private var needsReload = false
+    /// 初回ロードが完了したか。完了前は onAppear と didBecomeKey が同時に来るが、
+    /// in-flight の初回ロードと同じ結果になるため 2 回目を走らせない
+    @State private var hasLoadedOnce = false
     /// didBecomeKey をこのパネル自身に限定するための window 参照
     @State private var panelWindow: NSWindow?
 
@@ -116,7 +119,11 @@ struct ContentView: View {
     /// (issue #35 で snapshot() の async 版が入ったら .task {} + await に移行する)
     @MainActor private func reload() {
         guard !reloading else {
-            needsReload = true
+            // 初回ロードの完了前に来た要求 (onAppear + didBecomeKey の同時発火) は
+            // 同じ結果を返すので捨てる。以降の要求は最新化のために記録して再実行する
+            if hasLoadedOnce {
+                needsReload = true
+            }
             return
         }
         reloading = true
@@ -142,6 +149,7 @@ struct ContentView: View {
                 }
                 audioDevices = devices
                 reloading = false
+                hasLoadedOnce = true
                 if needsReload {
                     // 実行中に来た再読込要求 (パネル再オープン等) をここで回収する
                     needsReload = false
