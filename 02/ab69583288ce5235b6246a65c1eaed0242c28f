@@ -1,0 +1,34 @@
+docs/SPIKE-NOTES.md
+  s_6e1b71b77323e6::t_ff8c89001921f1 128-134
+  s_6e1b71b77323e6::t_9517a7b0bd0878 103-109
+  s_6e1b71b77323e6::t_55c88d556d3c5d 115-119
+  s_6e1b71b77323e6::t_2057742a245885 90-102,110-114,120-127
+scripts/drift-test.sh
+  s_6e1b71b77323e6::t_f108e2e3e4ff44 67
+  s_6e1b71b77323e6::t_a43ae7dea8509d 63
+  s_6e1b71b77323e6::t_58afdac2ada647 29
+  s_6e1b71b77323e6::t_26ee6a42a46b2e 78-83
+  s_6e1b71b77323e6::t_467f8a8e1cb2f0 12-18
+scripts/drift-analyze.swift
+  s_6e1b71b77323e6::t_db9c16d4313e1b 6-222
+docs/DEVELOPMENT.md
+  s_6e1b71b77323e6::t_962947e334c448 138-149
+docs/DESIGN.md
+  s_6e1b71b77323e6::t_fe86eeac6f7266 203
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "02ab69583288ce5235b6246a65c1eaed0242c28f",
+  "prompts": {},
+  "sessions": {
+    "s_6e1b71b77323e6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0f56a8e5-68cd-4330-8471-cbfa3a206358",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
