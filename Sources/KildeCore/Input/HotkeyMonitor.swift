@@ -172,6 +172,10 @@ public final class HotkeyMonitor {
     private let identifier: UInt32
     private var hotkeyRef: EventHotKeyRef?
     private var eventHandlerRef: EventHandlerRef?
+    /// Carbon のイベントハンドラが retain している self へのポインタ。stop() でrelease する。
+    /// passRetained にすることで「登録中にモニタが解放され、押下コールバックが解放済み
+    /// インスタンスを参照する」ことを防ぐ — stop() を呼ばなければリークするが安全側
+    private var retainedSelf: UnsafeMutableRawPointer?
 
     public init(_ source: String, handler: @escaping () -> Void) throws {
         self.source = source
@@ -186,10 +190,11 @@ public final class HotkeyMonitor {
     /// 二重 start は無視する。登録済みの組合せとの衝突を含む登録失敗は KilError。
     public func start() throws {
         precondition(Thread.isMainThread, "HotkeyMonitor.start() はメインスレッドから呼んでください")
-        guard hotkeyRef == nil, eventHandlerRef == nil else { return }
+        guard hotkeyRef == nil, eventHandlerRef == nil, retainedSelf == nil else { return }
 
         var eventType = EventTypeSpec(eventClass: OSType(kEventClassKeyboard),
                                       eventKind: UInt32(kEventHotKeyPressed))
+        let opaque = Unmanaged.passRetained(self).toOpaque()
         let installStatus = InstallEventHandler(
             GetApplicationEventTarget(),
             { _, event, userData in
@@ -199,13 +204,15 @@ public final class HotkeyMonitor {
             },
             1,
             &eventType,
-            Unmanaged.passUnretained(self).toOpaque(),
+            opaque,
             &eventHandlerRef
         )
         guard installStatus == noErr else {
             eventHandlerRef = nil
+            Unmanaged<HotkeyMonitor>.fromOpaque(opaque).release()
             throw KilError.failed("ホットキー \"\(source)\" のイベント監視を開始できません (OSStatus \(installStatus))")
         }
+        retainedSelf = opaque
 
         let hotkeyID = EventHotKeyID(signature: Self.signature, id: identifier)
         let registerStatus = RegisterEventHotKey(
@@ -216,17 +223,26 @@ public final class HotkeyMonitor {
             if let eventHandlerRef { RemoveEventHandler(eventHandlerRef) }
             eventHandlerRef = nil
             hotkeyRef = nil
+            releaseRetained()
             throw KilError.failed("ホットキー \"\(source)\" を登録できません (他のアプリとの競合または OSStatus \(registerStatus))")
         }
     }
 
-    /// 二重 stop は無視する。
+    /// 二重 stop は無視する。Carbon が retain した参照をここで手放す。
     public func stop() {
         precondition(Thread.isMainThread, "HotkeyMonitor.stop() はメインスレッドから呼んでください")
         if let hotkeyRef { UnregisterEventHotKey(hotkeyRef) }
         if let eventHandlerRef { RemoveEventHandler(eventHandlerRef) }
         hotkeyRef = nil
         eventHandlerRef = nil
+        releaseRetained()
+    }
+
+    private func releaseRetained() {
+        if let retainedSelf {
+            Unmanaged<HotkeyMonitor>.fromOpaque(retainedSelf).release()
+            self.retainedSelf = nil
+        }
     }
 
     private var carbonModifiers: UInt32 {
@@ -255,14 +271,30 @@ public final class HotkeyMonitor {
 }
 
 /// doctor が Carbon 登録経路を診断する。イベント配送は不要なので、一時登録後すぐ解除する。
+/// probe キーは他アプリとの競合で登録に失敗しうる (そのときは目的のホットキーが
+/// 空いていても ERROR になってしまう) ため、複数の候補で順に試し、1 つでも登録できれば
+/// 登録能力は正常と判定する
 public enum HotkeyDiagnostics {
-    public static let probeKey = "cmd+opt+ctrl+shift+f12"
+    public static let probeKeys = [
+        "cmd+opt+ctrl+shift+f12",
+        "cmd+opt+ctrl+shift+f11",
+        "cmd+opt+ctrl+shift+f10",
+    ]
 
     public static func checkRegistration() throws {
         precondition(Thread.isMainThread, "ホットキー診断はメインスレッドから実行してください")
-        let monitor = try HotkeyMonitor(probeKey) {}
-        try monitor.start()
-        monitor.stop()
+        var lastError: Error?
+        for key in probeKeys {
+            do {
+                let monitor = try HotkeyMonitor(key) {}
+                try monitor.start()
+                monitor.stop()
+                return
+            } catch {
+                lastError = error
+            }
+        }
+        throw lastError ?? KilError.failed("ホットキー登録の診断に失敗しました")
     }
 }
 

@@ -119,6 +119,12 @@ struct RecCommand: ParsableCommand {
         } catch {
             cliError(error)
         }
+        // validate() は CLI 引数しか見られないため、設定ファイルの hotkey との組合せは
+        // ここで初めて分かる。カウントダウンが待機前に消費される挙動は期待とずれるので
+        // 設定由来も同じく拒否する (設定値との組合せエラーのため終了コードは 1)
+        if resolvedHotkey != nil, countdown > 0 {
+            cliError(KilError.failed("--countdown と hotkey は併用できません (カウントダウンが待機前に消費されるため)"))
+        }
 
         var options = RecordOptions()
         options.displayIndex = display ?? 0

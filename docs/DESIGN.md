@@ -261,7 +261,7 @@ KildeCore (`ConfigStore` / `RecordSettings`) にある。値は CLI 引数と同
 | `codec` | `h264` / `hevc` / `prores` | `--codec` |
 | `fps` | 1 以上の整数 | `--fps` |
 | `showsCursor` | 真偽値 | `--cursor` / `--no-cursor` |
-| `hotkey` | `cmd+shift+r` 形式の文字列 | `--hotkey`。cmd / shift / opt / ctrl / fn と英数字、F1〜F12、主要キーに対応 |
+| `hotkey` | `cmd+shift+r` 形式の文字列 | `--hotkey`。cmd / shift / opt / ctrl と英数字、F1〜F12、主要キーに対応 (fn はハードウェアにインターセプトされるため不可) |
 
 - 優先順位: **CLI 引数 > `--preset` > 環境変数 > 設定ファイル > 既定値**。
   環境変数は `KILDE_OUTPUT_DIR` (保存先) のみ。ホットキーは

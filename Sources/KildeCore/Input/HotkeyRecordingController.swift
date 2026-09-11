@@ -48,10 +48,22 @@ public final class HotkeyRecordingController {
         }
     }
 
+    deinit {
+        // 正常終了以外の経路 (GUI が待機中にコントローラを破棄する等) でもホットキー登録が
+        // 残らないよう、未停止ならメインキューで解除する。monitor は HotkeyMonitor 内部で
+        // retain されているため、このクロージャが参照を保持し続けても問題ない
+        if monitoringStarted, let monitor = self.monitor {
+            DispatchQueue.main.async { monitor.stop() }
+        }
+    }
+
     /// Carbon 登録を開始する。メインスレッドから呼ぶこと。
+    /// requestStop() が先に来て .finished になっていたら何もしない —
+    /// ここで登録すると解除できずに残ってしまうため
     public func start() throws {
         precondition(Thread.isMainThread, "HotkeyRecordingController.start() はメインスレッドから呼んでください")
         guard !monitoringStarted else { return }
+        guard case .waiting = state else { return }
         try monitor.start()
         monitoringStarted = true
     }
@@ -119,6 +131,7 @@ public final class HotkeyRecordingController {
 
     private func finishMonitoring() {
         monitor.stop()
+        monitoringStarted = false
         state = .finished
     }
 }

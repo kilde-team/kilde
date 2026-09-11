@@ -425,7 +425,9 @@ fi
 log "T13: rec --hotkey — 待機中の SIGINT は録画を始めず exit 0"
 T13_DIR="$WORK/t13"
 mkdir -p "$T13_DIR"
-(cd "$T13_DIR" && "$KILDE" rec --no-video --hotkey cmd+opt+ctrl+shift+f13 \
+# exec でサブシェル自身を kilde に置き換える — 置き換えないと $! はサブシェルの PID に
+# なり、kill -INT が kilde に届かず wait がハングする
+(cd "$T13_DIR" && exec "$KILDE" rec --no-video --hotkey cmd+opt+ctrl+shift+f11 \
     > "$WORK/t13.log" 2>&1) &
 T13_PID=$!
 # 「待機中」の表示 (登録完了) を待つ — 出ないままなら start に失敗している
