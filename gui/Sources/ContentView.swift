@@ -69,6 +69,12 @@ struct ContentView: View {
         .frame(width: 360)
         .frame(maxHeight: 480)
         .onAppear(perform: reload)
+        // MenuBarExtra の .window スタイルは View を一度生成すると保持するため
+        // onAppear は初回のみ。閉じている間のデバイス増減 (モニタ接続等) を
+        // 反映するため、パネルが key になるたびに引き直す
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+            reload()
+        }
     }
 
     /// SCShareableContent の初回列挙は数百 ms かかる (権限プロンプト保留中は

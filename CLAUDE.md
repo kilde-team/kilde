@@ -27,9 +27,9 @@ QuickTime Player では録れない**システム音声を含む録画・録音*
 | M0 技術スパイク | ✅ 完了 (S1–S9)。S10 会議アプリ実地検証は issue #2 |
 | M1 CLI MVP | ✅ 実装済み — `rec` / `devices` / `doctor` / `audio monitor` / `inspect` |
 | 統合テスト | `scripts/integration-test.sh` (T1–T10)。ローカル実録画、全 PASS 実績あり |
-| 単体テスト (`Tests/`) | **未作成** — issue #5 |
-| CI (`.github/`) | **未作成** — issue #6 |
-| GUI (`gui/`) | **未作成** — M3 (issue #17〜#20) |
+| 単体テスト (`Tests/`) | ✅ KildeCoreTests (権限不要、CI で実行 — issue #5 完了) |
+| CI (`.github/`) | ✅ swift build / swift test (macos-15) — issue #6 完了 |
+| GUI (`gui/`) | 骨格 ✅ (issue #17: MenuBarExtra + KildeCore 参照)。録画 UI・オンボーディングは #18〜#20 |
 | ライセンスファイル | **未作成** — issue #21 (README/Info.plist は MIT を宣言済み) |
 | 残タスク全体 | GitHub issue #2〜#25 (4 マイルストーン)。§8 の役割分担・依存順を参照 |
 
@@ -61,6 +61,10 @@ Sources/KildeCore/       UI 非依存のコア。将来 GUI と共用する
   Support/{AsyncUtil,Misc}.swift   awaitSync / parseDuration / 出力名生成
 scripts/integration-test.sh  T1–T10 の実録画テスト
 scripts/soundapp.swift       テスト用「音を鳴らすウィンドウ」アプリ
+gui/                         M3 メニューバー GUI (XcodeGen: project.yml が正本)
+  Sources/KildeGUIApp.swift    MenuBarExtra アプリのエントリポイント
+  Sources/ContentView.swift    ディスプレイ/ウィンドウ/オーディオ一覧の最小パネル
+  Resources/Info.plist         LSUIElement・権限説明文字列 (バンドル用)
 ```
 
 **レイヤ規約: CLI 層にロジックを足さない。** 録画の挙動に関わる変更は必ず
