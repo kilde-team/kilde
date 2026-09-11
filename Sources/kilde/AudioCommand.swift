@@ -42,10 +42,14 @@ struct MonitorCommand: ParsableCommand {
                 cliError(error)
             }
         case .teardown:
-            if MonitorDevice.teardown() {
-                print("既定出力を復元し、kilde Monitor を削除しました")
-            } else {
-                print("復元すべき状態が見つかりません (kilde audio monitor setup を実行しましたか?)")
+            do {
+                if try MonitorDevice.teardown() {
+                    print("既定出力を復元し、kilde Monitor を削除しました")
+                } else {
+                    print("復元すべき状態が見つかりません (kilde audio monitor setup を実行しましたか?)")
+                }
+            } catch {
+                cliError(error)
             }
         }
     }

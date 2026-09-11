@@ -31,7 +31,7 @@ final class MonitorDeviceStateTests: XCTestCase {
     func testSavesAndLoadsMonitorStateInInjectedDirectory() throws {
         try MonitorDevice.saveState(originalDefaultUID: "original-output-uid")
 
-        XCTAssertEqual(MonitorDevice.loadState(), "original-output-uid")
+        XCTAssertEqual(try MonitorDevice.loadState(), "original-output-uid")
         XCTAssertTrue(
             FileManager.default.fileExists(
                 atPath: temporaryDirectory.appendingPathComponent("monitor-state.json").path
@@ -43,12 +43,12 @@ final class MonitorDeviceStateTests: XCTestCase {
         try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
         let stateURL = temporaryDirectory.appendingPathComponent("monitor-state.json")
         try Data("not-json".utf8).write(to: stateURL)
-        XCTAssertNil(MonitorDevice.loadState())
+        XCTAssertNil(try MonitorDevice.loadState())
 
         try MonitorDevice.saveState(originalDefaultUID: "original-output-uid")
-        MonitorDevice.removeState()
+        try MonitorDevice.removeState()
 
-        XCTAssertNil(MonitorDevice.loadState())
+        XCTAssertNil(try MonitorDevice.loadState())
         XCTAssertFalse(FileManager.default.fileExists(atPath: stateURL.path))
     }
 }

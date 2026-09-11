@@ -252,8 +252,9 @@ public enum ConfigStore {
         }
     }
 
-    /// 実プロセスの環境変数で KILDE_CONFIG_DIR が相対パスならエラーにする
-    static func checkConfigDirectoryEnvironment() throws {
+    /// 実プロセスの環境変数で KILDE_CONFIG_DIR が相対パスならエラーにする。
+    /// `kilde config path` のように load() を通らない経路でも検証できるよう公開
+    public static func checkConfigDirectoryEnvironment() throws {
         if let value = ProcessInfo.processInfo.environment["KILDE_CONFIG_DIR"], !value.isEmpty {
             try checkConfigDirectory(value)
         }

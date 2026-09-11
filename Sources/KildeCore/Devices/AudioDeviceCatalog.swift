@@ -140,7 +140,7 @@ public enum MonitorDevice {
     public static func setup() throws -> AudioDeviceInfo {
         let recovery = "システム設定で既定出力を戻し、Audio MIDI 設定で \"kilde Monitor\" を削除してから再実行してください"
         // 復元できないまま作り直すと kilde Monitor 自身を子にした自己参照になるため中止する
-        if exists && !teardown() {
+        if try exists && !teardown() {
             throw KilError.failed("既存の kilde Monitor を解体できませんでした。\(recovery)")
         }
         guard let currentDefault = AudioDeviceCatalog.defaultOutput else {
@@ -184,15 +184,18 @@ public enum MonitorDevice {
 
     /// state から元の既定出力に戻し、マルチ出力デバイスを削除する。
     /// 復元や削除に失敗した場合は state を残す (再試行できるように)。
+    /// KILDE_CONFIG_DIR が相対パスのときは、カレントディレクトリの state を
+    /// 読み書きしてしまうためエラーにする (saveState と同じ基準)。
     @discardableResult
-    public static func teardown() -> Bool {
-        guard let original = loadState() else { return false }
+    public static func teardown() throws -> Bool {
+        try ConfigStore.checkConfigDirectoryEnvironment()
+        guard let original = try loadState() else { return false }
         guard let orig = AudioDeviceCatalog.devices.first(where: { $0.uid == original }) else {
             return false  // 元デバイスが消失 — 手動での復旧が必要
         }
         guard setDefaultOutput(orig.id) else { return false }
         let destroyed = destroy()
-        if destroyed { removeState() }
+        if destroyed { try removeState() }
         return destroyed
     }
 
@@ -265,13 +268,17 @@ public enum MonitorDevice {
         try JSONEncoder().encode(state).write(to: stateURL, options: .atomic)
     }
 
-    static func loadState() -> String? {
+    static func loadState() throws -> String? {
+        // 相対 KILDE_CONFIG_DIR の state を黙って「存在しない」と扱うと、teardown が
+        // 何もせず成功したように見える — 環境の誤りはエラーとして扱う
+        try ConfigStore.checkConfigDirectoryEnvironment()
         guard let data = try? Data(contentsOf: stateURL),
               let state = try? JSONDecoder().decode(State.self, from: data) else { return nil }
         return state.originalDefaultOutputUID
     }
 
-    static func removeState() {
+    static func removeState() throws {
+        try ConfigStore.checkConfigDirectoryEnvironment()
         try? FileManager.default.removeItem(at: stateURL)
     }
 }
