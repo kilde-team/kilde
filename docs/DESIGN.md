@@ -200,7 +200,7 @@ SCStream(contentFilter, configuration)
   (`MovieWriter.firstPTSOffsets` は書き込み先ラベルがキー。mixed では `mixed` トラックの差になる)。
   これが同期の健全性指標で、マイクは起動遅延ぶん +0.3s 前後までを想定内とする
   (マイクを SCStream より先に起動して吸収 — SPIKE-NOTES F-D)。
-  長時間録画でのドリフトは未計測 (issue #3)。
+  長時間録画でのドリフトは `scripts/drift-test.sh` で計測する (手順と結果は SPIKE-NOTES F-E、issue #3)。
 
 ### 停止の確実性 (最重要 UX)
 
