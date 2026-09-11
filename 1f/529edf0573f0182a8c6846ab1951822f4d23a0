@@ -1,0 +1,39 @@
+.github/ISSUE_TEMPLATE/feature_request.yml
+  s_6e1b71b77323e6::t_e0ecccaa1c9e79 1-24
+.github/ISSUE_TEMPLATE/config.yml
+  s_6e1b71b77323e6::t_1a151d426781ce 1-5
+LICENSE
+  s_6e1b71b77323e6::t_51e7c5c09a5468 1-21
+README.md
+  s_6e1b71b77323e6::t_ca246e6fffb2d9 75-78,81
+docs/DEVELOPMENT.md
+  s_6e1b71b77323e6::t_6fadb7ab58ef0b 181
+.github/PULL_REQUEST_TEMPLATE.md
+  s_6e1b71b77323e6::t_2240c56d8e2e43 1-35
+CLAUDE.md
+  s_6e1b71b77323e6::t_b9b8b746894241 33
+.github/ISSUE_TEMPLATE/bug_report.yml
+  s_6e1b71b77323e6::t_78a2521b1bf968 1-2,4-13,15-71
+  s_6e1b71b77323e6::t_5a5f59419b0457 14
+  s_6e1b71b77323e6::t_1a4af78f6215ec 3
+docs/DESIGN.md
+  s_6e1b71b77323e6::t_9846c51d705f86 404,406
+CONTRIBUTING.md
+  s_6e1b71b77323e6::t_ec463e46177e46 1-80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1f529edf0573f0182a8c6846ab1951822f4d23a0",
+  "prompts": {},
+  "sessions": {
+    "s_6e1b71b77323e6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0f56a8e5-68cd-4330-8471-cbfa3a206358",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
