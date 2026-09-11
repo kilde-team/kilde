@@ -172,16 +172,23 @@ public final class Recorder {
     }
 
     /// 録画を実行し、完了までブロックする (CLI 互換の同期 API — start() のラッパ)。
-    /// この経路では progress イベントを流さないので、進捗は progress() で取得すること
+    /// この経路では progress イベントを流さないので、進捗は progress() で取得すること。
+    /// セッション完了後の再呼び出しは同じ結果を返す (二度目の待機で固まらない)
     @discardableResult
     public func run() throws -> Summary {
-        emitsProgressEvents = false
-        start()
-        completionSemaphore.wait()
-        switch completionResult! {
-        case .success(let summary): return summary
-        case .failure(let error): throw error
+        lock.lock()
+        let finishedResult = completionResult
+        let launched = sessionLaunched
+        lock.unlock()
+        if let finishedResult {
+            return try finishedResult.get()
         }
+        if !launched {
+            emitsProgressEvents = false
+            start()
+        }
+        completionSemaphore.wait()
+        return try completionResult!.get()
     }
 
     /// CLI のステータス表示用 (0.5 秒周期で呼ばれる)
@@ -394,12 +401,18 @@ public final class Recorder {
     }
 
     /// recording 中 0.5 秒周期で progress イベントを流ぶ (GUI 向け)。
-    /// 経過時間・出力サイズ・レベルは progress() と同じ計算経路を使う
+    /// 経過時間・出力サイズ・レベルは progress() と同じ計算経路を使う。
+    /// キャンセル後は sleep が投げる CancellationError で抜け、
+    /// finalizing 以降に progress が流れないようにする
     private func startProgressEmissionIfNeeded() -> Task<Void, Never> {
         guard emitsProgressEvents else { return Task {} }
         return Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 500_000_000)
+                do {
+                    try await Task.sleep(nanoseconds: 500_000_000)
+                } catch {
+                    return
+                }
                 guard let self, let p = self.progress() else { continue }
                 self.eventContinuation.yield(.progress(p))
             }
@@ -413,15 +426,22 @@ public final class Recorder {
                 group.addTask { [stopSignal] in
                     for await _ in stopSignal { return }
                 }
-                group.addTask {
-                    try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
-                }
+                group.addTask { await Self.sleepForDuration(duration) }
                 await group.next()
                 group.cancelAll()
             }
         } else {
             for await _ in stopSignal { return }
         }
+    }
+
+    /// duration 分だけ sleep する。極端に大きな値 (parseDuration は 999…s も通す) での
+    /// UInt64 変換 trap を避けるため 1 年で飽和させる — 旧実装の DispatchTime 加算が
+    /// saturate していた挙動に相当する。trap はキャプチャ開始後に起きると
+    /// 未ファイナライズの壊れたファイルを残す (最重要要件) ので許容しない
+    private static func sleepForDuration(_ duration: TimeInterval) async {
+        let capped = min(max(duration, 0), 31_536_000)  // 1 年 = 365 日 (秒)
+        try? await Task.sleep(nanoseconds: UInt64(capped * 1_000_000_000))
     }
 
     private func setState(_ next: RecorderState) {

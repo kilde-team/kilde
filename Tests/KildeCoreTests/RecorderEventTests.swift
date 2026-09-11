@@ -63,27 +63,27 @@ final class RecorderEventTests: XCTestCase {
         XCTAssertEqual(recorder.currentState, .done)
     }
 
-    /// 失敗フロー: 不明デバイスの解決は preparing 中に失敗する。
-    /// error へ遷移し、failed イベントが末尾に来る。writer 生成前なので部分ファイル無し
+    /// 失敗フロー: 出力先ディレクトリが存在しない場合は preparing 中に失敗する。
+    /// error へ遷移し、failed イベントが末尾に来る。権限チェックを通らない経路なので
+    /// マイク TCC 権限のない環境 (CI 等) でもこの順序で検証できる。
+    /// duration は、検証想定が外れてセッションが終わらないままになるのを防ぐ安全装置
     func testStateOrderForFailedSession() async throws {
-        let url = tempURL()
-        defer { try? FileManager.default.removeItem(at: url) }
-        var options = emptySessionOptions(url: url)
-        options.audioSources = [.device("kilde-no-such-input-device")]
-
-        let recorder = Recorder(options: options)
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("kilde-no-such-dir-\(UUID())/out.m4a")
+        let recorder = Recorder(options: emptySessionOptions(url: url, duration: 5))
         let events = await collectEvents(recorder)
 
         XCTAssertEqual(events.compactMap(\.state), [.preparing, .error])
         guard case .failed(let error, let partialFileExists) = events.last else {
             return XCTFail("末尾が failed ではありません: \(events)")
         }
-        XCTAssertEqual(error.exitCode, 3)  // deviceNotFound (DESIGN.md §6)
+        XCTAssertEqual(error.exitCode, 1)  // failed (DESIGN.md §6)
         XCTAssertFalse(partialFileExists)
         XCTAssertEqual(recorder.currentState, .error)
     }
 
-    /// 同期 run() ラッパは duration で自動停止して Summary を返す (CLI 互換)
+    /// 同期 run() ラッパは duration で自動停止して Summary を返す (CLI 互換)。
+    /// 完了後の再呼び出しは同じ結果を返し、二度目の待機で固まらない
     func testRunWrapperBlocksUntilDuration() throws {
         let url = tempURL()
         defer { try? FileManager.default.removeItem(at: url) }
@@ -93,13 +93,39 @@ final class RecorderEventTests: XCTestCase {
         XCTAssertEqual(summary.outputURL, url)
         XCTAssertEqual(recorder.currentState, .done)
         XCTAssertTrue(recorder.cleanupWarnings.isEmpty)
+
+        let second = try recorder.run()
+        XCTAssertEqual(second.outputURL, summary.outputURL)
     }
 
-    /// start() 直呼びでは recording 中 0.5 秒周期の progress イベントが流れる (GUI 向け)
+    /// 巨大な duration でもクラッシュしない (nanoseconds 変換は 1 年で飽和)。
+    /// trap はキャプチャ開始後に起きると未ファイナライズのファイルを残すため回帰させない
+    func testHugeDurationDoesNotTrap() async throws {
+        let url = tempURL()
+        defer { try? FileManager.default.removeItem(at: url) }
+        var options = emptySessionOptions(url: url)
+        options.duration = 999_999_999_999  // ~31,700 年 — parseDuration も通す値
+
+        let recorder = Recorder(options: options)
+        var events: [RecorderEvent] = []
+        let collector = Task {
+            for await e in recorder.events { events.append(e) }
+        }
+        recorder.start()
+        // duration の sleep に入ったことを保証してから停止で割り込む
+        try await Task.sleep(nanoseconds: 300_000_000)
+        recorder.stop()
+        await collector.value
+
+        XCTAssertEqual(events.compactMap(\.state).last, .done)
+    }
+
+    /// start() 直呼びでは recording 中 0.5 秒周期の progress イベントが流れる (GUI 向け)。
+    /// duration は 3 秒 — 初回 tick (0.5s) までの余裕が薄いと負荷時の CI で flaky になる
     func testProgressEventsEmittedWhileRecording() async throws {
         let url = tempURL()
         defer { try? FileManager.default.removeItem(at: url) }
-        let recorder = Recorder(options: emptySessionOptions(url: url, duration: 1.2))
+        let recorder = Recorder(options: emptySessionOptions(url: url, duration: 3.0))
 
         let events = await collectEvents(recorder)
         let progressCount = events.reduce(0) { count, e in
@@ -107,6 +133,11 @@ final class RecorderEventTests: XCTestCase {
             return count
         }
         XCTAssertGreaterThanOrEqual(progressCount, 1, "progress イベントが来ませんでした: \(events)")
+        // 進捗は recording 中のみ。finalizing 以降に混入していないこと
+        if let lastProgress = events.lastIndex(where: { if case .progress = $0 { return true }; return false }),
+           let finalizing = events.firstIndex(where: { $0.state == .finalizing }) {
+            XCTAssertLessThan(lastProgress, finalizing, "finalizing 以降に progress が来ています")
+        }
     }
 
     /// start() の二重呼び出しは無視され、セッションは一度だけ走る

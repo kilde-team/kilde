@@ -33,6 +33,15 @@ final class MovieWriter {
          codec: VideoCodecKind, audioLabels: [String], anchor: Anchor) throws {
         self.url = url
         self.anchor = anchor
+        // AVAssetWriter は出力先ディレクトリが無くても init / startWriting を失敗させず
+        // status が failed になるだけなので、ここで先に弾く。弾かないと「何も録れていない
+        // ファイルが無いまま録画成功」扱いになり、セッションも停止待ちで迷子になる
+        let dir = url.deletingLastPathComponent()
+        var isDirectory: ObjCBool = false
+        if !FileManager.default.fileExists(atPath: dir.path, isDirectory: &isDirectory)
+            || !isDirectory.boolValue {
+            throw KilError.failed("出力先ディレクトリが存在しません: \(dir.path)")
+        }
         try? FileManager.default.removeItem(at: url)
         writer = try AVAssetWriter(outputURL: url, fileType: fileType)
 
