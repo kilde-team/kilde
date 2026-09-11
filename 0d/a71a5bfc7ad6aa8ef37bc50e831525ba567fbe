@@ -1,0 +1,34 @@
+docs/DESIGN.md
+  s_b31be53f67f5bb::t_8f14f94a0726f3 250,263-264
+README.md
+  s_b31be53f67f5bb::t_8f14f94a0726f3 57
+Sources/KildeCore/Support/Config.swift
+  s_b31be53f67f5bb::t_8f14f94a0726f3 232-244,246
+Tests/KildeCoreTests/MonitorDeviceStateTests.swift
+  s_b31be53f67f5bb::t_8f14f94a0726f3 23-30
+Tests/KildeCoreTests/ConfigTests.swift
+  s_b31be53f67f5bb::t_8f14f94a0726f3 31-48
+scripts/integration-test.sh
+  s_b31be53f67f5bb::t_f77e05f82d6eb1 34
+  s_b31be53f67f5bb::t_8f14f94a0726f3 44-45,47-48,347,351,354,356-361,363-372,374,376-377,379
+Sources/KildeCore/Devices/AudioDeviceCatalog.swift
+  s_b31be53f67f5bb::t_8f14f94a0726f3 246-253
+docs/DEVELOPMENT.md
+  s_b31be53f67f5bb::t_8f14f94a0726f3 83-84,169-170,240
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "0da71a5bfc7ad6aa8ef37bc50e831525ba567fbe",
+  "prompts": {},
+  "sessions": {
+    "s_b31be53f67f5bb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09120-915a-7252-bb6e-56df07dc7a3b",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
