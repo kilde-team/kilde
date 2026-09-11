@@ -16,6 +16,8 @@ public final class ScreenAudioStream: NSObject, SCStreamOutput {
     private var stream: SCStream?
     private let handler: (CMSampleBuffer, SCStreamOutputType) -> Void
     private let outQueue = DispatchQueue(label: "kilde.sck.out")
+    /// stop() 以降のコールバックを捨てるためのゲート。outQueue 上でだけ読み書きする (ロック不要)
+    private var stopped = false
 
     init(filter: SCContentFilter, configuration: SCStreamConfiguration, mode: Mode,
          handler: @escaping (CMSampleBuffer, SCStreamOutputType) -> Void) throws {
@@ -43,19 +45,38 @@ public final class ScreenAudioStream: NSObject, SCStreamOutput {
         stream = s
     }
 
-    func start() throws {
+    /// キャプチャを開始する。async にしているのは、startCapture の完了待ちで
+    /// 協調プールのスレッドを塞がないため (issue #35。以前は awaitSync で同期的に待っていた)
+    func start() async throws {
         guard let stream else { return }
-        try awaitSync { try await stream.startCapture() }
+        try await stream.startCapture()
     }
 
-    func stop() {
+    /// キャプチャを停止し、出力キューに積まれたコールバックを吐き切ってから返る。
+    /// 戻った後に handler が呼ばれないことを保証する — MovieWriter.finish() の後に
+    /// append が走らないようにするため (MicStream.stop() の queue.sync {} と同じ役割。CLAUDE.md §6)
+    ///
+    /// stopCapture の失敗は投げない。投げると呼び出し側が finish() を飛ばして壊れたファイルが残り、
+    /// 「Ctrl+C でも必ずファイナライズする」最重要要件に反するため。代わりに、停止に失敗して
+    /// SCK がコールバックを送り続けても handler へ届かないよう、outQueue 上で stopped を立てて
+    /// 以降のコールバックを捨てる
+    func stop() async {
         guard let stream else { return }
-        let s = stream
-        _ = try? awaitSync { try await s.stopCapture() }
+        try? await stream.stopCapture()
+        // シリアルキューなので、ここで積んだブロックの実行時点で積み残しのコールバックは処理済み。
+        // 同じブロックで stopped を立てるので、これより後に届いたコールバックは handler を呼ばない
+        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
+            outQueue.async {
+                self.stopped = true
+                done.resume()
+            }
+        }
     }
 
     public func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer,
                        of type: SCStreamOutputType) {
+        // outQueue 上で呼ばれる。stop() 後 (停止に失敗した場合を含む) のコールバックは writer へ渡さない
+        guard !stopped else { return }
         if type == .screen {
             // .idle / .blank 等の不完全フレームを除外
             guard sampleBuffer.isValid else { return }
@@ -66,3 +87,7 @@ public final class ScreenAudioStream: NSObject, SCStreamOutput {
         handler(sampleBuffer, type)
     }
 }
+
+// stop() の drain で self を outQueue.async に渡すため Sendable が要る。可変状態の `stopped` は
+// outQueue 上でだけ読み書きし、`stream` は init でしか設定しないので、実質的にデータ競合はない
+extension ScreenAudioStream: @unchecked Sendable {}

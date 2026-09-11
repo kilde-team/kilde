@@ -151,6 +151,7 @@ SCK / AVCapture / CoreAudio の実デバイスには触れません。
 | `AudioMixerTests` | 2 ソース合成とクリップ、44.1k mono → 48k stereo、ギャップの無音埋め / 重複の無視、初回データ待ち (`firstDataGraceFrames`) と `flush()`、非数値 PTS / `decodeFailures` |
 | `MonitorDeviceStateTests` | `~/.kilde/monitor-state.json` の入出力 (`MonitorDevice.stateDirectory` を一時ディレクトリに差し替える) |
 | `KilErrorTests` | `KilError.exitCode` の 1/2/3 契約 |
+| `FileInspectionTests` | 生成した正弦波ファイルに対し、`FileInspection.report(url:)` の同期版と async 版 (issue #35) が同じ RMS / peak / 長さを返す |
 | `AudioSampleBufferTestHelper` | テスト用の Float32 / Int16 `CMSampleBuffer` 生成 |
 
 `RecCommand.validate()` は CLI ターゲット (実行ファイル) 側にあるため対象外です。
