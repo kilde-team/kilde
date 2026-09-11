@@ -1,0 +1,23 @@
+Sources/KildeCore/Recording/Recorder.swift
+  s_14688823243adc::t_aa278abe146faa 248-252
+Sources/KildeCore/Recording/MovieWriter.swift
+  s_14688823243adc::t_54102d639aa397 94-95,97-99
+Tests/KildeCoreTests/RecorderEventTests.swift
+  s_14688823243adc::t_e83f6de9bbf19e 77-85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "abefa7e5a4d3f9bac2f2316f7fd556c3d3ef53d2",
+  "prompts": {},
+  "sessions": {
+    "s_14688823243adc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ddbf470b-d6da-4876-8dbc-a2c696d20b1c",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
