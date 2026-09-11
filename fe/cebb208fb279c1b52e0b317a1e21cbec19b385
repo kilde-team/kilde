@@ -1,0 +1,19 @@
+cubic.yaml
+  s_3a8fb25591f3a8::t_ed892c6989d828 1-124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "fecebb208fb279c1b52e0b317a1e21cbec19b385",
+  "prompts": {},
+  "sessions": {
+    "s_3a8fb25591f3a8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08f98-a19f-7973-a4ca-48fa6c3cfa89",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
