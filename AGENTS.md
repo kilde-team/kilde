@@ -31,8 +31,29 @@
    - §3 の検証結果 (実行したコマンドと結果をそのまま貼る)
    - 仕様に影響する変更なら DESIGN.md / DEVELOPMENT.md を同じ PR で更新した旨
 4. PR を作ると cubic と CodeRabbit の AI レビューが自動で走る。指摘は
-   `gh api graphql` の reviewThreads で取得し、妥当なものは修正してスレッドを resolve、
-   妥当でないものは理由を返信する。すべて処理してから完了報告する
+   `gh api graphql` の reviewThreads で取得し、妥当なものは修正、妥当でないものは
+   理由を添えて見送る。すべて処理してから完了報告する。
+   - **cubic の指摘は、対応を終えたら修正したものも含めて必ず各レビュー・コメント
+     (インラインスレッド) に返信してから resolve する。黙って resolve しない。**
+     返信には「妥当 / 妥当でない」の判定と、修正したコミットの SHA または反論・見送りの理由を書く。
+     cubic は返信の内容をフィードバックとして受け取るので、判定理由は具体的に書く
+   - 全スレッドを処理したら、cubic のレビュー本体への返信として PR にコメントを 1 件投稿し、
+     指摘ごとの対応結果 (修正 / 反論 / 見送り + コミット SHA) を一覧にする。
+     コメントの冒頭にはレビューの URL (`…/pull/<PR>#pullrequestreview-<ID>`) を書く
+   - CodeRabbit の指摘も同じ手順 (スレッドに返信してから resolve) で扱う
+   - 修正を push すると cubic が再レビューすることがある。新しい指摘が付いたら同じ手順を繰り返す
+
+   ```sh
+   # 未解決スレッドの一覧 (id / ファイル / 本文)
+   gh api graphql -f query='query{repository(owner:"takezou621",name:"kilde"){pullRequest(number:<PR>){reviewThreads(first:100){nodes{id isResolved path line comments(first:1){nodes{author{login} body}}}}}}}' \
+     --jq '.data.repository.pullRequest.reviewThreads.nodes[]|select(.isResolved|not)'
+   # スレッドへの返信 → resolve
+   gh api graphql -f query='mutation($t:ID!,$b:String!){addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:$t,body:$b}){comment{id}}}' \
+     -f t=<スレッドID> -f b="妥当です。修正しました (<SHA>)。…"
+   gh api graphql -f query='mutation($t:ID!){resolveReviewThread(input:{threadId:$t}){thread{isResolved}}}' -f t=<スレッドID>
+   # レビュー本体への返信 (対応結果の一覧)
+   gh pr comment <PR> --body "…"
+   ```
 5. `--force` push、`main` への直接コミット、他人のブランチの書き換えはしない
 
 ## 3. 変更後に必ず行う検証
