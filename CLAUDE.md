@@ -123,7 +123,7 @@ swift build                       # ビルド (バイナリは .build/debug/kild
    BlackHole が無音になる。**非公開キーなので OS 更新で壊れうる** — 壊れたら
    `kilde audio monitor` 側の縮退で対応し、SCK ネイティブ経路には波及させない
 5. **マイク (AVCaptureSession) は起動に ~370ms かかるので、SCStream より先に開始する。**
-   `Recorder.runRecording()` の開始順序 (mic → SCK) はこのための設計
+   `Recorder.recordAndFinalize()` の開始順序 (mic → SCK) はこのための設計
 6. **`AVAssetTrack.load(.duration)` は macOS 26 のツールチェーンで壊れている。**
    `FileInspection` はデコードしたサンプルの PTS から長さを求めている
 7. **`Info.plist` はリンカの `-sectcreate __TEXT __info_plist` で実行ファイルに埋め込む**
@@ -137,7 +137,7 @@ swift build                       # ビルド (バイナリは .build/debug/kild
 
 - `MovieWriter` は `append*` / カウンタ読みのすべてを 1 つの `NSLock` で直列化する。
   **録画中のカウンタ読み出しは必ず `countersSnapshot()` 経由**にする
-  (`Recorder.progress()` がこれを使う)。`runRecording()` 末尾の `Summary` 構築だけは
+  (`Recorder.progress()` がこれを使う)。`recordAndFinalize()` 末尾の `Summary` 構築だけは
   停止後なので生プロパティを直接読んでいる — 停止前に読む経路を足す場合は
   スナップショット API 側に寄せること
 - `Recorder.mixedAppendLock` は `mixer.push()` → `writer.appendAudio()` を

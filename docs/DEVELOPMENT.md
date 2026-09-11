@@ -173,7 +173,7 @@ SCK / AVCapture / CoreAudio の実デバイスには触れません。
 | `--monitor` / `audio monitor setup` で BlackHole が無音 | aggregate device の非公開キー `"stacked": true` が落ちていないか (SPIKE-NOTES F-C) |
 | 既定出力が `kilde Monitor` のまま戻らない | `kilde audio monitor teardown`。状態は `~/.kilde/monitor-state.json` に保存されている |
 | サマリの `ミックスできなかった音声バッファ` が 0 でない | 入力デバイスが非対応フォーマット (Float32 以外) を返している。`MicStream.init` の `output.audioSettings` (Float32 / 48k / 2ch) の統一が効いているか |
-| mic の first-PTS 差が大きい | マイクを SCK より先に開始しているか (`Recorder.runRecording()` の順序) |
+| mic の first-PTS 差が大きい | マイクを SCK より先に開始しているか (`Recorder.recordAndFinalize()` の順序) |
 
 ## 6. 残課題
 
