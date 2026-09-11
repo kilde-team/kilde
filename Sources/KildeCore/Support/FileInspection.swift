@@ -1,5 +1,7 @@
 import Foundation
-import AVFoundation
+// report(url:) async は AVAssetTrack / AVAsset を解析用のキューへ渡す。受け渡し後に触るのは
+// そのキューだけで並行アクセスはないため、AVFoundation 由来の Sendable 警告は抑止する
+@preconcurrency import AVFoundation
 import CoreMedia
 
 /// 録画ファイルの内容検証 (kilde inspect / 統合テストが使用)
@@ -35,7 +37,16 @@ public enum FileInspection {
         }
         let audioTracks = try await asset.loadTracks(withMediaType: .audio)
         // 解析失敗は「音声トラックなし」と区別するため、エラーを伝播させる
-        let stats = try audioTracks.map { try analyzeAudioTrack($0, asset: asset, duration: total.seconds) }
+        // 全サンプルのデコードは長い録画だと数秒以上 CPU を使う。async 版を GUI の .task {} 等から
+        // 呼んだときに協調プールのスレッドを占有しないよう、専用のキューで回して結果だけを await する
+        let seconds = total.seconds
+        let stats = try await withCheckedThrowingContinuation { (done: CheckedContinuation<[AudioStats], Error>) in
+            DispatchQueue.global(qos: .userInitiated).async {
+                done.resume(with: Result {
+                    try audioTracks.map { try analyzeAudioTrack($0, asset: asset, duration: seconds) }
+                })
+            }
+        }
         return Report(
             videoPresent: !videoTracks.isEmpty,
             videoSize: videoSize,
