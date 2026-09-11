@@ -13,6 +13,7 @@ let args = Args(Array(argv.dropFirst()))
 switch cmd {
 case "doctor": Doctor().run()
 case "devices": DevicesCmd().run()
+case "inspect": InspectCmd(args: args).run()
 case "rec-system": RecSystemCmd(args: args).run()
 case "rec-audio-only": RecAudioOnlyCmd(args: args).run()
 case "rec-device": RecDeviceCmd(args: args).run()
@@ -27,6 +28,7 @@ default:
     commands:
       doctor                    権限と環境の診断 (S6)
       devices                   ディスプレイ / ウィンドウ / オーディオ機器の一覧
+      inspect <file>            録画ファイルのトラック構成と音声レベルを表示
       rec-system  [opts]        ディスプレイ + システム音声の録画 (S1/S2/S3/S5)
           --duration <N[s|m]>   長さ (既定 6s)
           --output <path>       出力先

@@ -93,6 +93,11 @@ private func analyzeAudioAsync(url: URL) async throws -> AVFileStats? {
     let tracks = try await asset.loadTracks(withMediaType: .audio)
     guard let track = tracks.first else { return nil }
     let duration = try await asset.load(.duration)
+    return analyzeAudioTrack(track, asset: asset, duration: duration.seconds)
+}
+
+/// 指定オーディオトラックを PCM にデコードして RMS / peak を測る
+func analyzeAudioTrack(_ track: AVAssetTrack, asset: AVAsset, duration: Double) -> AVFileStats? {
     guard let reader: AVAssetReader = try? AVAssetReader(asset: asset) else { return nil }
     let output = AVAssetReaderTrackOutput(track: track, outputSettings: [
         AVFormatIDKey: kAudioFormatLinearPCM,
@@ -120,5 +125,5 @@ private func analyzeAudioAsync(url: URL) async throws -> AVFileStats? {
         }
     }
     let rms = count > 0 ? sqrt(sum / Double(count)) : 0
-    return AVFileStats(duration: duration.seconds, rms: rms, peak: peak)
+    return AVFileStats(duration: duration, rms: rms, peak: peak)
 }

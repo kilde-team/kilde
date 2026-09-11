@@ -299,6 +299,10 @@ kilde/
 ```
 
 - Swift 6 相当・SPM。依存は `swift-argument-parser` のみで始める。
+- **ローカル統合テスト**: `scripts/integration-test.sh` — 実際に録画・音声再生を
+  行い、出力ファイルのトラック構成と RMS を機械検証する (T1〜T10、権限と
+  音量が必要、所要 ~2 分)。テスト用の音鳴らしウィンドウアプリ
+  (`scripts/soundapp.swift`) を同梱。
 - CI: GitHub Actions で `swift build` / `swift test` (単体のみ。スモークは
   手動マトリクス)。
 - ロードマップ:
