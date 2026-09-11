@@ -35,5 +35,10 @@ let package = Package(
                 ]),
             ]
         ),
+        .testTarget(
+            name: "KildeCoreTests",
+            dependencies: ["KildeCore"],
+            path: "Tests/KildeCoreTests"
+        ),
     ]
 )

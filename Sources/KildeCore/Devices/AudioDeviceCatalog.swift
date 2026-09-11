@@ -243,27 +243,28 @@ public enum MonitorDevice {
 
     // MARK: - state (~/.kilde/monitor-state.json)
 
-    private static var stateDirectory: URL {
-        FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".kilde", isDirectory: true)
-    }
+    /// state の保存先。通常は ~/.kilde を使い、単体テストでは実環境の state を
+    /// 壊さないため一時ディレクトリへ差し替える。
+    static var stateDirectory = FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent(".kilde", isDirectory: true)
 
     private static var stateURL: URL { stateDirectory.appendingPathComponent("monitor-state.json") }
 
     private struct State: Codable { var originalDefaultOutputUID: String }
 
-    private static func saveState(originalDefaultUID: String) throws {
+    static func saveState(originalDefaultUID: String) throws {
         try FileManager.default.createDirectory(at: stateDirectory, withIntermediateDirectories: true)
         let state = State(originalDefaultOutputUID: originalDefaultUID)
         try JSONEncoder().encode(state).write(to: stateURL, options: .atomic)
     }
 
-    private static func loadState() -> String? {
+    static func loadState() -> String? {
         guard let data = try? Data(contentsOf: stateURL),
               let state = try? JSONDecoder().decode(State.self, from: data) else { return nil }
         return state.originalDefaultOutputUID
     }
 
-    private static func removeState() {
+    static func removeState() {
         try? FileManager.default.removeItem(at: stateURL)
     }
 }

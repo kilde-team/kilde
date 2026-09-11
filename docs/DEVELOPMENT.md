@@ -138,9 +138,22 @@ scripts/integration-test.sh
 
 ### 単体テスト
 
-`Tests/` は**まだ存在しません**。`swift test` は現状通りません。
-実機・権限なしで単体テストできる候補は `parseDuration` / `RecCommand.validate()` /
-`AudioMixer` のギャップ・重複・abandoned 分岐です。
+```sh
+swift test
+```
+
+`Tests/KildeCoreTests/` は権限なし・ヘッドレスで通る単体テストです (CI でも実行する)。
+SCK / AVCapture / CoreAudio の実デバイスには触れません。
+
+| ファイル | 対象 |
+|---------|------|
+| `ParseDurationTests` | `parseDuration` の正常系・異常系 |
+| `AudioMixerTests` | 2 ソース合成とクリップ、44.1k mono → 48k stereo、ギャップの無音埋め / 重複の無視、初回データ待ち (`firstDataGraceFrames`) と `flush()`、非数値 PTS / `decodeFailures` |
+| `MonitorDeviceStateTests` | `~/.kilde/monitor-state.json` の入出力 (`MonitorDevice.stateDirectory` を一時ディレクトリに差し替える) |
+| `KilErrorTests` | `KilError.exitCode` の 1/2/3 契約 |
+| `AudioSampleBufferTestHelper` | テスト用の Float32 / Int16 `CMSampleBuffer` 生成 |
+
+`RecCommand.validate()` は CLI ターゲット (実行ファイル) 側にあるため対象外です。
 
 ## 5. トラブルシュート
 
