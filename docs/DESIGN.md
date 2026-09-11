@@ -124,9 +124,11 @@ idle → preparing (権限/デバイス確認)
 - `finalizing` での失敗 (ディスク満杯等) は `error` に遷移し、部分ファイルの
   有無を明示する。
 
-> **M1 時点の実装:** `Recorder.run()` は停止までブロックする同期 API で、
-> 状態機械はまだ公開していない (進捗は `progress()` のポーリング)。
-> イベント駆動化は issue #8 (M3 GUI の前提)。
+> **実装 (issue #8 / M2):** `Recorder` は状態遷移・進捗・完了・失敗を
+> `events: AsyncStream<RecorderEvent>` で配信する。`start()` は非ブロッキングで、
+> 同期 `run()` は `start()` の完了待ちラッパとして残している (CLI 互換。
+> この経路では progress イベントを流さず、CLI は従来どおり `progress()` を
+> ポーリングする)。GUI は `start()` + `events` 購読を使う。
 
 ## 5. キャプチャパイプライン
 
