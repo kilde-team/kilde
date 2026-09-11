@@ -1,0 +1,21 @@
+Package.swift
+  s_f77637b1782bc2::t_c50984dec94aeb 22-36
+Sources/kilde/Info.plist
+  s_f77637b1782bc2::t_1886c3587358b9 1-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "11768a98842d9e0870cdd535cd35b55d1b5f56fa",
+  "prompts": {},
+  "sessions": {
+    "s_f77637b1782bc2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b41dad5c-a91d-4514-a4af-90ec4067d8a1",
+        "model": "claude-fable-5-1"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
