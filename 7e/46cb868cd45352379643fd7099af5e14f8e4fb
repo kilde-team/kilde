@@ -1,0 +1,25 @@
+Sources/KildeCore/Capture/ScreenAudioStream.swift
+  s_6e1b71b77323e6::t_7f206306d27bc0 90-93
+  s_6e1b71b77323e6::t_db58223231d816 19-20
+  s_6e1b71b77323e6::t_51a3dc5a7a9110 58-62,66-67,69-72
+  s_6e1b71b77323e6::t_ec7663022ca7d7 78-79
+Sources/KildeCore/Support/FileInspection.swift
+  s_6e1b71b77323e6::t_1739be3ff06741 2-4
+  s_6e1b71b77323e6::t_663806df730905 40-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7e46cb868cd45352379643fd7099af5e14f8e4fb",
+  "prompts": {},
+  "sessions": {
+    "s_6e1b71b77323e6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0f56a8e5-68cd-4330-8471-cbfa3a206358",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
