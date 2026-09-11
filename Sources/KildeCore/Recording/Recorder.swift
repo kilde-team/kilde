@@ -60,6 +60,10 @@ public enum RecorderState: String, Equatable, Sendable {
 public enum RecorderEvent: Sendable {
     case stateChanged(RecorderState)
     case progress(Recorder.Progress)
+    /// 録画自体は成立したが後始末に問題があった (monitor の既定出力復元失敗等)。
+    /// .completed の前に流れる。CLI は同じ状態を cleanupWarnings + 終了コード 1 として
+    /// 扱う (DESIGN.md §6) ので、購読側もユーザーに復旧を案内すること
+    case cleanupWarning(String)
     case completed(Recorder.Summary)
     /// 失敗。finalizing での失敗 (ディスク満杯等) を含み、
     /// 部分ファイルが出力先に残っているかどうかを添える (DESIGN.md §4)
@@ -290,6 +294,11 @@ public final class Recorder {
         do {
             let summary = try await recordAndFinalize(url: url)
             teardownMonitorIfNeeded(monitorCreatedByUs)
+            // 復元失敗は録画の失敗ではないが、購読側が気づけないと既定出力が
+            // kilde Monitor のまま残る — 完了の前に警告イベントで伝える
+            for warning in cleanupWarnings {
+                eventContinuation.yield(.cleanupWarning(warning))
+            }
             setState(.done)
             eventContinuation.yield(.completed(summary))
             return summary

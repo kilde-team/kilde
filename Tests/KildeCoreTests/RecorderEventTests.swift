@@ -63,6 +63,32 @@ final class RecorderEventTests: XCTestCase {
         XCTAssertEqual(recorder.currentState, .done)
     }
 
+    /// 失敗フロー: 出力先ディレクトリが存在しても書き込めない (権限不足) 場合は
+    /// preparing 中に失敗する。startWriting の status を確認しないと「録画成功扱いの
+    /// ままセッションが停止待ちで迷子になる」ため、writer 生成時点で弾く
+    func testUnwritableOutputDirectoryFails() async throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("kilde-ro-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        // 所有者にも書かせない。後続テストに響かないよう必ず戻す
+        try? FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: dir.path)
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: dir.path)
+            try? FileManager.default.removeItem(at: dir)
+        }
+        let url = dir.appendingPathComponent("out.m4a")
+
+        let recorder = Recorder(options: emptySessionOptions(url: url, duration: 5))
+        let events = await collectEvents(recorder)
+
+        XCTAssertEqual(events.compactMap(\.state), [.preparing, .error])
+        guard case .failed(let error, let partialFileExists) = events.last else {
+            return XCTFail("末尾が failed ではありません: \(events)")
+        }
+        XCTAssertEqual(error.exitCode, 1)
+        XCTAssertFalse(partialFileExists)
+    }
+
     /// 失敗フロー: 出力先ディレクトリが存在しない場合は preparing 中に失敗する。
     /// error へ遷移し、failed イベントが末尾に来る。権限チェックを通らない経路なので
     /// マイク TCC 権限のない環境 (CI 等) でもこの順序で検証できる。
