@@ -1,0 +1,28 @@
+scripts/drift-marker.swift
+  s_35faeec28b4c4b::t_9eb1036b13b76d 77-82
+  s_35faeec28b4c4b::t_18f8eebe43e32a 16-28,30
+  s_35faeec28b4c4b::t_a23237312c62c8 44-47,52
+  s_35faeec28b4c4b::t_0fd9e0ffc3d26c 66
+scripts/drift-analyze.swift
+  s_35faeec28b4c4b::t_1c7219d2b06148 27-38
+  s_35faeec28b4c4b::t_deb2e2919869e2 236-237
+scripts/drift-test.sh
+  s_35faeec28b4c4b::t_2aeaec58b3325a 42-58
+  s_35faeec28b4c4b::t_6aa34b62e5e1fa 74,80-83,90-94,97-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "c7e5d688fd61f6d04066981ee693863f74b08a9d",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
