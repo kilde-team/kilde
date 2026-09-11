@@ -1,0 +1,30 @@
+Sources/KildeCore/Input/HotkeyMonitor.swift
+  s_34d31eef171f3f::t_b2319c952eda24 175-178,193,197,207,212,215,226,231,238-245
+  s_34d31eef171f3f::t_444cd975dc6528 274-276,278-282,286-297
+Sources/KildeCore/Input/HotkeyRecordingController.swift
+  s_34d31eef171f3f::t_a6fb17bc39e152 51-54,56-59,61-62,66
+  s_34d31eef171f3f::t_72729f1ecc2b30 55
+  s_34d31eef171f3f::t_b8b27ae9228b6b 134
+docs/DESIGN.md
+  s_34d31eef171f3f::t_16bb6d435a19f9 264
+scripts/integration-test.sh
+  s_34d31eef171f3f::t_f2c60942856b68 428-430
+Sources/kilde/RecCommand.swift
+  s_34d31eef171f3f::t_a833ae47c11f1d 122-127
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "cb1269ce95dbf136f2b2c40eb4384c2dc50be228",
+  "prompts": {},
+  "sessions": {
+    "s_34d31eef171f3f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2fe81784-1008-4b9f-8671-2ec2cf21a534",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
