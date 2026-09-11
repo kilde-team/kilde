@@ -1,0 +1,31 @@
+docs/DESIGN.md
+  s_f77637b1782bc2::t_64ec17b184bd22 17-21
+  s_f77637b1782bc2::t_382da853be10c8 41-46
+  s_f77637b1782bc2::t_f047467fbb53eb 65
+  s_f77637b1782bc2::t_2de5454fe0b4c9 137-139
+  s_f77637b1782bc2::t_45552408f41e8d 151-153,155-165
+  s_f77637b1782bc2::t_e52499d2d82ebc 223-232
+  s_f77637b1782bc2::t_f2ef81df2f78a8 269
+  s_f77637b1782bc2::t_20444221d6ca8f 264-268
+  s_f77637b1782bc2::t_21c12ad480fefe 319-321
+  s_f77637b1782bc2::t_b86acb5e3ba780 52,54-59
+  s_f77637b1782bc2::t_542b1032d535f1 3
+  s_f77637b1782bc2::t_2e62c02cb3f5ee 36-37
+  s_f77637b1782bc2::t_767e5340b736dc 196,198-201,207
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "f2edd7f5c3bc4919e5f868ef77d0247a1494c344",
+  "prompts": {},
+  "sessions": {
+    "s_f77637b1782bc2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b41dad5c-a91d-4514-a4af-90ec4067d8a1",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
