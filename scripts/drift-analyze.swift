@@ -175,18 +175,40 @@ func slope(_ points: [(Double, Double)]) -> Double? {
 
 func ms(_ seconds: Double) -> String { String(format: "%+8.1f", seconds * 1000) }
 
+// ファイルが無い / 壊れていると、トップレベルの try は未捕捉エラーになりプロセスごと落ちる (exit 133)。
+// 映像が 1 フレームも来ないと kilde は出力ファイルを作らないため (2026-09-12 にディスプレイ消灯で実際に発生)、
+// 何が起きたのか分かるメッセージで止める
+guard FileManager.default.fileExists(atPath: url.path) else {
+    fail("ファイルがありません: \(url.path)\n  録画が 1 フレームも取れていない可能性がある (ディスプレイ消灯・ロック画面では SCK が映像を出さない)")
+}
 let asset = AVURLAsset(url: url)
-let videoTracks = try await asset.loadTracks(withMediaType: .video)
-let audioTracks = try await asset.loadTracks(withMediaType: .audio)
+let videoTracks: [AVAssetTrack]
+let audioTracks: [AVAssetTrack]
+do {
+    videoTracks = try await asset.loadTracks(withMediaType: .video)
+    audioTracks = try await asset.loadTracks(withMediaType: .audio)
+} catch {
+    fail("トラックを読めません (壊れたファイルの可能性): \(error.localizedDescription)")
+}
 guard !audioTracks.isEmpty else { fail("音声トラックがありません") }
 
-let audio = try audioTracks.map { try audioSeries($0, asset) }
+let audio: [Series]
+do {
+    audio = try audioTracks.map { try audioSeries($0, asset) }
+} catch {
+    fail("音声トラックを読めません: \(error.localizedDescription)")
+}
 let names = audio.indices.map { "audio[\($0)]" }
 let referenceName: String
 let reference: [Double]
 if let v = videoTracks.first {
     referenceName = "video"
-    let series = try videoSeries(v, asset)
+    let series: Series
+    do {
+        series = try videoSeries(v, asset)
+    } catch {
+        fail("映像トラックを読めません: \(error.localizedDescription)")
+    }
     guard let lo = series.map(\.v).min(), let hi = series.map(\.v).max(), hi - lo > 0.2 else {
         fail("映像に点滅が見つかりません (drift-marker のウィンドウを収録していますか)")
     }

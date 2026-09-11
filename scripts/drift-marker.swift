@@ -87,7 +87,12 @@ func halDeviceName(_ id: AudioDeviceID) -> String {
     var address = AudioObjectPropertyAddress(mSelector: kAudioObjectPropertyName,
                                              mScope: kAudioObjectPropertyScopeGlobal,
                                              mElement: kAudioObjectPropertyElementMain)
-    // CFString をそのまま受け取るとポインタ越しにオブジェクト参照を書かれてしまうので Unmanaged で受ける
+    // CFString をそのまま (var cf: CFString に) 受けるとコンパイラが「オブジェクト参照を書かれる」と警告する
+    // 危うい書き方になるので、Unmanaged で受ける。
+    // takeRetainedValue なのは、AudioObjectGetPropertyData が CFString を +1 で返し、解放責任が
+    // 呼び出し側にあるため。2026-09-12 に実測で確認した (解放せずに読むと retainCount は 2 のまま増えず、
+    // 24,000 回 takeRetainedValue しても落ちない = 過剰解放ではない)。
+    // takeUnretainedValue に変えると解放漏れになるので戻さないこと
     var name: Unmanaged<CFString>?
     var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
     guard AudioObjectGetPropertyData(id, &address, 0, nil, &size, &name) == noErr,
@@ -109,6 +114,16 @@ func hasOutputStreams(_ id: AudioDeviceID) -> Bool {
         .contains { $0.mNumberChannels > 0 }
 }
 
+/// 出力を持つデバイスの (id, 名前) 一覧
+func outputDevices() -> [(id: AudioDeviceID, name: String)] {
+    halDeviceIDs().filter(hasOutputStreams).map { (id: $0, name: halDeviceName($0)) }
+}
+
+/// 鳴らす先を名前 (部分一致) で引く
+func resolveOutput(_ wanted: String) -> (id: AudioDeviceID, name: String)? {
+    outputDevices().first { $0.name.localizedCaseInsensitiveContains(wanted) }
+}
+
 let app = NSApplication.shared
 let window = NSWindow(
     contentRect: NSRect(x: 200, y: 200, width: 480, height: 320),
@@ -124,13 +139,12 @@ let beep = makeBeep()
 let engine = AVAudioEngine()
 let playerNode = AVAudioPlayerNode()
 
-/// 鳴らす先。未指定ならシステムの既定出力
-let selectedOutput: (id: AudioDeviceID, name: String)? = outputDeviceName.map { wanted in
-    let outputs = halDeviceIDs().filter(hasOutputStreams).map { (id: $0, name: halDeviceName($0)) }
-    guard let match = outputs.first(where: { $0.name.localizedCaseInsensitiveContains(wanted) }) else {
-        fail("出力デバイスが見つかりません: \(wanted)\n  利用可能: \(outputs.map(\.name).joined(separator: " / "))", 2)
+// 指定された出力が存在しないまま計測を始めないよう、起動時に一度確認する
+if let wanted = outputDeviceName {
+    guard let match = resolveOutput(wanted) else {
+        fail("出力デバイスが見つかりません: \(wanted)\n  利用可能: \(outputDevices().map(\.name).joined(separator: " / "))", 2)
     }
-    return match
+    print("output device: \(match.name)")
 }
 
 engine.attach(playerNode)
@@ -141,11 +155,17 @@ engine.attach(playerNode)
 /// 直さないと 1 個目のマーカーからビープが鳴らないまま録画が進む
 func configureEngine() {
     if engine.isRunning { return }
-    if var deviceID = selectedOutput?.id {
+    if let wanted = outputDeviceName {
+        // デバイス ID は毎回名前から引き直す。CoreAudio は取り外しで空いた ID を再利用するので、
+        // 起動時の ID を使い回すと、構成が変わったときに無言で別のデバイスへ鳴らしてしまう
+        guard let match = resolveOutput(wanted) else {
+            fail("出力デバイスが見つかりません: \(wanted)", 2)
+        }
+        var deviceID = match.id
         guard let unit = engine.outputNode.audioUnit,
               AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
                                    &deviceID, UInt32(MemoryLayout<AudioDeviceID>.size)) == noErr else {
-            fail("出力デバイスを設定できません: \(selectedOutput?.name ?? "")", 1)
+            fail("出力デバイスを設定できません: \(match.name)", 1)
         }
     }
     engine.connect(playerNode, to: engine.mainMixerNode, format: beep.format)
@@ -158,7 +178,6 @@ func configureEngine() {
     playerNode.play()
 }
 
-if let selectedOutput { print("output device: \(selectedOutput.name)") }
 configureEngine()
 NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: .main) { _ in
     print("audio engine reconfigured")

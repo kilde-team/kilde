@@ -23,6 +23,8 @@
 #     (この場合 mic 側は BlackHole の仮想クロックなので、実マイクのドリフトとは限らない点に注意)
 #   - 計測中は KildeDriftMarker ウィンドウを他のウィンドウで隠さない。静かな環境で行う
 #   - 1 回の録画は最大で録画時間 + 30 秒ほどかかる。途中で Mac をスリープさせない
+#   - 画面が消えている / ロックされていると SCK が映像を出さないので、スクリプトが caffeinate で
+#     点灯 (-u) と消灯抑止 (-dims) を行う。ただしロック画面は解除できないので、ロックしないこと
 
 set -u
 
@@ -37,11 +39,21 @@ WORK="$(mktemp -d "${TMPDIR:-/tmp}/kilde-drift.XXXXXX")"
 MARKER_PID=""
 REC_PID=""
 INTERRUPTED=0
+CAFFEINATE_PID=""
+
+# 画面が消えていると SCK は映像フレームを 1 枚も出さず、録画は exit 0 なのに出力ファイルすら
+# 作られない (2026-09-12 に 15 分の計測を 2 回失った)。
+# - caffeinate -u: 消えている画面を点ける。-d は「消えるのを防ぐ」だけで、既に消えた画面は点かない
+# - caffeinate -dims -w $$: このスクリプトが終わるまで消灯・スリープを抑止する
+caffeinate -u -t 1 2>/dev/null || true
+caffeinate -dims -w $$ 2>/dev/null &
+CAFFEINATE_PID=$!
 
 cleanup() {
     # 想定外の終了経路でも録画を放置しない (安全停止を依頼してファイナライズを待つ)
     if [ -n "$REC_PID" ]; then kill -INT "$REC_PID" 2>/dev/null; wait "$REC_PID" 2>/dev/null; fi
     [ -n "$MARKER_PID" ] && kill "$MARKER_PID" 2>/dev/null
+    [ -n "$CAFFEINATE_PID" ] && kill "$CAFFEINATE_PID" 2>/dev/null
     echo ""
     echo "作業ディレクトリ (録画・ログ・解析結果): $WORK"
 }
