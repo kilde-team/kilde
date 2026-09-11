@@ -1,0 +1,25 @@
+scripts/integration-test.sh
+  s_6e1b71b77323e6::t_5067cbd19fe170 33-38,40-44
+  s_6e1b71b77323e6::t_f11fe2280f4920 64-69
+  s_6e1b71b77323e6::t_a5a7d5bbef7bc1 333-338,340-361
+Tests/KildeCoreTests/ConfigTests.swift
+  s_6e1b71b77323e6::t_91e913512e8d3f 233-236
+Sources/KildeCore/Support/Config.swift
+  s_6e1b71b77323e6::t_b5fac0385ad5a6 166-168
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1daa7256e32af4ab8fff546d24ac8bc8bebe51c0",
+  "prompts": {},
+  "sessions": {
+    "s_6e1b71b77323e6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0f56a8e5-68cd-4330-8471-cbfa3a206358",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
