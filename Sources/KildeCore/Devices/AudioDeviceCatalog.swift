@@ -96,11 +96,17 @@ public enum AudioDeviceCatalog {
             mElement: kAudioObjectPropertyElementMain
         )
         guard AudioObjectHasProperty(id, &addr) else { return nil }
-        var cf: CFString = "" as CFString
-        var size = UInt32(MemoryLayout<CFString>.size)
+        // CoreAudio の CFString プロパティは +1 (呼び出し側が解放責任を持つ) で返る。
+        // ARC 管理の変数のアドレスに直接書き込ませると (a) +1 分が解放されず漏れる、
+        // (b) ARC の解放と噛み合わず二重解放の恐れ、があるため Unmanaged で受けて
+        // takeRetainedValue() で所有権を Swift に移す (issue #49。
+        // 2026-09-12 に実測で +1 を確認 — 解放せずに読んだ retainCount は増えず、
+        // takeRetainedValue を大量に呼んでも落ちない)
+        var cf: Unmanaged<CFString>?
+        var size = UInt32(MemoryLayout<Unmanaged<CFString>>.size)
         let err = AudioObjectGetPropertyData(id, &addr, 0, nil, &size, &cf)
         guard err == noErr else { return nil }
-        return cf as String
+        return cf?.takeRetainedValue() as String?
     }
 
     private static func streamChannels(_ id: AudioObjectID, input: Bool) -> Int {
