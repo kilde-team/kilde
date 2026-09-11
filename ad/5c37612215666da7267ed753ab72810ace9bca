@@ -1,0 +1,22 @@
+CLAUDE.md
+  s_14688823243adc::t_7e4d94a2b35c16 64-67
+  s_14688823243adc::t_b622ea0ce1a8ee 30-32
+gui/Sources/ContentView.swift
+  s_14688823243adc::t_d7b474fa48d356 72-77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "ad5c37612215666da7267ed753ab72810ace9bca",
+  "prompts": {},
+  "sessions": {
+    "s_14688823243adc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ddbf470b-d6da-4876-8dbc-a2c696d20b1c",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
