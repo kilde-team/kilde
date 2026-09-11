@@ -112,10 +112,11 @@ struct ContentView: View {
     }
 
     /// SCShareableContent の初回列挙は数百 ms かかる (権限プロンプト保留中は
-    /// さらに長く) なるため、メニューバーのパネルを開くたびにメインスレッドを
-    /// 塞がないよう detached タスクで列挙し、結果だけ @State に書き戻す。
-    /// View のメソッドは @MainActor 隔離なので Task {} では隔離を継承して
-    /// ブロッキング呼び出しがメインに留まる — detached が必須。
+    /// 返らないことすらある)。列挙は detached タスクで走らせ、UI 側では
+    /// `enumerationTimeout` 秒のタイムアウトを設けて loading を解除する —
+    /// これが無いと権限保留中に再オープンも手動更新もすべて黙殺され、
+    /// 権限不要なオーディオ一覧まで表示されない。列挙のタイムアウト自体は
+    /// #35 (awaitSync の async 化) で根本対応する。
     /// (issue #35 で snapshot() の async 版が入ったら .task {} + await に移行する)
     @MainActor private func reload() {
         guard !reloading else {
@@ -127,15 +128,33 @@ struct ContentView: View {
             return
         }
         reloading = true
+        // 権限不要で速いオーディオ列挙は画面収録権限の待ちに巻き込まれないよう独立に反映
         Task.detached {
-            let result: Result<(displays: [DisplayInfo], windows: [WindowInfo]), Error>
-            do {
-                result = .success(try DisplayCatalog.snapshot())
-            } catch {
-                result = .failure(error)
-            }
             let devices = AudioDeviceCatalog.devices
+            await MainActor.run { audioDevices = devices }
+        }
+        let enumerate = Task.detached { () -> EnumerationResult in
+            do { return .success(try DisplayCatalog.snapshot()) }
+            catch { return .failure(error) }
+        }
+        Task {
+            let finished = await Self.firstFinishedOrTimedOut(enumerate, timeout: Self.enumerationTimeout)
             await MainActor.run {
+                defer {
+                    reloading = false
+                    hasLoadedOnce = true
+                    if needsReload {
+                        // 実行中に来た再読込要求 (パネル再オープン等) をここで回収する
+                        needsReload = false
+                        reload()
+                    }
+                }
+                guard let result = finished else {
+                    displays = []
+                    windows = []
+                    loadError = "画面/ウィンドウの列挙がタイムアウトしました。画面収録の権限確認が保留になっていないか確認し、再度更新してください"
+                    return
+                }
                 switch result {
                 case .success(let snapshot):
                     displays = snapshot.displays
@@ -147,15 +166,33 @@ struct ContentView: View {
                     windows = []
                     loadError = "画面/ウィンドウの列挙に失敗: \(error)"
                 }
-                audioDevices = devices
-                reloading = false
-                hasLoadedOnce = true
-                if needsReload {
-                    // 実行中に来た再読込要求 (パネル再オープン等) をここで回収する
-                    needsReload = false
-                    reload()
-                }
             }
+        }
+    }
+
+    private typealias EnumerationResult =
+        Result<(displays: [DisplayInfo], windows: [WindowInfo]), Error>
+    private static let enumerationTimeout: TimeInterval = 10
+
+    /// 列挙の完了とタイムアウトの先着を返す。タイムアウト時は nil。
+    /// 同期 awaitSync を wrap した列挙タスクは cancel できないため、タイムアウト後も
+    /// タスク自体は残留するが、その結果は使われない
+    private static func firstFinishedOrTimedOut(
+        _ enumerate: Task<EnumerationResult, Never>,
+        timeout: TimeInterval
+    ) async -> EnumerationResult? {
+        await withTaskGroup(of: Bool.self) { group in
+            group.addTask {
+                _ = await enumerate.value
+                return true
+            }
+            group.addTask {
+                try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                return false
+            }
+            let finished = await group.next() ?? false
+            group.cancelAll()
+            return finished ? await enumerate.value : nil
         }
     }
 

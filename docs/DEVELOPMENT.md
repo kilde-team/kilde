@@ -151,6 +151,7 @@ scripts/integration-test.sh
 | T8 | `rec --no-video --window` — 特定アプリの音声のみ |
 | T9 | `audio monitor` + `--audio device:BlackHole...` — BlackHole 未導入なら SKIP |
 | T10 | SIGINT — Ctrl+C 相当で exit 0・再生可能なファイルが残る |
+| T11 | GUI — KildeGUI のビルド・起動・正常終了 (xcodegen 未導入なら SKIP。メニューバー表示は目視確認) |
 
 作業ディレクトリ (録画物とログ) は失敗調査のため削除されず、最後に
 パスが表示されます。

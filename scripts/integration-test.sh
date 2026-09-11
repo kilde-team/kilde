@@ -290,6 +290,36 @@ else
     bad "T10 SIGINT: exit=$EXIT_CODE duration=${VD:-N/A}s — $WORK/t10.log"
 fi
 
+# ---- T11: GUI (メニューバーアプリ) のビルドと起動 ------------------------------
+# .xcodeproj はコミットされていないため xcodegen で生成する (未導入なら SKIP)。
+# メニューバーのアイコン表示そのものは目視確認になるため、ここでは
+# 「ビルドできる・起動する・正常終了する」を機械検証する
+
+if command -v xcodegen >/dev/null 2>&1; then
+    log "T11: GUI — KildeGUI のビルドと起動/終了"
+    if (cd "$ROOT/gui" && xcodegen -q > "$WORK/t11-xcodegen.log" 2>&1 \
+        && xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI -configuration Debug build \
+           >> "$WORK/t11-xcodegen.log" 2>&1); then
+        GUI_APP=$(cd "$ROOT/gui" && xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI \
+            -configuration Debug -showBuildSettings 2>/dev/null \
+            | grep -m1 "BUILT_PRODUCTS_DIR" | awk '{print $3}')/KildeGUI.app
+        if open "$GUI_APP" && sleep 3 && pgrep -x KildeGUI >/dev/null; then
+            if osascript -e 'tell application "KildeGUI" to quit' >/dev/null 2>&1 && sleep 1 \
+                && ! pgrep -x KildeGUI >/dev/null; then
+                ok "T11 GUI: ビルド・起動・正常終了 (メニューバー表示は目視確認)"
+            else
+                bad "T11 GUI: 終了に失敗"
+            fi
+        else
+            bad "T11 GUI: 起動に失敗 — $WORK/t11-xcodegen.log"
+        fi
+    else
+        bad "T11 GUI: ビルドに失敗 — $WORK/t11-xcodegen.log"
+    fi
+else
+    skip "T11 GUI: xcodegen 未導入 (brew install xcodegen で実行可)"
+fi
+
 # ---- サマリ -------------------------------------------------------------------
 
 echo ""
