@@ -1,0 +1,74 @@
+scripts/drift-marker.swift
+  s_35faeec28b4c4b::t_146d7b199f91aa 28,35
+  s_35faeec28b4c4b::t_a23237312c62c8 56-64
+  s_35faeec28b4c4b::t_18f8eebe43e32a 16-26,39-42
+  s_35faeec28b4c4b::t_2534bef25846a8 27,36-38
+  s_35faeec28b4c4b::t_9eb1036b13b76d 89-94
+  s_35faeec28b4c4b::t_0fd9e0ffc3d26c 78
+  s_35faeec28b4c4b::t_18dba68406aec2 29-34
+  s_35faeec28b4c4b::t_a4ba92e80b96a7 108-113
+docs/SPIKE-NOTES.md
+  s_6e1b71b77323e6::t_55c88d556d3c5d 115-119
+  s_6e1b71b77323e6::t_2057742a245885 90-102,110-114,120-127
+  s_6e1b71b77323e6::t_ff8c89001921f1 128-134
+  s_6e1b71b77323e6::t_9517a7b0bd0878 103-109
+scripts/drift-analyze.swift
+  s_35faeec28b4c4b::t_deb2e2919869e2 239-240
+  s_6e1b71b77323e6::t_db9c16d4313e1b 6-26,39-121,126-236
+  s_35faeec28b4c4b::t_1c7219d2b06148 27-38
+  s_35faeec28b4c4b::t_94d6dfc126e4f9 122-125
+docs/DESIGN.md
+  s_34d31eef171f3f::t_eea7d49df9ad94 412-413
+  s_6e1b71b77323e6::t_fe86eeac6f7266 203
+docs/DEVELOPMENT.md
+  s_6e1b71b77323e6::t_962947e334c448 241-252
+scripts/drift-test.sh
+  s_35faeec28b4c4b::t_6aa34b62e5e1fa 101,163-169
+  s_35faeec28b4c4b::t_eb8d6ef5aa9add 63-66
+  s_35faeec28b4c4b::t_2a691ecc559da9 32-53
+  s_6e1b71b77323e6::t_f108e2e3e4ff44 131
+  s_35faeec28b4c4b::t_7e0a36b1c4d33e 103-113,120-122,124-130,134-139,143-144,151-155
+  s_6e1b71b77323e6::t_467f8a8e1cb2f0 12-18
+  s_6e1b71b77323e6::t_a43ae7dea8509d 100
+  s_35faeec28b4c4b::t_35e0cafeb034ed 146-150
+  s_35faeec28b4c4b::t_4b55cc3fc6e2b9 76,81-85
+  s_35faeec28b4c4b::t_c64c4e0e69e5c7 114-119
+  s_35faeec28b4c4b::t_965487b8ff00c0 123,132-133,140-142
+  s_35faeec28b4c4b::t_41d97fd480b48f 55-59
+  s_35faeec28b4c4b::t_2aeaec58b3325a 62,67-75,77-80
+  s_6e1b71b77323e6::t_26ee6a42a46b2e 170-175
+  s_35faeec28b4c4b::t_475d768a64447a 179-184
+  s_6e1b71b77323e6::t_58afdac2ada647 29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "62ec0bade60873fe944b37bf802e23578a266668",
+  "prompts": {},
+  "sessions": {
+    "s_34d31eef171f3f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2fe81784-1008-4b9f-8671-2ec2cf21a534",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    },
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    },
+    "s_6e1b71b77323e6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0f56a8e5-68cd-4330-8471-cbfa3a206358",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
