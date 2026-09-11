@@ -24,7 +24,18 @@ guard args.count > 1 else {
     exit(2)
 }
 let url = URL(fileURLWithPath: args[1])
-let interval = args.count > 2 ? (Double(args[2]) ?? 30) : 30
+// guidedOffset の探索窓は −0.5〜+1.0 秒 (幅 1.5 秒)。間隔がこれ以下だと隣のマーカーのビープが窓に入り、
+// 欠落・遅延したマーカーの代わりに拾ってしまうので受け付けない (不正値を既定値に置き換えることもしない)
+let interval: Double
+if args.count > 2 {
+    guard let v = Double(args[2]), v.isFinite, v > 1.5 else {
+        FileHandle.standardError.write("ERROR: マーカー間隔は 1.5 秒より大きい数値を指定してください: \(args[2])\n".data(using: .utf8)!)
+        exit(2)
+    }
+    interval = v
+} else {
+    interval = 30
+}
 // 1 回のマーカーの残響や点滅の戻りを次のマーカーと取り違えないための不感時間
 let minGap = max(1.0, interval * 0.5)
 
@@ -222,7 +233,8 @@ func summarize(_ label: String, _ values: [Double?]) {
 for (i, name) in names.enumerated() where referenceName != name {
     summarize("\(name) − \(referenceName)", offsets[i])
 }
-if offsets.count >= 2 {
+// 音声基準 (音声のみのファイル) では audio[1] − audio[0] を上のループで出し済みなので、映像基準のときだけ足す
+if referenceName == "video", offsets.count >= 2 {
     let between = zip(offsets[1], offsets[0]).map { b, a -> Double? in
         guard let a, let b else { return nil }
         return b - a

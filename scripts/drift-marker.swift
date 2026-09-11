@@ -12,12 +12,22 @@ import AppKit
 import AVFoundation
 
 let args = CommandLine.arguments
-let interval = args.count > 1 ? (Double(args[1]) ?? 30) : 30
-let lifetime = args.count > 2 ? (Double(args[2]) ?? 960) : 960
 
-/// 1 kHz / 60 ms のビープを一時ファイルに書く。
+/// 不正な値を既定値に置き換えると指定と違う周期で計測してしまうので、拒否して終了する
+func positiveArg(_ index: Int, default value: Double) -> Double {
+    guard args.count > index else { return value }
+    guard let v = Double(args[index]), v.isFinite, v > 0 else {
+        FileHandle.standardError.write("ERROR: 引数は正の数値で指定してください: \(args[index])\n".data(using: .utf8)!)
+        exit(2)
+    }
+    return v
+}
+let interval = positiveArg(1, default: 30)
+let lifetime = positiveArg(2, default: 960)
+
+/// 1 kHz / 60 ms のビープを CAF のバイト列として作る。
 /// オンセット検出を安定させるため立ち上がりは鋭く (フェードインなし)、末尾だけ 10 ms フェードする
-func makeBeep() throws -> URL {
+func makeBeep() throws -> Data {
     let sampleRate = 48_000.0
     let frames = Int(sampleRate * 0.06)
     let fade = 480
@@ -31,12 +41,15 @@ func makeBeep() throws -> URL {
     }
     let url = FileManager.default.temporaryDirectory
         .appendingPathComponent("kilde-drift-beep-\(getpid()).caf")
-    // AVAudioFile は解放時にファイルを閉じるので、スコープを切って書き切ってから返す
+    // 一時ファイルは読み込んだ直後に消す。drift-test.sh の kill (SIGTERM) など、寿命タイマー以外の
+    // 終了経路でも CAF が一時ディレクトリに残らないようにするため
+    defer { try? FileManager.default.removeItem(at: url) }
+    // AVAudioFile は解放時にファイルを閉じるので、スコープを切って書き切ってから読む
     do {
         let file = try AVAudioFile(forWriting: url, settings: format.settings)
         try file.write(from: buffer)
     }
-    return url
+    return try Data(contentsOf: url)
 }
 
 let app = NSApplication.shared
@@ -50,8 +63,7 @@ window.title = "KildeDriftMarker"
 window.backgroundColor = .black
 window.orderFrontRegardless()
 
-let beepURL = try makeBeep()
-let player = try AVAudioPlayer(contentsOf: beepURL)
+let player = try AVAudioPlayer(data: makeBeep(), fileTypeHint: AVFileType.caf.rawValue)
 player.volume = 1.0
 // 初回の play() だけ出力経路の立ち上げで遅れないよう、事前にバッファを用意しておく
 player.prepareToPlay()
@@ -62,7 +74,12 @@ func fire() {
     window.backgroundColor = .white
     window.display()
     player.currentTime = 0
-    player.play()
+    // 再生できないまま点滅だけ続けると「ビープのない録画」を計測として扱ってしまうので、ここで止める。
+    // drift-test.sh は録画終了時にマーカーが居なければその回を失敗にする
+    guard player.play() else {
+        FileHandle.standardError.write("ERROR: ビープの再生を開始できません (marker \(count))\n".data(using: .utf8)!)
+        exit(1)
+    }
     print("marker \(count) \(String(format: "%.3f", Date().timeIntervalSince1970))")
     fflush(stdout)
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
@@ -74,7 +91,6 @@ func fire() {
 // Timer 自体の揺れは計測に影響しない (マーカーごとに映像と音声の差を取るため)
 Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in fire() }
 Timer.scheduledTimer(withTimeInterval: lifetime, repeats: false) { _ in
-    try? FileManager.default.removeItem(at: beepURL)
     NSApp.terminate(nil)
 }
 app.run()
