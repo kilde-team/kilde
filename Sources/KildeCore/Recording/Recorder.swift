@@ -75,7 +75,10 @@ public enum RecorderEvent: Sendable {
 /// 録画セッションの指揮 (DESIGN.md §4 RecorderController)
 public final class Recorder {
 
-    /// run() 完了後に同じスレッドから読むだけなので、追加のロックは不要
+    /// セッション完了後の読み取り専用 (CLI が run() の後に表示する)。
+    /// 書き込みはセッション Task 上で行われるが、run() の返却は storeCompletion の
+    /// NSCondition 経由でその後に行われるため、ロック無しで読める。
+    /// 完了後に追記する経路を足す場合はロックかイベント経由に寄せること
     public private(set) var cleanupWarnings: [String] = []
 
     public struct Progress: Sendable {
@@ -375,7 +378,9 @@ public final class Recorder {
                 }
             }
         } catch {
-            // この時点で writer は startWriting 済みなので、未完成ファイルを残さないよう破棄する
+            // この時点で writer は startWriting 済みなので、書き込みセッションを破棄する。
+            // cancelWriting は出力ファイル自体は削除しない (不完全なまま残る) —
+            // 残ったファイルは .failed イベントの partialFileExists で呼び出し元に伝わる
             w.cancel()
             throw error
         }
