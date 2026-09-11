@@ -245,6 +245,11 @@ public final class Recorder {
             storeCompletion(.success(summary))
         } catch {
             let partial = writer != nil && fileExists(outputURL)
+            // 録画本体が失敗した経路でも monitor 復元の警告は発生し得る —
+            // .failed の前に配信して、購読側が復旧を案内できるようにする
+            for warning in cleanupWarnings {
+                eventContinuation.yield(.cleanupWarning(warning))
+            }
             setState(.error)
             eventContinuation.yield(
                 .failed(Self.asKilError(error), partialFileExists: partial))

@@ -91,10 +91,12 @@ final class MovieWriter {
         writer.startWriting()
         // startWriting は書き込み不能な出力先でも例外を投げず status が .failed に
         // なるだけ (存在しないディレクトリ・権限不足・読み取り専用ボリューム等)。
-        // 放置すると「何も録れていないのに録画成功扱い」になるためここで弾く
+        // 放置すると「何も録れていないのに録画成功扱い」になるためここで弾く。
+        // init の throw は呼び出し側の cancel 経路に届かないので、自分で後始末する
         if writer.status == .failed {
-            throw KilError.failed(
-                "出力ファイルを開けません: \(url.path) (\(String(describing: writer.error)))")
+            let reason = String(describing: writer.error)
+            writer.cancelWriting()
+            throw KilError.failed("出力ファイルを開けません: \(url.path) (\(reason))")
         }
     }
 

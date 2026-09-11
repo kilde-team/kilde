@@ -70,11 +70,19 @@ final class RecorderEventTests: XCTestCase {
         let dir = FileManager.default.temporaryDirectory
             .appendingPathComponent("kilde-ro-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        // 所有者にも書かせない。後続テストに響かないよう必ず戻す
-        try? FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: dir.path)
         defer {
             try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: dir.path)
             try? FileManager.default.removeItem(at: dir)
+        }
+        // 所有者にも書かせない。適用できなければ (root 実行等) このテストの前提が
+        // 立たないので skip する — 権限を素通りして startWriting が成功するため
+        do {
+            try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: dir.path)
+        } catch {
+            throw XCTSkip("ディレクトリを読み取り専用にできません: \(error)")
+        }
+        guard !FileManager.default.isWritableFile(atPath: dir.path) else {
+            throw XCTSkip("権限設定が効いていません (root 実行の可能性)")
         }
         let url = dir.appendingPathComponent("out.m4a")
 
