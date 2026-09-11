@@ -24,6 +24,8 @@ public final class AudioMixer {
     private let outFormat: AVAudioFormat
     private let formatDescription: CMAudioFormatDescription
     public private(set) var emittedChunkCount = 0
+    /// デコードに失敗して破棄したバッファ数 (非対応フォーマット検出の手がかり)
+    public private(set) var decodeFailures = 0
 
     private final class SourceState {
         var baseFrame: Int64 = 0        // data 先頭の絶対フレーム位置
@@ -77,7 +79,12 @@ public final class AudioMixer {
 
     /// ソースからのバッファを受け、合成が進んだ分の出力チャンクを返す
     public func push(_ label: String, _ sb: CMSampleBuffer) -> [CMSampleBuffer] {
-        guard let decoded = AudioConversion.decode(sb) else { return [] }
+        guard let decoded = AudioConversion.decode(sb) else {
+            lock.lock(); decodeFailures += 1; lock.unlock()
+            return []
+        }
+        // 非数値 PTS はフレーム位置の計算でクラッシュするため破棄する
+        guard CMTIME_IS_NUMERIC(decoded.pts) else { return [] }
         lock.lock(); defer { lock.unlock() }
         guard let st = sources[label] else { return [] }
         if anchor == nil { anchor = decoded.pts }
@@ -136,30 +143,52 @@ public final class AudioMixer {
 
         var chunks: [CMSampleBuffer] = []
         while emittedFrames + Int64(AudioMixer.chunkFrames) <= cutoff {
-            var mix = [Float](repeating: 0, count: AudioMixer.chunkFrames * 2)
-            for st in active {
-                let offset = Int(emittedFrames - st.baseFrame)
-                guard offset >= 0 else { continue }  // まだ始まっていないソース
-                let available = st.data.count / 2 - offset
-                let n = min(AudioMixer.chunkFrames, available)
-                guard n > 0 else { continue }
-                for i in 0..<(n * 2) {
-                    mix[i] += st.data[offset * 2 + i]
-                }
-            }
-            for i in mix.indices { mix[i] = max(-1, min(1, mix[i])) }
-            let pts = CMTime(
-                seconds: anchor.seconds + Double(emittedFrames) / AudioMixer.sampleRate,
-                preferredTimescale: CMTimeScale(AudioMixer.sampleRate)
-            )
-            if let sb = makeSampleBuffer(mix, pts: pts) {
-                chunks.append(sb)
-            }
-            emittedFrames += Int64(AudioMixer.chunkFrames)
+            guard let sb = mixChunk(frames: AudioMixer.chunkFrames, anchor: anchor) else { break }
+            chunks.append(sb)
         }
         for st in active { st.trim(to: emittedFrames) }
-        emittedChunkCount += chunks.count
         return chunks
+    }
+
+    /// セッション終了時に残っているデータを吐き切る。
+    /// チャンク境界に満ない末尾 (最大 21ms) と、初回データ待ちでブロックされていた
+    /// 短時間録音のデータも回収する。
+    public func flush() -> [CMSampleBuffer] {
+        lock.lock(); defer { lock.unlock() }
+        let active = sources.values.filter { $0.hasData }
+        guard let anchor else { return [] }
+        let maxEnd = active.map { $0.endFrame }.max() ?? 0
+        var chunks: [CMSampleBuffer] = []
+        while emittedFrames < maxEnd {
+            let frames = Int(min(maxEnd - emittedFrames, Int64(AudioMixer.chunkFrames)))
+            guard frames > 0, let sb = mixChunk(frames: frames, anchor: anchor) else { break }
+            chunks.append(sb)
+        }
+        return chunks
+    }
+
+    /// emittedFrames 位置から frames 分のミックスチャンクを 1 つ作る (lock 保持中に呼ぶ)
+    private func mixChunk(frames: Int, anchor: CMTime) -> CMSampleBuffer? {
+        let active = sources.values.filter { $0.hasData }
+        var mix = [Float](repeating: 0, count: frames * AudioMixer.channelCount)
+        for st in active {
+            let offset = Int(emittedFrames - st.baseFrame)
+            guard offset >= 0 else { continue }  // まだ始まっていないソース
+            let n = min(frames, st.data.count / 2 - offset)
+            guard n > 0 else { continue }
+            for i in 0..<(n * 2) {
+                mix[i] += st.data[offset * 2 + i]
+            }
+        }
+        for i in mix.indices { mix[i] = max(-1, min(1, mix[i])) }
+        let pts = CMTime(
+            seconds: anchor.seconds + Double(emittedFrames) / AudioMixer.sampleRate,
+            preferredTimescale: CMTimeScale(AudioMixer.sampleRate)
+        )
+        guard let sb = makeSampleBuffer(mix, pts: pts) else { return nil }
+        emittedFrames += Int64(frames)
+        emittedChunkCount += 1
+        return sb
     }
 
     /// interleaved Float32 配列から CMSampleBuffer (48k stereo) を作る

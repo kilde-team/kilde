@@ -35,12 +35,14 @@ func cliError(_ error: Error) -> Never {
 
 private var signalSources: [DispatchSourceSignal] = []
 
-/// SIGINT / SIGTERM を安全停止に接続する (DESIGN.md §5 — 最重要 UX)
+/// SIGINT / SIGTERM / SIGHUP を安全停止に接続する (DESIGN.md §5 — 最重要 UX)。
+/// SIGHUP はターミナル終了時に飛ぶため、これを無視するとファイナライズが省略される。
 func installStopSignalHandler(_ handler: @escaping () -> Void) {
     signal(SIGINT, SIG_IGN)
     signal(SIGTERM, SIG_IGN)
+    signal(SIGHUP, SIG_IGN)
     let q = DispatchQueue(label: "kilde.signal")
-    for sig in [SIGINT, SIGTERM] {
+    for sig in [SIGINT, SIGTERM, SIGHUP] {
         let src = DispatchSource.makeSignalSource(signal: sig, queue: q)
         src.setEventHandler(handler: handler)
         src.resume()

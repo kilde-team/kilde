@@ -31,11 +31,12 @@ enum AudioConversion {
 
         var needed = 0
         var block: CMBlockBuffer?
+        // サイズ探査ではブロックバッファを保持しない (2 回目の呼び出しで取得する)
         var status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
             sb, bufferListSizeNeededOut: &needed, bufferListOut: nil, bufferListSize: 0,
             blockBufferAllocator: kCFAllocatorDefault,
             blockBufferMemoryAllocator: kCFAllocatorDefault,
-            flags: 0, blockBufferOut: &block
+            flags: 0, blockBufferOut: nil
         )
         guard status == noErr, needed > 0 else { return nil }
         let listPtr = UnsafeMutableRawPointer.allocate(

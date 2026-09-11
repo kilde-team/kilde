@@ -71,7 +71,9 @@ public enum DisplayCatalog {
         }
         let candidates = content.windows.filter { $0.isOnScreen && $0.owningApplication != nil }
         let matched = candidates.filter {
-            ($0.title ?? "").localizedCaseInsensitiveContains(match)
+            // windowID の完全一致 (kilde devices に表示される [ID] を直接指定できる)
+            String($0.windowID) == match
+                || ($0.title ?? "").localizedCaseInsensitiveContains(match)
                 || ($0.owningApplication?.bundleIdentifier ?? "").localizedCaseInsensitiveContains(match)
         }
         guard let best = matched.max(by: { $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height })
@@ -82,7 +84,12 @@ public enum DisplayCatalog {
     }
 
     static func display(at index: Int) throws -> SCDisplay {
-        let content = try awaitSync { try await SCShareableContent.current }
+        let content: SCShareableContent
+        do {
+            content = try awaitSync { try await SCShareableContent.current }
+        } catch {
+            throw KilError.permission("ディスプレイの一覧を取得できません: \(error.localizedDescription)")
+        }
         guard content.displays.indices.contains(index) else {
             throw KilError.deviceNotFound("ディスプレイ \(index) は範囲外です (0...\(content.displays.count - 1))")
         }

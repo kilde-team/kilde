@@ -136,7 +136,9 @@ public enum MonitorDevice {
 
     /// 既定出力と BlackHole でマルチ出力デバイスを作成し、既定出力に設定する。
     /// 元の既定出力を state に保存する (teardown で復元)。
+    /// 既に kilde Monitor が存在する場合は解体してから作り直す (冪等)。
     public static func setup() throws -> AudioDeviceInfo {
+        if exists { teardown() }
         guard let currentDefault = AudioDeviceCatalog.defaultOutput else {
             throw KilError.failed("既定出力デバイスを取得できません")
         }
@@ -148,24 +150,32 @@ public enum MonitorDevice {
         }
         destroy()
         let id = try create(masterUID: currentDefault.uid, memberUIDs: [currentDefault.uid, blackhole.uid])
-        // 失敗時は作成したデバイスを削除して元の既定出力へ戻す (システム状態を残さない)
+        // 既定出力の切替に失敗したら復元を試み、復元できた場合のみデバイスを削除する
         guard setDefaultOutput(id) else {
-            _ = setDefaultOutput(currentDefault.id)
-            destroy()
-            throw KilError.failed("既定出力の切り替えに失敗しました")
+            if setDefaultOutput(currentDefault.id) {
+                destroy()
+                throw KilError.failed("既定出力の切り替えに失敗しました")
+            }
+            throw KilError.failed(
+                "既定出力の切り替えと復元の両方に失敗しました。kilde Monitor が既定のまま残っています — システム設定で手動確認してください"
+            )
         }
         do {
             try saveState(originalDefaultUID: currentDefault.uid)
         } catch {
-            _ = setDefaultOutput(currentDefault.id)
-            destroy()
-            throw KilError.failed("状態の保存に失敗したためロールバックしました: \(error.localizedDescription)")
+            if setDefaultOutput(currentDefault.id) {
+                destroy()
+                throw KilError.failed("状態の保存に失敗したためロールバックしました: \(error.localizedDescription)")
+            }
+            throw KilError.failed(
+                "状態の保存と復元の両方に失敗しました — システム設定で手動確認してください"
+            )
         }
         return AudioDeviceCatalog.devices.first { $0.uid == uid } ?? currentDefault
     }
 
     /// state から元の既定出力に戻し、マルチ出力デバイスを削除する。
-    /// 復元に失敗した場合は state を残す (再試行できるように)。
+    /// 復元や削除に失敗した場合は state を残す (再試行できるように)。
     @discardableResult
     public static func teardown() -> Bool {
         guard let original = loadState() else { return false }
@@ -174,7 +184,7 @@ public enum MonitorDevice {
         }
         guard setDefaultOutput(orig.id) else { return false }
         let destroyed = destroy()
-        removeState()
+        if destroyed { removeState() }
         return destroyed
     }
 

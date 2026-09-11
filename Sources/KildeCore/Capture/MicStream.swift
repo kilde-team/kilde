@@ -25,9 +25,23 @@ public final class MicStream: NSObject, AVCaptureAudioDataOutputSampleBufferDele
         }
         let input = try AVCaptureDeviceInput(device: device)
         session.beginConfiguration()
+        guard session.canAddInput(input), session.canAddOutput(output) else {
+            session.commitConfiguration()
+            throw KilError.failed("オーディオ入出力をセッションに追加できません (\"\(device.localizedName)\")")
+        }
         session.addInput(input)
         session.addOutput(output)
         session.commitConfiguration()
+        // 入力機器が整数 PCM を返すと AudioConversion がデコードできないため、
+        // Float32 48k ステレオに統一してから受け取る
+        output.audioSettings = [
+            AVFormatIDKey: kAudioFormatLinearPCM,
+            AVSampleRateKey: 48000,
+            AVNumberOfChannelsKey: 2,
+            AVLinearPCMBitDepthKey: 32,
+            AVLinearPCMIsFloatKey: true,
+            AVLinearPCMIsNonInterleaved: false,
+        ]
         output.setSampleBufferDelegate(self, queue: queue)
     }
 
@@ -38,6 +52,9 @@ public final class MicStream: NSObject, AVCaptureAudioDataOutputSampleBufferDele
 
     func stop() {
         startQueue.sync { session.stopRunning() }
+        // 停止時点でキューに積まれているコールバックを吐かせてから返る
+        // (MovieWriter の完了後に append が走るのを防ぐ)
+        queue.sync { }
     }
 
     public func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer,

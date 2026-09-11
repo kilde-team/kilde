@@ -57,7 +57,16 @@ public enum FileInspection {
             throw KilError.failed("音声トラックの読み取り開始に失敗: \(String(describing: reader.error))")
         }
         var sum = 0.0, count = 0, peak = 0.0
+        var firstPTS: CMTime?
+        var lastEnd: CMTime?
         while let sb = output.copyNextSampleBuffer() {
+            let pts = CMSampleBufferGetPresentationTimeStamp(sb)
+            let dur = CMSampleBufferGetDuration(sb)
+            if CMTIME_IS_NUMERIC(pts) {
+                if firstPTS == nil { firstPTS = pts }
+                let end = CMTIME_IS_NUMERIC(dur) ? CMTimeAdd(pts, dur) : pts
+                if lastEnd == nil || CMTimeCompare(end, lastEnd!) > 0 { lastEnd = end }
+            }
             guard let bb = CMSampleBufferGetDataBuffer(sb) else { continue }
             let len = CMBlockBufferGetDataLength(bb)
             guard len > 0 else { continue }
@@ -76,7 +85,13 @@ public enum FileInspection {
         if reader.status == .failed {
             throw KilError.failed("音声トラックの読み取りに失敗: \(String(describing: reader.error))")
         }
+        // トラック自身の長さはデコードしたサンプルの PTS から求める
+        // (AVAssetTrack.load(.duration) は macOS 26 のツールチェーンで壊れているため)
+        var trackDuration = duration
+        if let f = firstPTS, let e = lastEnd, CMTIME_IS_NUMERIC(f), CMTIME_IS_NUMERIC(e) {
+            trackDuration = max(0, e.seconds - f.seconds)
+        }
         let rms = count > 0 ? sqrt(sum / Double(count)) : 0
-        return AudioStats(duration: duration, rms: rms, peak: peak)
+        return AudioStats(duration: trackDuration, rms: rms, peak: peak)
     }
 }

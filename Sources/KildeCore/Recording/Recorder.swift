@@ -59,6 +59,8 @@ public final class Recorder {
         public let audioAppended: [String: Int]
         public let audioDropped: [String: Int]
         public let firstPTSOffsets: [String: Double]
+        /// ミックスできず破棄したバッファ数 (0 以外なら非対応フォーマットの疑い)
+        public let mixedDecodeFailures: Int
     }
 
     private let options: RecordOptions
@@ -71,6 +73,8 @@ public final class Recorder {
     private var mixer: AudioMixer?
     private var audioLabels: [String] = []
     private var peaks: [String: Float] = [:]
+    /// mixed トラックへの push → append を直列化する (複数コールバックキュー対策)
+    private let mixedAppendLock = NSLock()
 
     public init(options: RecordOptions) {
         self.options = options
@@ -228,13 +232,26 @@ public final class Recorder {
 
         startDate = Date()
         for m in micStreams { m.start() }
-        try sck?.start()
+        do {
+            try sck?.start()
+        } catch {
+            // マイクのみ起動済みのまま失敗するとリソースが残るため後始末する
+            for m in micStreams { m.stop() }
+            w.cancel()
+            throw error
+        }
 
         let timeout: DispatchTime = options.duration.map { .now() + $0 } ?? .distantFuture
         _ = stopSemaphore.wait(timeout: timeout)
 
         sck?.stop()
         for m in micStreams { m.stop() }
+        if let mixer {
+            // チャンク境界に満たない末尾を含め、残データを吐き切ってから完了する
+            for chunk in mixer.flush() {
+                w.appendAudio(chunk, label: "mixed")
+            }
+        }
         try awaitSync { try await w.finish() }
 
         return Summary(
@@ -243,7 +260,8 @@ public final class Recorder {
             videoDropped: w.videoDropped,
             audioAppended: w.audioAppended,
             audioDropped: w.audioDropped,
-            firstPTSOffsets: w.firstPTSOffsets
+            firstPTSOffsets: w.firstPTSOffsets,
+            mixedDecodeFailures: mixer?.decodeFailures ?? 0
         )
     }
 
@@ -278,9 +296,14 @@ public final class Recorder {
 
     private func handleAudio(_ sb: CMSampleBuffer, label: String) {
         if let mixer {
-            for chunk in mixer.push(label, sb) {
+            // SCK とマイクは別のコールバックキューから来るため、
+            // push → append を直列化して mixed 入力への追加上順を保つ
+            mixedAppendLock.lock()
+            let chunks = mixer.push(label, sb)
+            for chunk in chunks {
                 writer?.appendAudio(chunk, label: "mixed")
             }
+            mixedAppendLock.unlock()
         } else {
             if let decoded = AudioConversion.decode(sb) {
                 lock.lock(); peaks[label] = decoded.peak; lock.unlock()

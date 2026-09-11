@@ -83,27 +83,28 @@ final class MovieWriter {
     }
 
     // MARK: - 追加
+    // 複数ソース (SCK / AVCapture) のコールバックキューから並行して呼ばれるため、
+    // すべての入口を lock で直列化する。
 
     func appendVideo(_ sb: CMSampleBuffer) {
         guard let input = videoInput else { return }
         let pts = CMSampleBufferGetPresentationTimeStamp(sb)
         guard CMTIME_IS_NUMERIC(pts) else { return }
+        lock.lock(); defer { lock.unlock() }
         if !sessionStarted {
-            startSession(at: pts)
+            startSessionLocked(at: pts)
         }
         guard sessionStarted, input.isReadyForMoreMediaData else {
-            lock.lock(); videoDropped += 1; lock.unlock()
+            videoDropped += 1
             return
         }
         let fixed = Self.withValidVideoTiming(sb)
         if input.append(fixed) {
-            lock.lock()
             videoAppended += 1
             if firstVideoPTS == nil { firstVideoPTS = pts }
             lastVideoPTS = pts
-            lock.unlock()
         } else {
-            lock.lock(); videoDropped += 1; lock.unlock()
+            videoDropped += 1
         }
     }
 
@@ -111,38 +112,42 @@ final class MovieWriter {
         guard let input = audioInputs[label] else { return }
         let pts = CMSampleBufferGetPresentationTimeStamp(sb)
         guard CMTIME_IS_NUMERIC(pts) else { return }
+        lock.lock(); defer { lock.unlock() }
         if !sessionStarted, anchor == .firstAudio {
-            startSession(at: pts)
+            startSessionLocked(at: pts)
         }
         guard sessionStarted else {
-            lock.lock(); audioDropped[label, default: 0] += 1; lock.unlock()
+            audioDropped[label, default: 0] += 1
             return
         }
         if let start = sessionStartTime, CMTimeCompare(pts, start) < 0 {
             // アンカー前の音声はドロップ (A/V 同期のため)
-            lock.lock(); audioDropped[label, default: 0] += 1; lock.unlock()
+            audioDropped[label, default: 0] += 1
             return
         }
         guard input.isReadyForMoreMediaData else {
-            lock.lock(); audioDropped[label, default: 0] += 1; lock.unlock()
+            audioDropped[label, default: 0] += 1
             return
         }
         if input.append(sb) {
-            lock.lock()
             audioAppended[label, default: 0] += 1
             if firstAudioPTS[label] == nil { firstAudioPTS[label] = pts }
             lastAudioPTS[label] = pts
-            lock.unlock()
         } else {
-            lock.lock(); audioDropped[label, default: 0] += 1; lock.unlock()
+            audioDropped[label, default: 0] += 1
         }
     }
 
-    private func startSession(at t: CMTime) {
+    private func startSessionLocked(at t: CMTime) {
         guard !sessionStarted else { return }
         sessionStarted = true
         sessionStartTime = t
         writer.startSession(atSourceTime: t)
+    }
+
+    /// セッション開始前に中断するときの後始末
+    func cancel() {
+        writer.cancelWriting()
     }
 
     /// SCK の映像バッファは duration が無効のことがあるため 1/600s を与え直す

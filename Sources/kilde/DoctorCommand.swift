@@ -21,11 +21,15 @@ struct DoctorCommand: ParsableCommand {
             print("         システム設定 → プライバシーとセキュリティ → 画面とオーディオを収録 で許可してください")
         }
 
-        switch Permissions.hasMic {
-        case true: print("[mic] マイク権限: あり")
-        case false:
-            print("[mic] マイク権限: なし → 要求ダイアログを出します")
+        switch Permissions.micStatus {
+        case .authorized:
+            print("[mic] マイク権限: あり")
+        case .notDetermined:
+            print("[mic] マイク権限: 未設定 → 要求ダイアログを出します")
             print("[mic] 許可されました: \(Permissions.requestMic())")
+        case .denied:
+            print("[mic] マイク権限: 拒否済み (ダイアログは出ません)")
+            print("         システム設定 → プライバシーとセキュリティ → マイク で許可してください")
         }
 
         do {

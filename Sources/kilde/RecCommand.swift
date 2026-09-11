@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import ArgumentParser
 import KildeCore
 
@@ -26,8 +27,11 @@ struct RecCommand: ParsableCommand {
     @Flag(help: "BlackHole マルチ出力デバイスをセッションに紐付けて自動 setup/teardown (--audio device:BlackHole... と組み合わせる)")
     var monitor: Bool = false
 
-    @Option(help: "出力先パス (既定 kilde-yyyyMMdd-HHmmss.mov / .m4a)")
+    @Option(name: .shortAndLong, help: "出力先パス (既定 kilde-yyyyMMdd-HHmmss.mov / .m4a)")
     var output: String?
+
+    @Argument(help: "出力先パス (--output と同じ。kilde rec demo.mov のように使える)")
+    var outputPositional: String?
 
     @Option(help: "自動停止までの時間 (例: 30s, 5m)")
     var duration: String?
@@ -48,8 +52,14 @@ struct RecCommand: ParsableCommand {
     var preset: String?
 
     func validate() throws {
-        if audio.contains("none") && audio.count > 1 {
+        if audio.contains("none") && audio.contains(where: { $0 != "none" }) {
             throw ValidationError("--audio none は他の音声ソースと併用できません")
+        }
+        if noVideo && !audio.isEmpty && audio.allSatisfy({ $0 == "none" }) {
+            throw ValidationError("--no-video と --audio none の組合せでは録れるものがありません")
+        }
+        if output != nil && outputPositional != nil {
+            throw ValidationError("--output と位置引数の出力先は同時に指定できません")
         }
         if let preset, preset != "meeting" {
             throw ValidationError("不明なプリセット: \(preset) (利用可能: meeting)")
@@ -69,6 +79,11 @@ struct RecCommand: ParsableCommand {
     }
 
     mutating func run() {
+        // SCK ウィンドウ収録に必要な WindowServer 初期化 (SPIKE-NOTES F-D.3)。
+        // 録画経路でのみ行い、他のサブコマンドを GUI セッションに依存させない。
+        let app = NSApplication.shared
+        app.setActivationPolicy(.accessory)
+
         var options = RecordOptions()
 
         if preset == "meeting" {
@@ -92,7 +107,8 @@ struct RecCommand: ParsableCommand {
         }
         options.trackPolicy = audioTracks == "separate" ? .separate : .mixed
         options.wantsVideo = !noVideo
-        options.outputURL = output.map { URL(fileURLWithPath: NSString(string: $0).expandingTildeInPath) }
+        let outputPath = output ?? outputPositional
+        options.outputURL = outputPath.map { URL(fileURLWithPath: NSString(string: $0).expandingTildeInPath) }
         options.duration = parseDuration(duration)
         options.codec = VideoCodecKind(rawValue: codec) ?? .h264
         options.fps = fps
@@ -144,7 +160,8 @@ struct RecCommand: ParsableCommand {
         }
     }
 
-    /// meeting プリセット用のウィンドウ対話選択。nil ならディスプレイ全体
+    /// meeting プリセット用のウィンドウ対話選択。nil ならディスプレイ全体。
+    /// 戻り値は windowID (選択したウィンドウを確実に再解決できる)。
     private func promptWindowSelection() -> String? {
         guard let windows = try? DisplayCatalog.listOnScreenWindows() else { return nil }
         let sorted = windows.sorted { $0.frame.width * $0.frame.height > $1.frame.width * $1.frame.height }
@@ -152,12 +169,18 @@ struct RecCommand: ParsableCommand {
         for (i, w) in sorted.enumerated() {
             print("  [\(i)] \(w)")
         }
-        print("番号を入力 (空欄 Enter でディスプレイ全体): ", terminator: "")
-        guard let line = readLine()?.trimmingCharacters(in: .whitespaces),
-              let n = Int(line), sorted.indices.contains(n) else { return nil }
-        let w = sorted[n]
-        // bundleID で再解決できる文字列を返す
-        return w.bundleIdentifier ?? w.title
+        for _ in 0..<3 {
+            print("番号を入力 (空欄 Enter でディスプレイ全体): ", terminator: "")
+            guard let line = readLine()?.trimmingCharacters(in: .whitespaces) else {
+                return nil  // EOF — ディスプレイ全体へフォールバック
+            }
+            if line.isEmpty { return nil }
+            if let n = Int(line), sorted.indices.contains(n) {
+                return String(sorted[n].windowID)
+            }
+            print("  無効な入力です。0...\(sorted.count - 1) の番号を入力してください。")
+        }
+        return nil
     }
 
     private func startStatusTicker(_ recorder: Recorder) -> DispatchSourceTimer {
@@ -193,6 +216,9 @@ struct RecCommand: ParsableCommand {
             print("audio[\(label)]: appended=\(n) dropped=\(dropped)\(extra)")
         }
         print("file: \(s.outputURL.path) (\(fileSizeString(s.outputURL)))")
+        if s.mixedDecodeFailures > 0 {
+            print("⚠ ミックスできなかった音声バッファ: \(s.mixedDecodeFailures) 件 (非対応フォーマットの可能性)")
+        }
         if let report = try? FileInspection.report(url: s.outputURL) {
             if let size = report.videoSize {
                 print(String(format: "video: %dx%d duration=%.2fs", Int(size.width), Int(size.height), report.duration))

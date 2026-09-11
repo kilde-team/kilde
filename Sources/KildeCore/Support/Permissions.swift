@@ -18,6 +18,20 @@ public enum Permissions {
         AVCaptureDevice.authorizationStatus(for: .audio) == .authorized
     }
 
+    public enum MicStatus {
+        case authorized
+        case notDetermined
+        case denied
+    }
+
+    public static var micStatus: MicStatus {
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .authorized: return .authorized
+        case .notDetermined: return .notDetermined
+        default: return .denied
+        }
+    }
+
     /// マイク権限を要求する (ダイアログを出し、結果を同期的に返す)
     @discardableResult
     public static func requestMic() -> Bool {

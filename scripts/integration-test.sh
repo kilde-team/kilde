@@ -234,7 +234,9 @@ stop_soundapp
 # ---- T9: BlackHole ループバック ----------------------------------------------
 
 log "T9: audio monitor + device 録音 — マルチ出力経由 (${DUR}s)"
-if "$KILDE" devices 2>/dev/null | grep -q "BlackHole"; then
+# 導入されている BlackHole の実名を取り出す (16ch 等のvariantでも壊れないように)
+BH_NAME=$("$KILDE" devices 2>/dev/null | grep '←BlackHole' | head -1 | sed -n 's/.*"\([^"]*\)".*/\1/p')
+if [ -n "$BH_NAME" ]; then
     if "$KILDE" audio monitor setup > "$WORK/t9-setup.txt" 2>&1; then
         MONITOR_SET_UP=1
         if "$KILDE" audio monitor status 2>/dev/null | grep -q "←kilde Monitor"; then
@@ -243,8 +245,8 @@ if "$KILDE" devices 2>/dev/null | grep -q "BlackHole"; then
             bad "T9 monitor setup: 既定出力になっていない"
         fi
         F="$WORK/t9-blackhole.m4a"
-        # 名前解決 (device:BlackHole 2ch) も兼ねる
-        "$KILDE" rec --no-video --audio "device:BlackHole 2ch" --duration "$DUR" --output "$F" > "$WORK/t9.log" 2>&1 &
+        # 名前解決 (device:<検出名>) も兼ねる
+        "$KILDE" rec --no-video --audio "device:$BH_NAME" --duration "$DUR" --output "$F" > "$WORK/t9.log" 2>&1 &
         REC_PID=$!
         sleep "$DELAY"
         afplay "$VOICE" >/dev/null 2>&1
