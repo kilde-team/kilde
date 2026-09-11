@@ -55,7 +55,7 @@ kilde rec --no-video --window zoom 会議.m4a
 kilde rec --no-video --audio "device:BlackHole 2ch" --monitor 会議.m4a
 
 # ターミナルにフォーカスがなくても cmd+shift+r で開始 / 停止
-# 待機中の Ctrl+C はファイルを作らず終了
+# 待機中の Ctrl+C はファイルを作らず終了 (--countdown との併用は不可)
 kilde rec --hotkey cmd+shift+r 会議.mov
 
 # 既定値を設定ファイル (~/.kilde/config.json) で変更

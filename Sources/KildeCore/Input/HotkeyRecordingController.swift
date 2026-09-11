@@ -50,10 +50,15 @@ public final class HotkeyRecordingController {
 
     deinit {
         // 正常終了以外の経路 (GUI が待機中にコントローラを破棄する等) でもホットキー登録が
-        // 残らないよう、未停止ならメインキューで解除する。monitor は HotkeyMonitor 内部で
-        // retain されているため、このクロージャが参照を保持し続けても問題ない
+        // 残らないよう、未停止なら解除する。メインスレッドでの破棄は同期的に止める —
+        // dispatch で遅らせると直後の再登録 (同じキーの使い回し) が登録競合になるため。
+        // バックグラウンドからの破棄だけメインキューへ配送する
         if monitoringStarted, let monitor = self.monitor {
-            DispatchQueue.main.async { monitor.stop() }
+            if Thread.isMainThread {
+                monitor.stop()
+            } else {
+                DispatchQueue.main.async { monitor.stop() }
+            }
         }
     }
 

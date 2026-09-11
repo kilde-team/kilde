@@ -232,6 +232,10 @@ struct RecCommand: ParsableCommand {
                 controller.requestStop()
             }
             print("⏳ 待機中 — \(controller.normalizedHotkey) で開始 / Ctrl+C で終了")
+            // stdout がファイルにリダイレクトされていると C stdio はフルバッファになり、
+            // この後 RunLoop で無期限にブロックするため「待機中」が exit まで出ない。
+            // 統合テスト (T13) はこの行をログから待つので、ここで必ず吐き出す
+            fflush(stdout)
             while outcome == nil {
                 _ = RunLoop.current.run(mode: .default, before: .distantFuture)
             }

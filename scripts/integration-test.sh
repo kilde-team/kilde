@@ -438,6 +438,18 @@ for _ in $(seq 1 20); do
 done
 sleep 1
 kill -INT $T13_PID 2>/dev/null
+# wait にタイムアウトがないと、待機中 SIGINT で終了しない回帰があったときに
+# スイート全体が無言でハングする — SIGINT 後 5 秒生きていたら段階的に強制する
+T13_EXIT=-1
+for _ in $(seq 1 10); do
+    if ! kill -0 $T13_PID 2>/dev/null; then break; fi
+    sleep 0.5
+done
+if kill -0 $T13_PID 2>/dev/null; then
+    kill -TERM $T13_PID 2>/dev/null
+    sleep 1
+    kill -0 $T13_PID 2>/dev/null && kill -KILL $T13_PID 2>/dev/null
+fi
 wait $T13_PID
 T13_EXIT=$?
 T13_FILES=$(ls "$T13_DIR" 2>/dev/null | wc -l | tr -d ' ')

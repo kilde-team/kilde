@@ -220,22 +220,34 @@ public final class HotkeyMonitor {
             OptionBits(kEventHotKeyExclusive), &hotkeyRef
         )
         guard registerStatus == noErr else {
-            if let eventHandlerRef { RemoveEventHandler(eventHandlerRef) }
-            eventHandlerRef = nil
+            // RemoveEventHandler が失敗した場合は参照を保持したままリークさせる
+            // (stop() と同じ理由 — ハンドラ残存中の release は解放済み参照を残す)
+            if let handler = eventHandlerRef, RemoveEventHandler(handler) == noErr {
+                self.eventHandlerRef = nil
+                releaseRetained()
+            }
             hotkeyRef = nil
-            releaseRetained()
             throw KilError.failed("ホットキー \"\(source)\" を登録できません (他のアプリとの競合または OSStatus \(registerStatus))")
         }
     }
 
     /// 二重 stop は無視する。Carbon が retain した参照をここで手放す。
+    /// 解除に失敗したときは参照を保持したままリークさせる — ハンドラが残っている
+    /// 状態で release すると、次のホットキーイベントが解放済みインスタンスを参照する
     public func stop() {
         precondition(Thread.isMainThread, "HotkeyMonitor.stop() はメインスレッドから呼んでください")
-        if let hotkeyRef { UnregisterEventHotKey(hotkeyRef) }
-        if let eventHandlerRef { RemoveEventHandler(eventHandlerRef) }
-        hotkeyRef = nil
-        eventHandlerRef = nil
-        releaseRetained()
+        var fullyRemoved = true
+        if let hotkeyRef {
+            if UnregisterEventHotKey(hotkeyRef) != noErr { fullyRemoved = false }
+            else { self.hotkeyRef = nil }
+        }
+        if let eventHandlerRef {
+            if RemoveEventHandler(eventHandlerRef) != noErr { fullyRemoved = false }
+            else { self.eventHandlerRef = nil }
+        }
+        if fullyRemoved {
+            releaseRetained()
+        }
     }
 
     private func releaseRetained() {
