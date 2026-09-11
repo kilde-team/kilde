@@ -21,8 +21,41 @@
 
 ## 2. ブランチと PR (main への直接 push 禁止)
 
-1. `git fetch origin && git switch -c feature/<issue番号>-<slug> origin/main`
-   (例: `feature/5-unit-tests`)。既存ブランチが指定された場合はそれに従う
+### 並行開発 — worktree 必須 (バッティング防止。2026-09-11 の合意)
+
+複数の AI セッションが並行して issue を実装する前提で運用する。以下を毎回守る:
+
+1. **着手を宣言してから始める**。他の並行セッションに「issue #N を取る」ことを通知する
+   (Claude 間は cross-session メッセージ、人間には着手報告)。
+   **すでに誰かが着手を宣言している issue には手を出さない** — 別の issue を選ぶ
+2. **1 issue = 1 worktree = 1 ブランチ**。実装は必ず専用 worktree で行う:
+
+   ```sh
+   git fetch origin
+   git worktree add ../kilde-<issue番号> -b feature/<issue番号>-<slug> origin/main
+   cd ../kilde-<issue番号>
+   ```
+
+   共有のメイン作業コピー (`~/dev/kilde`) では実装しない — ブランチ切替・
+   ビルド成果物 (.build)・権限プロンプトが並行セッションと衝突するため
+3. **ファイルの衝突に注意する**。既に出ている PR が触れるファイル (例: `Recorder.swift`)
+   を自分の変更も触れる可能性がある場合は、着手宣言と PR 本文の両方に明記する
+4. **PR マージ後は後始末する**。後始末は必ずメイン作業コピーに戻ってから行う
+   (worktree 内で実行すると、自分の足元のディレクトリを削除してしまう):
+
+   ```sh
+   cd ~/dev/kilde                              # メイン作業コピーへ
+   git worktree remove ../kilde-<issue番号>   # 未コミットが残る場合は --force を検討
+   git switch main && git pull --ff-only      # マージ済み状態をローカル main へ反映
+   git branch -d feature/<issue番号>-<slug>   # pull 前だと「not fully merged」で失敗する
+   git fetch --prune
+   ```
+
+### ブランチと PR の手順
+
+1. ブランチは上記 worktree 作成時に切る
+   (`feature/<issue番号>-<slug>`、例: `feature/5-unit-tests`)。
+   既存ブランチが指定された場合はそれに従う
 2. コミットメッセージは**英語**・命令形の要約行 (既存履歴に合わせる)。
    コードコメントとドキュメントは**日本語**で、特に回避策は「なぜそうしたか」を書く
 3. PR は `gh pr create --base main` で作成する。本文には必ず:

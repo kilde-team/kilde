@@ -30,7 +30,7 @@ QuickTime Player では録れない**システム音声を含む録画・録音*
 | 単体テスト (`Tests/`) | **未作成** — issue #5 |
 | CI (`.github/`) | **未作成** — issue #6 |
 | GUI (`gui/`) | **未作成** — M3 (issue #17〜#20) |
-| ライセンスファイル | **未作成** — issue #21 (README/Info.plist は MIT を宣言済み) |
+| ライセンス / OSS 整備 | ✅ `LICENSE` (MIT)、`CONTRIBUTING.md`、`.github/` の Issue・PR テンプレート (issue #21) |
 | 残タスク全体 | GitHub issue #2〜#25 (4 マイルストーン)。§8 の役割分担・依存順を参照 |
 
 ## 3. 全体の地図
@@ -58,7 +58,7 @@ Sources/KildeCore/       UI 非依存のコア。将来 GUI と共用する
   Support/Permissions.swift        TCC 権限の確認・要求
   Support/FileInspection.swift     出力ファイルの検証 (inspect / 統合テストが使用)
   Support/Errors.swift             KilError → 終了コード
-  Support/{AsyncUtil,Misc}.swift   awaitSync / parseDuration / 出力名生成
+  Support/{AsyncUtil,Misc}.swift   awaitSync (同期コンテキスト専用・noasync) / parseDuration / 出力名生成
 scripts/integration-test.sh  T1–T10 の実録画テスト
 scripts/soundapp.swift       テスト用「音を鳴らすウィンドウ」アプリ
 ```
@@ -137,7 +137,14 @@ swift build                       # ビルド (バイナリは .build/debug/kild
   ひとまとまりで守る。ここを分割すると mixed トラックへの追加順序が崩れる
 - `AudioMixer` は内部 `lock` 保持中に `mixChunk()` を呼ぶ前提
 - `MicStream.stop()` は `queue.sync {}` でコールバックを吐かせてから返る
-  (`MovieWriter.finish()` の後に `append` が走るのを防ぐ)
+  (`MovieWriter.finish()` の後に `append` が走るのを防ぐ)。`ScreenAudioStream.stop()` (async) も
+  `stopCapture()` の後に出力キューを drain してから返る — 同じ理由
+- **async コンテキスト (Recorder のセッション等) から `awaitSync` や同期版 API を呼ばない** (issue #35)。
+  `awaitSync` は呼び出しスレッドを DispatchSemaphore で塞ぐので、協調プールのスレッドで呼ぶと
+  プールを枯渇させうる。`DisplayCatalog.snapshot()` / `listOnScreenWindows()` /
+  `FileInspection.report(url:)` / `Permissions.requestMic()` は同期版と async 版を同名で持ち、
+  同期版と `awaitSync` は `@available(*, noasync)` にしてある — async から呼ぶとビルド警告になるので、
+  **警告を増やさない = この規約を守れている**。同期版は CLI のサブコマンドと GUI の onAppear 用
 - 失敗時は `fatalError` を使わない。`KilError` を投げて `Recorder.run()` の catch に
   後始末 (monitor の teardown、writer の cancel) をさせる
 
@@ -162,13 +169,18 @@ swift build                       # ビルド (バイナリは .build/debug/kild
 AI レビュー指摘の処理・完了報告) を毎回自動で適用する。** 依頼文に書かれていなくても
 省略しない。
 
+**並行開発は worktree 前提** (2026-09-11 の合意 — 複数 AI セッションが同時に
+issue を実装する)。着手前の宣言・1 issue = 1 worktree = 1 ブランチ・
+メイン作業コピーでは実装しない・マージ後の後始末まで、詳細な手順は
+**AGENTS.md §2「並行開発 — worktree 必須」** に従う。
+
 役割分担 (2026-09-11 の合意):
 
-- **実装は Codex CLI が担当**する。issue (#2〜#25、マイルストーン M1 仕上げ / M2 / M3 GUI /
-  配布 & OSS) を単位に PR を出す
-- **Claude はアシスタント**: Codex の PR レビュー (統合テスト結果・設計との整合)、
-  cubic / CodeRabbit 指摘の妥当性判定と整理、issue の追加・分割、Codex 向け依頼文の調整、
-  実機検証手順の作成。依頼されない限り実装コードを書き始めない
+- **実装は並行する AI エージェント (Claude / Codex 等) が分担**する。issue を単位に
+  PR を出す。着手は AGENTS.md §2 の宣言ルールで調整する
+- **Claude はアシスタント**: PR レビュー (統合テスト結果・設計との整合)、
+  cubic / CodeRabbit 指摘の妥当性判定と整理、issue の追加・分割、実機検証手順の作成。
+  依頼されない限り実装コードを書き始めない
 - 依存順: #5 単体テスト → #6 CI / #8 Recorder イベント駆動化 → M3 (#17〜#20) /
   #14 設定 → #10 ホットキー → #20 / #23 署名 → #24 Homebrew → #25 Releases。
   検証系 (#2 S10, #3 ドリフト, #4 旧 OS) は手順整備までをエージェント、実行と記録は人間

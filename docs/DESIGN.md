@@ -403,9 +403,9 @@ kilde/
 
 ## 12. OSS としての運営
 
-- ライセンス: **MIT 案** (要確定。BlackHole は依存として組み込むわけではなく
+- ライセンス: **MIT** (確定。`LICENSE`。BlackHole は依存として組み込むわけではなく
   ユーザに導入してもらう形なのでライセンス衝突はない)
-- README (日英)、CONTRIBUTING、Issue/PR テンプレート。
+- README (日英)、CONTRIBUTING (`CONTRIBUTING.md`)、Issue/PR テンプレート (`.github/`)。
 - セマンティックなタグ付け + Release Notes。Homebrew tap は別リポジトリ。
 
 ---

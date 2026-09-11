@@ -163,6 +163,7 @@ SCK / AVCapture / CoreAudio の実デバイスには触れません。
 | `AudioMixerTests` | 2 ソース合成とクリップ、44.1k mono → 48k stereo、ギャップの無音埋め / 重複の無視、初回データ待ち (`firstDataGraceFrames`) と `flush()`、非数値 PTS / `decodeFailures` |
 | `MonitorDeviceStateTests` | `~/.kilde/monitor-state.json` の入出力 (`MonitorDevice.stateDirectory` を一時ディレクトリに差し替える) |
 | `KilErrorTests` | `KilError.exitCode` の 1/2/3 契約 |
+| `FileInspectionTests` | 生成した正弦波ファイルに対し、`FileInspection.report(url:)` の同期版と async 版 (issue #35) が同じ RMS / peak / 長さを返す |
 | `AudioSampleBufferTestHelper` | テスト用の Float32 / Int16 `CMSampleBuffer` 生成 |
 
 `RecCommand.validate()` は CLI ターゲット (実行ファイル) 側にあるため対象外です。
@@ -190,7 +191,7 @@ SCK / AVCapture / CoreAudio の実デバイスには触れません。
 | 4 | CI (`.github/workflows`) で `swift build` + 単体テスト | issue #6 |
 | 5 | 長時間 (10 分級) の A/V ドリフト測定 | issue #3 |
 | 6 | 旧 OS (14/15) での S7 / S8 / S9 挙動の確認 | issue #4 |
-| 7 | `LICENSE` (MIT) の追加 | issue #21 |
+| 7 | `LICENSE` (MIT) の追加 | 済 (issue #21) |
 | 8 | DESIGN.md §6 の終了コード `130` と実装 (SIGINT で exit 0) の食い違いを解消 | 済 — exit 0 に統一 (issue #7) |
 | 9 | SCK 圧縮フレーム passthrough (無再エンコード録画) の検討 | issue #15 |
 | 10 | M2: 領域指定収録 / グローバルホットキー / 一時停止・再開 | issue #9 / #10 / #11 |
