@@ -1,0 +1,45 @@
+Sources/KildeCore/Support/Config.swift
+  s_065686e7a376f4::t_12657fc678de74 23,58,98
+README.md
+  s_065686e7a376f4::t_9304bccd56f801 105
+  s_065686e7a376f4::t_33b72452a3f3ee 20,57-60,63,69
+Sources/KildeCore/Input/HotkeyRecordingController.swift
+  s_065686e7a376f4::t_9dfdb749efdc50 1-124
+Sources/kilde/ConfigCommand.swift
+  s_065686e7a376f4::t_de0197d58097c2 14
+Tests/KildeCoreTests/HotkeyParserTests.swift
+  s_065686e7a376f4::t_d59e0bf8f11e4e 1-48,50-63,67-70
+  s_065686e7a376f4::t_dffd2e8f1886b8 64-66
+  s_065686e7a376f4::t_9304bccd56f801 49
+Sources/kilde/DoctorCommand.swift
+  s_065686e7a376f4::t_12657fc678de74 55-61
+Sources/KildeCore/Input/HotkeyMonitor.swift
+  s_065686e7a376f4::t_fd8647c7225bf2 44,53-54,57,63,72-73
+  s_065686e7a376f4::t_9304bccd56f801 104,108,112,116,207
+  s_065686e7a376f4::t_9f879ca07a7155 1-43,45-52,55-56,58-62,64-71,74-103,105-107,109-111,113-115,117-206,208-272
+docs/DESIGN.md
+  s_065686e7a376f4::t_33b72452a3f3ee 4,70,249,264,267-268,311-313
+  s_065686e7a376f4::t_9304bccd56f801 109-112,390
+Tests/KildeCoreTests/ConfigTests.swift
+  s_065686e7a376f4::t_d59e0bf8f11e4e 43,50,73,104-111
+Sources/kilde/RecCommand.swift
+  s_065686e7a376f4::t_fd960bcad7ee10 238
+  s_065686e7a376f4::t_73c39a43befd95 57-59,88-94,110-115,173-183,189-201,203,215-216,219,224,227-229,237,239-249,251
+  s_065686e7a376f4::t_9dfdb749efdc50 202,205-214,217-218,220,222-223,230-236
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "c30fd7d4001e8991649be3dfb6c55a5e37cd6971",
+  "prompts": {},
+  "sessions": {
+    "s_065686e7a376f4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09125-82d5-73f3-b083-e5c4a39c3ac2",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
