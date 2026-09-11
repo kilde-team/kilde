@@ -1,0 +1,43 @@
+Tests/KildeCoreTests/AudioMixerTests.swift
+  s_fdf4f3bc3520b2::t_d615415d2befc7 1-135
+Sources/KildeCore/Devices/AudioDeviceCatalog.swift
+  s_fdf4f3bc3520b2::t_7972ca75ec143e 246-249,255,261,267
+Tests/KildeCoreTests/KilErrorTests.swift
+  s_4a81b712cd34b8::t_ac3b0ac27b25f7 5-7
+  s_fdf4f3bc3520b2::t_d615415d2befc7 1-4,8-12
+Tests/KildeCoreTests/ParseDurationTests.swift
+  s_fdf4f3bc3520b2::t_d615415d2befc7 1-19
+Tests/KildeCoreTests/AudioSampleBufferTestHelper.swift
+  s_fdf4f3bc3520b2::t_7972ca75ec143e 1-3,5-166
+  s_fdf4f3bc3520b2::t_37aae42fd43733 4
+Package.swift
+  s_fdf4f3bc3520b2::t_7972ca75ec143e 38-42
+Tests/KildeCoreTests/MonitorDeviceStateTests.swift
+  s_fdf4f3bc3520b2::t_d615415d2befc7 1-46
+docs/DEVELOPMENT.md
+  s_4a81b712cd34b8::t_ac542bdcdb9ab7 141-156
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d91c223c447d1b690961e3cd0ecfde22d47b72d0",
+  "prompts": {},
+  "sessions": {
+    "s_4a81b712cd34b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e105894-1af4-4be4-b31a-cf222ebe28db",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    },
+    "s_fdf4f3bc3520b2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08fa1-fb80-7531-a7a7-2630320ec6c2",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
