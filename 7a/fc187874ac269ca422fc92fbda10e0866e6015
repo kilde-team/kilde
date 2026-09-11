@@ -1,0 +1,20 @@
+.github/workflows/ci.yml
+  s_14688823243adc::t_1fda389aa27f44 34-35,37
+  s_14688823243adc::t_8f08807c344d51 20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7afc187874ac269ca422fc92fbda10e0866e6015",
+  "prompts": {},
+  "sessions": {
+    "s_14688823243adc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ddbf470b-d6da-4876-8dbc-a2c696d20b1c",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
