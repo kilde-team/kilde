@@ -262,7 +262,7 @@ SCK / AVCapture / CoreAudio の実デバイスには触れません。
 | 2 | `feature/m1-cli-mvp` を `main` へマージ | 済 (PR #1) |
 | 3 | `Tests/KildeCoreTests` の作成 | issue #5 |
 | 4 | CI (`.github/workflows`) で `swift build` + 単体テスト | issue #6 |
-| 5 | 長時間 (10 分級) の A/V ドリフト測定 | issue #3 |
+| 5 | 長時間 (10 分級) の A/V ドリフト測定 | 済 — 15 分で最大 12 ms (issue #3、SPIKE-NOTES F-E) |
 | 6 | 旧 OS (14/15) での S7 / S8 / S9 挙動の確認 | issue #4 |
 | 7 | `LICENSE` (MIT) の追加 | 済 (issue #21) |
 | 8 | DESIGN.md §6 の終了コード `130` と実装 (SIGINT で exit 0) の食い違いを解消 | 済 — exit 0 に統一 (issue #7) |
