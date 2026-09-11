@@ -1,0 +1,23 @@
+docs/DESIGN.md
+  s_14688823243adc::t_5494247aae7fd4 352-353
+gui/project.yml
+  s_14688823243adc::t_01a2e8b6c5ee77 32-35
+docs/DEVELOPMENT.md
+  s_14688823243adc::t_7f449e574349e0 97-120
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "c9f4cb2368b3f6424d397fc4b592cc2e7c62d547",
+  "prompts": {},
+  "sessions": {
+    "s_14688823243adc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ddbf470b-d6da-4876-8dbc-a2c696d20b1c",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
