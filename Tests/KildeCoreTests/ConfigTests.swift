@@ -236,10 +236,14 @@ final class ConfigTests: XCTestCase {
         XCTAssertNoThrow(try config.validate())
     }
 
-    /// --fps 0 は黙って無視されず失敗する
+    /// --fps 0 は黙って無視されず失敗する。load() を経ずに渡された設定の fps も同じ
     func testNonPositiveFpsFails() {
         var cli = RecordOverrides()
         cli.fps = 0
         XCTAssertThrowsError(try resolve(cli))
+        XCTAssertThrowsError(try resolve(config: KildeConfig(fps: 0)))
+        // CLI の正しい値が設定の不正値を上書きするなら通る (採用される値だけを見る)
+        cli.fps = 30
+        XCTAssertEqual(try resolve(cli, config: KildeConfig(fps: -1)).fps, 30)
     }
 }

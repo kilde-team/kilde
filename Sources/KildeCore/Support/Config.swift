@@ -349,8 +349,10 @@ public enum RecordSettings {
             options.codec = .h264
         }
 
-        if let fps = o.fps, fps <= 0 {
-            // 0 以下は SCK 設定で黙って無視され、指定と違うフレームレートで録れてしまうため弾く
+        // 採用される値 (CLI、なければ設定) で検証する。load() を経ずに KildeConfig を直接渡す
+        // 呼び出し元 (GUI 等) でも、0 以下が SCK 設定で黙って無視されて指定と違うフレームレートで
+        // 録れてしまわないよう、ここで弾く
+        if let fps = o.fps ?? config.fps, fps <= 0 {
             throw KilError.failed("fps は 1 以上の整数を指定してください: \(fps)")
         }
         options.fps = o.fps ?? config.fps
