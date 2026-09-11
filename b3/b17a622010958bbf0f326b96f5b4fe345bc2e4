@@ -1,0 +1,32 @@
+AGENTS.md
+  s_f77637b1782bc2::t_9a758496a12c3c 1-84
+docs/DESIGN.md
+  s_4a81b712cd34b8::t_f465e22da26ce2 268
+CLAUDE.md
+  s_f77637b1782bc2::t_25c70db93e7b71 26-34
+  s_f77637b1782bc2::t_e33826d03ad667 158-196
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "b3b17a622010958bbf0f326b96f5b4fe345bc2e4",
+  "prompts": {},
+  "sessions": {
+    "s_4a81b712cd34b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e105894-1af4-4be4-b31a-cf222ebe28db",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    },
+    "s_f77637b1782bc2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b41dad5c-a91d-4514-a4af-90ec4067d8a1",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
