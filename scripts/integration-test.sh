@@ -325,7 +325,10 @@ if command -v xcodegen >/dev/null 2>&1; then
         GUI_APP=$(cd "$ROOT/gui" && xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI \
             -configuration Debug -showBuildSettings 2>/dev/null \
             | grep -m1 "BUILT_PRODUCTS_DIR" | awk '{print $3}')/KildeGUI.app
-        if open "$GUI_APP" && sleep 3 && GUI_PID=$(pgrep -x KildeGUI); then
+        # open は LaunchServices 経由で起動するためシェルの環境変数を伝えない。
+        # --env で明示的に渡さないと GUI は ~/.kilde を参照し、分離の前提が崩れる
+        # (#18 以降で GUI が ConfigStore を使い始めた時点で必須)
+        if open --env KILDE_CONFIG_DIR="$KILDE_CONFIG_DIR" "$GUI_APP" && sleep 3 && GUI_PID=$(pgrep -x KildeGUI); then
             if osascript -e 'tell application "KildeGUI" to quit' >/dev/null 2>&1 && sleep 1 \
                 && ! pgrep -x KildeGUI >/dev/null; then
                 GUI_PID=""

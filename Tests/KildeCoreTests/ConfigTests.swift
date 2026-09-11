@@ -46,6 +46,17 @@ final class ConfigTests: XCTestCase {
         )
     }
 
+    func testConfigDirectoryRejectsRelativePath() {
+        // outputDirectory と同じ基準 — 起動時 CWD 次第で参照先が変わるのを防ぐ
+        XCTAssertThrowsError(try ConfigStore.checkConfigDirectory("kilde-config")) { error in
+            guard case KilError.failed = error else {
+                return XCTFail("KilError.failed であるべき: \(error)")
+            }
+        }
+        XCTAssertNoThrow(try ConfigStore.checkConfigDirectory("/tmp/kilde-config"))
+        XCTAssertNoThrow(try ConfigStore.checkConfigDirectory("~/kilde-config"))
+    }
+
     func testMissingFileLoadsEmptyConfig() throws {
         XCTAssertEqual(try ConfigStore.load(), KildeConfig())
     }

@@ -257,6 +257,9 @@ public enum MonitorDevice {
     private struct State: Codable { var originalDefaultOutputUID: String }
 
     static func saveState(originalDefaultUID: String) throws {
+        // state も KILDE_CONFIG_DIR 由来なので、相対パスは設定と同じ理由で拒否する
+        // (ConfigStore.checkConfigDirectoryEnvironment 経由)
+        try ConfigStore.checkConfigDirectoryEnvironment()
         try FileManager.default.createDirectory(at: stateDirectory, withIntermediateDirectories: true)
         let state = State(originalDefaultOutputUID: originalDefaultUID)
         try JSONEncoder().encode(state).write(to: stateURL, options: .atomic)
