@@ -111,7 +111,12 @@ run_one() { # run_one <separate|mixed>
             return 1
         fi
         [ $INTERRUPTED -eq 1 ] && return 130
-        [ $waited -ge 30 ] && { echo "drift-marker のウィンドウが 15 秒以内に表示されませんでした"; return 1; }
+        if [ $waited -ge 30 ]; then
+            echo "drift-marker のウィンドウが 15 秒以内に表示されませんでした"
+            # 残すと both の次の録画で KildeDriftMarker のウィンドウが 2 つになり、解決と計測に混ざる
+            kill "$MARKER_PID" 2>/dev/null; wait "$MARKER_PID" 2>/dev/null; MARKER_PID=""
+            return 1
+        fi
         sleep 0.5; waited=$((waited + 1))
     done
     sleep 1   # 表示の直後は画面収録の一覧 (SCShareableContent) への反映が遅れうるので少し余裕を置く

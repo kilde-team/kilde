@@ -26,6 +26,12 @@ let interval = positiveArg(1, default: 30)
 let lifetime = positiveArg(2, default: 960)
 // 最初のマーカーは interval 秒後に出るので、寿命がそれ以下だとマーカーを 1 個も出さずに正常終了してしまう
 // (トップレベルの guard にすると以降のグローバル変数の扱いが変わり、main actor 分離の警告が出るので if にしている)
+// drift-analyze の探索窓 (幅 1.5 秒) より短い間隔では隣のマーカーと区別できず計測が成立しないので、
+// 直接実行されたときのためにここでも拒否する (drift-test.sh と drift-analyze と同じ条件)
+if interval <= 1.5 {
+    FileHandle.standardError.write("ERROR: マーカー間隔は 1.5 秒より大きくしてください: \(interval)\n".data(using: .utf8)!)
+    exit(2)
+}
 if lifetime <= interval {
     FileHandle.standardError.write("ERROR: 自動終了までの秒 (\(lifetime)) はマーカー間隔 (\(interval)) より長くしてください\n".data(using: .utf8)!)
     exit(2)
