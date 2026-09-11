@@ -44,7 +44,7 @@ struct ConfigCommand: ParsableCommand {
     struct SetValue: ParsableCommand {
         static let configuration = CommandConfiguration(
             commandName: "set",
-            abstract: "設定値を変更 (defaultAudioSources はカンマ区切り。例: system,mic)"
+            abstract: "設定値を変更 (defaultAudioSources はカンマ区切り。例: system,mic。名前にカンマを含むデバイスは JSON 配列: '[\"device:A, B\",\"mic\"]')"
         )
 
         @Argument(help: "設定キー")
@@ -65,7 +65,7 @@ struct ConfigCommand: ParsableCommand {
 
         func run() {
             do {
-                var config = try ConfigStore.load()
+                var config = try loadForEdit()
                 try config.set(key, value)
                 try ConfigStore.save(config)
                 print("\(key.rawValue) = \(config.value(for: key) ?? "")")
@@ -83,7 +83,7 @@ struct ConfigCommand: ParsableCommand {
 
         func run() {
             do {
-                var config = try ConfigStore.load()
+                var config = try loadForEdit()
                 config.unset(key)
                 try ConfigStore.save(config)
                 print("\(key.rawValue) = (未設定 — 既定: \(key.defaultDescription))")
@@ -99,5 +99,15 @@ struct ConfigCommand: ParsableCommand {
         func run() {
             print(ConfigStore.fileURL.path)
         }
+    }
+}
+
+/// set / unset 用の読み込み。壊れたファイルは空の設定で上書きしない (他の設定を黙って失うため)。
+/// 代わりに直し方を添えて失敗させる (`kilde config path` は壊れていても使える)
+private func loadForEdit() throws -> KildeConfig {
+    do {
+        return try ConfigStore.load()
+    } catch {
+        throw KilError.failed("\(error)\n  設定ファイルを手で修正するか、削除してから再実行してください: \(ConfigStore.fileURL.path)")
     }
 }

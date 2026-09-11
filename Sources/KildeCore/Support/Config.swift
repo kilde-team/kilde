@@ -70,8 +70,7 @@ extension KildeConfig {
             try Self.checkOutputDirectory(value)
             outputDirectory = value
         case .defaultAudioSources:
-            let list = value.split(separator: ",", omittingEmptySubsequences: false)
-                .map { $0.trimmingCharacters(in: .whitespaces) }
+            let list = try Self.parseSourceList(value)
             _ = try AudioSourceSpec.parseList(list)
             defaultAudioSources = list
         case .audioTracks:
@@ -117,7 +116,18 @@ extension KildeConfig {
     public func value(for key: ConfigKey) -> String? {
         switch key {
         case .outputDirectory: return outputDirectory
-        case .defaultAudioSources: return defaultAudioSources?.joined(separator: ",")
+        case .defaultAudioSources:
+            guard let list = defaultAudioSources else { return nil }
+            // カンマを含むデバイス名は "a,b" 形式では往復できないので、そのときだけ JSON 配列で出す
+            // (set はどちらの形式も受け付ける)
+            if list.contains(where: { $0.contains(",") }) {
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = .withoutEscapingSlashes
+                if let data = try? encoder.encode(list), let json = String(data: data, encoding: .utf8) {
+                    return json
+                }
+            }
+            return list.joined(separator: ",")
         case .audioTracks: return audioTracks
         case .codec: return codec
         case .fps: return fps.map(String.init)
@@ -129,6 +139,12 @@ extension KildeConfig {
     /// 手で編集された設定ファイルも `set` と同じ基準で検証する。
     /// 不正値を黙って既定値に倒すと「設定したのに効かない」原因が分からなくなるため、エラーにする
     public func validate() throws {
+        // set() は前後の空白を落とすが、apply() は値をそのまま使う。手編集のファイルに空白が
+        // 残っていると「読み込めるのに録画で失敗する」ので、読み込み時点で弾く
+        let strings = [outputDirectory, audioTracks, codec, hotkey].compactMap { $0 } + (defaultAudioSources ?? [])
+        if let padded = strings.first(where: { $0 != $0.trimmingCharacters(in: .whitespaces) }) {
+            throw KilError.failed("値の前後に空白があります: \"\(padded)\"")
+        }
         for key in ConfigKey.allCases {
             if key == .defaultAudioSources, let list = defaultAudioSources {
                 // デバイス名にカンマを含むこともあり得るので、join し直さず配列のまま検証する
@@ -138,6 +154,19 @@ extension KildeConfig {
                 try probe.set(key, v)
             }
         }
+    }
+
+    /// "system,mic" 形式、またはデバイス名にカンマを含む場合の JSON 配列形式 (`["device:A, B","mic"]`)
+    static func parseSourceList(_ value: String) throws -> [String] {
+        if value.hasPrefix("[") {
+            guard let data = value.data(using: .utf8),
+                  let list = try? JSONDecoder().decode([String].self, from: data) else {
+                throw KilError.failed("defaultAudioSources の JSON 配列が不正です: \(value)")
+            }
+            return list
+        }
+        return value.split(separator: ",", omittingEmptySubsequences: false)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
     }
 
     /// 設定ファイルは GUI (カレントディレクトリが / になる) とも共有するため、相対パスを禁止する
@@ -249,6 +278,8 @@ public enum ConfigStore {
     }
 
     public static func save(_ config: KildeConfig) throws {
+        // 不正値を永続化すると、次回の load() (= kilde rec) が自分の書いたファイルで失敗する
+        try config.validate()
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let encoder = JSONEncoder()
@@ -316,6 +347,10 @@ public enum RecordSettings {
             options.codec = .h264
         }
 
+        if let fps = o.fps, fps <= 0 {
+            // 0 以下は SCK 設定で黙って無視され、指定と違うフレームレートで録れてしまうため弾く
+            throw KilError.failed("fps は 1 以上の整数を指定してください: \(fps)")
+        }
         options.fps = o.fps ?? config.fps
         options.showsCursor = o.showsCursor ?? config.showsCursor ?? true
 

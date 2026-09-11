@@ -205,4 +205,37 @@ final class ConfigTests: XCTestCase {
         cli.audio = ["none"]
         XCTAssertEqual(try resolve(cli, config: fullConfig).audioSources, [])
     }
+
+    /// 不正値を保存すると次回の load() (= kilde rec) が自分の書いたファイルで失敗するため、保存前に弾く
+    func testSaveRejectsInvalidConfig() {
+        XCTAssertThrowsError(try ConfigStore.save(KildeConfig(codec: "av1")))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: ConfigStore.fileURL.path))
+    }
+
+    /// 手編集で前後に空白が残った値は、読めるのに apply() で失敗するので読み込み時点で弾く
+    func testPaddedValuesInFileAreRejected() {
+        XCTAssertThrowsError(try ConfigStore.decode(Data(#"{"codec": " hevc"}"#.utf8), path: "x"))
+        XCTAssertThrowsError(try ConfigStore.decode(Data(#"{"defaultAudioSources": ["mic "]}"#.utf8), path: "x"))
+    }
+
+    /// 名前にカンマを含むデバイスは JSON 配列で設定でき、show の表示を set に戻しても同じになる
+    func testDeviceNameWithCommaRoundTrips() throws {
+        var config = KildeConfig()
+        try config.set(.defaultAudioSources, #"["device:Mic, USB", "system"]"#)
+        XCTAssertEqual(config.defaultAudioSources, ["device:Mic, USB", "system"])
+        let shown = try XCTUnwrap(config.value(for: .defaultAudioSources))
+        var again = KildeConfig()
+        try again.set(.defaultAudioSources, shown)
+        XCTAssertEqual(again.defaultAudioSources, config.defaultAudioSources)
+        XCTAssertEqual(KildeConfig(defaultAudioSources: ["system", "mic"]).value(for: .defaultAudioSources),
+                       "system,mic")
+        XCTAssertThrowsError(try config.set(.defaultAudioSources, "[not json"))
+    }
+
+    /// --fps 0 は黙って無視されず失敗する
+    func testNonPositiveFpsFails() {
+        var cli = RecordOverrides()
+        cli.fps = 0
+        XCTAssertThrowsError(try resolve(cli))
+    }
 }

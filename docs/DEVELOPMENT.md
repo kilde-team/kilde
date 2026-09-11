@@ -117,6 +117,9 @@ scripts/integration-test.sh
 - テスト中に一時的に既定の出力デバイスが `kilde Monitor` に切り替わります
   (T9)。スクリプトは `trap` で必ず復元しますが、強制終了した場合は
   `kilde audio monitor teardown` を手動で実行してください
+- `~/.kilde/config.json` がある場合、テスト中だけ `config.json.kilde-it-backup` に退避して
+  終了時に戻します (T3 などは既定値が前提のため)。強制終了して退避ファイルが残った場合は
+  手で戻してください (残っているとスクリプトは実行を拒否します)
 
 **テスト項目:**
 
@@ -133,6 +136,7 @@ scripts/integration-test.sh
 | T8 | `rec --no-video --window` — 特定アプリの音声のみ |
 | T9 | `audio monitor` + `--audio device:BlackHole...` — BlackHole 未導入なら SKIP |
 | T10 | SIGINT — Ctrl+C 相当で exit 0・再生可能なファイルが残る |
+| T11 | 設定ファイル — `outputDirectory` が既定の保存先になる / 存在しない保存先は録画前に exit 1 |
 
 作業ディレクトリ (録画物とログ) は失敗調査のため削除されず、最後に
 パスが表示されます。

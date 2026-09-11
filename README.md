@@ -53,10 +53,13 @@ kilde rec --no-video --window zoom 会議.m4a
 # BlackHole 経由で「聞きながら録音」
 kilde rec --no-video --audio "device:BlackHole 2ch" --monitor 会議.m4a
 
-# 既定値を設定ファイル (~/.kilde/config.json) で変更 — CLI 引数が常に優先
+# 既定値を設定ファイル (~/.kilde/config.json) で変更
+#   優先順位: CLI 引数 > --preset > KILDE_OUTPUT_DIR > 設定ファイル > 既定値
+#   不正な設定や存在しない保存先は、録画を始める前にエラー (終了コード 1)
 kilde config set outputDirectory ~/Movies/kilde
 kilde config set defaultAudioSources system,mic
-kilde config show
+kilde config set showsCursor false   # その回だけ写したいときは kilde rec --cursor
+kilde config show                    # 現在値と既定値 (unset <key> で既定に戻す / path でファイルの場所)
 
 kilde devices      # ディスプレイ / ウィンドウ / オーディオ機器の一覧
 kilde doctor       # 権限と環境の診断

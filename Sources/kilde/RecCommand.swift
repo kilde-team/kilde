@@ -70,6 +70,9 @@ struct RecCommand: ParsableCommand {
         if let audioTracks, AudioTrackPolicy(name: audioTracks) == nil {
             throw ValidationError("--audio-tracks は mixed か separate を指定してください")
         }
+        if let fps, fps <= 0 {
+            throw ValidationError("--fps は 1 以上の整数を指定してください")
+        }
         if let codec, VideoCodecKind(rawValue: codec) == nil {
             throw ValidationError("--codec は h264 / hevc / prores を指定してください")
         }
@@ -96,21 +99,7 @@ struct RecCommand: ParsableCommand {
         }
 
         var options = RecordOptions()
-
-        if preset == "meeting" {
-            if window == nil {
-                do {
-                    if let picked = try promptWindowSelection() {
-                        window = picked
-                    }
-                } catch {
-                    cliError(error)
-                }
-            }
-        }
-
         options.displayIndex = display ?? 0
-        options.windowMatch = window
         options.wantsVideo = !noVideo
         options.duration = parseDuration(duration)
         options.autoMonitor = monitor
@@ -133,6 +122,18 @@ struct RecCommand: ParsableCommand {
             cliError(error)
         }
 
+        // meeting のウィンドウ選択は設定・保存先の検証を通ってから (不正な設定で対話後に失敗させない)
+        if preset == "meeting" && window == nil {
+            do {
+                if let picked = try promptWindowSelection() {
+                    window = picked
+                }
+            } catch {
+                cliError(error)
+            }
+        }
+        options.windowMatch = window
+
         if countdown > 0 {
             for i in stride(from: countdown, through: 1, by: -1) {
                 print("開始まで \(i)...", terminator: "\r")
@@ -140,6 +141,17 @@ struct RecCommand: ParsableCommand {
                 Thread.sleep(forTimeInterval: 1)
             }
             print("                        \r", terminator: "")
+        }
+        if overrides.outputPath == nil && (countdown > 0 || preset == "meeting") {
+            // 既定の出力名は録画開始時刻にしたい。検証は対話・カウントダウンより前に済ませたが、
+            // その間に時刻が進むので既定名だけ取り直す (解決規則を揃えるため同じ apply を再実行する)
+            do {
+                try RecordSettings.apply(overrides, config: config,
+                                         environment: ProcessInfo.processInfo.environment,
+                                         to: &options)
+            } catch {
+                cliError(error)
+            }
         }
 
         let recorder = Recorder(options: options)

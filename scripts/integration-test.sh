@@ -30,6 +30,11 @@ cleanup() {
         "$KILDE" audio monitor teardown >/dev/null 2>&1 && echo "[cleanup] 既定出力を復元しました"
     fi
     [ -n "$SOUNDAPP_PID" ] && kill "$SOUNDAPP_PID" 2>/dev/null
+    # T11 が書いたテスト用の設定を消してから、退避したユーザーの設定を戻す
+    [ "${CONFIG_TOUCHED:-0}" = "1" ] && rm -f "$CONFIG"
+    if [ "${CONFIG_MOVED:-0}" = "1" ]; then
+        mv -f "$CONFIG_BACKUP" "$CONFIG" && echo "[cleanup] 設定ファイルを復元しました"
+    fi
     echo ""
     echo "作業ディレクトリ (失敗時の調査用に残します): $WORK"
 }
@@ -37,10 +42,19 @@ trap cleanup EXIT
 
 # 設定ファイル (~/.kilde/config.json) と KILDE_OUTPUT_DIR は rec の既定値を変える (issue #14)。
 # T3 / T4b / T5 などは「既定 = system / mixed」を前提にしているため、環境変数は外し、
-# 設定ファイルがある場合は失敗の原因として気付けるよう警告する (ユーザーの設定は書き換えない)
+# ユーザーの設定ファイルはテスト中だけ退避して trap で必ず戻す (T9 の既定出力と同じ扱い)。
+# 強制終了 (kill -9 等) で戻らなかった場合は config.json.kilde-it-backup を手で戻す
 unset KILDE_OUTPUT_DIR
-if [ -f "$HOME/.kilde/config.json" ]; then
-    printf '\033[33mWARNING\033[0m  %s が存在します。rec の既定値が変わるため既定値を前提とするテストが失敗しえます (`kilde config show` で確認)\n' "$HOME/.kilde/config.json"
+CONFIG="$HOME/.kilde/config.json"
+CONFIG_BACKUP="$CONFIG.kilde-it-backup"
+if [ -e "$CONFIG_BACKUP" ]; then
+    echo "前回の統合テストの退避ファイルが残っています: $CONFIG_BACKUP"
+    echo "中身を確認して $CONFIG に戻してから再実行してください"
+    exit 1
+fi
+if [ -f "$CONFIG" ]; then
+    mv "$CONFIG" "$CONFIG_BACKUP" && CONFIG_MOVED=1
+    echo "[setup] 設定ファイルをテスト中だけ退避します: $CONFIG_BACKUP"
 fi
 
 log()  { printf '\n\033[1m== %s ==\033[0m\n' "$*"; }
@@ -297,6 +311,34 @@ if [ "$EXIT_CODE" = "0" ] && num_between "${VD:-0}" 2.5 8; then
 else
     bad "T10 SIGINT: exit=$EXIT_CODE duration=${VD:-N/A}s — $WORK/t10.log"
 fi
+
+# ---- T11: 設定ファイル (issue #14) ----------------------------------------------
+# テスト用の設定を書き、終わったら消す (ユーザーの設定は冒頭で退避済み、cleanup で戻る)
+
+log "T11: 設定ファイル — outputDirectory が既定の保存先になる / 存在しない保存先は録画前に失敗"
+CFG_OUT="$WORK/t11-out"
+mkdir -p "$CFG_OUT" "$(dirname "$CONFIG")"
+CONFIG_TOUCHED=1
+printf '{"outputDirectory": "%s", "defaultAudioSources": ["system"]}\n' "$CFG_OUT" > "$CONFIG"
+if (cd "$WORK" && "$KILDE" rec --no-video --duration 3s > "$WORK/t11a.log" 2>&1) \
+    && [ "$(ls "$CFG_OUT"/kilde-*.m4a 2>/dev/null | wc -l | tr -d ' ')" = "1" ]; then
+    ok "T11a outputDirectory: 設定した保存先に既定名で保存"
+else
+    bad "T11a outputDirectory: 保存先に出力がない — $WORK/t11a.log"
+fi
+printf '{"outputDirectory": "%s/no-such-dir"}\n' "$WORK" > "$CONFIG"
+START=$(date +%s)
+# 誤って録画が始まっても 30 秒で止まる。録画前に失敗すれば数秒で返る
+(cd "$WORK" && "$KILDE" rec --no-video --duration 30s > "$WORK/t11b.log" 2>&1)
+EXIT_CODE=$?
+ELAPSED=$(( $(date +%s) - START ))
+if [ "$EXIT_CODE" = "1" ] && [ "$ELAPSED" -lt 5 ] && grep -q "出力先ディレクトリが存在しません" "$WORK/t11b.log"; then
+    ok "T11b 存在しない保存先: 録画前に exit=1 (${ELAPSED}s)"
+else
+    bad "T11b 存在しない保存先: exit=$EXIT_CODE elapsed=${ELAPSED}s — $WORK/t11b.log"
+fi
+rm -f "$CONFIG"
+CONFIG_TOUCHED=0
 
 # ---- サマリ -------------------------------------------------------------------
 

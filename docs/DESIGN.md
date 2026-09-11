@@ -238,7 +238,7 @@ kilde config [show|set|unset|path]        設定ファイル ~/.kilde/config.jso
 | `--monitor` | off | 録画中だけ "kilde Monitor" を自動 setup し、終了時に teardown する。手動 setup 済みの Monitor には触れない。BlackHole 未導入なら終了コード 3、復元に失敗したら WARNING を出して終了コード 1 |
 | `--duration <dur>` | なし | `30` (秒) / `30s` / `5m` / `1h` / `1.5m`。経過で自動停止 (SIGINT と同じ経路) |
 | `--codec <c>` | `h264` (設定 `codec`) | `h264` / `hevc` / `prores` |
-| `--fps <n>` | 指定なし (SCK 既定。設定 `fps`) | 上限フレームレート |
+| `--fps <n>` | 指定なし (SCK 既定。設定 `fps`) | 上限フレームレート。1 以上 (0 以下は終了コード 64 — 以前は黙って無視していた) |
 | `--cursor` / `--no-cursor` | 写り込む (設定 `showsCursor`) | カーソルを写し込むか。`--cursor` は設定 `showsCursor: false` をその回だけ打ち消す用 (M1 の `--no-cursor` はそのまま使える) |
 | `--countdown <sec>` | `0` | 開始前カウントダウン |
 | `--preset meeting` | なし | `--audio system --audio mic` + mixed。`--window` 未指定なら on-screen ウィンドウを面積順に列挙して対話選択 (空欄 Enter = ディスプレイ全体)。EOF (非対話実行) と 3 回連続の無効入力は終了コード 1 で中止。明示した `--audio` / `--audio-tracks` はプリセットより優先。プリセットは設定ファイルより優先 |
@@ -264,7 +264,15 @@ KildeCore (`ConfigStore` / `RecordSettings`) にある。値は CLI 引数と同
   倒さず `kilde rec` を録画開始前に終了コード 1 で止める (「設定したのに効かない」を防ぐ)
 - `kilde config set <key> <value>` は値を検証してから書く (不正値・未知のキーは終了コード 64)。
   `defaultAudioSources` はカンマ区切り (`kilde config set defaultAudioSources system,mic`)。
+  名前にカンマを含むデバイスは JSON 配列 (`'["device:A, B","mic"]'`) で指定し、`show` もその場合だけ
+  JSON 配列で表示する (表示をそのまま `set` に戻せる)。
   `kilde config unset <key>` で既定値に戻す。`kilde config show` は未設定の項目に既定値を併記する
+- 手編集のファイルも `set` と同じ基準で検証する (値の前後の空白も不正)。`ConfigStore.save()` も
+  保存前に検証する (不正値を書くと次回の `kilde rec` が自分の書いたファイルで失敗するため)
+- 壊れたファイルに対する `set` / `unset` は、空の設定で上書きせずに失敗する (他の設定を黙って
+  失わないため)。手で直すか削除してから再実行する (`kilde config path` で場所を表示)
+- 設定と保存先の検証は `--preset meeting` の対話と `--countdown` より前に行う。
+  既定の出力名の時刻は、その後の録画開始時点で取り直す
 
 ### 使用例
 
