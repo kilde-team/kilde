@@ -1,0 +1,22 @@
+gui/Sources/ContentView.swift
+  s_14688823243adc::t_ccc46999cf3f17 178-181,186-197,199-202,205-215
+scripts/integration-test.sh
+  s_14688823243adc::t_30b9481aa6ddaa 27,34-35
+  s_14688823243adc::t_5c7136be7b3248 303-307,313,316,319
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "a05650283ba7e1fd47feed310c25bbee0800d52c",
+  "prompts": {},
+  "sessions": {
+    "s_14688823243adc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ddbf470b-d6da-4876-8dbc-a2c696d20b1c",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
