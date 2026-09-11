@@ -219,9 +219,9 @@ kilde rec demo.mov
 kilde rec --audio system --audio mic demo.mov
 
 # BlackHole 経由で「聞きながら録る」
-kilde audio monitor --setup     # マルチ出力デバイス "kilde Monitor" を作成
+kilde audio monitor setup       # マルチ出力デバイス "kilde Monitor" を作成
 kilde rec --audio device:BlackHole2ch demo.mov
-kilde audio monitor --teardown  # 元の既定出力へ戻す
+kilde audio monitor teardown    # 元の既定出力へ戻す
 
 # 会議 (Zoom / Google Meet / Teams) を録画 — 双方向の声を 1 トラックに
 kilde rec --preset meeting 会議.mov
@@ -262,10 +262,10 @@ kilde rec --duration 30s --codec hevc out.mov
 
 1. **検出**: `kilde devices` で名前/UID から BlackHole 系デバイスを認識し、
    通常デバイスと区別して表示。
-2. **モニタ維持**: `kilde audio monitor --setup` は CoreAudio の
+2. **モニタ維持**: `kilde audio monitor setup` は CoreAudio の
    aggregate device API で「既定出力 + BlackHole」のマルチ出力デバイス
    "kilde Monitor" を作成し既定出力に設定。**非公開の `stacked` フラグが
-   必須** (SPIKE-NOTES F-C)。`--teardown` で作成物を削除し元の既定出力へ復元。
+   必須** (SPIKE-NOTES F-C)。`kilde audio monitor teardown` で作成物を削除し元の既定出力へ復元。
    録音セッション中の自動 setup/teardown (`--monitor` フラグ) もサポート。
 3. **録音 (音声のみ) モードでの位置づけ**: SCK ネイティブ経路が確立したため
    BlackHole は必須ではなくなった (S8)。`--audio device:BlackHole2ch` の

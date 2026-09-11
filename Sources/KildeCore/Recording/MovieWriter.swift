@@ -1,11 +1,14 @@
 import Foundation
 import AVFoundation
 import CoreMedia
+import CoreGraphics
 
 /// AVAssetWriter ラッパ。
-/// - 映像は最初の映像サンプル PTS をセッション開始 (アンカー) にする
-/// - 音声のみモードでは最初の音声サンプル PTS をアンカーにする
+/// - 映像あり: 最初の映像サンプル PTS をセッション開始 (アンカー) にする
+/// - 音声のみ: 最初の音声サンプル PTS をアンカーにする
+/// - macOS 26 の AVFoundation は outputSettings に幅・高さが必須 (SPIKE-NOTES F-D.2)
 final class MovieWriter {
+
     enum Anchor { case firstVideo, firstAudio }
 
     let writer: AVAssetWriter
@@ -27,26 +30,35 @@ final class MovieWriter {
     private(set) var lastAudioPTS: [String: CMTime] = [:]
 
     init(url: URL, fileType: AVFileType, video: Bool, videoSize: CGSize?,
-         audioLabels: [String], anchor: Anchor) throws {
+         codec: VideoCodecKind, audioLabels: [String], anchor: Anchor) throws {
         self.url = url
         self.anchor = anchor
         try? FileManager.default.removeItem(at: url)
         writer = try AVAssetWriter(outputURL: url, fileType: fileType)
 
         if video {
-            // macOS 26 の AVFoundation は init 時に幅・高さが必須
             guard let size = videoSize else {
-                throw SpikeError("video: videoSize が必要")
+                throw KilError.failed("video: サイズが不明です")
             }
-            let v = AVAssetWriterInput(mediaType: .video, outputSettings: [
-                AVVideoCodecKey: AVVideoCodecType.h264,
-                AVVideoWidthKey: Int(size.width),
-                AVVideoHeightKey: Int(size.height),
-                AVVideoCompressionPropertiesKey: [
+            var settings: [String: Any] = [:]
+            switch codec {
+            case .h264:
+                settings[AVVideoCodecKey] = AVVideoCodecType.h264
+                settings[AVVideoCompressionPropertiesKey] = [
                     AVVideoAverageBitRateKey: 12_000_000,
                     AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,
-                ],
-            ])
+                ]
+            case .hevc:
+                settings[AVVideoCodecKey] = AVVideoCodecType.hevc
+                settings[AVVideoCompressionPropertiesKey] = [
+                    AVVideoAverageBitRateKey: 10_000_000,
+                ]
+            case .prores:
+                settings[AVVideoCodecKey] = AVVideoCodecType.proRes422
+            }
+            settings[AVVideoWidthKey] = Int(size.width)
+            settings[AVVideoHeightKey] = Int(size.height)
+            let v = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
             v.expectsMediaDataInRealTime = true
             writer.add(v)
             videoInput = v
@@ -70,28 +82,29 @@ final class MovieWriter {
         writer.startWriting()
     }
 
-    // MARK: 追加
+    // MARK: - 追加
+    // 複数ソース (SCK / AVCapture) のコールバックキューから並行して呼ばれるため、
+    // すべての入口を lock で直列化する。
 
     func appendVideo(_ sb: CMSampleBuffer) {
         guard let input = videoInput else { return }
         let pts = CMSampleBufferGetPresentationTimeStamp(sb)
         guard CMTIME_IS_NUMERIC(pts) else { return }
+        lock.lock(); defer { lock.unlock() }
         if !sessionStarted {
-            startSession(at: pts) // anchor == .firstVideo を想定
+            startSessionLocked(at: pts)
         }
         guard sessionStarted, input.isReadyForMoreMediaData else {
-            lock.lock(); videoDropped += 1; lock.unlock()
+            videoDropped += 1
             return
         }
         let fixed = Self.withValidVideoTiming(sb)
         if input.append(fixed) {
-            lock.lock()
             videoAppended += 1
             if firstVideoPTS == nil { firstVideoPTS = pts }
             lastVideoPTS = pts
-            lock.unlock()
         } else {
-            lock.lock(); videoDropped += 1; lock.unlock()
+            videoDropped += 1
         }
     }
 
@@ -99,38 +112,42 @@ final class MovieWriter {
         guard let input = audioInputs[label] else { return }
         let pts = CMSampleBufferGetPresentationTimeStamp(sb)
         guard CMTIME_IS_NUMERIC(pts) else { return }
+        lock.lock(); defer { lock.unlock() }
         if !sessionStarted, anchor == .firstAudio {
-            startSession(at: pts)
+            startSessionLocked(at: pts)
         }
         guard sessionStarted else {
-            lock.lock(); audioDropped[label, default: 0] += 1; lock.unlock()
+            audioDropped[label, default: 0] += 1
             return
         }
         if let start = sessionStartTime, CMTimeCompare(pts, start) < 0 {
-            // アンカー前の音声はドロップ (カウントは S2 の PTS 計測で別途記録)
-            lock.lock(); audioDropped[label, default: 0] += 1; lock.unlock()
+            // アンカー前の音声はドロップ (A/V 同期のため)
+            audioDropped[label, default: 0] += 1
             return
         }
         guard input.isReadyForMoreMediaData else {
-            lock.lock(); audioDropped[label, default: 0] += 1; lock.unlock()
+            audioDropped[label, default: 0] += 1
             return
         }
         if input.append(sb) {
-            lock.lock()
             audioAppended[label, default: 0] += 1
             if firstAudioPTS[label] == nil { firstAudioPTS[label] = pts }
             lastAudioPTS[label] = pts
-            lock.unlock()
         } else {
-            lock.lock(); audioDropped[label, default: 0] += 1; lock.unlock()
+            audioDropped[label, default: 0] += 1
         }
     }
 
-    private func startSession(at t: CMTime) {
+    private func startSessionLocked(at t: CMTime) {
         guard !sessionStarted else { return }
         sessionStarted = true
         sessionStartTime = t
         writer.startSession(atSourceTime: t)
+    }
+
+    /// セッション開始前に中断するときの後始末
+    func cancel() {
+        writer.cancelWriting()
     }
 
     /// SCK の映像バッファは duration が無効のことがあるため 1/600s を与え直す
@@ -158,7 +175,7 @@ final class MovieWriter {
         return status == noErr ? (out ?? sb) : sb
     }
 
-    // MARK: 終了
+    // MARK: - 終了
 
     func finish() async throws {
         lock.lock()
@@ -172,36 +189,37 @@ final class MovieWriter {
         for a in audioInputs.values { a.markAsFinished() }
         await writer.finishWriting()
         if writer.status != .completed {
-            throw SpikeError("AVAssetWriter 失敗: \(String(describing: writer.error))")
+            throw KilError.failed("出力ファイルのファイナライズに失敗: \(String(describing: writer.error))")
         }
     }
 
-    // MARK: レポート
+    // MARK: - レポート
 
-    private static func s(_ t: CMTime?) -> String {
+    struct Counters {
+        let videoAppended: Int
+        let audioAppended: [String: Int]
+    }
+
+    /// ロック下で一貫したカウンタのスナップショットを返す (ステータス表示用)。
+    /// キャプチャコールバックが並行して更新するため、生プロパティの直接読みはしない。
+    func countersSnapshot() -> Counters {
+        lock.lock(); defer { lock.unlock() }
+        return Counters(videoAppended: videoAppended, audioAppended: audioAppended)
+    }
+
+    static func string(_ t: CMTime?) -> String {
         guard let t, CMTIME_IS_NUMERIC(t) else { return "-" }
         return String(format: "%.3fs", t.seconds)
     }
 
-    func reportLines() -> [String] {
-        var lines: [String] = []
-        if videoInput != nil {
-            lines.append("video: appended=\(videoAppended) dropped=\(videoDropped) first=\(Self.s(firstVideoPTS)) last=\(Self.s(lastVideoPTS))")
+    /// 音声各トラックの「映像 first PTS との差」(A/V 同期の指標)
+    var firstPTSOffsets: [String: Double] {
+        lock.lock(); defer { lock.unlock() }
+        guard let fv = firstVideoPTS, CMTIME_IS_NUMERIC(fv) else { return [:] }
+        var out: [String: Double] = [:]
+        for (label, fa) in firstAudioPTS where CMTIME_IS_NUMERIC(fa) {
+            out[label] = fa.seconds - fv.seconds
         }
-        for (label, _) in audioInputs {
-            let n = audioAppended[label] ?? 0
-            let d = audioDropped[label] ?? 0
-            let off: String
-            if let fa = firstAudioPTS[label], let fv = firstVideoPTS,
-               CMTIME_IS_NUMERIC(fa), CMTIME_IS_NUMERIC(fv) {
-                off = String(format: " (video との first-PTS 差: %+0.3fs)", fa.seconds - fv.seconds)
-            } else if let fa = firstAudioPTS[label], CMTIME_IS_NUMERIC(fa) {
-                off = ""
-            } else {
-                off = " ← 音声サンプルなし"
-            }
-            lines.append("audio[\(label)]: appended=\(n) dropped=\(d) first=\(Self.s(firstAudioPTS[label])) last=\(Self.s(lastAudioPTS[label]))\(off)")
-        }
-        return lines
+        return out
     }
 }
