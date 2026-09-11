@@ -1,7 +1,7 @@
 # kilde — macOS 画面 + 音声 録画ツール 設計書
 
 - Version: 0.4 (draft)
-- Date: 2026-09-11
+- Date: 2026-09-12
 - Status: M0 スパイク完了 (結果は [SPIKE-NOTES.md](SPIKE-NOTES.md))。M1 CLI MVP 実装済み —
   v0.4 で §5 / §6 / §10 を M1 実装に追従させた
 
@@ -67,7 +67,7 @@ macOS 標準の QuickTime Player による画面収録は**システム音声を
 ### 発展 (M2〜)
 
 - 領域 (矩形) 指定の収録
-- グローバルホットキーでの開始/停止
+- ✅ グローバルホットキーでの開始/停止 (`Carbon.HIToolbox`、issue #10)
 - 録画の一時停止/再開
 - GUI (メニューバーアプリ) (M3)
 
@@ -106,6 +106,10 @@ macOS 標準の QuickTime Player による画面収録は**システム音声を
 
 - **KildeCore**: 純粋な Swift パッケージ (SPM)。CLI/GUI で共用するすべての
   ロジックを持つ。UI に依存しない。
+- グローバルホットキーは KildeCore の `HotkeyMonitor` が Carbon
+  (`RegisterEventHotKey` / `InstallEventHandler`) で排他的に登録する。入力監視や
+  アクセシビリティ権限を要求しない。CLI はメイン RunLoop、GUI は AppKit の通常の
+  イベントループで、メインスレッドに配送される押下コールバックを受ける。
 - **kilde (CLI)**: 引数解析とコンソール出力 (進捗・レベルメーター) のみ。
 - **KildeGUI**: 後日 Xcode プロジェクトとして作成し、KildeCore をローカル
   パッケージ依存で取り込む (署名・entitlements のため SPM 単独より容易)。
@@ -242,6 +246,7 @@ kilde config [show|set|unset|path]        設定ファイル ~/.kilde/config.jso
 | `--cursor` / `--no-cursor` | 写り込む (設定 `showsCursor`) | カーソルを写し込むか。`--cursor` は設定 `showsCursor: false` をその回だけ打ち消す用 (M1 の `--no-cursor` はそのまま使える) |
 | `--countdown <sec>` | `0` | 開始前カウントダウン |
 | `--preset meeting` | なし | `--audio system --audio mic` + mixed。`--window` 未指定なら on-screen ウィンドウを面積順に列挙して対話選択 (空欄 Enter = ディスプレイ全体)。EOF (非対話実行) と 3 回連続の無効入力は終了コード 1 で中止。明示した `--audio` / `--audio-tracks` はプリセットより優先。プリセットは設定ファイルより優先 |
+| `--hotkey <key>` | なし (設定 `hotkey`) | `cmd+shift+r` 形式のグローバルホットキーで開始 / 停止。指定時は録画ファイルを作らず待機し、待機中の Ctrl+C は成功 (0) で終了する。録画開始後のホットキーと Ctrl+C はどちらも `Recorder.stop()` で安全に停止する |
 
 ### 設定ファイル (`~/.kilde/config.json`, M2 — #14)
 
@@ -256,10 +261,11 @@ KildeCore (`ConfigStore` / `RecordSettings`) にある。値は CLI 引数と同
 | `codec` | `h264` / `hevc` / `prores` | `--codec` |
 | `fps` | 1 以上の整数 | `--fps` |
 | `showsCursor` | 真偽値 | `--cursor` / `--no-cursor` |
-| `hotkey` | 文字列 | 予約 (グローバルホットキー — #10) |
+| `hotkey` | `cmd+shift+r` 形式の文字列 | `--hotkey`。cmd / shift / opt / ctrl / fn と英数字、F1〜F12、主要キーに対応 |
 
 - 優先順位: **CLI 引数 > `--preset` > 環境変数 > 設定ファイル > 既定値**。
-  環境変数は `KILDE_OUTPUT_DIR` (保存先) のみ
+  環境変数は `KILDE_OUTPUT_DIR` (保存先) のみ。ホットキーは
+  **`--hotkey` > 設定 `hotkey` > 待機モードなし** (プリセットと環境変数は関与しない)
 - ファイルが無ければすべて既定値。壊れた JSON・未知のキー (typo)・不正値は、黙って既定値に
   倒さず `kilde rec` を録画開始前に終了コード 1 で止める (「設定したのに効かない」を防ぐ)
 - `kilde config set <key> <value>` は値を検証してから書く (不正値・未知のキーは終了コード 64)。
@@ -302,6 +308,9 @@ kilde rec --no-video --audio mic メモ.m4a
 
 # 30 秒だけ HEVC で
 kilde rec --duration 30s --codec hevc out.mov
+
+# ターミナルにフォーカスがなくても cmd+shift+r で開始 / 停止
+kilde rec --hotkey cmd+shift+r out.mov
 ```
 
 ### コンソール出力
@@ -378,6 +387,7 @@ kilde/
 │   ├── KildeCore/           # UI 非依存のコア (CLI / GUI 共用)
 │   │   ├── Capture/         # SCStream / AVCaptureSession ラッパ、サンプル変換
 │   │   ├── Devices/         # ディスプレイ・ウィンドウ列挙、CoreAudio 機器、kilde Monitor
+│   │   ├── Input/           # HotkeyMonitor、ホットキー待機と開始/停止の状態管理
 │   │   ├── Recording/       # Recorder (セッションの指揮)、MovieWriter、AudioMixer
 │   │   └── Support/         # 権限、エラーと終了コード、ファイル検証、ユーティリティ
 │   └── kilde/               # CLI (引数解析と表示のみ) + Info.plist (リンカで埋め込み)
