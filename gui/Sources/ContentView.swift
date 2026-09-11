@@ -112,12 +112,10 @@ struct ContentView: View {
     }
 
     /// SCShareableContent の初回列挙は数百 ms かかる (権限プロンプト保留中は
-    /// 返らないことすらある)。列挙は detached タスクで走らせ、UI 側では
-    /// `enumerationTimeout` 秒のタイムアウトを設けて loading を解除する —
-    /// これが無いと権限保留中に再オープンも手動更新もすべて黙殺され、
-    /// 権限不要なオーディオ一覧まで表示されない。列挙のタイムアウト自体は
-    /// #35 (awaitSync の async 化) で根本対応する。
-    /// (issue #35 で snapshot() の async 版が入ったら .task {} + await に移行する)
+    /// 返らないことすらある)。列挙は async 版 snapshot() を detached タスクで
+    /// 走らせ、UI 側では `enumerationTimeout` 秒のタイムアウトを設けて loading を
+    /// 解除する — これが無いと権限保留中に再オープンも手動更新もすべて黙殺され、
+    /// 権限不要なオーディオ一覧まで表示されない
     @MainActor private func reload() {
         guard !reloading else {
             // 初回ロードの完了前に来た要求 (onAppear + didBecomeKey の同時発火) は
@@ -134,7 +132,7 @@ struct ContentView: View {
             await MainActor.run { audioDevices = devices }
         }
         let enumerate = Task.detached { () -> EnumerationResult in
-            do { return .success(try DisplayCatalog.snapshot()) }
+            do { return .success(try await DisplayCatalog.snapshot()) }
             catch { return .failure(error) }
         }
         Task {
