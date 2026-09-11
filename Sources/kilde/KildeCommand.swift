@@ -13,7 +13,7 @@ struct KildeCommand: ParsableCommand {
         """,
         version: "0.1.0",
         subcommands: [RecCommand.self, DevicesCommand.self, DoctorCommand.self,
-                      AudioCommand.self, InspectCommand.self]
+                      AudioCommand.self, InspectCommand.self, ConfigCommand.self]
     )
 
     func run() throws {
