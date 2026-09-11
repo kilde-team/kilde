@@ -24,6 +24,12 @@ func positiveArg(_ index: Int, default value: Double) -> Double {
 }
 let interval = positiveArg(1, default: 30)
 let lifetime = positiveArg(2, default: 960)
+// 最初のマーカーは interval 秒後に出るので、寿命がそれ以下だとマーカーを 1 個も出さずに正常終了してしまう
+// (トップレベルの guard にすると以降のグローバル変数の扱いが変わり、main actor 分離の警告が出るので if にしている)
+if lifetime <= interval {
+    FileHandle.standardError.write("ERROR: 自動終了までの秒 (\(lifetime)) はマーカー間隔 (\(interval)) より長くしてください\n".data(using: .utf8)!)
+    exit(2)
+}
 
 /// 1 kHz / 60 ms のビープを CAF のバイト列として作る。
 /// オンセット検出を安定させるため立ち上がりは鋭く (フェードインなし)、末尾だけ 10 ms フェードする

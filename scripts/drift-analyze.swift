@@ -119,7 +119,10 @@ func audioSeries(_ track: AVAssetTrack, _ asset: AVAsset) throws -> Series {
               let bb = CMSampleBufferGetDataBuffer(sb) else { continue }
         let channels = max(1, Int(asbd.mChannelsPerFrame))
         let sampleRate = asbd.mSampleRate
-        let length = CMBlockBufferGetDataLength(bb)
+        // 空のバッファ (末尾の空サンプル等) では配列が空になり baseAddress が nil になるので飛ばす。
+        // コピー量も Float 単位に切り詰める (端数バイトまでコピーすると配列の外に書き込む)
+        let length = CMBlockBufferGetDataLength(bb) / MemoryLayout<Float>.size * MemoryLayout<Float>.size
+        guard length > 0 else { continue }
         var floats = [Float](repeating: 0, count: length / MemoryLayout<Float>.size)
         let copied = floats.withUnsafeMutableBytes {
             CMBlockBufferCopyDataBytes(bb, atOffset: 0, dataLength: length, destination: $0.baseAddress!)

@@ -29,19 +29,36 @@ MODE="${3:-both}"
 MIC="${MIC:-mic}"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/kilde-drift.XXXXXX")"
 MARKER_PID=""
+REC_PID=""
+INTERRUPTED=0
 
 cleanup() {
+    # 想定外の終了経路でも録画を放置しない (安全停止を依頼してファイナライズを待つ)
+    if [ -n "$REC_PID" ]; then kill -INT "$REC_PID" 2>/dev/null; wait "$REC_PID" 2>/dev/null; fi
     [ -n "$MARKER_PID" ] && kill "$MARKER_PID" 2>/dev/null
     echo ""
     echo "作業ディレクトリ (録画・ログ・解析結果): $WORK"
 }
 trap cleanup EXIT
 
+# Ctrl+C / SIGTERM / SIGHUP は録画中の kilde rec に SIGINT として転送し、ファイナライズを待ってから終わる
+# (転送しないと、ラッパーだけが止まって録画が孤児として走り続ける)。
+# kilde は停止シグナルで正常終了 (exit 0) するので、フラグを立てておかないと中断した録画を解析し、
+# both では次のモードの録画まで始めてしまう。Ctrl+C では端末からも kilde に SIGINT が届くが、
+# Recorder.stop() は 2 回目以降を無視するので二重に届いても問題ない
+stop_rec() {
+    INTERRUPTED=1
+    [ -n "$REC_PID" ] && kill -INT "$REC_PID" 2>/dev/null
+}
+trap stop_rec INT TERM HUP
+
 case "$MODE" in separate|mixed|both) ;; *) echo "モードは separate / mixed / both"; exit 2 ;; esac
 
 # マーカー間隔は drift-analyze の探索窓 (−0.5〜+1.0 秒、幅 1.5 秒) より長くないと、
-# 欠落したマーカーの代わりに隣のマーカーのビープを拾ってしまう
-if ! awk -v v="$INTERVAL" 'BEGIN { exit !(v ~ /^([0-9]+[.]?[0-9]*|[.][0-9]+)$/ && v + 0 > 1.5) }'; then
+# 欠落したマーカーの代わりに隣のマーカーのビープを拾ってしまう。
+# 上限は有限性の確認 (桁の多い数字は awk で inf になる。macOS の awk は nan / inf の比較が
+# 当てにならないので、上限との大小で弾く)
+if ! awk -v v="$INTERVAL" 'BEGIN { exit !(v ~ /^([0-9]+[.]?[0-9]*|[.][0-9]+)$/ && v + 0 > 1.5 && v + 0 < 1e9) }'; then
     echo "マーカー間隔は 1.5 秒より大きい数値で指定してください: $INTERVAL"
     exit 2
 fi
@@ -51,11 +68,16 @@ fi
 SECS="$(awk -v d="$DUR" 'BEGIN {
     m = 1; u = substr(d, length(d), 1)
     if (u == "s" || u == "m" || u == "h") { d = substr(d, 1, length(d) - 1); m = (u == "h") ? 3600 : (u == "m") ? 60 : 1 }
-    if (d !~ /^([0-9]+[.]?[0-9]*|[.][0-9]+)$/ || d + 0 <= 0) exit 1
+    if (d !~ /^([0-9]+[.]?[0-9]*|[.][0-9]+)$/ || d + 0 <= 0 || d * m >= 1e9) exit 1
     print d * m
 }')" || { echo "録画時間は 15m / 90s / 1.5m のように指定してください: $DUR"; exit 2; }
 # マーカーは録画より 30 秒長く生かしておく (録画の途中で消えると --window の収録が止まる)
 LIFETIME="$(awk -v s="$SECS" 'BEGIN { print s + 30 }')"
+# 解析にはマーカーが 2 個以上要る。録画時間が間隔の 2 倍未満だと、録画を終えてから解析で失敗するので先に止める
+if ! awk -v s="$SECS" -v i="$INTERVAL" 'BEGIN { exit !(s >= 2 * i) }'; then
+    echo "録画時間 ($DUR) はマーカー間隔 (${INTERVAL}s) の 2 倍以上にしてください (解析にマーカーが 2 個以上必要)"
+    exit 2
+fi
 
 [ -x "$KILDE" ] || { echo "先に swift build を実行してください ($KILDE がありません)"; exit 1; }
 # 保存先の既定値は -o で明示するので影響しないが、音声ソース等は引数で固定している
@@ -74,14 +96,28 @@ run_one() { # run_one <separate|mixed>
     "$WORK/drift-marker" "$INTERVAL" "$LIFETIME" > "$WORK/marker-$tracks.log" 2>&1 &
     MARKER_PID=$!
     sleep 2   # ウィンドウが出てから --window で解決させる
+    [ $INTERRUPTED -eq 1 ] && return 130
+    # kilde rec はバックグラウンドで起動して wait する。フォアグラウンドで実行すると、ラッパーが受けた
+    # シグナルを録画終了まで処理できず、stop_rec で kilde に転送できないため
     "$KILDE" rec --window KildeDriftMarker --audio system --audio "$MIC" --audio-tracks "$tracks" \
-        --duration "$DUR" --output "$out" > "$WORK/rec-$tracks.log" 2>&1
-    local rc=$?
+        --duration "$DUR" --output "$out" > "$WORK/rec-$tracks.log" 2>&1 &
+    REC_PID=$!
+    local rc=0
+    # trap したシグナルが来ると wait はその場で戻る (rc > 128)。kilde がファイナライズを終えて
+    # 終了するまで wait し直し、kilde 自身の終了コードを得る
+    wait "$REC_PID"; rc=$?
+    while kill -0 "$REC_PID" 2>/dev/null; do wait "$REC_PID"; rc=$?; done
+    REC_PID=""
     # マーカーは録画より長く生きるはずなので、録画終了時点で居なければ途中で落ちている
     # (ビープの再生失敗など)。その録画はマーカーが欠けているので計測として扱わない
     local marker_alive=1
     kill -0 "$MARKER_PID" 2>/dev/null || marker_alive=0
     kill "$MARKER_PID" 2>/dev/null; wait "$MARKER_PID" 2>/dev/null; MARKER_PID=""
+    if [ $INTERRUPTED -eq 1 ]; then
+        echo "中断しました (kilde rec exit=$rc)。途中までの録画の解析と、以降のモードは行いません"
+        echo "途中までを解析する場合: $WORK/drift-analyze \"$out\" $INTERVAL"
+        return 130
+    fi
     if [ $rc -ne 0 ]; then
         echo "kilde rec が失敗しました (exit=$rc): $WORK/rec-$tracks.log"
         tail -5 "$WORK/rec-$tracks.log"
@@ -110,6 +146,10 @@ run_one() { # run_one <separate|mixed>
 }
 
 status=0
-if [ "$MODE" = "separate" ] || [ "$MODE" = "both" ]; then run_one separate || status=1; fi
-if [ "$MODE" = "mixed" ] || [ "$MODE" = "both" ]; then run_one mixed || status=1; fi
+for tracks in separate mixed; do
+    [ "$MODE" = "$tracks" ] || [ "$MODE" = "both" ] || continue
+    run_one "$tracks" || status=1
+    # 中断されたら以降のモードは行わない
+    [ $INTERRUPTED -eq 1 ] && exit 130
+done
 exit $status
