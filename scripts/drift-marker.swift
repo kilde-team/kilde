@@ -119,9 +119,19 @@ func outputDevices() -> [(id: AudioDeviceID, name: String)] {
     halDeviceIDs().filter(hasOutputStreams).map { (id: $0, name: halDeviceName($0)) }
 }
 
-/// 鳴らす先を名前 (部分一致) で引く
+/// 鳴らす先を名前で引く。完全一致を優先し、部分一致が複数あるときは計測を始めずに止める。
+/// (列挙順で鳴らす先が変わると、指定したつもりと違う経路を測ってしまい結果が無効になるため。
+///  BlackHole のように似た名前のデバイスが複数入りうる)
 func resolveOutput(_ wanted: String) -> (id: AudioDeviceID, name: String)? {
-    outputDevices().first { $0.name.localizedCaseInsensitiveContains(wanted) }
+    let devices = outputDevices()
+    if let exact = devices.first(where: { $0.name.localizedCaseInsensitiveCompare(wanted) == .orderedSame }) {
+        return exact
+    }
+    let partial = devices.filter { $0.name.localizedCaseInsensitiveContains(wanted) }
+    guard partial.count <= 1 else {
+        fail("出力デバイス名が曖昧です: \(wanted)\n  候補: \(partial.map(\.name).joined(separator: " / "))", 2)
+    }
+    return partial.first
 }
 
 let app = NSApplication.shared
