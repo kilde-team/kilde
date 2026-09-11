@@ -1,0 +1,22 @@
+# Swift Package Manager
+.build/
+swiftpm/
+Package.resolved
+
+# Xcode
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+DerivedData/
+gui/*.xcodeproj/project.xcworkspace/
+gui/*.xcodeproj/xcuserdata/
+
+# macOS
+.DS_Store
+
+# Claude Code
+.claude/
+
+# Build artifacts
+*.o
+*.d
