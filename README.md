@@ -1,5 +1,7 @@
 # kilde
 
+[![CI](https://github.com/takezou621/kilde/actions/workflows/ci.yml/badge.svg)](https://github.com/takezou621/kilde/actions/workflows/ci.yml)
+
 macOS 向けの OSS 画面 + 音声 録画ツール。
 
 QuickTime Player の画面収録では録れない**システム音声を含めた録画・録音**を、
