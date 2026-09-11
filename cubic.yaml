@@ -1,0 +1,124 @@
+# yaml-language-server: $schema=https://cubic.dev/schema/cubic-repository-config.schema.json
+
+version: 1
+
+reviews:
+  enabled: true
+  # 録画ファイルの破損やデバイス状態の取り残しは影響が大きいため、
+  # 一般的なアプリより慎重にレビューする。
+  sensitivity: high
+  incremental_commits: true
+  check_drafts: false
+  architecture_diagrams: false
+  external_contributors_require_manual_review: false
+  resolve_threads_when_addressed: true
+
+  # 実機依存の挙動は AI の静的レビューだけでは承認できない。
+  auto_approve_behavior: disabled
+  auto_approve: disabled
+  ultrareview: manual
+
+  custom_instructions: |
+    GitHub に投稿するすべての自然言語を日本語で書いてください。これにはレビュー要約、
+    マージ可否の説明、インラインコメント、スレッドへの返信、フォローアップ、カスタム
+    ルールの指摘が含まれます。英語で回答しないでください。ただし、ソースコード、識別子、
+    API 名、コマンド、ファイルパス、ログやエラーメッセージの原文は変更せず引用して構いません。
+
+    指摘は、正しさ、録画データの保全、A/V 同期、並行性、権限、デバイス状態の復旧、
+    公開 CLI 契約、回帰リスクを優先してください。純粋な好み、根拠のない将来対応、既存規約と
+    矛盾する一般論は指摘しないでください。現在の差分と呼び出し元を確認し、既に後続コミットで
+    解消された問題を再掲しないでください。
+
+    各指摘は日本語で「問題」「影響」「根拠」「最小限の修正案」が分かるようにし、該当箇所と
+    再現条件を具体的に示してください。P0/P1 はデータ破損、クラッシュ、権限・デバイス状態の
+    破壊、重大な競合、契約破壊に限定してください。修正案を示す前に、CLAUDE.md §3〜§7、
+    AGENTS.md、docs/DESIGN.md、docs/SPIKE-NOTES.md の関連箇所と整合するか確認してください。
+
+  custom_rules:
+    - name: 録画データ保全と後始末
+      description: |
+        録画開始、停止、失敗、シグナル受信の全経路を追跡し、AVAssetWriter が必ず finish または
+        cancel されること、MicStream と SCStream が writer の終了前に停止すること、BlackHole の
+        monitor 状態が復元されることを確認する。SIGINT / SIGTERM / SIGHUP は安全停止へ接続し、
+        正常にファイナライズできた場合は exit 0 とする。失敗経路で fatalError や後始末の欠落、
+        元のエラーの握りつぶし、壊れた部分ファイルや既定出力の取り残しにつながる変更を指摘する。
+      include:
+        - Sources/KildeCore/**
+        - Sources/kilde/**
+
+    - name: キャプチャ並行性と開始停止順序
+      description: |
+        複数キューから届くキャプチャコールバックの競合を重点確認する。MovieWriter の append と
+        カウンタ参照は同じ NSLock で直列化し、録画中の参照は countersSnapshot() を使う。
+        mixed 経路は mixer.push() から writer.appendAudio() までを mixedAppendLock で一体として
+        保護し、AudioMixer は内部 lock の前提を崩さない。MicStream.stop() は callback queue を
+        drain し、マイクは約 370ms の起動遅延を吸収するため SCStream より先に開始する。
+        ロック範囲の分割、ロック順序の循環、停止後 append、データ競合を生む変更を指摘する。
+      include:
+        - Sources/KildeCore/Capture/**
+        - Sources/KildeCore/Recording/**
+
+    - name: A/V 同期と音声フォーマット
+      description: |
+        映像ありでは最初の映像 PTS、音声のみでは最初の音声 PTS をセッションアンカーとし、
+        アンカー前の音声を落とす設計を維持する。AudioMixer の 48kHz stereo 変換、1024 frame
+        chunk、2秒遅延時の無音進行、3秒の初回データ待ち、終了時 flush、ギャップ・重複処理を
+        確認する。CMSampleTimingInfo の duration はバッファ全体ではなく1 PCM frame を表すこと、
+        非数値 PTS や変換失敗がクラッシュや無音の誤成功につながらないことを確認する。
+      include:
+        - Sources/KildeCore/Capture/AudioConversion.swift
+        - Sources/KildeCore/Capture/MicStream.swift
+        - Sources/KildeCore/Recording/**
+        - Sources/KildeCore/Support/FileInspection.swift
+
+    - name: macOS 固有の録画制約と権限
+      description: |
+        macOS 実測で必要と判明した回避策を保護する。SCStreamConfiguration の BGRA 指定、
+        AVAssetWriter 映像設定の width / height、rec 経路だけで行う NSApplication accessory 初期化、
+        aggregate device の非公開 stacked=true、AVAssetTrack.load(.duration) を避けた PTS ベース検査、
+        CLI バイナリへの Info.plist と NSMicrophoneUsageDescription の埋め込みを確認する。
+        Package.swift の unsafeFlags、Sources/kilde/Info.plist、権限判定、CoreAudio の復旧経路を
+        変更する差分では、CLAUDE.md と SPIKE-NOTES に記録された理由を壊していないか指摘する。
+      include:
+        - Package.swift
+        - Sources/KildeCore/**
+        - Sources/kilde/**
+        - docs/SPIKE-NOTES.md
+
+    - name: CLI 契約、レイヤ分離、検証範囲
+      description: |
+        Sources/kilde は引数解析と表示に限定し、録画挙動は KildeCore に置く。終了コード 0 / 1 / 2 / 3
+        と ArgumentParser 検証時の 64、既定の --audio system、--audio-tracks mixed、出力名
+        kilde-yyyyMMdd-HHmmss.* を公開契約として扱う。CLI 引数や出力の変更時は README と
+        DESIGN.md §6 と --help が一致することを確認する。録画・デバイス・権限変更には実機統合
+        テスト、通常変更には swift build と Tests/ がある場合の swift test を要求する。
+        権限が必要な integration-test を CI に追加する変更は指摘する。スコープ外の改善は同じ PR に
+        混ぜず、別 issue とするよう促す。
+      include:
+        - Package.swift
+        - Sources/**
+        - Tests/**
+        - scripts/**
+        - README.md
+        - docs/**
+        - .github/**
+
+pr_descriptions:
+  generate: true
+  # 人が AGENTS.md に従って書いた本文を Cubic の自動生成で上書きしない。
+  skip_if_author_description: true
+  cubic_review_link: true
+  instructions: |
+    PR 説明を生成する場合は、すべての自然言語を日本語で書いてください。
+    「概要」「変更内容」「受け入れ条件」「検証結果」「AIレビュー」「ドキュメント更新」の順に
+    構成し、実際に確認できた事実だけを記載してください。関連 issue が明確な場合のみ
+    `Closes #<番号>` を含め、推測で issue 番号やテスト結果を作らないでください。
+
+# ハードウェア・権限依存コードへの自動変更は行わず、指摘への対応は人または担当エージェントが
+# 内容を検証してから行う。
+issues:
+  fix_with_cubic_buttons: false
+  pr_comment_fixes: false
+  fix_commits_to_pr: false
+  auto_fix_sign_commits: false
+  coding_agent_provider: cubic
