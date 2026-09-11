@@ -1,0 +1,26 @@
+gui/Sources/ContentView.swift
+  s_14688823243adc::t_4a012811625b7f 12-14,17
+  s_14688823243adc::t_d0d1b05d56d149 94-97
+docs/DEVELOPMENT.md
+  s_14688823243adc::t_84049d17a87771 123-129
+gui/Sources/AppDelegate.swift
+  s_14688823243adc::t_ba8f1945dc38cd 1-49
+gui/Sources/KildeGUIApp.swift
+  s_14688823243adc::t_bfe1d2fb65685a 4-10,13-14,16-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "5d249404cd39b58257824c26f070fdfc09b9f6dc",
+  "prompts": {},
+  "sessions": {
+    "s_14688823243adc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ddbf470b-d6da-4876-8dbc-a2c696d20b1c",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
