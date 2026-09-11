@@ -40,11 +40,15 @@
    ビルド成果物 (.build)・権限プロンプトが並行セッションと衝突するため
 3. **ファイルの衝突に注意する**。既に出ている PR が触れるファイル (例: `Recorder.swift`)
    を自分の変更も触れる可能性がある場合は、着手宣言と PR 本文の両方に明記する
-4. **PR マージ後は後始末する**:
+4. **PR マージ後は後始末する**。後始末は必ずメイン作業コピーに戻ってから行う
+   (worktree 内で実行すると、自分の足元のディレクトリを削除してしまう):
 
    ```sh
+   cd ~/dev/kilde                              # メイン作業コピーへ
    git worktree remove ../kilde-<issue番号>   # 未コミットが残る場合は --force を検討
-   git branch -d feature/<issue番号>-<slug> && git fetch --prune
+   git switch main && git pull --ff-only      # マージ済み状態をローカル main へ反映
+   git branch -d feature/<issue番号>-<slug>   # pull 前だと「not fully merged」で失敗する
+   git fetch --prune
    ```
 
 ### ブランチと PR の手順
