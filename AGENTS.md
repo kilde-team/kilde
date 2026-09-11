@@ -42,6 +42,10 @@
      コメントの冒頭にはレビューの URL (`…/pull/<PR>#pullrequestreview-<ID>`) を書く
    - CodeRabbit の指摘も同じ手順 (スレッドに返信してから resolve) で扱う
    - 修正を push すると cubic が再レビューすることがある。新しい指摘が付いたら同じ手順を繰り返す
+   - `cubic.yaml` の `resolve_threads_when_addressed: true` により、cubic は対応済みと判断した
+     スレッドを自動で resolve することがある。**自動 resolve されたスレッドにも同じ内容を返信する**
+     (resolve 済みでも返信できる)。下の一覧クエリは未解決のみを返すので、`select(.isResolved|not)` を
+     外して cubic のスレッドのうち自分の返信がないものも確認する
 
    ```sh
    # 未解決スレッドの一覧 (id / ファイル / 本文)
