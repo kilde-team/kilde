@@ -1,0 +1,23 @@
+Sources/KildeCore/Recording/Recorder.swift
+  s_14688823243adc::t_7871a583a3d24f 116-120
+  s_14688823243adc::t_ebe653b36167eb 185-192
+  s_14688823243adc::t_071fb7e836d191 141-142
+  s_14688823243adc::t_e3f76b14db5194 435-438
+  s_14688823243adc::t_f5376af202eab3 147-148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7b4464ae72c3da534485713570894aa108d052a0",
+  "prompts": {},
+  "sessions": {
+    "s_14688823243adc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ddbf470b-d6da-4876-8dbc-a2c696d20b1c",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
