@@ -168,6 +168,8 @@ private struct WindowReader: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        onWindow(nsView.window)
+        // 更新パス中の @State 書き込みは未定義動作 + デバッグ警告になるため
+        // makeNSView と同じく次の実行ループへずらす
+        DispatchQueue.main.async { onWindow(nsView.window) }
     }
 }
