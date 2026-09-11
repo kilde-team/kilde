@@ -65,12 +65,27 @@ kilde inspect FILE # 録画ファイルのトラック構成と音声レベル
 - 統合テスト (ローカル・実録画): `scripts/integration-test.sh`
   — 権限と音量が必要、所要 ~2 分
 
+## GUI (M3 開発中)
+
+メニューバーアプリ (SwiftUI `MenuBarExtra`)。録画エンジンは CLI と同じ
+`KildeCore` をローカルパッケージ依存で共有する。`.xcodeproj` はコミットせず
+[XcodeGen](https://github.com/yonaskolb/XcodeGen) の `project.yml` から生成する:
+
+```sh
+brew install xcodegen   # 初回のみ
+cd gui && xcodegen
+open KildeGUI.xcodeproj # Xcode で KildeGUI スキームを Run
+```
+
+ビルドするとメニューバーに ● アイコンが出る。現在はディスプレイ・
+ウィンドウ・オーディオ機器の一覧表示のみ (録画 UI は後続のマイルストーン)。
+
 ## ロードマップ
 
 - **M0** ✅ 技術スパイク (ScreenCaptureKit の音声経路の検証)
 - **M1** ✅ CLI MVP (`kilde rec / devices / doctor / audio monitor / inspect`)
 - **M2** 領域指定の収録、グローバルホットキー、一時停止/再開
-- **M3** メニューバー GUI アプリ
+- **M3** メニューバー GUI アプリ (骨格 ✅ / 録画 UI・権限オンボーディング・通知は今後)
 
 ## ライセンス
 

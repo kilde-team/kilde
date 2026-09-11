@@ -1,0 +1,36 @@
+# KildeGUI — メニューバーアプリ (DESIGN.md §9 / §10, issue #17)
+#
+# .xcodeproj は生成物なのでコミットしない。次で生成する:
+#   cd gui && xcodegen
+name: KildeGUI
+options:
+  bundleIdPrefix: com.takezou621
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+
+# ルートパッケージをローカル依存として追加し、KildeCore 製品だけをリンクする。
+# ローカルパッケージはルートと同等に扱われるため、kilde 実行ターゲットの
+# unsafeFlags (Info.plist 埋め込み) は GUI 側のビルドを妨げない
+packages:
+  kilde:
+    path: ..
+
+targets:
+  KildeGUI:
+    type: application
+    platform: macOS
+    sources:
+      - Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.takezou621.KildeGUI
+        PRODUCT_NAME: KildeGUI
+        INFOPLIST_FILE: Resources/Info.plist
+        # 配布 (issue #23) での Developer ID 署名・notarization の前提
+        ENABLE_HARDENED_RUNTIME: YES
+        SWIFT_VERSION: "5.10"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+    dependencies:
+      - package: kilde
+        product: KildeCore
