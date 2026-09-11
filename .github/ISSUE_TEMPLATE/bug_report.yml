@@ -1,0 +1,71 @@
+name: バグ報告
+description: 録画・録音やコマンドが期待どおりに動かない
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        報告ありがとうございます。録画の挙動は macOS のバージョンと権限 (TCC) の状態で大きく変わるため、
+        下の必須項目をすべて埋めてください。
+  - type: input
+    id: macos
+    attributes:
+      label: macOS のバージョン
+      description: "Apple メニュー → このMacについて、または `sw_vers` の出力"
+      placeholder: "macOS 26.0 (25A354)"
+    validations:
+      required: true
+  - type: dropdown
+    id: chip
+    attributes:
+      label: チップ
+      options:
+        - Apple Silicon
+        - Intel
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: kilde のバージョン / コミット
+      description: ソースからビルドした場合は `git rev-parse --short HEAD` の出力
+      placeholder: "4306fcf"
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: "`kilde doctor` の出力"
+      description: 権限と環境の診断結果をそのまま貼ってください
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: 再現コマンド
+      description: 実行したコマンドと、そのときに収録していたアプリ・デバイス (Zoom、BlackHole など)
+      render: sh
+      placeholder: kilde rec --preset meeting 会議.mov
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待した挙動
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 実際の挙動
+      description: エラーメッセージ・終了コード (`echo $?`)・録画終了時のサマリをそのまま貼ってください
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: inspect
+    attributes:
+      label: "`kilde inspect <出力ファイル>` の出力 (任意)"
+      description: ファイルが生成された場合、トラック構成と音声レベルの確認に使います
+      render: text

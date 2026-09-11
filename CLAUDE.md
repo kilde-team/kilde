@@ -26,11 +26,11 @@ QuickTime Player では録れない**システム音声を含む録画・録音*
 | ブランチ | `main` (M1 CLI MVP = PR #1 を 2026-09-11 にマージ済み)。作業は issue ごとに `feature/<N>-<slug>` |
 | M0 技術スパイク | ✅ 完了 (S1–S9)。S10 会議アプリ実地検証は issue #2 |
 | M1 CLI MVP | ✅ 実装済み — `rec` / `devices` / `doctor` / `audio monitor` / `inspect` |
-| 統合テスト | `scripts/integration-test.sh` (T1–T10)。ローカル実録画、全 PASS 実績あり |
-| 単体テスト (`Tests/`) | **未作成** — issue #5 |
-| CI (`.github/`) | **未作成** — issue #6 |
-| GUI (`gui/`) | **未作成** — M3 (issue #17〜#20) |
-| ライセンスファイル | **未作成** — issue #21 (README/Info.plist は MIT を宣言済み) |
+| 統合テスト | `scripts/integration-test.sh` (T1–T12)。ローカル実録画、全 PASS 実績あり。T11 (GUI) は xcodegen・kilde-dev 証明書が無い環境や KildeGUI 起動中は SKIP |
+| 単体テスト (`Tests/`) | ✅ KildeCoreTests (権限不要、CI で実行 — issue #5 完了) |
+| CI (`.github/`) | ✅ swift build / swift test (macos-15) — issue #6 完了 |
+| GUI (`gui/`) | 骨格 ✅ (issue #17: NSStatusItem + NSPopover + KildeCore 参照 — macOS 26 の MenuBarExtra 不具合を回避)。録画 UI・オンボーディングは #18〜#20 |
+| ライセンス / OSS 整備 | ✅ `LICENSE` (MIT)、`CONTRIBUTING.md`、`.github/` の Issue・PR テンプレート (issue #21) |
 | 残タスク全体 | GitHub issue #2〜#25 (4 マイルストーン)。§8 の役割分担・依存順を参照 |
 
 ## 3. 全体の地図
@@ -60,9 +60,14 @@ Sources/KildeCore/       UI 非依存のコア。将来 GUI と共用する
   Support/FileInspection.swift     出力ファイルの検証 (inspect / 統合テストが使用)
   Support/Errors.swift             KilError → 終了コード
   Support/Config.swift             ~/.kilde/config.json (ConfigStore) と rec 既定値の優先順位解決 (RecordSettings)
-  Support/{AsyncUtil,Misc}.swift   awaitSync / parseDuration / 出力名生成
-scripts/integration-test.sh  T1–T10 の実録画テスト
+  Support/{AsyncUtil,Misc}.swift   awaitSync (同期コンテキスト専用・noasync) / parseDuration / 出力名生成
+scripts/integration-test.sh  T1–T12 の実録画テスト (T11 GUI / T12 設定ファイル)
 scripts/soundapp.swift       テスト用「音を鳴らすウィンドウ」アプリ
+gui/                         M3 メニューバー GUI (XcodeGen: project.yml が正本)
+  Sources/KildeGUIApp.swift    アプリのエントリポイント (AppDelegate 接続)
+  Sources/AppDelegate.swift     NSStatusItem + NSPopover の手動管理
+  Sources/ContentView.swift    ディスプレイ/ウィンドウ/オーディオ一覧の最小パネル
+  Resources/Info.plist         LSUIElement・権限説明文字列 (バンドル用)
 ```
 
 **レイヤ規約: CLI 層にロジックを足さない。** 録画の挙動に関わる変更は必ず
@@ -144,7 +149,14 @@ swift build                       # ビルド (バイナリは .build/debug/kild
   ひとまとまりで守る。ここを分割すると mixed トラックへの追加順序が崩れる
 - `AudioMixer` は内部 `lock` 保持中に `mixChunk()` を呼ぶ前提
 - `MicStream.stop()` は `queue.sync {}` でコールバックを吐かせてから返る
-  (`MovieWriter.finish()` の後に `append` が走るのを防ぐ)
+  (`MovieWriter.finish()` の後に `append` が走るのを防ぐ)。`ScreenAudioStream.stop()` (async) も
+  `stopCapture()` の後に出力キューを drain してから返る — 同じ理由
+- **async コンテキスト (Recorder のセッション等) から `awaitSync` や同期版 API を呼ばない** (issue #35)。
+  `awaitSync` は呼び出しスレッドを DispatchSemaphore で塞ぐので、協調プールのスレッドで呼ぶと
+  プールを枯渇させうる。`DisplayCatalog.snapshot()` / `listOnScreenWindows()` /
+  `FileInspection.report(url:)` / `Permissions.requestMic()` は同期版と async 版を同名で持ち、
+  同期版と `awaitSync` は `@available(*, noasync)` にしてある — async から呼ぶとビルド警告になるので、
+  **警告を増やさない = この規約を守れている**。同期版は CLI のサブコマンドと GUI の onAppear 用
 - 失敗時は `fatalError` を使わない。`KilError` を投げて `Recorder.run()` の catch に
   後始末 (monitor の teardown、writer の cancel) をさせる
 
@@ -169,13 +181,18 @@ swift build                       # ビルド (バイナリは .build/debug/kild
 AI レビュー指摘の処理・完了報告) を毎回自動で適用する。** 依頼文に書かれていなくても
 省略しない。
 
+**並行開発は worktree 前提** (2026-09-11 の合意 — 複数 AI セッションが同時に
+issue を実装する)。着手前の宣言・1 issue = 1 worktree = 1 ブランチ・
+メイン作業コピーでは実装しない・マージ後の後始末まで、詳細な手順は
+**AGENTS.md §2「並行開発 — worktree 必須」** に従う。
+
 役割分担 (2026-09-11 の合意):
 
-- **実装は Codex CLI が担当**する。issue (#2〜#25、マイルストーン M1 仕上げ / M2 / M3 GUI /
-  配布 & OSS) を単位に PR を出す
-- **Claude はアシスタント**: Codex の PR レビュー (統合テスト結果・設計との整合)、
-  cubic / CodeRabbit 指摘の妥当性判定と整理、issue の追加・分割、Codex 向け依頼文の調整、
-  実機検証手順の作成。依頼されない限り実装コードを書き始めない
+- **実装は並行する AI エージェント (Claude / Codex 等) が分担**する。issue を単位に
+  PR を出す。着手は AGENTS.md §2 の宣言ルールで調整する
+- **Claude はアシスタント**: PR レビュー (統合テスト結果・設計との整合)、
+  cubic / CodeRabbit 指摘の妥当性判定と整理、issue の追加・分割、実機検証手順の作成。
+  依頼されない限り実装コードを書き始めない
 - 依存順: #5 単体テスト → #6 CI / #8 Recorder イベント駆動化 → M3 (#17〜#20) /
   #14 設定 → #10 ホットキー → #20 / #23 署名 → #24 Homebrew → #25 Releases。
   検証系 (#2 S10, #3 ドリフト, #4 旧 OS) は手順整備までをエージェント、実行と記録は人間

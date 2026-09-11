@@ -1,0 +1,2 @@
+# .xcodeproj は xcodegen の生成物 (project.yml が正本)
+*.xcodeproj

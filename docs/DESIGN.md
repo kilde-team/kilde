@@ -83,7 +83,7 @@ macOS 標準の QuickTime Player による画面収録は**システム音声を
 ```
 ┌─────────────────────────────┐    ┌─────────────────────────────┐
 │  kilde (CLI)                 │    │  KildeGUI (M3, メニューバー) │
-│  swift-argument-parser       │    │  SwiftUI + MenuBarExtra      │
+│  swift-argument-parser       │    │  NSStatusItem + NSPopover     │
 └──────────────┬──────────────┘    └──────────────┬──────────────┘
                │                                  │
                └────────────┬─────────────────────┘
@@ -359,7 +359,10 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
 
 ## 9. GUI (M3) 概要
 
-- SwiftUI `MenuBarExtra`。アイコンの状態反映 (待機/録画中 + 経過時間)。
+- メニューバー UI: `NSStatusItem` + `NSPopover` を AppDelegate で手動管理、
+  中身は SwiftUI (macOS 26 実機で SwiftUI `MenuBarExtra` の `.window` パネルが
+  開かないことを切り分け済み — 詳細は issue #17 の PR)。アイコンの状態反映
+  (待機/録画中 + 経過時間)。
 - ポップオーバー: ディスプレイ・音声ソース選択、Rec/Stop、出力先指定、
   レベルメーター、録音結果の通知 (Finder reveal)。
 - グローバルホットキー (開始/停止)。CLI と設定 (出力先・既定ソース) を共有
@@ -380,9 +383,10 @@ kilde/
 │   └── kilde/               # CLI (引数解析と表示のみ) + Info.plist (リンカで埋め込み)
 ├── Tests/KildeCoreTests/    # 単体テスト (権限不要・CI で実行 — issue #5)
 ├── scripts/
-│   ├── integration-test.sh  # 実録画の統合テスト T1〜T10 (要権限・音量、ローカルのみ)
+│   ├── integration-test.sh  # 実録画の統合テスト T1〜T12 (要権限・音量、ローカルのみ)
 │   └── soundapp.swift       # 統合テスト用の「音を鳴らすウィンドウ」アプリ
-├── gui/                     # M3: Xcode プロジェクト (KildeCore を参照 — 未作成)
+├── gui/                     # M3: メニューバー GUI (XcodeGen project.yml が正本で
+│                            #   .xcodeproj は生成物 — 骨格は #17、録画 UI は #18 以降)
 ├── docs/                    # DESIGN.md / SPIKE-NOTES.md / DEVELOPMENT.md
 ├── CLAUDE.md / AGENTS.md    # AI エージェント向けの作業指示
 └── README.md
@@ -392,7 +396,7 @@ kilde/
   `scripts/integration-test.sh` に置き換えた (権限が必要なため CI には載せない)。
 - Swift 6 相当・SPM。依存は `swift-argument-parser` のみで始める。
 - **ローカル統合テスト**: `scripts/integration-test.sh` — 実際に録画・音声再生を
-  行い、出力ファイルのトラック構成と RMS を機械検証する (T1〜T10、権限と
+  行い、出力ファイルのトラック構成と RMS を機械検証する (T1〜T12、権限と
   音量が必要、所要 ~2 分)。テスト用の音鳴らしウィンドウアプリ
   (`scripts/soundapp.swift`) を同梱。
 - CI: GitHub Actions で `swift build` / `swift test` (単体のみ。スモークは
@@ -436,9 +440,9 @@ kilde/
 
 ## 12. OSS としての運営
 
-- ライセンス: **MIT 案** (要確定。BlackHole は依存として組み込むわけではなく
+- ライセンス: **MIT** (確定。`LICENSE`。BlackHole は依存として組み込むわけではなく
   ユーザに導入してもらう形なのでライセンス衝突はない)
-- README (日英)、CONTRIBUTING、Issue/PR テンプレート。
+- README (日英)、CONTRIBUTING (`CONTRIBUTING.md`)、Issue/PR テンプレート (`.github/`)。
 - セマンティックなタグ付け + Release Notes。Homebrew tap は別リポジトリ。
 
 ---

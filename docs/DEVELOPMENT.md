@@ -100,6 +100,55 @@ windowID を確認して数値で指定するのが確実です。
 Ctrl+C は正規の停止操作なので、ファイナライズに成功すれば exit 0 です
 (DESIGN.md §6 v0.4。統合テスト T10 が保証)。
 
+### GUI (メニューバーアプリ、M3 開発中)
+
+`gui/` にメニューバーアプリがあります (NSStatusItem + NSPopover、中身は SwiftUI —
+macOS 26 で `MenuBarExtra` の `.window` パネルが開かないため AppKit で管理)。
+`.xcodeproj` はコミットして
+いないため、[XcodeGen](https://github.com/yonaskolb/XcodeGen) で生成してから
+Xcode でビルドします (録画エンジンは CLI と同じ KildeCore をローカルパッケージ
+依存で共有):
+
+```sh
+brew install xcodegen   # 初回のみ
+cd gui && xcodegen      # project.yml から KildeGUI.xcodeproj を生成
+open KildeGUI.xcodeproj # Xcode で KildeGUI スキームを Run
+```
+
+コマンドラインだけで検証する場合:
+
+```sh
+cd gui && xcodegen
+xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI -configuration Debug build
+```
+
+現在の GUI はディスプレイ・ウィンドウ・オーディオ機器の一覧表示のみです
+(録画 UI は #18 以降)。`project.yml` を変更したら `xcodegen` を再実行して
+ください (再生成し忘れによる乖離を防ぐため、変更は必ず project.yml 側に行う)。
+
+> **GUI にも権限が必要**: ディスプレイ/ウィンドウ一覧には画面収録権限が要ります
+> (CLI とは別プロセスなので、CLI に許可があっても別途付与が必要)。
+> システム設定 → プライバシーとセキュリティ → 画面とオーディオを収録 に
+> KildeGUI を追加し、**アプリを再起動**してください (画面収録権限はプロセスの
+> 再起動で有効化 — CLI の `doctor` と同じ仕様)。未付与の間はオーディオ機器
+> 一覧のみ表示されます (画面収録権限は不要なため)。
+
+> **開発用署名証明書 (kilde-dev)**: TCC 権限はコード署名でアプリを識別するため、
+> ad-hoc 署名のビルドでは権限のトグルが再起動のたびに外れることがある。
+> `gui/project.yml` は `kilde-dev` という名前の自己署名コード署名証明書で署名する
+> 設定にしてある。無い場合はキーチェーンアクセス → 証明書アシスタント →
+> 「証明書を作成」で以下のように作成する:
+>
+> - 名前: `kilde-dev` / 認証タイプ: 自己署名ルート / 「デフォルトを上書き」✅
+> - 有効期間: 3650 日 / 拡張キー使用: **コード署名** / 鍵: RSA 2048 (既定)
+> - 作成先: ログインキーチェーン
+
+> 補足: ローカル署名ビルド (kilde-dev) や Xcode の実行では、コンソールに
+> `com.apple.linkd.autoShortcut` への接続エラーや "Error registering app with
+> intents framework" が出ることがあります。これは App Shortcuts 登録まわりの
+> システムサービス接続のノイズで、KildeGUI は AppIntents を使わないため機能に
+> 影響しません (正式な Developer ID 署名では出なくなると考えられます)。
+
 ## 4. 統合テスト
 
 `scripts/integration-test.sh` は CLI を実際に動かして録画し、出力ファイルの
@@ -136,7 +185,8 @@ scripts/integration-test.sh
 | T8 | `rec --no-video --window` — 特定アプリの音声のみ |
 | T9 | `audio monitor` + `--audio device:BlackHole...` — BlackHole 未導入なら SKIP |
 | T10 | SIGINT — Ctrl+C 相当で exit 0・再生可能なファイルが残る |
-| T11 | 設定ファイル — `outputDirectory` が既定の保存先になる / 存在しない保存先は録画前に exit 1 |
+| T11 | GUI — KildeGUI のビルド・起動・正常終了 (xcodegen 未導入 / kilde-dev 証明書なし / KildeGUI 起動中は SKIP。メニューバー表示は目視確認) |
+| T12 | 設定ファイル — `outputDirectory` が既定の保存先になる / 存在しない保存先は録画前に exit 1 |
 
 作業ディレクトリ (録画物とログ) は失敗調査のため削除されず、最後に
 パスが表示されます。
@@ -162,6 +212,7 @@ SCK / AVCapture / CoreAudio の実デバイスには触れません。
 | `MonitorDeviceStateTests` | `~/.kilde/monitor-state.json` の入出力 (`MonitorDevice.stateDirectory` を一時ディレクトリに差し替える) |
 | `KilErrorTests` | `KilError.exitCode` の 1/2/3 契約 |
 | `ConfigTests` | `~/.kilde/config.json` の入出力と不正値 (壊れた JSON・未知のキー・型違い・範囲外)、`rec` 既定値の優先順位 (CLI > プリセット > `KILDE_OUTPUT_DIR` > 設定 > 既定)、存在しない保存先の事前検出 (`ConfigStore.directory` を一時ディレクトリに差し替える) |
+| `FileInspectionTests` | 生成した正弦波ファイルに対し、`FileInspection.report(url:)` の同期版と async 版 (issue #35) が同じ RMS / peak / 長さを返す |
 | `AudioSampleBufferTestHelper` | テスト用の Float32 / Int16 `CMSampleBuffer` 生成 |
 
 `RecCommand.validate()` は CLI ターゲット (実行ファイル) 側にあるため対象外です。
@@ -189,7 +240,7 @@ SCK / AVCapture / CoreAudio の実デバイスには触れません。
 | 4 | CI (`.github/workflows`) で `swift build` + 単体テスト | issue #6 |
 | 5 | 長時間 (10 分級) の A/V ドリフト測定 | issue #3 |
 | 6 | 旧 OS (14/15) での S7 / S8 / S9 挙動の確認 | issue #4 |
-| 7 | `LICENSE` (MIT) の追加 | issue #21 |
+| 7 | `LICENSE` (MIT) の追加 | 済 (issue #21) |
 | 8 | DESIGN.md §6 の終了コード `130` と実装 (SIGINT で exit 0) の食い違いを解消 | 済 — exit 0 に統一 (issue #7) |
 | 9 | SCK 圧縮フレーム passthrough (無再エンコード録画) の検討 | issue #15 |
 | 10 | M2: 領域指定収録 / グローバルホットキー / 一時停止・再開 | issue #9 / #10 / #11 |
