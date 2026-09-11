@@ -1,13 +1,19 @@
 import Foundation
 
-/// "30" / "30s" / "5m" / "1h" を秒数にする
+/// "30" / "30s" / "5m" / "1h" を秒数にする。文字列全体が有効な形式であること。
 public func parseDuration(_ s: String?) -> TimeInterval? {
     guard let s, !s.isEmpty else { return nil }
-    let numStr = String(s.prefix { $0.isNumber || $0 == "." })
-    guard var n = Double(numStr) else { return nil }
-    if s.hasSuffix("m") { n *= 60 }
-    else if s.hasSuffix("h") { n *= 3600 }
-    return n
+    var numPart = s
+    var multiplier = 1.0
+    if let last = s.last, last == "s" || last == "m" || last == "h" {
+        numPart = String(s.dropLast())
+        if last == "m" { multiplier = 60 }
+        else if last == "h" { multiplier = 3600 }
+    }
+    guard !numPart.isEmpty,
+          numPart.allSatisfy({ $0.isNumber || $0 == "." }),
+          let n = Double(numPart), n.isFinite else { return nil }
+    return n * multiplier
 }
 
 public func defaultOutputName(prefix: String = "kilde", ext: String) -> String {

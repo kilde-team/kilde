@@ -14,6 +14,8 @@ public final class AudioMixer {
     public static let channelCount = 2
     static let chunkFrames = 1024
     static let maxLagFrames: Int64 = 48000 * 2
+    /// アンカーからこのフレーム数を超えても初回データが来ないソースは断念する
+    static let firstDataGraceFrames: Int64 = 48000 * 3
 
     private let lock = NSLock()
     private var anchor: CMTime?
@@ -27,6 +29,7 @@ public final class AudioMixer {
         var baseFrame: Int64 = 0        // data 先頭の絶対フレーム位置
         var data: [Float] = []          // interleaved stereo
         var hasData = false
+        var abandoned = false           // 初回データを待つのを断念したソース
         var lastPeak: Float = 0
         var endFrame: Int64 { baseFrame + Int64(data.count / AudioMixer.channelCount) }
 
@@ -121,6 +124,12 @@ public final class AudioMixer {
         let ends = active.map { $0.endFrame }
         let minEnd = ends.min()!
         let maxEnd = ends.max()!
+        // 初回データ待ち: アンカーから 3 秒経っても一度もデータが来ないソースは
+        // 断念して無音扱いにする (開始順序の偏りで片方だけ先に出力されるのを防ぐ)
+        if maxEnd >= AudioMixer.firstDataGraceFrames {
+            for st in sources.values where !st.hasData { st.abandoned = true }
+        }
+        guard !sources.values.contains(where: { !$0.hasData && !$0.abandoned }) else { return [] }
         // 最遅ソースが 2 秒以上遅れたら無音として進める (ストール防止)
         var cutoff = max(minEnd, maxEnd - AudioMixer.maxLagFrames)
         cutoff = min(cutoff, maxEnd)
@@ -188,7 +197,8 @@ public final class AudioMixer {
         guard repStatus == kCMBlockBufferNoErr else { return nil }
 
         var timing = CMSampleTimingInfo(
-            duration: CMTime(value: CMTimeValue(frames), timescale: CMTimeScale(AudioMixer.sampleRate)),
+            // 1 つの timing entry は各サンプルに適用されるため、duration は 1 フレーム分
+            duration: CMTime(value: 1, timescale: CMTimeScale(AudioMixer.sampleRate)),
             presentationTimeStamp: pts,
             decodeTimeStamp: .invalid
         )

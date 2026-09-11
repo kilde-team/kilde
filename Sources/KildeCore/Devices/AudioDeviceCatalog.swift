@@ -148,20 +148,31 @@ public enum MonitorDevice {
         }
         destroy()
         let id = try create(masterUID: currentDefault.uid, memberUIDs: [currentDefault.uid, blackhole.uid])
+        // 失敗時は作成したデバイスを削除して元の既定出力へ戻す (システム状態を残さない)
         guard setDefaultOutput(id) else {
+            _ = setDefaultOutput(currentDefault.id)
+            destroy()
             throw KilError.failed("既定出力の切り替えに失敗しました")
         }
-        saveState(originalDefaultUID: currentDefault.uid)
+        do {
+            try saveState(originalDefaultUID: currentDefault.uid)
+        } catch {
+            _ = setDefaultOutput(currentDefault.id)
+            destroy()
+            throw KilError.failed("状態の保存に失敗したためロールバックしました: \(error.localizedDescription)")
+        }
         return AudioDeviceCatalog.devices.first { $0.uid == uid } ?? currentDefault
     }
 
-    /// state から元の既定出力に戻し、マルチ出力デバイスを削除する
+    /// state から元の既定出力に戻し、マルチ出力デバイスを削除する。
+    /// 復元に失敗した場合は state を残す (再試行できるように)。
     @discardableResult
     public static func teardown() -> Bool {
         guard let original = loadState() else { return false }
-        if let orig = AudioDeviceCatalog.devices.first(where: { $0.uid == original }) {
-            _ = setDefaultOutput(orig.id)
+        guard let orig = AudioDeviceCatalog.devices.first(where: { $0.uid == original }) else {
+            return false  // 元デバイスが消失 — 手動での復旧が必要
         }
+        guard setDefaultOutput(orig.id) else { return false }
         let destroyed = destroy()
         removeState()
         return destroyed
@@ -222,10 +233,10 @@ public enum MonitorDevice {
 
     private struct State: Codable { var originalDefaultOutputUID: String }
 
-    private static func saveState(originalDefaultUID: String) {
-        try? FileManager.default.createDirectory(at: stateDirectory, withIntermediateDirectories: true)
+    private static func saveState(originalDefaultUID: String) throws {
+        try FileManager.default.createDirectory(at: stateDirectory, withIntermediateDirectories: true)
         let state = State(originalDefaultOutputUID: originalDefaultUID)
-        try? JSONEncoder().encode(state).write(to: stateURL)
+        try JSONEncoder().encode(state).write(to: stateURL, options: .atomic)
     }
 
     private static func loadState() -> String? {

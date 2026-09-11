@@ -105,16 +105,19 @@ public final class Recorder {
             throw KilError.permission("マイク (入力) の権限がありません")
         }
 
+        // 既存の kilde Monitor (手動で setup されたもの) は勝手に解体しない
+        var monitorCreatedByUs = false
         if options.autoMonitor && !MonitorDevice.exists {
             _ = try MonitorDevice.setup()  // BlackHole がなければ deviceNotFound
+            monitorCreatedByUs = true
         }
 
         do {
             let summary = try runRecording(url: url)
-            if options.autoMonitor { _ = MonitorDevice.teardown() }
+            if monitorCreatedByUs { _ = MonitorDevice.teardown() }
             return summary
         } catch {
-            if options.autoMonitor { _ = MonitorDevice.teardown() }
+            if monitorCreatedByUs { _ = MonitorDevice.teardown() }
             throw error
         }
     }
@@ -130,13 +133,15 @@ public final class Recorder {
         } else {
             lock.lock(); pk = peaks; lock.unlock()
         }
+        // 辞書の同時読み書きを避けるため、ロック下で一貫したスナップショットを取得する
+        let counters = writer?.countersSnapshot()
         return Progress(
             elapsed: elapsed,
             outputURL: url,
             outputBytes: Int64(bytes),
             peaks: pk,
-            videoAppended: writer?.videoAppended ?? 0,
-            audioAppended: writer?.audioAppended ?? [:]
+            videoAppended: counters?.videoAppended ?? 0,
+            audioAppended: counters?.audioAppended ?? [:]
         )
     }
 
@@ -182,7 +187,7 @@ public final class Recorder {
                 cfg.pixelFormat = kCVPixelFormatType_32BGRA
             }
             let mode: ScreenAudioStream.Mode = options.wantsVideo ? .screenAndAudio : .audioOnly
-            sck = ScreenAudioStream(filter: filter, configuration: cfg, mode: mode) { [weak self] sb, type in
+            sck = try ScreenAudioStream(filter: filter, configuration: cfg, mode: mode) { [weak self] sb, type in
                 self?.handleSCK(sb, type)
             }
         }

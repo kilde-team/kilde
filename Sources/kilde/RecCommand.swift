@@ -48,6 +48,9 @@ struct RecCommand: ParsableCommand {
     var preset: String?
 
     func validate() throws {
+        if audio.contains("none") && audio.count > 1 {
+            throw ValidationError("--audio none は他の音声ソースと併用できません")
+        }
         if let preset, preset != "meeting" {
             throw ValidationError("不明なプリセット: \(preset) (利用可能: meeting)")
         }
@@ -105,14 +108,17 @@ struct RecCommand: ParsableCommand {
             print("                        \r", terminator: "")
         }
 
+        // 表示と Recorder が同一 URL を使うように一度だけ解決する
+        // (defaultOutputName を別々に評価すると秒の境界で不一致になり得る)
+        options.outputURL = options.outputURL
+            ?? URL(fileURLWithPath: defaultOutputName(ext: options.wantsVideo ? "mov" : "m4a"))
         let recorder = Recorder(options: options)
         installStopSignalHandler { [weak recorder] in
             recorder?.stop()
         }
 
         do {
-            let url = try resolveOutputURL(options: options)
-            print("● 録画\(!options.wantsVideo ? " (音声のみ)" : "") → \(url.path)  (Ctrl+C で停止)")
+            print("● 録画\(!options.wantsVideo ? " (音声のみ)" : "") → \(options.outputURL!.path)  (Ctrl+C で停止)")
             let ticker = startStatusTicker(recorder)
             let summary = try recorder.run()
             ticker.cancel()
@@ -136,10 +142,6 @@ struct RecCommand: ParsableCommand {
             }
             throw ValidationError("--audio の値が不正: \(s) (system / mic / device:<名前> / none)")
         }
-    }
-
-    private func resolveOutputURL(options: RecordOptions) throws -> URL {
-        options.outputURL ?? URL(fileURLWithPath: defaultOutputName(ext: options.wantsVideo ? "mov" : "m4a"))
     }
 
     /// meeting プリセット用のウィンドウ対話選択。nil ならディスプレイ全体

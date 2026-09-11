@@ -84,9 +84,9 @@ stop_soundapp() {
 # ---- 事前準備 --------------------------------------------------------------
 
 log "ビルド"
-if (cd "$ROOT" && swift build 2>&1 | grep -q "error:"); then
-    (cd "$ROOT" && swift build 2>&1 | grep "error:" | head -5)
-    echo "ビルド失敗"; exit 1
+if ! (cd "$ROOT" && swift build > "$WORK/build.log" 2>&1); then
+    grep "error:" "$WORK/build.log" | head -5
+    echo "ビルド失敗 (詳細: $WORK/build.log)"; exit 1
 fi
 [ -x "$KILDE" ] || { echo "kilde バイナリなし"; exit 1; }
 

@@ -190,6 +190,18 @@ final class MovieWriter {
 
     // MARK: - レポート
 
+    struct Counters {
+        let videoAppended: Int
+        let audioAppended: [String: Int]
+    }
+
+    /// ロック下で一貫したカウンタのスナップショットを返す (ステータス表示用)。
+    /// キャプチャコールバックが並行して更新するため、生プロパティの直接読みはしない。
+    func countersSnapshot() -> Counters {
+        lock.lock(); defer { lock.unlock() }
+        return Counters(videoAppended: videoAppended, audioAppended: audioAppended)
+    }
+
     static func string(_ t: CMTime?) -> String {
         guard let t, CMTIME_IS_NUMERIC(t) else { return "-" }
         return String(format: "%.3fs", t.seconds)

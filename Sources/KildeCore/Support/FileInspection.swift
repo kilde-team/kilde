@@ -31,7 +31,8 @@ public enum FileInspection {
             videoSize = try await v.load(.naturalSize)
         }
         let audioTracks = try await asset.loadTracks(withMediaType: .audio)
-        let stats = audioTracks.compactMap { analyzeAudioTrack($0, asset: asset, duration: total.seconds) }
+        // 解析失敗は「音声トラックなし」と区別するため、エラーを伝播させる
+        let stats = try audioTracks.map { try analyzeAudioTrack($0, asset: asset, duration: total.seconds) }
         return Report(
             videoPresent: !videoTracks.isEmpty,
             videoSize: videoSize,
@@ -41,8 +42,10 @@ public enum FileInspection {
     }
 
     /// 指定オーディオトラックを PCM にデコードして RMS / peak を測る
-    static func analyzeAudioTrack(_ track: AVAssetTrack, asset: AVAsset, duration: Double) -> AudioStats? {
-        guard let reader = try? AVAssetReader(asset: asset) else { return nil }
+    static func analyzeAudioTrack(_ track: AVAssetTrack, asset: AVAsset, duration: Double) throws -> AudioStats {
+        guard let reader = try? AVAssetReader(asset: asset) else {
+            throw KilError.failed("AVAssetReader の生成に失敗しました")
+        }
         let output = AVAssetReaderTrackOutput(track: track, outputSettings: [
             AVFormatIDKey: kAudioFormatLinearPCM,
             AVLinearPCMBitDepthKey: 32,
@@ -50,7 +53,9 @@ public enum FileInspection {
             AVLinearPCMIsNonInterleaved: false,
         ])
         reader.add(output)
-        reader.startReading()
+        guard reader.startReading() else {
+            throw KilError.failed("音声トラックの読み取り開始に失敗: \(String(describing: reader.error))")
+        }
         var sum = 0.0, count = 0, peak = 0.0
         while let sb = output.copyNextSampleBuffer() {
             guard let bb = CMSampleBufferGetDataBuffer(sb) else { continue }
@@ -67,6 +72,9 @@ public enum FileInspection {
                 count += 1
                 peak = max(peak, abs(d))
             }
+        }
+        if reader.status == .failed {
+            throw KilError.failed("音声トラックの読み取りに失敗: \(String(describing: reader.error))")
         }
         let rms = count > 0 ? sqrt(sum / Double(count)) : 0
         return AudioStats(duration: duration, rms: rms, peak: peak)

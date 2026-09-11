@@ -18,20 +18,27 @@ public final class ScreenAudioStream: NSObject, SCStreamOutput {
     private let outQueue = DispatchQueue(label: "kilde.sck.out")
 
     init(filter: SCContentFilter, configuration: SCStreamConfiguration, mode: Mode,
-         handler: @escaping (CMSampleBuffer, SCStreamOutputType) -> Void) {
+         handler: @escaping (CMSampleBuffer, SCStreamOutputType) -> Void) throws {
         self.handler = handler
         super.init()
         let s = SCStream(filter: filter, configuration: configuration, delegate: nil)
+        var screenRegistered = false
+        var audioRegistered = false
         do {
             if mode == .screenAndAudio {
                 try s.addStreamOutput(self, type: .screen, sampleHandlerQueue: outQueue)
+                screenRegistered = true
             }
             if configuration.capturesAudio {
                 try s.addStreamOutput(self, type: .audio, sampleHandlerQueue: outQueue)
+                audioRegistered = true
             }
         } catch {
-            // 初期化失敗は start 時に検出できないためここで致命扱い
-            fatalError("SCStream addStreamOutput 失敗: \(error)")
+            // 登録済みの出力を解除してから投げ直す。
+            // fatalError は Recorder.run() の catch や monitor の後始末を飛ばすため使わない。
+            if screenRegistered { try? s.removeStreamOutput(self, type: .screen) }
+            if audioRegistered { try? s.removeStreamOutput(self, type: .audio) }
+            throw KilError.failed("SCStream addStreamOutput 失敗: \(error.localizedDescription)")
         }
         stream = s
     }
