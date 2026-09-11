@@ -80,8 +80,8 @@ kilde config show                                   # 設定値と既定値の�
 ```
 
 設定ファイルの値は `kilde rec` の既定値になり、CLI 引数が常に優先されます
-(キーと優先順位は DESIGN.md §6「設定ファイル」)。開発中に実環境の設定の影響を
-避けたいときは `kilde config show` で確認し、`kilde config unset <key>` で戻してください。
+(キーと優先順位は DESIGN.md §6「設定ファイル」)。開発中に実環境の設定と monitor state を
+分離したいときは `KILDE_CONFIG_DIR` に一時ディレクトリを指定してください。
 
 `--window` は windowID の完全一致 / ウィンドウタイトル / bundleID の部分一致で解決し、
 複数ヒットしたら**面積が最大のもの**を選びます。曖昧なときは `kilde devices` で
@@ -166,9 +166,8 @@ scripts/integration-test.sh
 - テスト中に一時的に既定の出力デバイスが `kilde Monitor` に切り替わります
   (T9)。スクリプトは `trap` で必ず復元しますが、強制終了した場合は
   `kilde audio monitor teardown` を手動で実行してください
-- `~/.kilde/config.json` がある場合、テスト中だけ `config.json.kilde-it-backup` に退避して
-  終了時に戻します (T3 などは既定値が前提のため)。強制終了して退避ファイルが残った場合は
-  手で戻してください (残っているとスクリプトは実行を拒否します)
+- 設定ファイルと monitor state は `KILDE_CONFIG_DIR` で作業ディレクトリ内に分離するため、
+  ユーザーの `~/.kilde` には触れません
 
 **テスト項目:**
 
@@ -238,7 +237,7 @@ SCK / AVCapture / CoreAudio の実デバイスには触れません。
 | 映像トラックが真っ黒 / サイズ不正 | `SCStreamConfiguration.pixelFormat` に BGRA を指定しているか、`outputSettings` に幅・高さがあるか |
 | 音声が無音 (rms=0.0000) | 出力音量、収録対象ウィンドウの取り違え (ウィンドウ収録は他アプリの音が入らないのが仕様) |
 | `--monitor` / `audio monitor setup` で BlackHole が無音 | aggregate device の非公開キー `"stacked": true` が落ちていないか (SPIKE-NOTES F-C) |
-| 既定出力が `kilde Monitor` のまま戻らない | `kilde audio monitor teardown`。状態は `~/.kilde/monitor-state.json` に保存されている |
+| 既定出力が `kilde Monitor` のまま戻らない | `kilde audio monitor teardown`。状態は通常 `~/.kilde/monitor-state.json` に保存される。`KILDE_CONFIG_DIR` を指定して実行した場合は、そのディレクトリの `monitor-state.json` を確認する |
 | サマリの `ミックスできなかった音声バッファ` が 0 でない | 入力デバイスが非対応フォーマット (Float32 以外) を返している。`MicStream.init` の `output.audioSettings` (Float32 / 48k / 2ch) の統一が効いているか |
 | mic の first-PTS 差が大きい | マイクを SCK より先に開始しているか (`Recorder.recordAndFinalize()` の順序) |
 

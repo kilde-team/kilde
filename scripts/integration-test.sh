@@ -31,19 +31,8 @@ cleanup() {
         "$KILDE" audio monitor teardown >/dev/null 2>&1 && echo "[cleanup] 既定出力を復元しました"
     fi
     [ -n "$SOUNDAPP_PID" ] && kill "$SOUNDAPP_PID" 2>/dev/null
-    # T12 が書いたテスト用の設定だけを消す。比較対象は「最後まで書き込みが成功した」
-    # 内容 (lastok) — 書き込み途中の失敗で前回の内容が残っていても消せるようにする。
-    # テスト中に別プロセスが保存した設定を消さないための一致チェックでもある
-    if [ "${CONFIG_TOUCHED:-0}" = "1" ] && cmp -s "$CONFIG" "$WORK/t12-config-lastok"; then
+    if [ -n "${CONFIG:-}" ]; then
         rm -f "$CONFIG"
-    fi
-    # 退避したユーザーの設定を戻す。テスト中に新しい設定が保存されていたら上書きしない
-    if [ "${CONFIG_MOVED:-0}" = "1" ]; then
-        if [ -e "$CONFIG" ] || [ -L "$CONFIG" ]; then
-            echo "[cleanup] テスト中に別の設定が保存されたため上書きしません。退避した設定: $CONFIG_BACKUP"
-        else
-            mv "$CONFIG_BACKUP" "$CONFIG" && echo "[cleanup] 設定ファイルを復元しました"
-        fi
     fi
     # T11 の GUI プロセスもどの分岐で失敗しても残さない
     [ -n "$GUI_PID" ] && kill "$GUI_PID" 2>/dev/null
@@ -52,29 +41,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# 設定ファイル (~/.kilde/config.json) と KILDE_OUTPUT_DIR は rec の既定値を変える (issue #14)。
-# T3 / T4b / T5 などは「既定 = system / mixed」を前提にしているため、環境変数は外し、
-# ユーザーの設定ファイルはテスト中だけ退避して trap で必ず戻す (T9 の既定出力と同じ扱い)。
-# 強制終了 (kill -9 等) で戻らなかった場合は config.json.kilde-it-backup を手で戻す
+# T3 / T4b / T5 などは「既定 = system / mixed」を前提にするため、出力先の環境変数は外す。
+# 設定と monitor state は作業ディレクトリへ分離し、ユーザーの ~/.kilde には触れない。
 unset KILDE_OUTPUT_DIR
-CONFIG="$HOME/.kilde/config.json"
-CONFIG_BACKUP="$CONFIG.kilde-it-backup"
-if [ -e "$CONFIG_BACKUP" ] || [ -L "$CONFIG_BACKUP" ]; then
-    echo "前回の統合テストの退避ファイルが残っています: $CONFIG_BACKUP"
-    echo "中身を確認して $CONFIG に戻してから再実行してください"
-    exit 1
-fi
-# -f (通常ファイル) 限定だとディレクトリや symlink を取りこぼし、退避しないまま
-# T3〜T10 が ConfigStore の読み込みエラーで失敗する。存在するなら種類を問わず退避
-if [ -e "$CONFIG" ] || [ -L "$CONFIG" ]; then
-    # 退避に失敗したまま進むと T11 がユーザーの設定を上書きするので、ここで中止する
-    if ! mv "$CONFIG" "$CONFIG_BACKUP"; then
-        echo "設定ファイルを退避できません: $CONFIG" >&2
-        exit 1
-    fi
-    CONFIG_MOVED=1
-    echo "[setup] 設定ファイルをテスト中だけ退避します: $CONFIG_BACKUP"
-fi
+export KILDE_CONFIG_DIR="$WORK/config"
+CONFIG="$KILDE_CONFIG_DIR/config.json"
 
 log()  { printf '\n\033[1m== %s ==\033[0m\n' "$*"; }
 ok()   { PASS=$((PASS+1)); printf '\033[32mPASS\033[0m  %s\n' "$*"; }
@@ -373,50 +344,39 @@ else
 fi
 
 # ---- T12: 設定ファイル (issue #14) ----------------------------------------------
-# テスト用の設定を書き、終わったら消す (ユーザーの設定は冒頭で退避済み、cleanup で戻る)
+# テスト用に分離した設定を書き、終わったら消す
 
 log "T12: 設定ファイル — outputDirectory が既定の保存先になる / 存在しない保存先は録画前に失敗"
 CFG_OUT="$WORK/t12-out"
-# テスト用の設定は $WORK に書いてから置く。3 段階の書き込みのうちどこで失敗しても、
-# cleanup が「最後まで書けた内容」(lastok) だけを比較して消せるようにする:
-#   tmp に printf → 成功したら CONFIG に cp → そこまで成功したら lastok に cp
-# 失敗したら戻り値 1 で呼び出し側に伝え、その場でテストを打ち切る
+# テスト用の設定は tmp に書き切ってから置き換え、途中の内容を読ませない。
 write_test_config() {
     printf "$@" > "$WORK/t12-config.tmp" || return 1
-    cp "$WORK/t12-config.tmp" "$CONFIG" || return 1
-    cp "$WORK/t12-config.tmp" "$WORK/t12-config-lastok" || return 1
+    mv "$WORK/t12-config.tmp" "$CONFIG" || return 1
 }
-if [ -e "$CONFIG" ] || [ -L "$CONFIG" ]; then
-    # 冒頭で退避したのにまた設定がある = テスト中に誰かが保存した。上書きしない
-    skip "T12: テスト中に $CONFIG が作られたため実行しません"
+mkdir -p "$CFG_OUT" "$(dirname "$CONFIG")"
+if ! write_test_config '{"outputDirectory": "%s", "defaultAudioSources": ["system"]}\n' "$CFG_OUT"; then
+    bad "T12a outputDirectory: テスト設定の書き込みに失敗 — $WORK/t12-config.tmp"
+elif (cd "$WORK" && "$KILDE" rec --no-video --duration 3s > "$WORK/t12a.log" 2>&1) \
+    && [ "$(ls "$CFG_OUT"/kilde-*.m4a 2>/dev/null | wc -l | tr -d ' ')" = "1" ]; then
+    ok "T12a outputDirectory: 設定した保存先に既定名で保存"
 else
-    mkdir -p "$CFG_OUT" "$(dirname "$CONFIG")"
-    CONFIG_TOUCHED=1
-    if ! write_test_config '{"outputDirectory": "%s", "defaultAudioSources": ["system"]}\n' "$CFG_OUT"; then
-        bad "T12a outputDirectory: テスト設定の書き込みに失敗 — $WORK/t12-config.tmp"
-    elif (cd "$WORK" && "$KILDE" rec --no-video --duration 3s > "$WORK/t12a.log" 2>&1) \
-        && [ "$(ls "$CFG_OUT"/kilde-*.m4a 2>/dev/null | wc -l | tr -d ' ')" = "1" ]; then
-        ok "T12a outputDirectory: 設定した保存先に既定名で保存"
-    else
-        bad "T12a outputDirectory: 保存先に出力がない — $WORK/t12a.log"
-    fi
-    if write_test_config '{"outputDirectory": "%s/no-such-dir"}\n' "$WORK"; then
-        START=$(date +%s)
-        # 誤って録画が始まっても 30 秒で止まる。録画前に失敗すれば数秒で返る
-        (cd "$WORK" && "$KILDE" rec --no-video --duration 30s > "$WORK/t12b.log" 2>&1)
-        EXIT_CODE=$?
-        ELAPSED=$(( $(date +%s) - START ))
-        if [ "$EXIT_CODE" = "1" ] && [ "$ELAPSED" -lt 5 ] && grep -q "出力先ディレクトリが存在しません" "$WORK/t12b.log"; then
-            ok "T12b 存在しない保存先: 録画前に exit=1 (${ELAPSED}s)"
-        else
-            bad "T12b 存在しない保存先: exit=$EXIT_CODE elapsed=${ELAPSED}s — $WORK/t12b.log"
-        fi
-    else
-        bad "T12b 存在しない保存先: テスト設定の書き込みに失敗 — $WORK/t12-config.tmp"
-    fi
-    cmp -s "$CONFIG" "$WORK/t12-config-lastok" && rm -f "$CONFIG"
-    CONFIG_TOUCHED=0
+    bad "T12a outputDirectory: 保存先に出力がない — $WORK/t12a.log"
 fi
+if write_test_config '{"outputDirectory": "%s/no-such-dir"}\n' "$WORK"; then
+    START=$(date +%s)
+    # 誤って録画が始まっても 30 秒で止まる。録画前に失敗すれば数秒で返る
+    (cd "$WORK" && "$KILDE" rec --no-video --duration 30s > "$WORK/t12b.log" 2>&1)
+    EXIT_CODE=$?
+    ELAPSED=$(( $(date +%s) - START ))
+    if [ "$EXIT_CODE" = "1" ] && [ "$ELAPSED" -lt 5 ] && grep -q "出力先ディレクトリが存在しません" "$WORK/t12b.log"; then
+        ok "T12b 存在しない保存先: 録画前に exit=1 (${ELAPSED}s)"
+    else
+        bad "T12b 存在しない保存先: exit=$EXIT_CODE elapsed=${ELAPSED}s — $WORK/t12b.log"
+    fi
+else
+    bad "T12b 存在しない保存先: テスト設定の書き込みに失敗 — $WORK/t12-config.tmp"
+fi
+rm -f "$CONFIG"
 
 # ---- サマリ -------------------------------------------------------------------
 

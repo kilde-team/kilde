@@ -229,10 +229,21 @@ extension AudioTrackPolicy {
 // MARK: - 読み書き
 
 public enum ConfigStore {
-    /// 設定の保存先。monitor-state.json と同じ ~/.kilde を使う。
+    /// 環境変数から設定の保存先を解決する。config.json と monitor-state.json で共用する。
+    static func configDirectory(environment: [String: String]) -> URL {
+        guard let configured = environment["KILDE_CONFIG_DIR"], !configured.isEmpty else {
+            return FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(".kilde", isDirectory: true)
+        }
+        return URL(
+            fileURLWithPath: NSString(string: configured).expandingTildeInPath,
+            isDirectory: true
+        )
+    }
+
+    /// 設定の保存先。monitor-state.json と同じディレクトリを使う。
     /// 単体テストでは実環境の設定を壊さないよう一時ディレクトリに差し替える
-    public static var directory = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent(".kilde", isDirectory: true)
+    public static var directory = configDirectory(environment: ProcessInfo.processInfo.environment)
 
     public static var fileURL: URL { directory.appendingPathComponent("config.json") }
 

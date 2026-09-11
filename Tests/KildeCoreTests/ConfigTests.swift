@@ -28,6 +28,24 @@ final class ConfigTests: XCTestCase {
 
     // MARK: - 読み書き
 
+    func testConfigDirectoryDefaultsWhenEnvironmentIsMissingOrEmpty() {
+        let expected = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".kilde", isDirectory: true)
+        XCTAssertEqual(ConfigStore.configDirectory(environment: [:]), expected)
+        XCTAssertEqual(ConfigStore.configDirectory(environment: ["KILDE_CONFIG_DIR": ""]), expected)
+    }
+
+    func testConfigDirectoryUsesEnvironmentAndExpandsTilde() {
+        XCTAssertEqual(
+            ConfigStore.configDirectory(environment: ["KILDE_CONFIG_DIR": "/tmp/kilde-config"]).path,
+            "/tmp/kilde-config"
+        )
+        XCTAssertEqual(
+            ConfigStore.configDirectory(environment: ["KILDE_CONFIG_DIR": "~/test-kilde-config"]).path,
+            NSString(string: "~/test-kilde-config").expandingTildeInPath
+        )
+    }
+
     func testMissingFileLoadsEmptyConfig() throws {
         XCTAssertEqual(try ConfigStore.load(), KildeConfig())
     }

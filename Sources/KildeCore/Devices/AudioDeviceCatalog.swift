@@ -243,10 +243,14 @@ public enum MonitorDevice {
 
     // MARK: - state (~/.kilde/monitor-state.json)
 
-    /// state の保存先。通常は ~/.kilde を使い、単体テストでは実環境の state を
-    /// 壊さないため一時ディレクトリへ差し替える。
-    static var stateDirectory = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent(".kilde", isDirectory: true)
+    /// state の保存先を設定と同じ規則で解決する。別々に解決すると config と state が
+    /// 異なる場所へ分かれ得るため、ConfigStore の共通関数に委ねる。
+    static func stateDirectory(environment: [String: String]) -> URL {
+        ConfigStore.configDirectory(environment: environment)
+    }
+
+    /// state の保存先。単体テストでは実環境の state を壊さないよう差し替える。
+    static var stateDirectory = stateDirectory(environment: ProcessInfo.processInfo.environment)
 
     private static var stateURL: URL { stateDirectory.appendingPathComponent("monitor-state.json") }
 

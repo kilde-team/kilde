@@ -247,6 +247,7 @@ kilde config [show|set|unset|path]        設定ファイル ~/.kilde/config.jso
 
 `kilde rec` の既定値を変える。CLI と GUI (M3) で共有するため、読み込みと解決は
 KildeCore (`ConfigStore` / `RecordSettings`) にある。値は CLI 引数と同じ文字列表現。
+保存先ディレクトリは `KILDE_CONFIG_DIR` で差し替えられ、`~` 始まりも展開する。
 
 | キー | 型 | 対応するオプション |
 |------|----|------------------|
@@ -259,7 +260,8 @@ KildeCore (`ConfigStore` / `RecordSettings`) にある。値は CLI 引数と同
 | `hotkey` | 文字列 | 予約 (グローバルホットキー — #10) |
 
 - 優先順位: **CLI 引数 > `--preset` > 環境変数 > 設定ファイル > 既定値**。
-  環境変数は `KILDE_OUTPUT_DIR` (保存先) のみ
+  環境変数は `KILDE_OUTPUT_DIR` (録画の保存先) と `KILDE_CONFIG_DIR`
+  (`config.json` と `monitor-state.json` の保存先。未設定・空文字なら `~/.kilde`)。
 - ファイルが無ければすべて既定値。壊れた JSON・未知のキー (typo)・不正値は、黙って既定値に
   倒さず `kilde rec` を録画開始前に終了コード 1 で止める (「設定したのに効かない」を防ぐ)
 - `kilde config set <key> <value>` は値を検証してから書く (不正値・未知のキーは終了コード 64)。

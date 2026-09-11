@@ -20,6 +20,14 @@ final class MonitorDeviceStateTests: XCTestCase {
         }
     }
 
+    func testStateDirectoryUsesConfigDirectoryEnvironment() {
+        let environment = ["KILDE_CONFIG_DIR": "~/test-kilde-monitor-state"]
+        XCTAssertEqual(
+            MonitorDevice.stateDirectory(environment: environment),
+            ConfigStore.configDirectory(environment: environment)
+        )
+    }
+
     func testSavesAndLoadsMonitorStateInInjectedDirectory() throws {
         try MonitorDevice.saveState(originalDefaultUID: "original-output-uid")
 
