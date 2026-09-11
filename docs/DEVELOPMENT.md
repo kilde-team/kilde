@@ -118,6 +118,12 @@ xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI -configuration Debug bui
 (録画 UI は #18 以降)。`project.yml` を変更したら `xcodegen` を再実行して
 ください (再生成し忘れによる乖離を防ぐため、変更は必ず project.yml 側に行う)。
 
+> 補足: ローカルの ad-hoc 署名ビルドを起動すると、Xcode のコンソールに
+> `com.apple.linkd.autoShortcut` への接続エラーや "Error registering app with
+> intents framework" が出ることがあります。これは App Shortcuts 登録まわりの
+> システムサービス接続のノイズで、KildeGUI は AppIntents を使わないため機能に
+> 影響しません (正式署名での配布時には出なくなります)。
+
 ## 4. 統合テスト
 
 `scripts/integration-test.sh` は CLI を実際に動かして録画し、出力ファイルの
