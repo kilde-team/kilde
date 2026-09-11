@@ -61,7 +61,7 @@ scripts/integration-test.sh    # 統合テスト (実際に録画する)
 
 終了コード (`0` 成功 / `1` 失敗 / `2` 権限不足 / `3` デバイス・ウィンドウ不明、オプション検証エラーは `64`) と、
 既定値 (`--audio system`、`--audio-tracks mixed`、出力名 `kilde-yyyyMMdd-HHmmss.*`) はスクリプトから
-利用される契約です。変更する場合は [docs/DESIGN.md §6](docs/DESIGN.md) を同じ PR で更新してください。
+利用される契約です。変更する場合は [docs/DESIGN.md §6](docs/DESIGN.md#6-cli-仕様) を同じ PR で更新してください。
 
 ## AI レビュー (cubic / CodeRabbit)
 
