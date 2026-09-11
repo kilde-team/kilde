@@ -1,0 +1,24 @@
+name: 機能要望
+description: 新しい機能や改善の提案
+labels: ["type:feature"]
+body:
+  - type: textarea
+    id: usecase
+    attributes:
+      label: 用途・背景
+      description: どんな場面で、何を録りたい (録れなくて困っている) のか
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 提案する挙動
+      description: 想定するコマンドやオプションの例があれば書いてください
+      placeholder: kilde rec --region 0,0,1280,720 out.mov
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 検討した代替手段 (任意)
+      description: 既存のオプションや他のツールで代用できない理由など
