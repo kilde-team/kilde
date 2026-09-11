@@ -94,6 +94,30 @@ windowID を確認して数値で指定するのが確実です。
 Ctrl+C は正規の停止操作なので、ファイナライズに成功すれば exit 0 です
 (DESIGN.md §6 v0.4。統合テスト T10 が保証)。
 
+### GUI (メニューバーアプリ、M3 開発中)
+
+`gui/` に SwiftUI `MenuBarExtra` アプリがあります。`.xcodeproj` はコミットして
+いないため、[XcodeGen](https://github.com/yonaskolb/XcodeGen) で生成してから
+Xcode でビルドします (録画エンジンは CLI と同じ KildeCore をローカルパッケージ
+依存で共有):
+
+```sh
+brew install xcodegen   # 初回のみ
+cd gui && xcodegen      # project.yml から KildeGUI.xcodeproj を生成
+open KildeGUI.xcodeproj # Xcode で KildeGUI スキームを Run
+```
+
+コマンドラインだけで検証する場合:
+
+```sh
+cd gui && xcodegen
+xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI -configuration Debug build
+```
+
+現在の GUI はディスプレイ・ウィンドウ・オーディオ機器の一覧表示のみです
+(録画 UI は #18 以降)。`project.yml` を変更したら `xcodegen` を再実行して
+ください (再生成し忘れによる乖離を防ぐため、変更は必ず project.yml 側に行う)。
+
 ## 4. 統合テスト
 
 `scripts/integration-test.sh` は CLI を実際に動かして録画し、出力ファイルの

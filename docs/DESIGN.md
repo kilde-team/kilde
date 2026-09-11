@@ -349,7 +349,8 @@ kilde/
 ├── scripts/
 │   ├── integration-test.sh  # 実録画の統合テスト T1〜T10 (要権限・音量、ローカルのみ)
 │   └── soundapp.swift       # 統合テスト用の「音を鳴らすウィンドウ」アプリ
-├── gui/                     # M3: Xcode プロジェクト (KildeCore を参照 — 未作成)
+├── gui/                     # M3: メニューバー GUI (XcodeGen project.yml が正本で
+│                            #   .xcodeproj は生成物 — 骨格は #17、録画 UI は #18 以降)
 ├── docs/                    # DESIGN.md / SPIKE-NOTES.md / DEVELOPMENT.md
 ├── CLAUDE.md / AGENTS.md    # AI エージェント向けの作業指示
 └── README.md

@@ -29,7 +29,10 @@ targets:
         INFOPLIST_FILE: Resources/Info.plist
         # 配布 (issue #23) での Developer ID 署名・notarization の前提
         ENABLE_HARDENED_RUNTIME: YES
-        SWIFT_VERSION: "5.10"
+        # SWIFT_VERSION は swift-tools-version とは別物の「言語モード」指定で、
+        # 有効値は 4 / 4.2 / 5 / 6 のみ (5.10 は invalid とされる)。
+        # ルートパッケージ (swift-tools-version:5.10) が使う言語モード 5 に揃える
+        SWIFT_VERSION: "5"
         MACOSX_DEPLOYMENT_TARGET: "14.0"
     dependencies:
       - package: kilde
