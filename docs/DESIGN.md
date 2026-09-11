@@ -350,7 +350,7 @@ kilde/
 │   └── kilde/               # CLI (引数解析と表示のみ) + Info.plist (リンカで埋め込み)
 ├── Tests/KildeCoreTests/    # 単体テスト (権限不要・CI で実行 — issue #5)
 ├── scripts/
-│   ├── integration-test.sh  # 実録画の統合テスト T1〜T10 (要権限・音量、ローカルのみ)
+│   ├── integration-test.sh  # 実録画の統合テスト T1〜T11 (要権限・音量、ローカルのみ)
 │   └── soundapp.swift       # 統合テスト用の「音を鳴らすウィンドウ」アプリ
 ├── gui/                     # M3: メニューバー GUI (XcodeGen project.yml が正本で
 │                            #   .xcodeproj は生成物 — 骨格は #17、録画 UI は #18 以降)
@@ -363,7 +363,7 @@ kilde/
   `scripts/integration-test.sh` に置き換えた (権限が必要なため CI には載せない)。
 - Swift 6 相当・SPM。依存は `swift-argument-parser` のみで始める。
 - **ローカル統合テスト**: `scripts/integration-test.sh` — 実際に録画・音声再生を
-  行い、出力ファイルのトラック構成と RMS を機械検証する (T1〜T10、権限と
+  行い、出力ファイルのトラック構成と RMS を機械検証する (T1〜T11、権限と
   音量が必要、所要 ~2 分)。テスト用の音鳴らしウィンドウアプリ
   (`scripts/soundapp.swift`) を同梱。
 - CI: GitHub Actions で `swift build` / `swift test` (単体のみ。スモークは

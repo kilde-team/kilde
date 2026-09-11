@@ -26,7 +26,7 @@ QuickTime Player では録れない**システム音声を含む録画・録音*
 | ブランチ | `main` (M1 CLI MVP = PR #1 を 2026-09-11 にマージ済み)。作業は issue ごとに `feature/<N>-<slug>` |
 | M0 技術スパイク | ✅ 完了 (S1–S9)。S10 会議アプリ実地検証は issue #2 |
 | M1 CLI MVP | ✅ 実装済み — `rec` / `devices` / `doctor` / `audio monitor` / `inspect` |
-| 統合テスト | `scripts/integration-test.sh` (T1–T10)。ローカル実録画、全 PASS 実績あり |
+| 統合テスト | `scripts/integration-test.sh` (T1–T11)。ローカル実録画、全 PASS 実績あり。T11 (GUI) は xcodegen・kilde-dev 証明書が無い環境や KildeGUI 起動中は SKIP |
 | 単体テスト (`Tests/`) | ✅ KildeCoreTests (権限不要、CI で実行 — issue #5 完了) |
 | CI (`.github/`) | ✅ swift build / swift test (macos-15) — issue #6 完了 |
 | GUI (`gui/`) | 骨格 ✅ (issue #17: NSStatusItem + NSPopover + KildeCore 参照 — macOS 26 の MenuBarExtra 不具合を回避)。録画 UI・オンボーディングは #18〜#20 |
@@ -59,7 +59,7 @@ Sources/KildeCore/       UI 非依存のコア。将来 GUI と共用する
   Support/FileInspection.swift     出力ファイルの検証 (inspect / 統合テストが使用)
   Support/Errors.swift             KilError → 終了コード
   Support/{AsyncUtil,Misc}.swift   awaitSync (同期コンテキスト専用・noasync) / parseDuration / 出力名生成
-scripts/integration-test.sh  T1–T10 の実録画テスト
+scripts/integration-test.sh  T1–T11 の実録画テスト (T11 は GUI ビルド・起動)
 scripts/soundapp.swift       テスト用「音を鳴らすウィンドウ」アプリ
 gui/                         M3 メニューバー GUI (XcodeGen: project.yml が正本)
   Sources/KildeGUIApp.swift    アプリのエントリポイント (AppDelegate 接続)

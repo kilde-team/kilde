@@ -14,6 +14,11 @@ struct ContentView: View {
     /// 引き込み次第になる。実行中に来た再読込要求はドロップせず記録して、完了時に再実行する
     @State private var reloading = false
     @State private var needsReload = false
+    /// 列挙タスクの生存と UI の読み込み表示は別物 — タイムアウトで reloading は
+    /// 解除して再試行を許すが、同期 awaitSync を wrap した列挙タスク自体は cancel
+    /// できず残る。前の列挙と次の列挙が並走してタスクが蓄積するのを防ぐため、
+    /// 実列挙の完了まで新規開始を 1 件に制限する (残った要求は完了後に再実行)
+    @State private var enumerationInFlight = false
     /// 初回ロードが完了したか。完了前は onAppear と popover 表示通知が同時に来るが、
     /// in-flight の初回ロードと同じ結果になるため 2 回目を走らせない
     @State private var hasLoadedOnce = false
@@ -105,15 +110,16 @@ struct ContentView: View {
     /// 解除する — これが無いと権限保留中に再オープンも手動更新もすべて黙殺され、
     /// 権限不要なオーディオ一覧まで表示されない
     @MainActor private func reload() {
-        guard !reloading else {
-            // 初回ロードの完了前に来た要求 (onAppear + didBecomeKey の同時発火) は
-            // 同じ結果を返すので捨てる。以降の要求は最新化のために記録して再実行する
+        guard !reloading, !enumerationInFlight else {
+            // 初回ロードの完了前に来た要求は同じ結果になるので捨てる。以降の要求は
+            // 最新化のために記録し、列挙の完了時に再実行する
             if hasLoadedOnce {
                 needsReload = true
             }
             return
         }
         reloading = true
+        enumerationInFlight = true
         // 権限不要で速いオーディオ列挙は画面収録権限の待ちに巻き込まれないよう独立に反映
         Task.detached {
             let devices = AudioDeviceCatalog.devices
@@ -129,11 +135,6 @@ struct ContentView: View {
                 defer {
                     reloading = false
                     hasLoadedOnce = true
-                    if needsReload {
-                        // 実行中に来た再読込要求 (パネル再オープン等) をここで回収する
-                        needsReload = false
-                        reload()
-                    }
                 }
                 guard let result = finished else {
                     displays = []
@@ -151,6 +152,17 @@ struct ContentView: View {
                     displays = []
                     windows = []
                     loadError = "画面/ウィンドウの列挙に失敗: \(error)"
+                }
+            }
+            // タイムアウト済みでも cancel できない列挙の実際の完了を待ってから次を
+            // 受け入れる — ここで並走を許すと権限プロンプト保留中の再試行で
+            // 列挙タスクが蓄積する (await なのでメインアクターは塞がない)
+            _ = await enumerate.value
+            await MainActor.run {
+                enumerationInFlight = false
+                if needsReload {
+                    needsReload = false
+                    reload()
                 }
             }
         }
