@@ -232,22 +232,27 @@ public final class HotkeyMonitor {
     }
 
     /// 二重 stop は無視する。Carbon が retain した参照をここで手放す。
-    /// 解除に失敗したときは参照を保持したままリークさせる — ハンドラが残っている
-    /// 状態で release すると、次のホットキーイベントが解放済みインスタンスを参照する
-    public func stop() {
+    /// 戻り値は完全に解除できたか。失敗したときは参照を保持したままリークさせる —
+    /// ハンドラが残っている状態で release すると、次のホットキーイベントが解放済み
+    /// インスタンスを参照するため。再 stop() で残った解除を再試行できる
+    /// (hotkeyRef / eventHandlerRef が残っていれば再度解除を試みる)
+    @discardableResult
+    public func stop() -> Bool {
         precondition(Thread.isMainThread, "HotkeyMonitor.stop() はメインスレッドから呼んでください")
-        var fullyRemoved = true
-        if let hotkeyRef {
-            if UnregisterEventHotKey(hotkeyRef) != noErr { fullyRemoved = false }
-            else { self.hotkeyRef = nil }
+        // 先にホットキーを解除する — これに失敗したときハンドラまで消すと
+        // 「キーは予約されたまま誰もイベントを受け取れない」状態になり、
+        // 以後の同じキーの再登録がプロセス終了まで失敗する。ハンドラは
+        // ホットキー解除が成功するまで残す
+        if let hotkeyRef, UnregisterEventHotKey(hotkeyRef) == noErr {
+            self.hotkeyRef = nil
         }
-        if let eventHandlerRef {
-            if RemoveEventHandler(eventHandlerRef) != noErr { fullyRemoved = false }
-            else { self.eventHandlerRef = nil }
+        guard hotkeyRef == nil else { return false }
+        if let eventHandlerRef, RemoveEventHandler(eventHandlerRef) == noErr {
+            self.eventHandlerRef = nil
         }
-        if fullyRemoved {
-            releaseRetained()
-        }
+        guard eventHandlerRef == nil else { return false }
+        releaseRetained()
+        return true
     }
 
     private func releaseRetained() {
