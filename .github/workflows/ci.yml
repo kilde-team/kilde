@@ -26,18 +26,27 @@ jobs:
       - name: Show toolchain
         run: swift --version
 
+      - name: Hash toolchain version
+        id: toolchain
+        run: |
+          hash="$(swift --version 2>&1 | shasum | cut -c1-12)"
+          echo "hash=$hash" >> "$GITHUB_OUTPUT"
+
       - name: Cache SwiftPM build artifacts
         uses: actions/cache@v4
         with:
           path: |
             .build
             ~/Library/Caches/org.swift.swiftpm
-          key: ${{ runner.os }}-swift-${{ hashFiles('Package.resolved', 'Package.swift') }}
+          key: ${{ runner.os }}-swift-${{ steps.toolchain.outputs.hash }}-${{ hashFiles('Package.resolved', 'Package.swift') }}
           restore-keys: |
-            ${{ runner.os }}-swift-
+            ${{ runner.os }}-swift-${{ steps.toolchain.outputs.hash }}-
 
       - name: Build release binary
         run: swift build -c release
+
+      - name: Verify embedded Info.plist
+        run: otool -P .build/release/kilde | grep -q NSMicrophoneUsageDescription
 
       - name: Run unit tests
         run: swift test
