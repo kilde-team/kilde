@@ -16,6 +16,9 @@ concurrency:
 jobs:
   test:
     name: Swift build and test
+    # macos-15 の既定 Xcode を使用する。ローカルの Xcode 26.5 との差異は
+    # swift --version のハッシュをキャッシュキーに含めて混在を防ぐ。
+    # macOS 14 / 15 の実機差異は手動検証 issue #4 の対象とする。
     runs-on: macos-15
     timeout-minutes: 15
 
