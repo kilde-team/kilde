@@ -30,7 +30,7 @@ QuickTime Player では録れない**システム音声を含む録画・録音*
 | 単体テスト (`Tests/`) | ✅ KildeCoreTests (権限不要、CI で実行 — issue #5 完了) |
 | CI (`.github/`) | ✅ swift build / swift test (macos-15) — issue #6 完了 |
 | GUI (`gui/`) | 骨格 ✅ (issue #17: MenuBarExtra + KildeCore 参照)。録画 UI・オンボーディングは #18〜#20 |
-| ライセンスファイル | **未作成** — issue #21 (README/Info.plist は MIT を宣言済み) |
+| ライセンス / OSS 整備 | ✅ `LICENSE` (MIT)、`CONTRIBUTING.md`、`.github/` の Issue・PR テンプレート (issue #21) |
 | 残タスク全体 | GitHub issue #2〜#25 (4 マイルストーン)。§8 の役割分担・依存順を参照 |
 
 ## 3. 全体の地図
