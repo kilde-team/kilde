@@ -1,0 +1,22 @@
+docs/DEVELOPMENT.md
+  s_14688823243adc::t_4efc2efc7805cd 130-139
+gui/project.yml
+  s_14688823243adc::t_bbb322be25143a 30-34
+  s_14688823243adc::t_559442edf198ed 35-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "53e8129dccf92aa3bd08bdc65ab57ce9157bfad0",
+  "prompts": {},
+  "sessions": {
+    "s_14688823243adc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ddbf470b-d6da-4876-8dbc-a2c696d20b1c",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
