@@ -18,11 +18,14 @@ public enum FileInspection {
         public let audioTracks: [AudioStats]
     }
 
+    /// 同期版 (CLI の inspect / rec のサマリ用)。内部で awaitSync するので同期コンテキスト専用
+    @available(*, noasync, message: "async コンテキストでは try await FileInspection.report(url:) を使ってください")
     public static func report(url: URL) throws -> Report {
-        try awaitSync { try await reportAsync(url: url) }
+        try awaitSync { try await report(url: url) }
     }
 
-    private static func reportAsync(url: URL) async throws -> Report {
+    /// async 版 (GUI の録画完了後の検証などで使う — issue #35)
+    public static func report(url: URL) async throws -> Report {
         let asset = AVURLAsset(url: url)
         let total = try await asset.load(.duration)
         let videoTracks = try await asset.loadTracks(withMediaType: .video)

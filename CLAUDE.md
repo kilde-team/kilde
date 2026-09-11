@@ -58,7 +58,7 @@ Sources/KildeCore/       UI 非依存のコア。将来 GUI と共用する
   Support/Permissions.swift        TCC 権限の確認・要求
   Support/FileInspection.swift     出力ファイルの検証 (inspect / 統合テストが使用)
   Support/Errors.swift             KilError → 終了コード
-  Support/{AsyncUtil,Misc}.swift   awaitSync / parseDuration / 出力名生成
+  Support/{AsyncUtil,Misc}.swift   awaitSync (同期コンテキスト専用・noasync) / parseDuration / 出力名生成
 scripts/integration-test.sh  T1–T10 の実録画テスト
 scripts/soundapp.swift       テスト用「音を鳴らすウィンドウ」アプリ
 ```
@@ -137,7 +137,14 @@ swift build                       # ビルド (バイナリは .build/debug/kild
   ひとまとまりで守る。ここを分割すると mixed トラックへの追加順序が崩れる
 - `AudioMixer` は内部 `lock` 保持中に `mixChunk()` を呼ぶ前提
 - `MicStream.stop()` は `queue.sync {}` でコールバックを吐かせてから返る
-  (`MovieWriter.finish()` の後に `append` が走るのを防ぐ)
+  (`MovieWriter.finish()` の後に `append` が走るのを防ぐ)。`ScreenAudioStream.stop()` (async) も
+  `stopCapture()` の後に出力キューを drain してから返る — 同じ理由
+- **async コンテキスト (Recorder のセッション等) から `awaitSync` や同期版 API を呼ばない** (issue #35)。
+  `awaitSync` は呼び出しスレッドを DispatchSemaphore で塞ぐので、協調プールのスレッドで呼ぶと
+  プールを枯渇させうる。`DisplayCatalog.snapshot()` / `listOnScreenWindows()` /
+  `FileInspection.report(url:)` / `Permissions.requestMic()` は同期版と async 版を同名で持ち、
+  同期版と `awaitSync` は `@available(*, noasync)` にしてある — async から呼ぶとビルド警告になるので、
+  **警告を増やさない = この規約を守れている**。同期版は CLI のサブコマンドと GUI の onAppear 用
 - 失敗時は `fatalError` を使わない。`KilError` を投げて `Recorder.run()` の catch に
   後始末 (monitor の teardown、writer の cancel) をさせる
 

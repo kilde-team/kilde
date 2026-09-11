@@ -43,15 +43,24 @@ public final class ScreenAudioStream: NSObject, SCStreamOutput {
         stream = s
     }
 
-    func start() throws {
+    /// キャプチャを開始する。async にしているのは、startCapture の完了待ちで
+    /// 協調プールのスレッドを塞がないため (issue #35。以前は awaitSync で同期的に待っていた)
+    func start() async throws {
         guard let stream else { return }
-        try awaitSync { try await stream.startCapture() }
+        try await stream.startCapture()
     }
 
-    func stop() {
+    /// キャプチャを停止し、出力キューに積まれたコールバックを吐き切ってから返る。
+    /// 戻った後に handler が呼ばれないことを保証する — MovieWriter.finish() の後に
+    /// append が走らないようにするため (MicStream.stop() の queue.sync {} と同じ役割。CLAUDE.md §6)
+    func stop() async {
         guard let stream else { return }
-        let s = stream
-        _ = try? awaitSync { try await s.stopCapture() }
+        try? await stream.stopCapture()
+        // stopCapture 完了後は新しいコールバックが積まれない。シリアルキューなので、
+        // ここで積んだブロックが実行された時点で積み残しのコールバックは処理済み
+        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
+            outQueue.async { done.resume() }
+        }
     }
 
     public func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer,
