@@ -392,7 +392,7 @@ if [ -e "$CONFIG" ] || [ -L "$CONFIG" ]; then
 else
     mkdir -p "$CFG_OUT" "$(dirname "$CONFIG")"
     CONFIG_TOUCHED=1
-    if ! write_test_config '{"outputDirectory": "%s", "defaultAudioSources": ["system"]}'"\n"' "$CFG_OUT"; then
+    if ! write_test_config '{"outputDirectory": "%s", "defaultAudioSources": ["system"]}\n' "$CFG_OUT"; then
         bad "T12a outputDirectory: テスト設定の書き込みに失敗 — $WORK/t12-config.tmp"
     elif (cd "$WORK" && "$KILDE" rec --no-video --duration 3s > "$WORK/t12a.log" 2>&1) \
         && [ "$(ls "$CFG_OUT"/kilde-*.m4a 2>/dev/null | wc -l | tr -d ' ')" = "1" ]; then
@@ -400,7 +400,7 @@ else
     else
         bad "T12a outputDirectory: 保存先に出力がない — $WORK/t12a.log"
     fi
-    if write_test_config '{"outputDirectory": "%s/no-such-dir"}'"\n"' "$WORK"; then
+    if write_test_config '{"outputDirectory": "%s/no-such-dir"}\n' "$WORK"; then
         START=$(date +%s)
         # 誤って録画が始まっても 30 秒で止まる。録画前に失敗すれば数秒で返る
         (cd "$WORK" && "$KILDE" rec --no-video --duration 30s > "$WORK/t12b.log" 2>&1)
