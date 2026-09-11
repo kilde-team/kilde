@@ -1,8 +1,9 @@
 # kilde — macOS 画面 + 音声 録画ツール 設計書
 
-- Version: 0.3 (draft)
+- Version: 0.4 (draft)
 - Date: 2026-09-11
-- Status: M0 スパイク完了 → 結果は [SPIKE-NOTES.md](SPIKE-NOTES.md) を参照
+- Status: M0 スパイク完了 (結果は [SPIKE-NOTES.md](SPIKE-NOTES.md))。M1 CLI MVP 実装済み —
+  v0.4 で §5 / §6 / §10 を M1 実装に追従させた
 
 ## 1. 背景・目的
 
@@ -58,7 +59,8 @@ macOS 標準の QuickTime Player による画面収録は**システム音声を
 - **録音 (音声のみ) モード**: SCK ネイティブでドライバ不要。
   `--window` 併用で特定アプリの音声だけを録音 (通知音カット)
 - 会議プリセット (`--preset meeting`)
-- MOV/MP4/M4A 出力 (H.264 / HEVC)、AAC 音声
+- MOV (映像あり) / M4A (音声のみ) 出力 (H.264 / HEVC / ProRes)、AAC 音声
+  (MP4 コンテナは M2 — issue #12)
 - Ctrl+C での安全な停止 (ファイルが必ずファイナライズされること)
 - デバイス一覧表示、権限診断
 
@@ -122,6 +124,10 @@ idle → preparing (権限/デバイス確認)
 - `finalizing` での失敗 (ディスク満杯等) は `error` に遷移し、部分ファイルの
   有無を明示する。
 
+> **M1 時点の実装:** `Recorder.run()` は停止までブロックする同期 API で、
+> 状態機械はまだ公開していない (進捗は `progress()` のポーリング)。
+> イベント駆動化は issue #8 (M3 GUI の前提)。
+
 ## 5. キャプチャパイプライン
 
 ### 映像
@@ -150,10 +156,25 @@ SCStream(contentFilter, configuration)
 | mic | `AVCaptureDeviceInput` (内蔵マイク等) | マイク TCC 権限 |
 | device:* | `AVCaptureDeviceInput` (`deviceUniqueID` 指定) | BlackHole、USB オーディオ等 |
 
-- **既定はミックスダウン** (`--audio-tracks mixed`): `AVAudioEngine` で全
-  ソースを 1 本のステレオトラックに合成する。会議の「相手の声 + 自分の声」が
-  1 トラックに入るため、どのプレイヤーでも両方聞こえる。
-  SCStream 音声は CMSampleBuffer → AVAudioPCMBuffer 変換してグラフに接入。
+- **既定はミックスダウン** (`--audio-tracks mixed`、音声ソースが 2 つ以上のとき):
+  KildeCore 自前の `AudioMixer` が全ソースを 1 本のステレオトラックに合成する
+  (v0.3 で想定していた `AVAudioEngine` は使っていない)。会議の「相手の声 +
+  自分の声」が 1 トラックに入るため、どのプレイヤーでも両方聞こえる。
+  - 各ソースの CMSampleBuffer を interleaved Float32 にデコードし、
+    48kHz / 2ch に変換する (線形補間リサンプル、mono は両 ch へ展開、3ch 以上は先頭 2ch)
+  - **PTS アンカー**: 最初に届いたバッファの PTS を基準に、各バッファを
+    アンカー相対のフレーム位置に置く。ギャップは無音で埋め、出力済み範囲と
+    重なる部分は捨てる (全体が古いバッファは無視)
+  - 全ソースのデータが揃った範囲を 1024 フレームずつ加算し、[-1, 1] にクリップして出力する
+  - **遅延ソース**: 最遅ソースが 2 秒以上遅れたら、その区間は無音として先へ進む (ストール防止)
+  - **初回データ待ち**: アンカーから 3 秒経っても一度もデータが来ないソースは
+    断念 (`abandoned`) し、残りのソースだけで合成する
+  - **flush**: 停止時に `flush()` でチャンク境界に満たない末尾 (最大 ~21ms) と
+    初回データ待ちで保留されていたデータを吐き切ってから `finish()` する
+  - 非数値 PTS のバッファは捨て、デコードできないバッファは `decodeFailures` として
+    数えてサマリで警告する
+- 音声ソースが 1 つのとき、または `--audio-tracks separate` のときはミキサーを
+  通さず、ソースごとのトラックにそのまま書く。
 - `--audio-tracks separate` でソースごとのトラック分離 (編集向け)。
   このモードでは一般プレイヤーが先頭トラックしか再生しない点を表示時に注意。
 
@@ -161,19 +182,22 @@ SCStream(contentFilter, configuration)
 
 - **SCK ネイティブ (既定)**: `.audio` 出力のみを登録した SCStream で音声のみ
   取得 (S8 で実証)。マイクもシステム音声もドライバ追加なしで動作し、
-  音は通常どおりスピーカーから聞こえ続ける。`--window` / `--match` 併用で
+  音は通常どおりスピーカーから聞こえ続ける。`--window` 併用で
   **特定アプリの音声だけ**を録音できる (S9 で実証)。
-- **BlackHole 経由 (オプション)**: `--audio device:BlackHole2ch` で従来型
+- **BlackHole 経由 (オプション)**: `--audio device:BlackHole` で従来型
   ループバック。`--monitor` でマルチ出力デバイスの作成/復元を自動化。
 - 出力: M4A (AAC)。映像トラックは書かない。
 
 ### ライタと A/V 同期
 
-- `AVAssetWriter` (コンテナ: MOV 既定 / MP4 選択可)。
-- `startSession(atSourceTime:)` を「最初に到着した映像サンプルの PTS」で
-  呼び、音声はそれ以降の PTS のみ書く。SCStream 系と AVCapture 系は
-  クロックが異なるため、**最初の音声 PTS とのオフセットを測定して補正**する
-  (長時間録画でのドリルトはスパイクで実測検証 §11)。
+- `AVAssetWriter` (コンテナ: 映像ありは MOV、音声のみは M4A。MP4 は M2 — #12)。
+- `startSession(atSourceTime:)` を「最初に到着した映像サンプルの PTS」
+  (音声のみモードは最初の音声 PTS) で呼び、アンカーより前の音声 PTS は
+  ドロップする (`MovieWriter.Anchor`)。
+- ソースごとに「映像との first-PTS 差」を記録し、`rec` のサマリに出す。
+  これが同期の健全性指標で、マイクは起動遅延ぶん +0.3s 前後までを想定内とする
+  (マイクを SCStream より先に起動して吸収 — SPIKE-NOTES F-D)。
+  長時間録画でのドリフトは未計測 (issue #3)。
 
 ### 停止の確実性 (最重要 UX)
 
@@ -184,30 +208,36 @@ SCStream(contentFilter, configuration)
 
 ## 6. CLI 仕様
 
+M1 実装 (`kilde --help` / `kilde <subcommand> --help`) と一致させている。
+
 ```
-kilde rec      録画の開始 (Ctrl+C で停止)
-kilde devices  ディスプレイ / オーディオデバイスの一覧
-kilde audio    オーディオ設定 (monitor サブコマンド)
-kilde doctor   権限・環境の診断
+kilde rec [<出力パス>]                     録画 / 録音の開始 (Ctrl+C で安全に停止)
+kilde devices [--no-windows]              ディスプレイ / ウィンドウ / オーディオ機器の一覧
+kilde doctor                              権限と環境の診断 (不足していれば権限を要求)
+kilde audio monitor [status|setup|teardown]
+                                          マルチ出力デバイス "kilde Monitor" の管理 (既定 status)
+kilde inspect <file>                      録画ファイルのトラック構成と音声レベル (RMS / peak)
 ```
+
+`audio monitor` の操作は位置引数 (`--setup` / `--teardown` 形式ではない)。
 
 ### `kilde rec` オプション (M1)
 
 | オプション | 既定 | 説明 |
 |-----------|------|------|
-| `--display <id\|main\|all>` | `main` | 収録ディスプレイ (`kilde devices` の ID) |
-| `--window <id\|名称>` | なし | ウィンドウ単位で収録 (会議アプリのウィンドウ等)。`--display` と排他 |
-| `--audio <source>` | `system` | `system` / `mic` / `device:<名前>` / `none`。複数回指定可 |
-| `--audio-tracks <mixed\|separate>` | `mixed` | 複数音声ソースをミックス (既定) か トラック分離か |
+| `[<出力パス>]` / `--output, -o <path>` | 自動生成 | 既定 `kilde-yyyyMMdd-HHmmss.mov` (音声のみは `.m4a`)。位置引数と `-o` は同時指定不可。`~` は展開する |
+| `--display <番号>` | `0` | 収録ディスプレイ (`kilde devices` の番号)。範囲外は終了コード 3。`--window` 指定時は無視される (`all` は M2 — #12) |
+| `--window <windowID\|文字列>` | なし | ウィンドウ単位で収録。windowID の完全一致、またはタイトル / bundleID の部分一致 (大文字小文字を区別しない)。複数ヒット時は面積が最大のもの。見つからなければ終了コード 3。音声もそのアプリにスコープされる |
+| `--audio <source>` | `system` | `system` / `mic` / `device:<名前 or UID>` / `none`。複数回指定可。`device:` は入力デバイスの UID 完全一致または名前の部分一致。`none` は他ソースと併用不可、`--no-video` とも併用不可 |
+| `--audio-tracks <mixed\|separate>` | `mixed` | 音声ソースが複数のとき 1 トラックに合成 (既定) か、ソースごとにトラック分離か |
 | `--no-video` | off | 録音 (音声のみ) モード。出力は M4A |
-| `--monitor` | off | BlackHole マルチ出力デバイスを録音セッションに紐付けて自動 setup/teardown |
-| `--output, -o <path>` | 自動生成 | 既定 `kilde-YYYYMMDD-HHmmss.mov` (音声のみは `.m4a`) |
-| `--fps <n>` | 60 (最大) | 上限fps |
+| `--monitor` | off | 録画中だけ "kilde Monitor" を自動 setup し、終了時に teardown する。手動 setup 済みの Monitor には触れない。BlackHole 未導入なら終了コード 3、復元に失敗したら WARNING を出して終了コード 1 |
+| `--duration <dur>` | なし | `30` (秒) / `30s` / `5m` / `1h` / `1.5m`。経過で自動停止 (SIGINT と同じ経路) |
 | `--codec <c>` | `h264` | `h264` / `hevc` / `prores` |
-| `--duration <dur>` | なし | 例 `30s`, `5m` で自動停止 |
-| `--cursor / --no-cursor` | 写り込み | カーソルの写り込み |
-| `--countdown <sec>` | 0 | 開始前カウントダウン |
-| `--preset <p>` | なし | `meeting`: ウィンドウ対話選択 + `--audio system --audio mic` + ミックス |
+| `--fps <n>` | 指定なし (SCK 既定) | 上限フレームレート |
+| `--no-cursor` | off (写り込む) | カーソルを写し込まない |
+| `--countdown <sec>` | `0` | 開始前カウントダウン |
+| `--preset meeting` | なし | `--audio system --audio mic` + mixed。`--window` 未指定なら on-screen ウィンドウを面積順に列挙して対話選択 (空欄 Enter = ディスプレイ全体)。EOF (非対話実行) と 3 回連続の無効入力は終了コード 1 で中止。明示した `--audio` / `--audio-tracks` はプリセットより優先 |
 
 ### 使用例
 
@@ -216,12 +246,13 @@ kilde doctor   権限・環境の診断
 kilde rec demo.mov
 
 # システム音声 + マイク (トラック分離)
-kilde rec --audio system --audio mic demo.mov
+kilde rec --audio system --audio mic --audio-tracks separate demo.mov
 
 # BlackHole 経由で「聞きながら録る」
 kilde audio monitor setup       # マルチ出力デバイス "kilde Monitor" を作成
-kilde rec --audio device:BlackHole2ch demo.mov
+kilde rec --audio device:BlackHole demo.mov   # "BlackHole 2ch" に部分一致
 kilde audio monitor teardown    # 元の既定出力へ戻す
+# (上の 3 行は kilde rec --monitor --audio device:BlackHole demo.mov と同じ)
 
 # 会議 (Zoom / Google Meet / Teams) を録画 — 双方向の声を 1 トラックに
 kilde rec --preset meeting 会議.mov
@@ -240,10 +271,27 @@ kilde rec --duration 30s --codec hevc out.mov
 
 ### コンソール出力
 
-- 録画中: 1 行を更新する形式で「経過時間 / ファイルサイズ / 音声レベル
-  メーター」を表示。
-- 停止後: パス / 解像度 / fps / 長さ / トラック構成を出力。
-- 終了コード: `0` 成功 / `2` 権限不足 / `3` デバイス不明 / `130` 割り込み。
+- 録画中: `REC mm:ss | ファイルサイズ | ソース別ピーク` を 0.5 秒ごとに 1 行で更新する。
+- 停止後: 映像・音声トラックごとの appended / dropped 件数、映像との first-PTS 差
+  (mixed ではトラックが `mixed` の 1 本なのでソース別には出ない)、
+  ファイルパスとサイズ、解像度と長さ、音声トラックごとの RMS / peak を出力する。
+  ミックスできなかった音声バッファがあれば警告する。
+- エラーは stderr に `ERROR: ...`、後始末の失敗 (monitor の復元失敗) は `WARNING: ...`。
+
+### 終了コード
+
+| コード | 意味 |
+|-------|------|
+| `0` | 成功。**Ctrl+C / SIGTERM / SIGHUP / `--duration` による停止も、ファイナライズが完了すれば 0** |
+| `1` | その他の失敗 (`KilError.failed`: ファイナライズ失敗、monitor の復元失敗、meeting の選択中止など) |
+| `2` | 権限不足 (画面収録 / マイク) |
+| `3` | デバイス・ウィンドウ・ディスプレイが見つからない (BlackHole 未導入を含む) |
+| `64` | 引数・オプションの検証エラー (swift-argument-parser の既定。`validate()` の `ValidationError` と未知のオプション) |
+
+v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した。Ctrl+C は kilde の
+正規の停止操作であり、ファイルが正常にファイナライズされたのなら成功 (0) として
+返す方がスクリプトから扱いやすい。統合テスト T10 がこの挙動 (SIGINT → exit 0 と
+再生可能なファイル) を保証する。
 
 ## 7. 権限・セキュリティ・配布
 
@@ -268,7 +316,7 @@ kilde rec --duration 30s --codec hevc out.mov
    必須** (SPIKE-NOTES F-C)。`kilde audio monitor teardown` で作成物を削除し元の既定出力へ復元。
    録音セッション中の自動 setup/teardown (`--monitor` フラグ) もサポート。
 3. **録音 (音声のみ) モードでの位置づけ**: SCK ネイティブ経路が確立したため
-   BlackHole は必須ではなくなった (S8)。`--audio device:BlackHole2ch` の
+   BlackHole は必須ではなくなった (S8)。`--audio device:BlackHole` の
    明示指定、旧 OS フォールバック、他ツール連携のためのオプション経路。
 4. **アプリ別収録**: アプリ単位の音声分離は SCK 単体では不完全なため、
    BlackHole と (将来の) アプリ別出力ユーティリティの組み合わせで案内する。
@@ -286,18 +334,26 @@ kilde rec --duration 30s --codec hevc out.mov
 
 ```
 kilde/
-├── Package.swift          # SPM: KildeCore + kilde (CLI)
+├── Package.swift            # SPM: KildeCore (library) + kilde (executable)
 ├── Sources/
-│   ├── KildeCore/         # §4 のモジュール群
-│   └── kilde/             # CLI エントリポイント
-├── Tests/
-│   ├── KildeCoreTests/    # 状態機械・設定パース・命名規則等の単体テスト
-│   └── SmokeTests/        # 3 秒録画 → ファイル存在/長さ/トラック検証 (要権限)
-├── gui/                   # M3: Xcode プロジェクト (KildeCore を参照)
-├── docs/DESIGN.md
+│   ├── KildeCore/           # UI 非依存のコア (CLI / GUI 共用)
+│   │   ├── Capture/         # SCStream / AVCaptureSession ラッパ、サンプル変換
+│   │   ├── Devices/         # ディスプレイ・ウィンドウ列挙、CoreAudio 機器、kilde Monitor
+│   │   ├── Recording/       # Recorder (セッションの指揮)、MovieWriter、AudioMixer
+│   │   └── Support/         # 権限、エラーと終了コード、ファイル検証、ユーティリティ
+│   └── kilde/               # CLI (引数解析と表示のみ) + Info.plist (リンカで埋め込み)
+├── Tests/KildeCoreTests/    # 単体テスト (権限不要・CI で実行 — issue #5)
+├── scripts/
+│   ├── integration-test.sh  # 実録画の統合テスト T1〜T10 (要権限・音量、ローカルのみ)
+│   └── soundapp.swift       # 統合テスト用の「音を鳴らすウィンドウ」アプリ
+├── gui/                     # M3: Xcode プロジェクト (KildeCore を参照 — 未作成)
+├── docs/                    # DESIGN.md / SPIKE-NOTES.md / DEVELOPMENT.md
+├── CLAUDE.md / AGENTS.md    # AI エージェント向けの作業指示
 └── README.md
 ```
 
+- v0.3 で予定していた `Tests/SmokeTests/` (要権限の録画スモーク) は
+  `scripts/integration-test.sh` に置き換えた (権限が必要なため CI には載せない)。
 - Swift 6 相当・SPM。依存は `swift-argument-parser` のみで始める。
 - **ローカル統合テスト**: `scripts/integration-test.sh` — 実際に録画・音声再生を
   行い、出力ファイルのトラック構成と RMS を機械検証する (T1〜T10、権限と
@@ -307,9 +363,12 @@ kilde/
   手動マトリクス)。
 - ロードマップ:
   - **M0**: 技術スパイク (§11) — **完了** (SPIKE-NOTES.md)
-  - **M1**: CLI MVP (§3 の MVP 範囲)
-  - **M2**: ミックスダウン、モニタ自動化、領域指定、ホットキー
-  - **M3**: GUI
+  - **M1**: CLI MVP (§3 の MVP 範囲) — 実装済み (ミックスダウン、`--monitor` を含む)。
+    仕上げ (単体テスト・CI・実地検証) は issue #2〜#7
+  - **M2**: Recorder のイベント駆動化、領域指定、ホットキー、一時停止、
+    複数ディスプレイ / MP4、アプリ除外、設定ファイル、passthrough、HDR (issue #8〜#16)
+  - **M3**: GUI (issue #17〜#20)
+  - **配布 & OSS**: LICENSE、英語 README、署名・notarization、Homebrew、Releases (issue #21〜#25)
 
 ## 11. M0 スパイク検証リスト (実施済み — 結果の詳細は SPIKE-NOTES.md)
 

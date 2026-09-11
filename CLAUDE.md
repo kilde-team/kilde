@@ -23,7 +23,7 @@ QuickTime Player では録れない**システム音声を含む録画・録音*
 
 | 項目 | 状態 |
 |------|------|
-| ブランチ | `feature/m1-cli-mvp` = PR #1。**`main` 未マージ** (マージ後はこの行を更新) |
+| ブランチ | `main` (M1 CLI MVP = PR #1 を 2026-09-11 にマージ済み)。作業は issue ごとに `feature/<N>-<slug>` |
 | M0 技術スパイク | ✅ 完了 (S1–S9)。S10 会議アプリ実地検証は issue #2 |
 | M1 CLI MVP | ✅ 実装済み — `rec` / `devices` / `doctor` / `audio monitor` / `inspect` |
 | 統合テスト | `scripts/integration-test.sh` (T1–T10)。ローカル実録画、全 PASS 実績あり |
@@ -86,14 +86,12 @@ swift build                       # ビルド (バイナリは .build/debug/kild
 
 - 終了コード: `0` 成功 / `1` その他失敗 (`KilError.failed`) / `2` 権限不足 /
   `3` デバイス・ウィンドウ不明。`KilError` の case を増やすときは `exitCode` も
-  併せて定義する。DESIGN.md §6 は 0/2/3/130 のみを挙げており、`1` の出典は
-  `Errors.swift` だけである点に注意
+  併せて定義し、DESIGN.md §6 の終了コード表も更新する
 - **オプション検証エラー (`validate()` の `ValidationError`、未知のオプション名) は
   `cliError()` を通らず、ArgumentParser が `64` を返す。** 「その他の失敗 = 1」では
   ないので、終了コードでスクリプトを分岐させるときはここを踏む
-- ⚠️ **DESIGN.md §6 は「`130` 割り込み」を挙げているが、実装は SIGINT を
-  「正常な停止」として扱い exit 0 を返す** (統合テスト T10 がこれを保証している)。
-  仕様の記述を実装に合わせるか、実装を変えるかは未決 — どちらかに揃えること
+- **SIGINT / SIGTERM / SIGHUP による停止は「正常な停止」で exit 0** (ファイナライズ
+  成功時)。DESIGN.md v0.3 の「`130` 割り込み」は v0.4 で廃止した。T10 がこれを保証する
 - 既定は `--audio system` + `--audio-tracks mixed`
 - 出力の既定名は `kilde-yyyyMMdd-HHmmss.mov` (音声のみは `.m4a`)
 - SIGINT / SIGTERM / **SIGHUP** の 3 つを安全停止に接続する
@@ -193,4 +191,5 @@ AI レビュー指摘の処理・完了報告) を毎回自動で適用する。
 **タスクの正本は GitHub issue** (https://github.com/takezou621/kilde/issues)。
 このファイルに個別タスクを列挙しない (陳腐化するため)。着手順は §8 の依存順と
 マイルストーンに従い、M1 仕上げ → M2 → M3 → 配布の順で進める。
-PR #1 (`feature/m1-cli-mvp`) が `main` にマージされていることが全 issue の前提。
+M1 の `feature/m1-cli-mvp` は PR #1 で `main` にマージ済み (2026-09-11)。
+新しい作業は必ず `origin/main` から issue ごとのブランチを切る (AGENTS.md §2)。
