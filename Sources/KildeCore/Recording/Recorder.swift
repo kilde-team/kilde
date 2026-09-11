@@ -285,8 +285,12 @@ public final class Recorder {
             if case .device = source { return true }
             return false
         }
-        if needsMicPermission && !Permissions.requestMic() {
-            throw KilError.permission("マイク (入力) の権限がありません")
+        // async 版を使う — TCC ダイアログの応答待ちで協調プールのスレッドを塞がないため (issue #35)。
+        // `a && await b` は && の autoclosure 内で await できないので guard に分けている
+        if needsMicPermission {
+            guard await Permissions.requestMic() else {
+                throw KilError.permission("マイク (入力) の権限がありません")
+            }
         }
 
         // 既存の kilde Monitor (手動で setup されたもの) は勝手に解体しない
@@ -334,7 +338,7 @@ public final class Recorder {
             }
             let filter: SCContentFilter
             if let match = options.windowMatch {
-                let win = try DisplayCatalog.resolveWindow(matching: match)
+                let win = try await DisplayCatalog.resolveWindow(matching: match)
                 if options.wantsVideo {
                     cfg.width = Int(win.frame.width)
                     cfg.height = Int(win.frame.height)
@@ -342,7 +346,7 @@ public final class Recorder {
                 }
                 filter = SCContentFilter(desktopIndependentWindow: win)
             } else {
-                let display = try DisplayCatalog.display(at: options.displayIndex)
+                let display = try await DisplayCatalog.display(at: options.displayIndex)
                 if options.wantsVideo {
                     cfg.width = Int(display.width)
                     cfg.height = Int(display.height)
@@ -406,7 +410,7 @@ public final class Recorder {
         startDate = Date()
         for m in micStreams { m.start() }
         do {
-            try sck?.start()
+            try await sck?.start()
         } catch {
             // マイクのみ起動済みのまま失敗するとリソースが残るため後始末する
             for m in micStreams { m.stop() }
@@ -426,7 +430,8 @@ public final class Recorder {
         _ = await progressTask.value
 
         setState(.finalizing)
-        sck?.stop()
+        // SCK のコールバックを吐き切ってから writer を閉じる (stop() が drain まで待つ)
+        await sck?.stop()
         for m in micStreams { m.stop() }
         if let mixer {
             // チャンク境界に満たない末尾を含め、残データを吐き切ってから完了する
