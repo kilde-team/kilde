@@ -301,8 +301,10 @@ fi
 if command -v xcodegen >/dev/null 2>&1; then
     log "T11: GUI — KildeGUI のビルドと起動/終了"
     # project.yml は kilde-dev 証明書での手動署名のため、証明書が無い環境では
-    # codesign が失敗する。作成手順は docs/DEVELOPMENT.md §3
-    if ! security find-identity -v -p codesigning 2>/dev/null | grep -q "kilde-dev"; then
+    # codesign が失敗する。作成手順は docs/DEVELOPMENT.md §3。
+    # find-identity は自己署名証明書が「信頼」設定でないと一覧に出ない
+    # (codesign 自体は動く) ため、存在確認は find-certificate で行う
+    if ! security find-certificate -c "kilde-dev" >/dev/null 2>&1; then
         skip "T11 GUI: 署名用証明書 kilde-dev なし (docs/DEVELOPMENT.md §3 の手順で作成可)"
     # 既に起動している KildeGUI は open が再利用してしまう (検証にも利用中アプリの
     # 終了にも使えない) ので、その場合は検証しない
