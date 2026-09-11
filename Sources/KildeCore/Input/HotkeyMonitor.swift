@@ -2,7 +2,9 @@ import Foundation
 import Carbon.HIToolbox
 
 /// ホットキーのモディファイア。Carbon のビット表現を公開 API に漏らさないため、
-/// KildeCore 独自の値として保持する。
+/// KildeCore 独自の値として保持する。fn はハードウェア / HID にインターセプトされて
+/// RegisterEventHotKey の条件に一致しない (登録は成功するが押下が届かず待機のままに
+/// なる) ため含めない — パース時に「使えない」と弾く
 public struct HotkeyModifiers: OptionSet, Equatable, Sendable {
     public let rawValue: UInt8
 
@@ -14,7 +16,6 @@ public struct HotkeyModifiers: OptionSet, Equatable, Sendable {
     public static let shift = HotkeyModifiers(rawValue: 1 << 1)
     public static let option = HotkeyModifiers(rawValue: 1 << 2)
     public static let control = HotkeyModifiers(rawValue: 1 << 3)
-    public static let function = HotkeyModifiers(rawValue: 1 << 4)
 }
 
 /// パース済みのホットキー。keyCode は macOS の物理キーコード。
@@ -43,6 +44,12 @@ public enum HotkeyParser {
         var modifiers: HotkeyModifiers = []
         var parsedKey: (code: UInt32, name: String)?
         for part in parts {
+            // fn はハードウェアにインターセプトされ RegisterEventHotKey では押下が
+            // 届かない (登録だけ成功して待機のままになる)。分かりにくいので専用の
+            // エラーで弾く
+            if part == "fn" {
+                throw invalid(source, reason: "fn キーはホットキーに使えません (ハードウェアにインターセプトされるため)")
+            }
             if let modifier = modifier(for: part) {
                 guard !modifiers.contains(modifier.value) else {
                     throw invalid(source, reason: "モディファイア \(modifier.name) が重複しています")
@@ -66,7 +73,7 @@ public enum HotkeyParser {
 
         let orderedModifiers: [(HotkeyModifiers, String)] = [
             (.command, "cmd"), (.shift, "shift"), (.option, "opt"),
-            (.control, "ctrl"), (.function, "fn"),
+            (.control, "ctrl"),
         ]
         let names = orderedModifiers.compactMap { modifiers.contains($0.0) ? $0.1 : nil }
         return Hotkey(keyCode: parsedKey.code, modifiers: modifiers,
@@ -83,7 +90,6 @@ public enum HotkeyParser {
         case "shift", "⇧": return (.shift, "shift")
         case "opt", "option", "alt", "⌥": return (.option, "opt")
         case "ctrl", "control", "^": return (.control, "ctrl")
-        case "fn": return (.function, "fn")
         default: return nil
         }
     }
@@ -229,7 +235,6 @@ public final class HotkeyMonitor {
         if hotkey.modifiers.contains(.shift) { value |= UInt32(shiftKey) }
         if hotkey.modifiers.contains(.option) { value |= UInt32(optionKey) }
         if hotkey.modifiers.contains(.control) { value |= UInt32(controlKey) }
-        if hotkey.modifiers.contains(.function) { value |= UInt32(kEventKeyModifierFnMask) }
         return value
     }
 

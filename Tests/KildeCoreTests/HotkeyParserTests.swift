@@ -17,7 +17,6 @@ final class HotkeyParserTests: XCTestCase {
             ("ctrl+r", "ctrl+r", [.control]),
             ("control+r", "ctrl+r", [.control]),
             ("^+r", "ctrl+r", [.control]),
-            ("fn+r", "fn+r", [.function]),
         ]
         for (source, normalized, modifiers) in cases {
             let parsed = try HotkeyParser.parse(source)
@@ -27,9 +26,18 @@ final class HotkeyParserTests: XCTestCase {
     }
 
     func testAcceptsCaseAndWhitespaceAndNormalizesModifierOrder() throws {
-        let parsed = try HotkeyParser.parse("  SHIFT + Command + Option + CTRL + FN + R  ")
-        XCTAssertEqual(parsed.normalized, "cmd+shift+opt+ctrl+fn+r")
-        XCTAssertEqual(parsed.modifiers, [.command, .shift, .option, .control, .function])
+        let parsed = try HotkeyParser.parse("  SHIFT + Command + Option + CTRL + R  ")
+        XCTAssertEqual(parsed.normalized, "cmd+shift+opt+ctrl+r")
+        XCTAssertEqual(parsed.modifiers, [.command, .shift, .option, .control])
+    }
+
+    func testRejectsFunctionModifier() {
+        // fn は登録だけ成功して押下が届かないため、待機のままにならないよう専用エラーで弾く
+        for source in ["fn+r", "cmd+fn+r", "FN+R"] {
+            XCTAssertThrowsError(try HotkeyParser.parse(source), source) { error in
+                XCTAssertTrue("\(error)".contains("fn キーはホットキーに使えません"), "\(source): \(error)")
+            }
+        }
     }
 
     func testParsesAllSupportedKeys() {

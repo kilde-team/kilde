@@ -91,6 +91,12 @@ struct RecCommand: ParsableCommand {
             } catch {
                 throw ValidationError("\(error)")
             }
+            // 待機モードでは countdown は「待機開始までの」カウントになって録画の
+            // 開始を守れなくなる (守るなら開始後のカウントダウンで別機能)。
+            // 挙動が期待とずれるのを避けるため併用を拒否する
+            if countdown > 0 {
+                throw ValidationError("--countdown と --hotkey は併用できません (カウントダウンが待機前に消費されるため)")
+            }
         }
     }
 
