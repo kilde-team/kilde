@@ -83,7 +83,7 @@ macOS 標準の QuickTime Player による画面収録は**システム音声を
 ```
 ┌─────────────────────────────┐    ┌─────────────────────────────┐
 │  kilde (CLI)                 │    │  KildeGUI (M3, メニューバー) │
-│  swift-argument-parser       │    │  SwiftUI + MenuBarExtra      │
+│  swift-argument-parser       │    │  NSStatusItem + NSPopover     │
 └──────────────┬──────────────┘    └──────────────┬──────────────┘
                │                                  │
                └────────────┬─────────────────────┘
@@ -327,7 +327,10 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
 
 ## 9. GUI (M3) 概要
 
-- SwiftUI `MenuBarExtra`。アイコンの状態反映 (待機/録画中 + 経過時間)。
+- メニューバー UI: `NSStatusItem` + `NSPopover` を AppDelegate で手動管理、
+  中身は SwiftUI (macOS 26 実機で SwiftUI `MenuBarExtra` の `.window` パネルが
+  開かないことを切り分け済み — 詳細は issue #17 の PR)。アイコンの状態反映
+  (待機/録画中 + 経過時間)。
 - ポップオーバー: ディスプレイ・音声ソース選択、Rec/Stop、出力先指定、
   レベルメーター、録音結果の通知 (Finder reveal)。
 - グローバルホットキー (開始/停止)。CLI と設定 (出力先・既定ソース) を共有。
@@ -349,7 +352,8 @@ kilde/
 ├── scripts/
 │   ├── integration-test.sh  # 実録画の統合テスト T1〜T10 (要権限・音量、ローカルのみ)
 │   └── soundapp.swift       # 統合テスト用の「音を鳴らすウィンドウ」アプリ
-├── gui/                     # M3: Xcode プロジェクト (KildeCore を参照 — 未作成)
+├── gui/                     # M3: メニューバー GUI (XcodeGen project.yml が正本で
+│                            #   .xcodeproj は生成物 — 骨格は #17、録画 UI は #18 以降)
 ├── docs/                    # DESIGN.md / SPIKE-NOTES.md / DEVELOPMENT.md
 ├── CLAUDE.md / AGENTS.md    # AI エージェント向けの作業指示
 └── README.md

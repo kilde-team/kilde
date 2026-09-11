@@ -94,6 +94,55 @@ windowID を確認して数値で指定するのが確実です。
 Ctrl+C は正規の停止操作なので、ファイナライズに成功すれば exit 0 です
 (DESIGN.md §6 v0.4。統合テスト T10 が保証)。
 
+### GUI (メニューバーアプリ、M3 開発中)
+
+`gui/` にメニューバーアプリがあります (NSStatusItem + NSPopover、中身は SwiftUI —
+macOS 26 で `MenuBarExtra` の `.window` パネルが開かないため AppKit で管理)。
+`.xcodeproj` はコミットして
+いないため、[XcodeGen](https://github.com/yonaskolb/XcodeGen) で生成してから
+Xcode でビルドします (録画エンジンは CLI と同じ KildeCore をローカルパッケージ
+依存で共有):
+
+```sh
+brew install xcodegen   # 初回のみ
+cd gui && xcodegen      # project.yml から KildeGUI.xcodeproj を生成
+open KildeGUI.xcodeproj # Xcode で KildeGUI スキームを Run
+```
+
+コマンドラインだけで検証する場合:
+
+```sh
+cd gui && xcodegen
+xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI -configuration Debug build
+```
+
+現在の GUI はディスプレイ・ウィンドウ・オーディオ機器の一覧表示のみです
+(録画 UI は #18 以降)。`project.yml` を変更したら `xcodegen` を再実行して
+ください (再生成し忘れによる乖離を防ぐため、変更は必ず project.yml 側に行う)。
+
+> **GUI にも権限が必要**: ディスプレイ/ウィンドウ一覧には画面収録権限が要ります
+> (CLI とは別プロセスなので、CLI に許可があっても別途付与が必要)。
+> システム設定 → プライバシーとセキュリティ → 画面とオーディオを収録 に
+> KildeGUI を追加し、**アプリを再起動**してください (画面収録権限はプロセスの
+> 再起動で有効化 — CLI の `doctor` と同じ仕様)。未付与の間はオーディオ機器
+> 一覧のみ表示されます (画面収録権限は不要なため)。
+
+> **開発用署名証明書 (kilde-dev)**: TCC 権限はコード署名でアプリを識別するため、
+> ad-hoc 署名のビルドでは権限のトグルが再起動のたびに外れることがある。
+> `gui/project.yml` は `kilde-dev` という名前の自己署名コード署名証明書で署名する
+> 設定にしてある。無い場合はキーチェーンアクセス → 証明書アシスタント →
+> 「証明書を作成」で以下のように作成する:
+>
+> - 名前: `kilde-dev` / 認証タイプ: 自己署名ルート / 「デフォルトを上書き」✅
+> - 有効期間: 3650 日 / 拡張キー使用: **コード署名** / 鍵: RSA 2048 (既定)
+> - 作成先: ログインキーチェーン
+
+> 補足: ローカル署名ビルド (kilde-dev) や Xcode の実行では、コンソールに
+> `com.apple.linkd.autoShortcut` への接続エラーや "Error registering app with
+> intents framework" が出ることがあります。これは App Shortcuts 登録まわりの
+> システムサービス接続のノイズで、KildeGUI は AppIntents を使わないため機能に
+> 影響しません (正式な Developer ID 署名では出なくなると考えられます)。
+
 ## 4. 統合テスト
 
 `scripts/integration-test.sh` は CLI を実際に動かして録画し、出力ファイルの
@@ -127,6 +176,7 @@ scripts/integration-test.sh
 | T8 | `rec --no-video --window` — 特定アプリの音声のみ |
 | T9 | `audio monitor` + `--audio device:BlackHole...` — BlackHole 未導入なら SKIP |
 | T10 | SIGINT — Ctrl+C 相当で exit 0・再生可能なファイルが残る |
+| T11 | GUI — KildeGUI のビルド・起動・正常終了 (xcodegen 未導入なら SKIP。メニューバー表示は目視確認) |
 
 作業ディレクトリ (録画物とログ) は失敗調査のため削除されず、最後に
 パスが表示されます。

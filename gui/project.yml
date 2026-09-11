@@ -1,0 +1,52 @@
+# KildeGUI — メニューバーアプリ (DESIGN.md §9 / §10, issue #17)
+#
+# .xcodeproj は生成物なのでコミットしない。次で生成する:
+#   cd gui && xcodegen
+name: KildeGUI
+options:
+  bundleIdPrefix: com.takezou621
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+
+# ルートパッケージをローカル依存として追加し、KildeCore 製品だけをリンクする。
+# ローカルパッケージはルートと同等に扱われるため、kilde 実行ターゲットの
+# unsafeFlags (Info.plist 埋め込み) は GUI 側のビルドを妨げない
+packages:
+  kilde:
+    path: ..
+
+targets:
+  KildeGUI:
+    type: application
+    platform: macOS
+    sources:
+      - Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.takezou621.KildeGUI
+        PRODUCT_NAME: KildeGUI
+        INFOPLIST_FILE: Resources/Info.plist
+        # 開発用の自己署名証明書で署名する (作成手順は docs/DEVELOPMENT.md)。
+        # TCC 権限 (画面収録等) はコード署名でアプリを識別するため、ad-hoc 署名の
+        # ままだとビルドのたびに権限の付与し直しを要求される
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: kilde-dev
+        # Xcode 26 の Debug ビルドは EF debug dylib (KildeGUI.debug.dylib) に本体を
+        # 分離するが、手動署名との組合せで dyld が「異なる Team ID」でロードを拒否し
+        # 起動直後に落ちる。無効化してコードを本体に直接リンクする
+        ENABLE_DEBUG_DYLIB: NO
+        # 配布 (issue #23) での Developer ID 署名・notarization の前提。
+        # 注意: Hardened Runtime 下でマイク入力 (#18 で MicStream を繋ぐとき) には
+        # com.apple.security.device.audio-input エンタイトルメントが必須。
+        # 欠けるとクラッシュやエラーなしに無音になるため、#18 で entitlements
+        # ファイルを作成して CODE_SIGN_ENTITLEMENTS に設定すること
+        ENABLE_HARDENED_RUNTIME: YES
+        # SWIFT_VERSION は swift-tools-version とは別物の「言語モード」指定で、
+        # 有効値は 4 / 4.2 / 5 / 6 のみ (5.10 は invalid とされる)。
+        # ルートパッケージ (swift-tools-version:5.10) が使う言語モード 5 に揃える
+        SWIFT_VERSION: "5"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+    dependencies:
+      - package: kilde
+        product: KildeCore

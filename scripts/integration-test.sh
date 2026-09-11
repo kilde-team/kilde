@@ -24,12 +24,15 @@ DELAY=2        # 録画開始から音声再生までの遅延 (秒)
 PASS=0; FAIL=0; SKIP=0
 MONITOR_SET_UP=0
 SOUNDAPP_PID=""
+GUI_PID=""
 
 cleanup() {
     if [ "$MONITOR_SET_UP" = "1" ]; then
         "$KILDE" audio monitor teardown >/dev/null 2>&1 && echo "[cleanup] 既定出力を復元しました"
     fi
     [ -n "$SOUNDAPP_PID" ] && kill "$SOUNDAPP_PID" 2>/dev/null
+    # T11 の GUI プロセスもどの分岐で失敗しても残さない
+    [ -n "$GUI_PID" ] && kill "$GUI_PID" 2>/dev/null
     echo ""
     echo "作業ディレクトリ (失敗時の調査用に残します): $WORK"
 }
@@ -288,6 +291,47 @@ if [ "$EXIT_CODE" = "0" ] && num_between "${VD:-0}" 2.5 8; then
     ok "T10 SIGINT: exit=0・再生可能なファイル (duration=${VD}s)"
 else
     bad "T10 SIGINT: exit=$EXIT_CODE duration=${VD:-N/A}s — $WORK/t10.log"
+fi
+
+# ---- T11: GUI (メニューバーアプリ) のビルドと起動 ------------------------------
+# .xcodeproj はコミットされていないため xcodegen で生成する (未導入なら SKIP)。
+# メニューバーのアイコン表示そのものは目視確認になるため、ここでは
+# 「ビルドできる・起動する・正常終了する」を機械検証する
+
+if command -v xcodegen >/dev/null 2>&1; then
+    log "T11: GUI — KildeGUI のビルドと起動/終了"
+    # project.yml は kilde-dev 証明書での手動署名のため、証明書が無い環境では
+    # codesign が失敗する。作成手順は docs/DEVELOPMENT.md §3。
+    # find-identity は自己署名証明書が「信頼」設定でないと一覧に出ない
+    # (codesign 自体は動く) ため、存在確認は find-certificate で行う
+    if ! security find-certificate -c "kilde-dev" >/dev/null 2>&1; then
+        skip "T11 GUI: 署名用証明書 kilde-dev なし (docs/DEVELOPMENT.md §3 の手順で作成可)"
+    # 既に起動している KildeGUI は open が再利用してしまう (検証にも利用中アプリの
+    # 終了にも使えない) ので、その場合は検証しない
+    elif pgrep -x KildeGUI >/dev/null 2>&1; then
+        skip "T11 GUI: KildeGUI が既に起動中のためスキップ (終了してから再実行)"
+    elif (cd "$ROOT/gui" && xcodegen -q > "$WORK/t11-xcodegen.log" 2>&1 \
+        && xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI -configuration Debug build \
+           >> "$WORK/t11-xcodegen.log" 2>&1); then
+        GUI_APP=$(cd "$ROOT/gui" && xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI \
+            -configuration Debug -showBuildSettings 2>/dev/null \
+            | grep -m1 "BUILT_PRODUCTS_DIR" | awk '{print $3}')/KildeGUI.app
+        if open "$GUI_APP" && sleep 3 && GUI_PID=$(pgrep -x KildeGUI); then
+            if osascript -e 'tell application "KildeGUI" to quit' >/dev/null 2>&1 && sleep 1 \
+                && ! pgrep -x KildeGUI >/dev/null; then
+                GUI_PID=""
+                ok "T11 GUI: ビルド・起動・正常終了 (メニューバー表示は目視確認)"
+            else
+                bad "T11 GUI: 終了に失敗 — cleanup trap が kill します"
+            fi
+        else
+            bad "T11 GUI: 起動に失敗 — $WORK/t11-xcodegen.log"
+        fi
+    else
+        bad "T11 GUI: ビルドに失敗 — $WORK/t11-xcodegen.log"
+    fi
+else
+    skip "T11 GUI: xcodegen 未導入 (brew install xcodegen で実行可)"
 fi
 
 # ---- サマリ -------------------------------------------------------------------
