@@ -175,25 +175,44 @@ struct ContentView: View {
     private static let enumerationTimeout: TimeInterval = 10
 
     /// 列挙の完了とタイムアウトの先着を返す。タイムアウト時は nil。
-    /// 同期 awaitSync を wrap した列挙タスクは cancel できないため、タイムアウト後も
-    /// タスク自体は残留するが、その結果は使われない
+    /// withTaskGroup はスコープ退出時に全子タスクの完了を待つため、cancel できない
+    /// 同期列挙の await を子に置くとタイムアウト後も戻らない (cancelAll は独立
+    /// Task を止めない)。よってここはポーリングで先着を拾い、タイムアウト後も
+    /// 残留する列挙タスクの結果は破棄する
     private static func firstFinishedOrTimedOut(
         _ enumerate: Task<EnumerationResult, Never>,
         timeout: TimeInterval
     ) async -> EnumerationResult? {
-        await withTaskGroup(of: Bool.self) { group in
-            group.addTask {
-                _ = await enumerate.value
-                return true
+        final class Box: @unchecked Sendable {
+            let lock = NSLock()
+            var result: EnumerationResult?
+            var done = false
+
+            func store(_ r: EnumerationResult) {
+                lock.lock()
+                if !done {
+                    result = r
+                    done = true
+                }
+                lock.unlock()
             }
-            group.addTask {
-                try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
-                return false
+
+            func load() -> (done: Bool, result: EnumerationResult?) {
+                lock.lock(); defer { lock.unlock() }
+                return (done, result)
             }
-            let finished = await group.next() ?? false
-            group.cancelAll()
-            return finished ? await enumerate.value : nil
         }
+        let box = Box()
+        let watcher = Task { box.store(await enumerate.value) }
+        defer { watcher.cancel() }
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            let (done, result) = box.load()
+            if done { return result }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+        let (done, result) = box.load()
+        return done ? result : nil
     }
 
     @ViewBuilder

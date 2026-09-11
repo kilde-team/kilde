@@ -24,12 +24,15 @@ DELAY=2        # 録画開始から音声再生までの遅延 (秒)
 PASS=0; FAIL=0; SKIP=0
 MONITOR_SET_UP=0
 SOUNDAPP_PID=""
+GUI_PID=""
 
 cleanup() {
     if [ "$MONITOR_SET_UP" = "1" ]; then
         "$KILDE" audio monitor teardown >/dev/null 2>&1 && echo "[cleanup] 既定出力を復元しました"
     fi
     [ -n "$SOUNDAPP_PID" ] && kill "$SOUNDAPP_PID" 2>/dev/null
+    # T11 の GUI プロセスもどの分岐で失敗しても残さない
+    [ -n "$GUI_PID" ] && kill "$GUI_PID" 2>/dev/null
     echo ""
     echo "作業ディレクトリ (失敗時の調査用に残します): $WORK"
 }
@@ -297,18 +300,23 @@ fi
 
 if command -v xcodegen >/dev/null 2>&1; then
     log "T11: GUI — KildeGUI のビルドと起動/終了"
-    if (cd "$ROOT/gui" && xcodegen -q > "$WORK/t11-xcodegen.log" 2>&1 \
+    # 既に起動している KildeGUI は open が再利用してしまう (検証にも利用中アプリの
+    # 終了にも使えない) ので、その場合は検証しない
+    if pgrep -x KildeGUI >/dev/null 2>&1; then
+        skip "T11 GUI: KildeGUI が既に起動中のためスキップ (終了してから再実行)"
+    elif (cd "$ROOT/gui" && xcodegen -q > "$WORK/t11-xcodegen.log" 2>&1 \
         && xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI -configuration Debug build \
            >> "$WORK/t11-xcodegen.log" 2>&1); then
         GUI_APP=$(cd "$ROOT/gui" && xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI \
             -configuration Debug -showBuildSettings 2>/dev/null \
             | grep -m1 "BUILT_PRODUCTS_DIR" | awk '{print $3}')/KildeGUI.app
-        if open "$GUI_APP" && sleep 3 && pgrep -x KildeGUI >/dev/null; then
+        if open "$GUI_APP" && sleep 3 && GUI_PID=$(pgrep -x KildeGUI); then
             if osascript -e 'tell application "KildeGUI" to quit' >/dev/null 2>&1 && sleep 1 \
                 && ! pgrep -x KildeGUI >/dev/null; then
+                GUI_PID=""
                 ok "T11 GUI: ビルド・起動・正常終了 (メニューバー表示は目視確認)"
             else
-                bad "T11 GUI: 終了に失敗"
+                bad "T11 GUI: 終了に失敗 — cleanup trap が kill します"
             fi
         else
             bad "T11 GUI: 起動に失敗 — $WORK/t11-xcodegen.log"
