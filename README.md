@@ -67,7 +67,9 @@ kilde inspect FILE # 録画ファイルのトラック構成と音声レベル
 
 ## GUI (M3 開発中)
 
-メニューバーアプリ (SwiftUI `MenuBarExtra`)。録画エンジンは CLI と同じ
+メニューバーアプリ (`NSStatusItem` + `NSPopover` — macOS 26 で SwiftUI
+`MenuBarExtra` の `.window` パネルが開かないため AppKit で手動管理)。
+録画エンジンは CLI と同じ
 `KildeCore` をローカルパッケージ依存で共有する。`.xcodeproj` はコミットせず
 [XcodeGen](https://github.com/yonaskolb/XcodeGen) の `project.yml` から生成する:
 

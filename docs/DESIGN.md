@@ -83,7 +83,7 @@ macOS 標準の QuickTime Player による画面収録は**システム音声を
 ```
 ┌─────────────────────────────┐    ┌─────────────────────────────┐
 │  kilde (CLI)                 │    │  KildeGUI (M3, メニューバー) │
-│  swift-argument-parser       │    │  SwiftUI + MenuBarExtra      │
+│  swift-argument-parser       │    │  NSStatusItem + NSPopover     │
 └──────────────┬──────────────┘    └──────────────┬──────────────┘
                │                                  │
                └────────────┬─────────────────────┘
@@ -327,7 +327,10 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
 
 ## 9. GUI (M3) 概要
 
-- SwiftUI `MenuBarExtra`。アイコンの状態反映 (待機/録画中 + 経過時間)。
+- メニューバー UI: `NSStatusItem` + `NSPopover` を AppDelegate で手動管理、
+  中身は SwiftUI (macOS 26 実機で SwiftUI `MenuBarExtra` の `.window` パネルが
+  開かないことを切り分け済み — 詳細は issue #17 の PR)。アイコンの状態反映
+  (待機/録画中 + 経過時間)。
 - ポップオーバー: ディスプレイ・音声ソース選択、Rec/Stop、出力先指定、
   レベルメーター、録音結果の通知 (Finder reveal)。
 - グローバルホットキー (開始/停止)。CLI と設定 (出力先・既定ソース) を共有。

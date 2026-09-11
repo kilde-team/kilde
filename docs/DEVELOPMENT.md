@@ -96,7 +96,9 @@ Ctrl+C は正規の停止操作なので、ファイナライズに成功すれ�
 
 ### GUI (メニューバーアプリ、M3 開発中)
 
-`gui/` に SwiftUI `MenuBarExtra` アプリがあります。`.xcodeproj` はコミットして
+`gui/` にメニューバーアプリがあります (NSStatusItem + NSPopover、中身は SwiftUI —
+macOS 26 で `MenuBarExtra` の `.window` パネルが開かないため AppKit で管理)。
+`.xcodeproj` はコミットして
 いないため、[XcodeGen](https://github.com/yonaskolb/XcodeGen) で生成してから
 Xcode でビルドします (録画エンジンは CLI と同じ KildeCore をローカルパッケージ
 依存で共有):
@@ -117,6 +119,13 @@ xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI -configuration Debug bui
 現在の GUI はディスプレイ・ウィンドウ・オーディオ機器の一覧表示のみです
 (録画 UI は #18 以降)。`project.yml` を変更したら `xcodegen` を再実行して
 ください (再生成し忘れによる乖離を防ぐため、変更は必ず project.yml 側に行う)。
+
+> **GUI にも権限が必要**: ディスプレイ/ウィンドウ一覧には画面収録権限が要ります
+> (CLI とは別プロセスなので、CLI に許可があっても別途付与が必要)。
+> システム設定 → プライバシーとセキュリティ → 画面とオーディオを収録 に
+> KildeGUI を追加し、**アプリを再起動**してください (画面収録権限はプロセスの
+> 再起動で有効化 — CLI の `doctor` と同じ仕様)。未付与の間はオーディオ機器
+> 一覧のみ表示されます (画面収録権限は不要なため)。
 
 > 補足: ローカルの ad-hoc 署名ビルドを起動すると、Xcode のコンソールに
 > `com.apple.linkd.autoShortcut` への接続エラーや "Error registering app with

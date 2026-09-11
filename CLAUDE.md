@@ -29,7 +29,7 @@ QuickTime Player では録れない**システム音声を含む録画・録音*
 | 統合テスト | `scripts/integration-test.sh` (T1–T10)。ローカル実録画、全 PASS 実績あり |
 | 単体テスト (`Tests/`) | ✅ KildeCoreTests (権限不要、CI で実行 — issue #5 完了) |
 | CI (`.github/`) | ✅ swift build / swift test (macos-15) — issue #6 完了 |
-| GUI (`gui/`) | 骨格 ✅ (issue #17: MenuBarExtra + KildeCore 参照)。録画 UI・オンボーディングは #18〜#20 |
+| GUI (`gui/`) | 骨格 ✅ (issue #17: NSStatusItem + NSPopover + KildeCore 参照 — macOS 26 の MenuBarExtra 不具合を回避)。録画 UI・オンボーディングは #18〜#20 |
 | ライセンス / OSS 整備 | ✅ `LICENSE` (MIT)、`CONTRIBUTING.md`、`.github/` の Issue・PR テンプレート (issue #21) |
 | 残タスク全体 | GitHub issue #2〜#25 (4 マイルストーン)。§8 の役割分担・依存順を参照 |
 
@@ -62,7 +62,8 @@ Sources/KildeCore/       UI 非依存のコア。将来 GUI と共用する
 scripts/integration-test.sh  T1–T10 の実録画テスト
 scripts/soundapp.swift       テスト用「音を鳴らすウィンドウ」アプリ
 gui/                         M3 メニューバー GUI (XcodeGen: project.yml が正本)
-  Sources/KildeGUIApp.swift    MenuBarExtra アプリのエントリポイント
+  Sources/KildeGUIApp.swift    アプリのエントリポイント (AppDelegate 接続)
+  Sources/AppDelegate.swift     NSStatusItem + NSPopover の手動管理
   Sources/ContentView.swift    ディスプレイ/ウィンドウ/オーディオ一覧の最小パネル
   Resources/Info.plist         LSUIElement・権限説明文字列 (バンドル用)
 ```
