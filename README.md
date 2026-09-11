@@ -72,6 +72,10 @@ kilde inspect FILE # 録画ファイルのトラック構成と音声レベル
 - **M2** 領域指定の収録、グローバルホットキー、一時停止/再開
 - **M3** メニューバー GUI アプリ
 
+## コントリビューション
+
+バグ報告・機能要望・PR を歓迎します。[CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。
+
 ## ライセンス
 
-MIT (予定)
+[MIT License](LICENSE)

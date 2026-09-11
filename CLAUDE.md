@@ -30,7 +30,7 @@ QuickTime Player では録れない**システム音声を含む録画・録音*
 | 単体テスト (`Tests/`) | **未作成** — issue #5 |
 | CI (`.github/`) | **未作成** — issue #6 |
 | GUI (`gui/`) | **未作成** — M3 (issue #17〜#20) |
-| ライセンスファイル | **未作成** — issue #21 (README/Info.plist は MIT を宣言済み) |
+| ライセンス / OSS 整備 | ✅ `LICENSE` (MIT)、`CONTRIBUTING.md`、`.github/` の Issue・PR テンプレート (issue #21) |
 | 残タスク全体 | GitHub issue #2〜#25 (4 マイルストーン)。§8 の役割分担・依存順を参照 |
 
 ## 3. 全体の地図

@@ -178,7 +178,7 @@ SCK / AVCapture / CoreAudio の実デバイスには触れません。
 | 4 | CI (`.github/workflows`) で `swift build` + 単体テスト | issue #6 |
 | 5 | 長時間 (10 分級) の A/V ドリフト測定 | issue #3 |
 | 6 | 旧 OS (14/15) での S7 / S8 / S9 挙動の確認 | issue #4 |
-| 7 | `LICENSE` (MIT) の追加 | issue #21 |
+| 7 | `LICENSE` (MIT) の追加 | 済 (issue #21) |
 | 8 | DESIGN.md §6 の終了コード `130` と実装 (SIGINT で exit 0) の食い違いを解消 | 済 — exit 0 に統一 (issue #7) |
 | 9 | SCK 圧縮フレーム passthrough (無再エンコード録画) の検討 | issue #15 |
 | 10 | M2: 領域指定収録 / グローバルホットキー / 一時停止・再開 | issue #9 / #10 / #11 |
