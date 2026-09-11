@@ -366,6 +366,8 @@ kilde/
   行い、出力ファイルのトラック構成と RMS を機械検証する (T1〜T11、権限と
   音量が必要、所要 ~2 分)。テスト用の音鳴らしウィンドウアプリ
   (`scripts/soundapp.swift`) を同梱。
+  T11 (GUI のビルド・起動・終了) は xcodegen 未導入 / kilde-dev 証明書なし /
+  KildeGUI 起動中の環境では SKIP する (docs/DEVELOPMENT.md §4 の T11 参照)。
 - CI: GitHub Actions で `swift build` / `swift test` (単体のみ。スモークは
   手動マトリクス)。
 - ロードマップ:
