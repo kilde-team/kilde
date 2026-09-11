@@ -152,15 +152,15 @@ public final class Recorder {
     }
 
     /// 録画を非同期に開始する。即座に返り、経過は events で通知される。
-    /// 二重呼び出しは無視される
+    /// 二重呼び出しは無視される。
+    /// セッション Task は self を強参照で捕まえる — start() 後に呼び出し元が参照を
+    /// 手放しても「開始したのに何も起きない」ことを避けるため (停止は stop() で明示的に)
     public func start() {
         lock.lock()
         guard !sessionLaunched else { lock.unlock(); return }
         sessionLaunched = true
         lock.unlock()
-        Task { [weak self] in
-            await self?.runSession()
-        }
+        Task { await self.runSession() }
     }
 
     /// 早期停止を要求する (SIGINT / duration と同じ経路)。冪等
@@ -389,7 +389,11 @@ public final class Recorder {
         let progressTask = startProgressEmissionIfNeeded()
         // 停止要求と duration のどちらか早い方を待つ
         await waitForStopOrDuration()
+        // cancel だけでなく終了まで待つ — sleep 起き直し直後の yield と
+        // finalizing 遷移の間にプリエンプション窓があると、progress が
+        // .completed より後に届いてイベントの順序が崩れるため
         progressTask.cancel()
+        _ = await progressTask.value
 
         setState(.finalizing)
         sck?.stop()
