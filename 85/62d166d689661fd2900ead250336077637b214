@@ -1,0 +1,39 @@
+Sources/Spike/main.swift
+  s_f77637b1782bc2::t_e617d3272cd95e 16
+  s_f77637b1782bc2::t_196e59f85ce02b 31
+scripts/soundapp.swift
+  s_f77637b1782bc2::t_4b72e8f6ad944e 1-24
+Sources/Spike/Util.swift
+  s_f77637b1782bc2::t_7fd62526c1345e 96-100,128
+Sources/Spike/InspectCmd.swift
+  s_f77637b1782bc2::t_8af687df853826 1-29,31-32,36-52
+  s_f77637b1782bc2::t_0f878657888ae9 30,34-35
+  s_f77637b1782bc2::t_086258a681b4f4 33
+docs/DESIGN.md
+  s_f77637b1782bc2::t_9f250a9b2fec4c 302-305
+scripts/integration-test.sh
+  s_f77637b1782bc2::t_9bd36ca9b38ac4 55-58
+  s_f77637b1782bc2::t_b6e8a5e03446bf 213
+  s_f77637b1782bc2::t_fb3dbc5adae4e8 131
+  s_f77637b1782bc2::t_50bee1a1a1bc73 235
+  s_f77637b1782bc2::t_ef693bb6caa48f 1-54,59-130,132-159,161-174,176-195,197-212,214-234,236-280
+  s_f77637b1782bc2::t_ce8eb91dbb58b6 160
+  s_f77637b1782bc2::t_ef5a953d957729 175
+  s_f77637b1782bc2::t_d5788735be0a38 196
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "8562d166d689661fd2900ead250336077637b214",
+  "prompts": {},
+  "sessions": {
+    "s_f77637b1782bc2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b41dad5c-a91d-4514-a4af-90ec4067d8a1",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
