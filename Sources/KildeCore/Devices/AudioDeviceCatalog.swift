@@ -138,9 +138,17 @@ public enum MonitorDevice {
     /// 元の既定出力を state に保存する (teardown で復元)。
     /// 既に kilde Monitor が存在する場合は解体してから作り直す (冪等)。
     public static func setup() throws -> AudioDeviceInfo {
-        if exists { teardown() }
+        let recovery = "システム設定で既定出力を戻し、Audio MIDI 設定で \"kilde Monitor\" を削除してから再実行してください"
+        // 復元できないまま作り直すと kilde Monitor 自身を子にした自己参照になるため中止する
+        if exists && !teardown() {
+            throw KilError.failed("既存の kilde Monitor を解体できませんでした。\(recovery)")
+        }
         guard let currentDefault = AudioDeviceCatalog.defaultOutput else {
             throw KilError.failed("既定出力デバイスを取得できません")
+        }
+        // CoreAudio の状態反映遅延などで自己参照が残っている場合も、安全に復旧できるまで作成しない
+        guard currentDefault.uid != uid else {
+            throw KilError.failed("既定出力が kilde Monitor のままです。\(recovery)")
         }
         guard let blackhole = AudioDeviceCatalog.devices.first(where: { $0.isBlackHole && $0.outputChannels > 0 })
         else {

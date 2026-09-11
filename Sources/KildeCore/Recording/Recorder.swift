@@ -43,6 +43,9 @@ public struct RecordOptions {
 /// 録画セッションの指揮 (DESIGN.md §4 RecorderController)
 public final class Recorder {
 
+    /// run() 完了後に同じスレッドから読むだけなので、追加のロックは不要
+    public private(set) var cleanupWarnings: [String] = []
+
     public struct Progress {
         public let elapsed: TimeInterval
         public let outputURL: URL
@@ -90,6 +93,7 @@ public final class Recorder {
 
     /// 録画を実行し、完了までブロックする
     public func run() throws -> Summary {
+        cleanupWarnings.removeAll()
         let ext = options.wantsVideo ? "mov" : "m4a"
         let url = options.outputURL ?? URL(fileURLWithPath: defaultOutputName(ext: ext))
         outputURL = url
@@ -118,10 +122,11 @@ public final class Recorder {
 
         do {
             let summary = try runRecording(url: url)
-            if monitorCreatedByUs { _ = MonitorDevice.teardown() }
+            teardownMonitorIfNeeded(monitorCreatedByUs)
             return summary
         } catch {
-            if monitorCreatedByUs { _ = MonitorDevice.teardown() }
+            // 後始末の失敗で録画本体のエラーと終了コードを上書きしない
+            teardownMonitorIfNeeded(monitorCreatedByUs)
             throw error
         }
     }
@@ -150,6 +155,13 @@ public final class Recorder {
     }
 
     // MARK: - 内部
+
+    private func teardownMonitorIfNeeded(_ monitorCreatedByUs: Bool) {
+        guard monitorCreatedByUs, !MonitorDevice.teardown() else { return }
+        cleanupWarnings.append(
+            "既定出力の復元に失敗しました。`kilde audio monitor teardown` を実行してください"
+        )
+    }
 
     private func runRecording(url: URL) throws -> Summary {
         audioLabels = try labeledSources().map { $0.label }

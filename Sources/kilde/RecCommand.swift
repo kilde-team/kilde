@@ -2,6 +2,7 @@ import Foundation
 import AppKit
 import ArgumentParser
 import KildeCore
+import Darwin
 
 struct RecCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
@@ -90,8 +91,12 @@ struct RecCommand: ParsableCommand {
             options.audioSources = [.system, .mic]
             options.trackPolicy = .mixed
             if window == nil {
-                if let picked = promptWindowSelection() {
-                    window = picked
+                do {
+                    if let picked = try promptWindowSelection() {
+                        window = picked
+                    }
+                } catch {
+                    cliError(error)
                 }
             }
         }
@@ -140,7 +145,16 @@ struct RecCommand: ParsableCommand {
             ticker.cancel()
             print("")
             printSummary(summary)
+            for warning in recorder.cleanupWarnings {
+                FileHandle.standardError.write("WARNING: \(warning)\n".data(using: .utf8)!)
+            }
+            if !recorder.cleanupWarnings.isEmpty {
+                Darwin.exit(1)
+            }
         } catch {
+            for warning in recorder.cleanupWarnings {
+                FileHandle.standardError.write("WARNING: \(warning)\n".data(using: .utf8)!)
+            }
             cliError(error)
         }
     }
@@ -162,8 +176,8 @@ struct RecCommand: ParsableCommand {
 
     /// meeting プリセット用のウィンドウ対話選択。nil ならディスプレイ全体。
     /// 戻り値は windowID (選択したウィンドウを確実に再解決できる)。
-    private func promptWindowSelection() -> String? {
-        guard let windows = try? DisplayCatalog.listOnScreenWindows() else { return nil }
+    private func promptWindowSelection() throws -> String? {
+        let windows = try DisplayCatalog.listOnScreenWindows()
         let sorted = windows.sorted { $0.frame.width * $0.frame.height > $1.frame.width * $1.frame.height }
         print("収録するウィンドウを選択してください:")
         for (i, w) in sorted.enumerated() {
@@ -172,7 +186,8 @@ struct RecCommand: ParsableCommand {
         for _ in 0..<3 {
             print("番号を入力 (空欄 Enter でディスプレイ全体): ", terminator: "")
             guard let line = readLine()?.trimmingCharacters(in: .whitespaces) else {
-                return nil  // EOF — ディスプレイ全体へフォールバック
+                // 非対話実行で意図せず全画面を収録しないよう、明示指定を要求する
+                throw KilError.failed("ウィンドウ選択の入力がありません (非対話実行では --window を指定してください)")
             }
             if line.isEmpty { return nil }
             if let n = Int(line), sorted.indices.contains(n) {
@@ -180,7 +195,8 @@ struct RecCommand: ParsableCommand {
             }
             print("  無効な入力です。0...\(sorted.count - 1) の番号を入力してください。")
         }
-        return nil
+        // 誤入力を全画面指定として扱うと収録範囲が広がるため、安全側で中止する
+        throw KilError.failed("有効なウィンドウ番号が入力されませんでした (--window で直接指定もできます)")
     }
 
     private func startStatusTicker(_ recorder: Recorder) -> DispatchSourceTimer {
