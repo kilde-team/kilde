@@ -1,0 +1,19 @@
+docs/DESIGN.md
+  s_4a81b712cd34b8::t_989b3fe69b3442 197-198
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1aebe7b8ca137b8fae199489217f3107768ffb6f",
+  "prompts": {},
+  "sessions": {
+    "s_4a81b712cd34b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e105894-1af4-4be4-b31a-cf222ebe28db",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
