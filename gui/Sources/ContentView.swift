@@ -71,29 +71,33 @@ struct ContentView: View {
         .onAppear(perform: reload)
     }
 
-    /// SCShareableContent の初回列挙は数百 ms かかることがあるため、
-    /// メニューバーのパネルを開くたびにメインスレッドを塞がないよう
-    /// Task に逃がして結果だけ @State に書き戻す。
+    /// SCShareableContent の初回列挙は数百 ms かかる (権限プロンプト保留中は
+    /// さらに長く) なるため、メニューバーのパネルを開くたびにメインスレッドを
+    /// 塞がないよう detached タスクで列挙し、結果だけ @State に書き戻す。
+    /// View のメソッドは @MainActor 隔離なので Task {} では隔離を継承して
+    /// ブロッキング呼び出しがメインに留まる — detached が必須。
     /// (issue #35 で snapshot() の async 版が入ったら .task {} + await に移行する)
     private func reload() {
-        Task {
+        Task.detached {
+            let result: Result<(displays: [DisplayInfo], windows: [WindowInfo]), Error>
             do {
-                let snapshot = try DisplayCatalog.snapshot()
-                await MainActor.run {
+                result = .success(try DisplayCatalog.snapshot())
+            } catch {
+                result = .failure(error)
+            }
+            let devices = AudioDeviceCatalog.devices
+            await MainActor.run {
+                switch result {
+                case .success(let snapshot):
                     displays = snapshot.displays
                     windows = snapshot.windows.filter(\.isOnScreen)
                     loadError = nil
-                }
-            } catch {
-                // 画面収録の権限が無いとここに来る (kilde doctor 相当の案内)
-                await MainActor.run {
+                case .failure(let error):
+                    // 画面収録の権限が無いとここに来る (kilde doctor 相当の案内)
                     displays = []
                     windows = []
                     loadError = "画面/ウィンドウの列挙に失敗: \(error)"
                 }
-            }
-            let devices = AudioDeviceCatalog.devices
-            await MainActor.run {
                 audioDevices = devices
             }
         }
