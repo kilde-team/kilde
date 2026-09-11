@@ -127,6 +127,16 @@ xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI -configuration Debug bui
 > 再起動で有効化 — CLI の `doctor` と同じ仕様)。未付与の間はオーディオ機器
 > 一覧のみ表示されます (画面収録権限は不要なため)。
 
+> **開発用署名証明書 (kilde-dev)**: TCC 権限はコード署名でアプリを識別するため、
+> ad-hoc 署名のビルドでは権限のトグルが再起動のたびに外れることがある。
+> `gui/project.yml` は `kilde-dev` という名前の自己署名コード署名証明書で署名する
+> 設定にしてある。無い場合はキーチェーンアクセス → 証明書アシスタント →
+> 「証明書を作成」で以下のように作成する:
+>
+> - 名前: `kilde-dev` / 認証タイプ: 自己署名ルート / 「デフォルトを上書き」✅
+> - 有効期間: 3650 日 / 拡張キー使用: **コード署名** / 鍵: RSA 2048 (既定)
+> - 作成先: ログインキーチェーン
+
 > 補足: ローカルの ad-hoc 署名ビルドを起動すると、Xcode のコンソールに
 > `com.apple.linkd.autoShortcut` への接続エラーや "Error registering app with
 > intents framework" が出ることがあります。これは App Shortcuts 登録まわりの
