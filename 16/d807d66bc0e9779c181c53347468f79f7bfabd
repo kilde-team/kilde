@@ -1,0 +1,27 @@
+Tests/KildeCoreTests/HotkeyParserTests.swift
+  s_34d31eef171f3f::t_41ad4d6deab493 29-40
+scripts/integration-test.sh
+  s_34d31eef171f3f::t_cf05bf051129bc 421-447
+Sources/kilde/RecCommand.swift
+  s_34d31eef171f3f::t_80137fb8333c87 94-99
+Sources/KildeCore/Input/HotkeyMonitor.swift
+  s_34d31eef171f3f::t_dfa68dadb75503 76
+  s_34d31eef171f3f::t_4a674baa6e05e6 5-7
+  s_34d31eef171f3f::t_f6e39067817154 47-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "16d807d66bc0e9779c181c53347468f79f7bfabd",
+  "prompts": {},
+  "sessions": {
+    "s_34d31eef171f3f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2fe81784-1008-4b9f-8671-2ec2cf21a534",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
