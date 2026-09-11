@@ -300,9 +300,13 @@ fi
 
 if command -v xcodegen >/dev/null 2>&1; then
     log "T11: GUI — KildeGUI のビルドと起動/終了"
+    # project.yml は kilde-dev 証明書での手動署名のため、証明書が無い環境では
+    # codesign が失敗する。作成手順は docs/DEVELOPMENT.md §3
+    if ! security find-identity -v -p codesigning 2>/dev/null | grep -q "kilde-dev"; then
+        skip "T11 GUI: 署名用証明書 kilde-dev なし (docs/DEVELOPMENT.md §3 の手順で作成可)"
     # 既に起動している KildeGUI は open が再利用してしまう (検証にも利用中アプリの
     # 終了にも使えない) ので、その場合は検証しない
-    if pgrep -x KildeGUI >/dev/null 2>&1; then
+    elif pgrep -x KildeGUI >/dev/null 2>&1; then
         skip "T11 GUI: KildeGUI が既に起動中のためスキップ (終了してから再実行)"
     elif (cd "$ROOT/gui" && xcodegen -q > "$WORK/t11-xcodegen.log" 2>&1 \
         && xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI -configuration Debug build \

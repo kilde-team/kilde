@@ -137,11 +137,11 @@ xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI -configuration Debug bui
 > - 有効期間: 3650 日 / 拡張キー使用: **コード署名** / 鍵: RSA 2048 (既定)
 > - 作成先: ログインキーチェーン
 
-> 補足: ローカルの ad-hoc 署名ビルドを起動すると、Xcode のコンソールに
+> 補足: ローカル署名ビルド (kilde-dev) や Xcode の実行では、コンソールに
 > `com.apple.linkd.autoShortcut` への接続エラーや "Error registering app with
 > intents framework" が出ることがあります。これは App Shortcuts 登録まわりの
 > システムサービス接続のノイズで、KildeGUI は AppIntents を使わないため機能に
-> 影響しません (正式署名での配布時には出なくなります)。
+> 影響しません (正式な Developer ID 署名では出なくなると考えられます)。
 
 ## 4. 統合テスト
 
