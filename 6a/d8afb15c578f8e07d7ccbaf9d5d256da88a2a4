@@ -1,0 +1,21 @@
+scripts/drift-test.sh
+  s_35faeec28b4c4b::t_c64c4e0e69e5c7 114-119
+scripts/drift-marker.swift
+  s_35faeec28b4c4b::t_18dba68406aec2 29-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "6ad8afb15c578f8e07d7ccbaf9d5d256da88a2a4",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
