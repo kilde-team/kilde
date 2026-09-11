@@ -14,7 +14,10 @@ enum AudioSampleBufferTestHelper {
         file: StaticString = #filePath,
         line: UInt = #line
     ) throws -> CMSampleBuffer {
-        try makePCM(
+        // 端数フレームがあると frameCount と実データ長が食い違い、末尾が黙って落ちるため拒否する
+        precondition(channelCount > 0 && samples.count % channelCount == 0,
+                     "samples.count (\(samples.count)) は channelCount (\(channelCount)) の倍数にすること")
+        return try makePCM(
             bytes: samples.withUnsafeBytes { Data($0) },
             sampleRate: sampleRate,
             channelCount: channelCount,
@@ -37,7 +40,9 @@ enum AudioSampleBufferTestHelper {
         file: StaticString = #filePath,
         line: UInt = #line
     ) throws -> CMSampleBuffer {
-        try makePCM(
+        precondition(channelCount > 0 && samples.count % channelCount == 0,
+                     "samples.count (\(samples.count)) は channelCount (\(channelCount)) の倍数にすること")
+        return try makePCM(
             bytes: samples.withUnsafeBytes { Data($0) },
             sampleRate: sampleRate,
             channelCount: channelCount,

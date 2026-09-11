@@ -142,7 +142,8 @@ scripts/integration-test.sh
 swift test
 ```
 
-`Tests/KildeCoreTests/` は権限なし・ヘッドレスで通る単体テストです (CI でも実行する)。
+`Tests/KildeCoreTests/` は権限なし・ヘッドレスで通る単体テストです
+(CI で実行できる前提で書いている。ワークフロー自体は issue #6 で追加する)。
 SCK / AVCapture / CoreAudio の実デバイスには触れません。
 
 | ファイル | 対象 |
