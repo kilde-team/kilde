@@ -25,7 +25,17 @@ enum SelfTest {
             setup.request.outputDirectory = URL(fileURLWithPath: dir, isDirectory: true)
         }
         setup.request.target = .display(index: 0)
-        setup.request.captureSystemAudio = true
+        // KILDE_GUI_SELFTEST_AUDIO=none で映像だけにできる。音声出力が使えない環境
+        // (蓋を閉じたクラムシェルで既定出力が内蔵スピーカー等 — SCK の音声開始が -3818 で失敗する) でも
+        // GUI → Recorder の経路自体は確かめられるようにするため
+        switch env["KILDE_GUI_SELFTEST_AUDIO"] ?? "system" {
+        case "system":
+            setup.request.captureSystemAudio = true
+        case "none":
+            setup.request.captureSystemAudio = false
+        case let other:
+            fail("KILDE_GUI_SELFTEST_AUDIO は system か none を指定してください: \(other)")
+        }
         setup.request.captureMic = false
         setup.request.inputDevices = []
 

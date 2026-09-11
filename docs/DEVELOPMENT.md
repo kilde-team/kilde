@@ -152,6 +152,10 @@ KILDE_GUI_SELFTEST_RECORD=3 KILDE_GUI_SELFTEST_OUTPUT=/tmp "$APP/Contents/MacOS/
 ../.build/debug/kilde inspect /tmp/kilde-*.mov   # CLI の録画と同じトラック構成か確認
 ```
 
+`KILDE_GUI_SELFTEST_AUDIO=none` を付けると映像だけを録ります (音声出力が使えない環境 —
+MacBook を閉じたクラムシェルで既定出力が内蔵スピーカーのとき等は SCK の音声開始が
+`-3818` で失敗するため、その場合でも GUI → Recorder の経路だけは確かめられる)。
+
 > **マイクのエンタイトルメント**: Hardened Runtime 下でマイク・入力デバイスを使うには
 > `com.apple.security.device.audio-input` が必要です (`gui/Resources/KildeGUI.entitlements`)。
 > 欠けるとエラーもクラッシュもなく無音のトラックになります。GUI にはマイクの TCC 権限も
