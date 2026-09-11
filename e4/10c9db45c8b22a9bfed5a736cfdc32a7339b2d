@@ -1,0 +1,35 @@
+docs/DESIGN.md
+  s_4a81b712cd34b8::t_1b479b2649107f 62-63
+  s_4a81b712cd34b8::t_7b216347aaf501 3,5-6
+  s_4a81b712cd34b8::t_afa0af59609918 185,187
+  s_4a81b712cd34b8::t_1bcb78e4183966 193-200
+  s_4a81b712cd34b8::t_3b4404b2273105 274-293
+  s_4a81b712cd34b8::t_52564cac803d1a 336,338-350,354-355
+  s_4a81b712cd34b8::t_3812b4a4fdb194 365-370
+  s_4a81b712cd34b8::t_6184ef71b10b0b 211-212,214-219,222-223,228-232,234-235,237-240,249,253,255
+  s_4a81b712cd34b8::t_562d1dec2289bd 159-177
+  s_4a81b712cd34b8::t_f250b990aa9063 127-130
+  s_4a81b712cd34b8::t_65eb7ccec506de 318
+docs/DEVELOPMENT.md
+  s_4a81b712cd34b8::t_e4db3e30b78df3 161-173
+  s_4a81b712cd34b8::t_92389fedd1dc52 88-89,91,94-95
+CLAUDE.md
+  s_4a81b712cd34b8::t_d08df8740598ef 26
+  s_4a81b712cd34b8::t_e84aa771521aad 89,93-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "e410c9db45c8b22a9bfed5a736cfdc32a7339b2d",
+  "prompts": {},
+  "sessions": {
+    "s_4a81b712cd34b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5e105894-1af4-4be4-b31a-cf222ebe28db",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
