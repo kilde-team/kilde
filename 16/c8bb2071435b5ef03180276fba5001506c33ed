@@ -1,0 +1,27 @@
+docs/DEVELOPMENT.md
+  s_35faeec28b4c4b::t_76474b99e0466f 267
+  s_35faeec28b4c4b::t_1cf72435daef70 209-210
+docs/SPIKE-NOTES.md
+  s_35faeec28b4c4b::t_14d547293e538f 150-154
+  s_35faeec28b4c4b::t_2367510a841c4a 164-166
+scripts/drift-marker.swift
+  s_35faeec28b4c4b::t_9bd17c39e38688 122-124,126-134
+docs/DESIGN.md
+  s_35faeec28b4c4b::t_185fe097c93294 204-207
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "16c8bb2071435b5ef03180276fba5001506c33ed",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
