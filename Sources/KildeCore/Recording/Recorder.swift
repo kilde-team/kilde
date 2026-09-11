@@ -226,17 +226,21 @@ public final class Recorder {
     // MARK: - セッション本体
 
     /// start() から Task 上で実行される一本道のセッション。
-    /// すべての失敗を catch して error に遷移させ、どの経路でも完了通知を出す
+    /// 失敗イベントと error 遷移はここで一律に出す — 権限・monitor セットアップ・
+    /// 録画中のどの段階で失敗しても、イベント消費者が .failed を必ず受け取るため
     private func runSession() async {
         setState(.preparing)
-        let result: Result<Summary, Error>
         do {
-            result = .success(try await performSession())
+            let summary = try await performSession()
+            storeCompletion(.success(summary))
         } catch {
-            result = .failure(error)
+            let partial = writer != nil && fileExists(outputURL)
+            setState(.error)
+            eventContinuation.yield(
+                .failed(Self.asKilError(error), partialFileExists: partial))
+            storeCompletion(.failure(error))
         }
         eventContinuation.finish()
-        storeCompletion(result)
     }
 
     /// run() の waiter 全員に完了を通知する。同期ヘルパに切り出しているのは、
@@ -284,15 +288,9 @@ public final class Recorder {
             eventContinuation.yield(.completed(summary))
             return summary
         } catch {
-            // 後始末の失敗で録画本体のエラーと終了コードを上書きしない
+            // 後始末の失敗で録画本体のエラーと終了コードを上書きしない。
+            // 失敗イベントと error 遷移は runSession の収束点で出す
             teardownMonitorIfNeeded(monitorCreatedByUs)
-            setState(.error)
-            // 部分ファイルは「このセッションが writer を作った後」の失敗だけを報告する。
-            // writer 生成前に失敗した場合、出力先に既存の無関係ファイルがあっても
-            // 部分ファイルとは呼べないため含めない
-            let writerCreated = writer != nil
-            eventContinuation.yield(
-                .failed(Self.asKilError(error), partialFileExists: writerCreated && fileExists(url)))
             throw error
         }
     }
