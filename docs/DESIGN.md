@@ -265,7 +265,7 @@ kilde rec --duration 30s --codec hevc out.mov
 2. **モニタ維持**: `kilde audio monitor setup` は CoreAudio の
    aggregate device API で「既定出力 + BlackHole」のマルチ出力デバイス
    "kilde Monitor" を作成し既定出力に設定。**非公開の `stacked` フラグが
-   必須** (SPIKE-NOTES F-C)。`--teardown` で作成物を削除し元の既定出力へ復元。
+   必須** (SPIKE-NOTES F-C)。`kilde audio monitor teardown` で作成物を削除し元の既定出力へ復元。
    録音セッション中の自動 setup/teardown (`--monitor` フラグ) もサポート。
 3. **録音 (音声のみ) モードでの位置づけ**: SCK ネイティブ経路が確立したため
    BlackHole は必須ではなくなった (S8)。`--audio device:BlackHole2ch` の

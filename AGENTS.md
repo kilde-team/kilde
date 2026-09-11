@@ -1,0 +1,84 @@
+# AGENTS.md — kilde で作業する AI エージェントへの指示
+
+このファイルは Codex CLI をはじめとするコーディングエージェントが、このリポジトリで
+作業するときに**毎回自動で従う**ルールです。依頼者は「issue #5 を実装して」のような
+短い指示しか出さない前提で、ここに書かれた観点を省略せずに実行してください。
+
+プロダクトの背景・地図・踏んではいけない地雷は [CLAUDE.md](CLAUDE.md) に、
+人間向けのビルド/テスト手順は [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) に、
+設計の根拠は [docs/DESIGN.md](docs/DESIGN.md) / [docs/SPIKE-NOTES.md](docs/SPIKE-NOTES.md)
+にあります。**作業前に CLAUDE.md §3〜§7 を必ず読むこと。**
+
+## 1. 作業の単位は GitHub issue
+
+- 作業は必ず GitHub issue (https://github.com/takezou621/kilde/issues) に紐づける。
+  依頼に issue 番号があれば `gh issue view <N>` で本文を読む。番号がなく機能名だけの
+  依頼なら `gh issue list --search "<キーワード>"` で該当 issue を探し、見つからなければ
+  受け入れ条件を含む issue を先に作ってから着手する
+- issue 本文の **背景 / スコープ / 受け入れ条件** がそのまま完了の定義。受け入れ条件を
+  すべて満たすまで「完了」と報告しない。満たせない項目があれば理由を PR に書く
+- issue のスコープ外の改善を見つけたら、その PR には入れず別 issue を起票する
+
+## 2. ブランチと PR (main への直接 push 禁止)
+
+1. `git fetch origin && git switch -c feature/<issue番号>-<slug> origin/main`
+   (例: `feature/5-unit-tests`)。既存ブランチが指定された場合はそれに従う
+2. コミットメッセージは**英語**・命令形の要約行 (既存履歴に合わせる)。
+   コードコメントとドキュメントは**日本語**で、特に回避策は「なぜそうしたか」を書く
+3. PR は `gh pr create --base main` で作成する。本文には必ず:
+   - `Closes #<issue番号>`
+   - 変更の要約と、受け入れ条件ごとの充足状況
+   - §3 の検証結果 (実行したコマンドと結果をそのまま貼る)
+   - 仕様に影響する変更なら DESIGN.md / DEVELOPMENT.md を同じ PR で更新した旨
+4. PR を作ると cubic と CodeRabbit の AI レビューが自動で走る。指摘は
+   `gh api graphql` の reviewThreads で取得し、妥当なものは修正してスレッドを resolve、
+   妥当でないものは理由を返信する。すべて処理してから完了報告する
+5. `--force` push、`main` への直接コミット、他人のブランチの書き換えはしない
+
+## 3. 変更後に必ず行う検証
+
+```sh
+swift build                                  # 警告は既知のもの (NSLock in async) 以外を増やさない
+swift test                                   # Tests/ が存在する場合は必ず
+scripts/integration-test.sh                  # 録画/デバイス/権限に関わる変更は全体を実行
+```
+
+- 統合テストは**実録画**を伴い、画面収録・マイクの権限とスピーカー音量が必要
+  (前提は docs/DEVELOPMENT.md §4)。実行できない環境の場合は、その旨と
+  「依頼者に実行してもらうべき T 番号」を PR に明記する
+- ドキュメントだけの変更なら `swift build` のみで良い
+- CLI の引数・出力を変えたときは `.build/debug/kilde rec --help` の出力と
+  README / DESIGN.md §6 の例が一致することを確認する
+
+## 4. 設計との整合
+
+- レイヤ規約: `Sources/kilde` (CLI) にロジックを足さない。録画の挙動は
+  `Sources/KildeCore` に入れる (M3 の GUI が同じコードを使う)
+- CLAUDE.md §5「地雷」と §6「並行性の規約」に反する変更はしない。
+  やむを得ず変える場合は、理由を CLAUDE.md と SPIKE-NOTES に追記する
+- `Package.swift` の `unsafeFlags` (Info.plist 埋め込み) と `Sources/kilde/Info.plist`
+  を壊さない。`otool -P .build/debug/kilde` で `NSMicrophoneUsageDescription` が
+  残っていることを確認する
+- 終了コード (`0` / `1` / `2` 権限 / `3` デバイス不明) と既定値
+  (`--audio system`, `--audio-tracks mixed`, 出力名 `kilde-yyyyMMdd-HHmmss.*`) は
+  契約。変える場合は DESIGN.md §6 を同時に更新する
+- 統合テストを CI に載せない (権限が必要)。CI は `swift build` と `swift test` のみ
+
+## 5. 完了報告の形式
+
+作業を終えたら、依頼者に次を簡潔に報告する:
+
+- PR の URL と `Closes #N`
+- 受け入れ条件のチェックリスト (満たしたもの / 満たせなかったものと理由)
+- 実行した検証コマンドと結果 (統合テストなら `PASS=… FAIL=… SKIP=…` の行)
+- AI レビュー指摘の処理結果 (修正 / 反論 / 未対応の件数)
+- 依頼者に実機で確認してほしいことがあれば、具体的なコマンド
+
+## 6. 環境の注意
+
+- ビルドと統合テストは **macOS (Apple Silicon, Xcode 26.5 SDK)** で行う。
+  Linux やヘッドレス環境では `swift build` すら通らない
+- `gh` は takezou621 アカウントで認証済み。cubic のレビューは
+  takezou621 組織で実行される (a23s-inc 組織は使わない)
+- 検証に使う音声・録画ファイルはリポジトリにコミットしない
+  (`scripts/integration-test.sh` は一時ディレクトリを使う)

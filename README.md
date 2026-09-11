@@ -58,6 +58,7 @@ kilde inspect FILE # 録画ファイルのトラック構成と音声レベル
 
 ## 開発
 
+- 開発手順 (ビルド・権限・テスト・トラブルシュート): [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
 - 設計: [docs/DESIGN.md](docs/DESIGN.md) / M0 検証結果: [docs/SPIKE-NOTES.md](docs/SPIKE-NOTES.md)
 - 統合テスト (ローカル・実録画): `scripts/integration-test.sh`
   — 権限と音量が必要、所要 ~2 分
