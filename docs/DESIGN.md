@@ -194,7 +194,8 @@ SCStream(contentFilter, configuration)
 - `startSession(atSourceTime:)` を「最初に到着した映像サンプルの PTS」
   (音声のみモードは最初の音声 PTS) で呼び、アンカーより前の音声 PTS は
   ドロップする (`MovieWriter.Anchor`)。
-- ソースごとに「映像との first-PTS 差」を記録し、`rec` のサマリに出す。
+- 出力する音声トラックごとに「映像との first-PTS 差」を記録し、`rec` のサマリに出す
+  (`MovieWriter.firstPTSOffsets` は書き込み先ラベルがキー。mixed では `mixed` トラックの差になる)。
   これが同期の健全性指標で、マイクは起動遅延ぶん +0.3s 前後までを想定内とする
   (マイクを SCStream より先に起動して吸収 — SPIKE-NOTES F-D)。
   長時間録画でのドリフトは未計測 (issue #3)。
