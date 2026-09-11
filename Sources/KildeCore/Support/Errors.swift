@@ -1,5 +1,7 @@
 /// kilde のエラー型。CLI はこれを終了コードに写像する。
-public enum KilError: Error, CustomStringConvertible {
+/// ペイロードは String のみなので Sendable も安全に成立する
+/// (RecorderEvent 経由で Task をまたいで運ばれるため必要)
+public enum KilError: Error, CustomStringConvertible, Sendable {
     /// 権限不足 (画面収録 / マイク)。終了コード 2。
     case permission(String)
     /// デバイスやウィンドウが見つからない。終了コード 3。

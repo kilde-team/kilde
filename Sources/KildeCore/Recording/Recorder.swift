@@ -121,8 +121,9 @@ public final class Recorder {
     private let stopSignal: AsyncStream<Void>
     private let stopSignalContinuation: AsyncStream<Void>.Continuation
 
-    /// 同期 run() のための完了通知 (signal の時点で completionResult が確定している)
-    private let completionSemaphore = DispatchSemaphore(value: 0)
+    /// 同期 run() のための完了通知。NSCondition にすることで複数の waiter が
+    /// 同時に待て、完了時に全員が起こる (semaphore では 2 回目の run() が固まる)
+    private let completionCondition = NSCondition()
     private var completionResult: Result<Summary, Error>?
 
     /// start() / run() の二重実行ガード
@@ -173,22 +174,20 @@ public final class Recorder {
 
     /// 録画を実行し、完了までブロックする (CLI 互換の同期 API — start() のラッパ)。
     /// この経路では progress イベントを流さないので、進捗は progress() で取得すること。
-    /// セッション完了後の再呼び出しは同じ結果を返す (二度目の待機で固まらない)
+    /// 完了後の再呼び出しや、セッション進行中の並行呼び出しも同じ結果を返す
     @discardableResult
     public func run() throws -> Summary {
-        lock.lock()
-        let finishedResult = completionResult
-        let launched = sessionLaunched
-        lock.unlock()
-        if let finishedResult {
-            return try finishedResult.get()
+        // start() が no-op でも問題ない (sessionLaunched ガード) ので常に呼ぶ。
+        // start() 済みセッションへの後からの run() では progress が流れ続けるが害は無い
+        emitsProgressEvents = false
+        start()
+        completionCondition.lock()
+        while completionResult == nil {
+            completionCondition.wait()
         }
-        if !launched {
-            emitsProgressEvents = false
-            start()
-        }
-        completionSemaphore.wait()
-        return try completionResult!.get()
+        let result = completionResult!
+        completionCondition.unlock()
+        return try result.get()
     }
 
     /// CLI のステータス表示用 (0.5 秒周期で呼ばれる)
@@ -220,14 +219,24 @@ public final class Recorder {
     /// すべての失敗を catch して error に遷移させ、どの経路でも完了通知を出す
     private func runSession() async {
         setState(.preparing)
+        let result: Result<Summary, Error>
         do {
-            let summary = try await performSession()
-            completionResult = .success(summary)
+            result = .success(try await performSession())
         } catch {
-            completionResult = .failure(error)
+            result = .failure(error)
         }
         eventContinuation.finish()
-        completionSemaphore.signal()
+        storeCompletion(result)
+    }
+
+    /// run() の waiter 全員に完了を通知する。同期ヘルパに切り出しているのは、
+    /// NSCondition の操作を async コンテキストで直接行うと警告になるため
+    /// (待つのは既に結果が出た後の短区間で、長時間のブロックは無い)
+    private func storeCompletion(_ result: Result<Summary, Error>) {
+        completionCondition.lock()
+        completionResult = result
+        completionCondition.broadcast()
+        completionCondition.unlock()
     }
 
     private func performSession() async throws -> Summary {
@@ -268,8 +277,12 @@ public final class Recorder {
             // 後始末の失敗で録画本体のエラーと終了コードを上書きしない
             teardownMonitorIfNeeded(monitorCreatedByUs)
             setState(.error)
+            // 部分ファイルは「このセッションが writer を作った後」の失敗だけを報告する。
+            // writer 生成前に失敗した場合、出力先に既存の無関係ファイルがあっても
+            // 部分ファイルとは呼べないため含めない
+            let writerCreated = writer != nil
             eventContinuation.yield(
-                .failed(Self.asKilError(error), partialFileExists: fileExists(url)))
+                .failed(Self.asKilError(error), partialFileExists: writerCreated && fileExists(url)))
             throw error
         }
     }
@@ -402,8 +415,8 @@ public final class Recorder {
 
     /// recording 中 0.5 秒周期で progress イベントを流ぶ (GUI 向け)。
     /// 経過時間・出力サイズ・レベルは progress() と同じ計算経路を使う。
-    /// キャンセル後は sleep が投げる CancellationError で抜け、
-    /// finalizing 以降に progress が流れないようにする
+    /// チェックから yield までのわずかな競合窓は残るが、sleep 起き直し後の
+    /// isCancelled と recording 状態の二重チェックで実質的に finalizing 以降には流さない
     private func startProgressEmissionIfNeeded() -> Task<Void, Never> {
         guard emitsProgressEvents else { return Task {} }
         return Task { [weak self] in
@@ -411,9 +424,10 @@ public final class Recorder {
                 do {
                     try await Task.sleep(nanoseconds: 500_000_000)
                 } catch {
-                    return
+                    return  // キャンセルされた
                 }
-                guard let self, let p = self.progress() else { continue }
+                guard let self, !Task.isCancelled, self.currentState == .recording else { continue }
+                guard let p = self.progress() else { continue }
                 self.eventContinuation.yield(.progress(p))
             }
         }
