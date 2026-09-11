@@ -113,7 +113,11 @@ public final class Recorder {
     // MARK: イベント駆動 (issue #8)
 
     /// 状態遷移・進捗・完了・失敗の通知ストリーム。
-    /// 開始後に購読すると既に流れたイベントを受け取れないため、start() より前に行うこと
+    /// バッファは新しい方を 16 件だけ保持する — 購読前に流れた progress が古い順に
+    /// 捨てられ、consumer 未接続のまま長時間録画してもメモリが膨らまない。
+    /// 最後の .completed / .failed は常に最新側に来るため失われない。
+    /// start() の前に購読すること (未購録の初期状態は currentState で補間できる)。
+    /// 購読側 Task を cancel するとストリーム自体が終端する (再購読はできない)
     public let events: AsyncStream<RecorderEvent>
     private let eventContinuation: AsyncStream<RecorderEvent>.Continuation
 
@@ -134,13 +138,14 @@ public final class Recorder {
 
     /// 同期 run() ラッパ経由では progress イベントを流さない
     /// (CLI は従来どおり progress() をポーリングするため)。
-    /// run() が start() の前に false に入れ、セッション Task はその後で起きるため
-    /// 読み書きの競合は無い
+    /// start() 済みセッションへの後からの run() では並行セッション Task との
+    /// 競合を避けるため触らない — lock 下で読み書きする
     private var emitsProgressEvents = true
 
     public init(options: RecordOptions) {
         self.options = options
-        (events, eventContinuation) = AsyncStream.makeStream(of: RecorderEvent.self)
+        (events, eventContinuation) = AsyncStream.makeStream(
+            of: RecorderEvent.self, bufferingPolicy: .bufferingNewest(16))
         (stopSignal, stopSignalContinuation) = AsyncStream.makeStream(
             of: Void.self, bufferingPolicy: .bufferingNewest(1))
     }
@@ -177,9 +182,14 @@ public final class Recorder {
     /// 完了後の再呼び出しや、セッション進行中の並行呼び出しも同じ結果を返す
     @discardableResult
     public func run() throws -> Summary {
-        // start() が no-op でも問題ない (sessionLaunched ガード) ので常に呼ぶ。
-        // start() 済みセッションへの後からの run() では progress が流れ続けるが害は無い
-        emitsProgressEvents = false
+        // 未起動のときだけ progress 抑制を決める (start() 済みセッションへの後からの
+        // run() では、セッション Task が並行して flag を読むため lock 下で判定する)
+        lock.lock()
+        let notLaunched = !sessionLaunched
+        if notLaunched {
+            emitsProgressEvents = false
+        }
+        lock.unlock()
         start()
         completionCondition.lock()
         while completionResult == nil {
@@ -422,7 +432,10 @@ public final class Recorder {
     /// チェックから yield までのわずかな競合窓は残るが、sleep 起き直し後の
     /// isCancelled と recording 状態の二重チェックで実質的に finalizing 以降には流さない
     private func startProgressEmissionIfNeeded() -> Task<Void, Never> {
-        guard emitsProgressEvents else { return Task {} }
+        lock.lock()
+        let emits = emitsProgressEvents
+        lock.unlock()
+        guard emits else { return Task {} }
         return Task { [weak self] in
             while !Task.isCancelled {
                 do {
