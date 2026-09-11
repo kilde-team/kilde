@@ -85,15 +85,14 @@ windowID を確認して数値で指定するのが確実です。
 
 | コード | 意味 |
 |-------|------|
-| 0 | 成功 |
-| 1 | その他の失敗 (ファイナライズ失敗など) |
+| 0 | 成功 (Ctrl+C / SIGTERM / SIGHUP / `--duration` による停止を含む) |
+| 1 | その他の失敗 (ファイナライズ失敗、monitor の復元失敗、meeting の選択中止など) |
 | 2 | 権限不足 (画面収録 / マイク) |
-| 3 | デバイス・ウィンドウが見つからない |
+| 3 | デバイス・ウィンドウ・ディスプレイが見つからない |
 | 64 | オプションの検証エラー (ArgumentParser が返す。`KilError` は経由しない) |
 
-⚠️ DESIGN.md §6 は割り込み時に `130` を返すと書いていますが、**実装は SIGINT を
-「正常な停止」として扱い exit 0 を返します** (統合テスト T10 がこれを前提にしている)。
-仕様と実装のどちらに揃えるかは未決です。
+Ctrl+C は正規の停止操作なので、ファイナライズに成功すれば exit 0 です
+(DESIGN.md §6 v0.4。統合テスト T10 が保証)。
 
 ## 4. 統合テスト
 
@@ -159,17 +158,19 @@ scripts/integration-test.sh
 
 | # | 内容 | 状態 |
 |---|------|------|
-| 1 | **S10: 会議アプリ実地検証** (Zoom / Teams / Chrome Meet で `--preset meeting`) | 未実施 — M0 唯一の残項目 |
-| 2 | `feature/m1-cli-mvp` を `main` へマージ | 未 |
-| 3 | `Tests/KildeCoreTests` の作成 | 未 |
-| 4 | CI (`.github/workflows`) で `swift build` + 単体テスト | 未 |
-| 5 | 長時間 (10 分級) の A/V ドリフト測定 | 未 |
-| 6 | 旧 OS (13/14/15) での S8 / S9 挙動の確認 | 未 |
-| 7 | `LICENSE` (MIT) の追加 | 未 |
-| 8 | DESIGN.md §6 の終了コード `130` と実装 (SIGINT で exit 0) の食い違いを解消 | 未 |
-| 9 | SCK 圧縮フレーム passthrough (無再エンコード録画) の検討 | 未 |
-| 10 | M2: 領域指定収録 / グローバルホットキー / 一時停止・再開 | 未着手 |
-| 11 | M3: メニューバー GUI (`gui/` を Xcode プロジェクトとして作成) | 未着手 |
+| 1 | **S10: 会議アプリ実地検証** (Zoom / Teams / Chrome Meet で `--preset meeting`) | 未実施 — issue #2 |
+| 2 | `feature/m1-cli-mvp` を `main` へマージ | 済 (PR #1) |
+| 3 | `Tests/KildeCoreTests` の作成 | issue #5 |
+| 4 | CI (`.github/workflows`) で `swift build` + 単体テスト | issue #6 |
+| 5 | 長時間 (10 分級) の A/V ドリフト測定 | issue #3 |
+| 6 | 旧 OS (14/15) での S7 / S8 / S9 挙動の確認 | issue #4 |
+| 7 | `LICENSE` (MIT) の追加 | issue #21 |
+| 8 | DESIGN.md §6 の終了コード `130` と実装 (SIGINT で exit 0) の食い違いを解消 | 済 — exit 0 に統一 (issue #7) |
+| 9 | SCK 圧縮フレーム passthrough (無再エンコード録画) の検討 | issue #15 |
+| 10 | M2: 領域指定収録 / グローバルホットキー / 一時停止・再開 | issue #9 / #10 / #11 |
+| 11 | M3: メニューバー GUI (`gui/` を Xcode プロジェクトとして作成) | issue #17〜#20 |
+
+残タスクの正本は GitHub issue です。この表は索引としてだけ使ってください。
 
 ## 7. ブランチと PR
 
