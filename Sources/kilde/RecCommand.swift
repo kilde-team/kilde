@@ -20,7 +20,7 @@ struct RecCommand: ParsableCommand {
     var audio: [String] = []
 
     // 設定ファイルの値と区別するため、既定値を持たせず「未指定 = nil」にしている
-    @Option(help: "複数音声ソースの処理: mixed = 1 トラックに合成 (既定) / separate = トラック分離")
+    @Option(help: "複数音声ソースの処理: mixed = 1 トラックに合成 (既定) / separate = トラック分離 (設定 audioTracks で変更可)")
     var audioTracks: String?
 
     @Flag(help: "録音 (音声のみ) モード。出力は M4A")
@@ -38,14 +38,14 @@ struct RecCommand: ParsableCommand {
     @Option(help: "自動停止までの時間 (例: 30s, 5m)")
     var duration: String?
 
-    @Option(help: "映像コーデック: h264 (既定) / hevc / prores")
+    @Option(help: "映像コーデック: h264 (既定) / hevc / prores (設定 codec で変更可)")
     var codec: String?
 
-    @Option(help: "上限フレームレート")
+    @Option(help: "上限フレームレート (1 以上。0 以下は終了コード 64。未指定は設定 fps、どちらも無ければ SCK 既定)")
     var fps: Int?
 
     // --no-cursor は M1 からの互換。設定 showsCursor=false を 1 回だけ打ち消せるよう --cursor も受ける
-    @Flag(inversion: .prefixedNo, help: "カーソルを写し込む / 写し込まない (既定: 写し込む)")
+    @Flag(inversion: .prefixedNo, help: "カーソルを写り込む / 写り込まない (既定: 写り込む。設定 showsCursor で変更可、--cursor は false をその回だけ打ち消す)")
     var cursor: Bool?
 
     @Option(help: "開始前カウントダウン (秒)")

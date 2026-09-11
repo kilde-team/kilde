@@ -56,6 +56,7 @@ kilde rec --no-video --audio "device:BlackHole 2ch" --monitor 会議.m4a
 # 既定値を設定ファイル (~/.kilde/config.json) で変更
 #   優先順位: CLI 引数 > --preset > KILDE_OUTPUT_DIR > 設定ファイル > 既定値
 #   不正な設定や存在しない保存先は、録画を始める前にエラー (終了コード 1)
+#   rec --fps 0 のような値の誤りはオプション検証エラー (終了コード 64)
 kilde config set outputDirectory ~/Movies/kilde
 kilde config set defaultAudioSources system,mic
 kilde config set showsCursor false   # その回だけ写したいときは kilde rec --cursor

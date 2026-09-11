@@ -30,14 +30,15 @@ cleanup() {
         "$KILDE" audio monitor teardown >/dev/null 2>&1 && echo "[cleanup] 既定出力を復元しました"
     fi
     [ -n "$SOUNDAPP_PID" ] && kill "$SOUNDAPP_PID" 2>/dev/null
-    # T11 が書いたテスト用の設定だけを消す (中身が一致するときのみ。テスト中に別プロセスが
-    # 保存した設定を消さないため)
-    if [ "${CONFIG_TOUCHED:-0}" = "1" ] && cmp -s "$CONFIG" "$WORK/t11-config.json"; then
+    # T11 が書いたテスト用の設定だけを消す。比較対象は「最後まで書き込みが成功した」
+    # 内容 (lastok) — 書き込み途中の失敗で前回の内容が残っていても消せるようにする。
+    # テスト中に別プロセスが保存した設定を消さないための一致チェックでもある
+    if [ "${CONFIG_TOUCHED:-0}" = "1" ] && cmp -s "$CONFIG" "$WORK/t11-config-lastok"; then
         rm -f "$CONFIG"
     fi
     # 退避したユーザーの設定を戻す。テスト中に新しい設定が保存されていたら上書きしない
     if [ "${CONFIG_MOVED:-0}" = "1" ]; then
-        if [ -e "$CONFIG" ]; then
+        if [ -e "$CONFIG" ] || [ -L "$CONFIG" ]; then
             echo "[cleanup] テスト中に別の設定が保存されたため上書きしません。退避した設定: $CONFIG_BACKUP"
         else
             mv "$CONFIG_BACKUP" "$CONFIG" && echo "[cleanup] 設定ファイルを復元しました"
@@ -55,12 +56,14 @@ trap cleanup EXIT
 unset KILDE_OUTPUT_DIR
 CONFIG="$HOME/.kilde/config.json"
 CONFIG_BACKUP="$CONFIG.kilde-it-backup"
-if [ -e "$CONFIG_BACKUP" ]; then
+if [ -e "$CONFIG_BACKUP" ] || [ -L "$CONFIG_BACKUP" ]; then
     echo "前回の統合テストの退避ファイルが残っています: $CONFIG_BACKUP"
     echo "中身を確認して $CONFIG に戻してから再実行してください"
     exit 1
 fi
-if [ -f "$CONFIG" ]; then
+# -f (通常ファイル) 限定だとディレクトリや symlink を取りこぼし、退避しないまま
+# T3〜T10 が ConfigStore の読み込みエラーで失敗する。存在するなら種類を問わず退避
+if [ -e "$CONFIG" ] || [ -L "$CONFIG" ]; then
     # 退避に失敗したまま進むと T11 がユーザーの設定を上書きするので、ここで中止する
     if ! mv "$CONFIG" "$CONFIG_BACKUP"; then
         echo "設定ファイルを退避できません: $CONFIG" >&2
@@ -330,34 +333,44 @@ fi
 
 log "T11: 設定ファイル — outputDirectory が既定の保存先になる / 存在しない保存先は録画前に失敗"
 CFG_OUT="$WORK/t11-out"
-# テスト用の設定は $WORK/t11-config.json に書いてから置く。cleanup はこれと中身が一致する
-# ときだけ消す (テスト中に別プロセスが保存した設定を巻き込まないため)
-write_test_config() { printf "$@" > "$WORK/t11-config.json" && cp "$WORK/t11-config.json" "$CONFIG"; }
-if [ -e "$CONFIG" ]; then
+# テスト用の設定は $WORK に書いてから置く。3 段階の書き込みのうちどこで失敗しても、
+# cleanup が「最後まで書けた内容」(lastok) だけを比較して消せるようにする:
+#   tmp に printf → 成功したら CONFIG に cp → そこまで成功したら lastok に cp
+# 失敗したら戻り値 1 で呼び出し側に伝え、その場でテストを打ち切る
+write_test_config() {
+    printf "$@" > "$WORK/t11-config.tmp" || return 1
+    cp "$WORK/t11-config.tmp" "$CONFIG" || return 1
+    cp "$WORK/t11-config.tmp" "$WORK/t11-config-lastok" || return 1
+}
+if [ -e "$CONFIG" ] || [ -L "$CONFIG" ]; then
     # 冒頭で退避したのにまた設定がある = テスト中に誰かが保存した。上書きしない
     skip "T11: テスト中に $CONFIG が作られたため実行しません"
 else
     mkdir -p "$CFG_OUT" "$(dirname "$CONFIG")"
     CONFIG_TOUCHED=1
-    write_test_config '{"outputDirectory": "%s", "defaultAudioSources": ["system"]}\n' "$CFG_OUT"
-    if (cd "$WORK" && "$KILDE" rec --no-video --duration 3s > "$WORK/t11a.log" 2>&1) \
+    if ! write_test_config '{"outputDirectory": "%s", "defaultAudioSources": ["system"]}'"\n"' "$CFG_OUT"; then
+        bad "T11a outputDirectory: テスト設定の書き込みに失敗 — $WORK/t11-config.tmp"
+    elif (cd "$WORK" && "$KILDE" rec --no-video --duration 3s > "$WORK/t11a.log" 2>&1) \
         && [ "$(ls "$CFG_OUT"/kilde-*.m4a 2>/dev/null | wc -l | tr -d ' ')" = "1" ]; then
         ok "T11a outputDirectory: 設定した保存先に既定名で保存"
     else
         bad "T11a outputDirectory: 保存先に出力がない — $WORK/t11a.log"
     fi
-    write_test_config '{"outputDirectory": "%s/no-such-dir"}\n' "$WORK"
-    START=$(date +%s)
-    # 誤って録画が始まっても 30 秒で止まる。録画前に失敗すれば数秒で返る
-    (cd "$WORK" && "$KILDE" rec --no-video --duration 30s > "$WORK/t11b.log" 2>&1)
-    EXIT_CODE=$?
-    ELAPSED=$(( $(date +%s) - START ))
-    if [ "$EXIT_CODE" = "1" ] && [ "$ELAPSED" -lt 5 ] && grep -q "出力先ディレクトリが存在しません" "$WORK/t11b.log"; then
-        ok "T11b 存在しない保存先: 録画前に exit=1 (${ELAPSED}s)"
+    if write_test_config '{"outputDirectory": "%s/no-such-dir"}'"\n"' "$WORK"; then
+        START=$(date +%s)
+        # 誤って録画が始まっても 30 秒で止まる。録画前に失敗すれば数秒で返る
+        (cd "$WORK" && "$KILDE" rec --no-video --duration 30s > "$WORK/t11b.log" 2>&1)
+        EXIT_CODE=$?
+        ELAPSED=$(( $(date +%s) - START ))
+        if [ "$EXIT_CODE" = "1" ] && [ "$ELAPSED" -lt 5 ] && grep -q "出力先ディレクトリが存在しません" "$WORK/t11b.log"; then
+            ok "T11b 存在しない保存先: 録画前に exit=1 (${ELAPSED}s)"
+        else
+            bad "T11b 存在しない保存先: exit=$EXIT_CODE elapsed=${ELAPSED}s — $WORK/t11b.log"
+        fi
     else
-        bad "T11b 存在しない保存先: exit=$EXIT_CODE elapsed=${ELAPSED}s — $WORK/t11b.log"
+        bad "T11b 存在しない保存先: テスト設定の書き込みに失敗 — $WORK/t11-config.tmp"
     fi
-    cmp -s "$CONFIG" "$WORK/t11-config.json" && rm -f "$CONFIG"
+    cmp -s "$CONFIG" "$WORK/t11-config-lastok" && rm -f "$CONFIG"
     CONFIG_TOUCHED=0
 fi
 
