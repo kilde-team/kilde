@@ -14,6 +14,8 @@ struct ContentView: View {
     /// 実行中に来た再読込要求はドロップせず記録して、完了時に再実行する
     @State private var reloading = false
     @State private var needsReload = false
+    /// didBecomeKey をこのパネル自身に限定するための window 参照
+    @State private var panelWindow: NSWindow?
 
     var body: some View {
         // 画面上のウィンドウは通常 15〜25 件あり固定高さに収まらないため、
@@ -35,12 +37,9 @@ struct ContentView: View {
                     .help("デバイス一覧を更新")
                 }
 
-                if let loadError {
-                    Label(loadError, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.orange)
-                        .font(.caption)
-                        .padding(.bottom, 4)
-                } else if reloading {
+                // 読み込み中をエラーより優先する — 一度失敗した後の再試行でも、
+                // 古いエラーではなく進行中であることを示す
+                if reloading {
                     // SCShareableContent の初回列挙は数百 ms かかる。ハングした場合も
                     // 「デバイス無し」と混同されないよう、読み込み中であることを示す
                     // (列挙自体のタイムアウトは issue #35 の async 化で扱う)
@@ -52,6 +51,11 @@ struct ContentView: View {
                             .foregroundStyle(.secondary)
                     }
                     .padding(.bottom, 4)
+                } else if let loadError {
+                    Label(loadError, systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
+                        .font(.caption)
+                        .padding(.bottom, 4)
                 }
 
                 section("ディスプレイ") {
@@ -86,10 +90,13 @@ struct ContentView: View {
         .frame(width: 360)
         .frame(maxHeight: 480)
         .onAppear(perform: reload)
+        .background(WindowReader { panelWindow = $0 })
         // MenuBarExtra の .window スタイルは View を一度生成すると保持するため
         // onAppear は初回のみ。閉じている間のデバイス増減 (モニタ接続等) を
-        // 反映するため、パネルが key になるたびに引き直す
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+        // 反映するため、このパネル自身が key になるたびに引き直す —
+        // object を絞らないと将来のシート等でも再列挙が走る
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { note in
+            guard (note.object as? NSWindow) === panelWindow else { return }
             reload()
         }
     }
@@ -146,5 +153,21 @@ struct ContentView: View {
             content()
                 .font(.system(size: 12, design: .monospaced))
         }
+    }
+}
+
+/// この View が属する NSWindow を SwiftUI から取り出す定番の橋渡し。
+/// didBecomeKey をパネル自身に限定するために使う
+private struct WindowReader: NSViewRepresentable {
+    let onWindow: (NSWindow?) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let v = NSView()
+        DispatchQueue.main.async { onWindow(v.window) }
+        return v
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        onWindow(nsView.window)
     }
 }
