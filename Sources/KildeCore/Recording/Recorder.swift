@@ -116,11 +116,12 @@ public final class Recorder {
     // MARK: イベント駆動 (issue #8)
 
     /// 状態遷移・進捗・完了・失敗の通知ストリーム。
-    /// バッファは新しい方を 16 件だけ保持する — 購読前に流れた progress が古い順に
-    /// 捨てられ、consumer 未接続のまま長時間録画してもメモリが膨らまない。
+    /// バッファは新しい方を 16 件だけ保持する — 購読前に流れた progress や、
+    /// consumer が 8 秒以上 drain しない間に溜まった古いイベント (stateChanged を
+    /// 含む) は古い順に捨てられうる。失われた状態は currentState で補間すること。
     /// 最後の .completed / .failed は常に最新側に来るため失われない。
-    /// start() の前に購読すること (未購録の初期状態は currentState で補間できる)。
-    /// 購読側 Task を cancel するとストリーム自体が終端する (再購読はできない)
+    /// start() の前に購読すること。購読側 Task を cancel するとストリーム自体が
+    /// 終端する (再購読はできない)
     public let events: AsyncStream<RecorderEvent>
     private let eventContinuation: AsyncStream<RecorderEvent>.Continuation
 
@@ -181,6 +182,8 @@ public final class Recorder {
     }
 
     /// 録画を実行し、完了までブロックする (CLI 互換の同期 API — start() のラッパ)。
+    /// 呼び出しスレッドをセッション終了まで拘束する (数時間にもなりうる) ので、
+    /// GUI はこの API を使わず start() + events 購読を使うこと。
     /// この経路では progress イベントを流さないので、進捗は progress() で取得すること。
     /// 完了後の再呼び出しや、セッション進行中の並行呼び出しも同じ結果を返す
     @discardableResult
