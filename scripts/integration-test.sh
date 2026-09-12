@@ -422,6 +422,52 @@ else
     bad "T13 hotkey 待機中止: ready=$T13_READY exit=$T13_EXIT files=$T13_FILES — $WORK/t13.log"
 fi
 
+# ---- T14: 矩形領域の収録 (issue #9) ---------------------------------------------
+# 指定した領域の大きさで録れること。H.264 の制約で偶数に切り捨てられる点も確認する
+
+log "T14: rec --region — 指定した矩形の解像度で録れる (${DUR}s)"
+F="$WORK/t14-region.mov"
+if "$KILDE" rec --region 0,0,640,360 --duration "$DUR" --output "$F" > "$WORK/t14.log" 2>&1; then
+    SIZE=$(inspect "$F" | grep '^video:' | grep -oE '[0-9]+x[0-9]+' | head -1)
+    if [ "$SIZE" = "640x360" ]; then
+        ok "T14 region: 出力解像度が指定どおり ($SIZE)"
+    else
+        bad "T14 region: 解像度=$SIZE (640x360 が必要) — $WORK/t14.log"
+    fi
+else
+    bad "T14 region: コマンド失敗 — $WORK/t14.log"
+fi
+
+log "T14b: rec --region — 奇数サイズは偶数へ切り捨て"
+F="$WORK/t14b-region-odd.mov"
+if "$KILDE" rec --region 10,10,641,361 --duration 3s --output "$F" > "$WORK/t14b.log" 2>&1; then
+    SIZE=$(inspect "$F" | grep '^video:' | grep -oE '[0-9]+x[0-9]+' | head -1)
+    if [ "$SIZE" = "640x360" ]; then
+        ok "T14b region 偶数丸め: 641x361 → $SIZE"
+    else
+        bad "T14b region 偶数丸め: 解像度=$SIZE (640x360 が必要) — $WORK/t14b.log"
+    fi
+else
+    bad "T14b region 偶数丸め: コマンド失敗 — $WORK/t14b.log"
+fi
+
+log "T14c: rec --region — 範囲外・不正指定は録画前に失敗"
+if "$KILDE" rec --region 0,0,99999,99999 --duration 30s --output "$WORK/t14c.mov" > "$WORK/t14c.log" 2>&1; then
+    bad "T14c region 範囲外: 成功してしまった — $WORK/t14c.log"
+elif grep -q "範囲外" "$WORK/t14c.log" && [ ! -f "$WORK/t14c.mov" ]; then
+    ok "T14c region 範囲外: 録画前に失敗しファイルを作らない"
+else
+    bad "T14c region 範囲外: 想定外の失敗 — $WORK/t14c.log"
+fi
+# 形式不正は ArgumentParser の検証なので終了コード 64 (DESIGN.md §6)
+"$KILDE" rec --region 0,0,640 --duration 3s --output "$WORK/t14d.mov" > "$WORK/t14d.log" 2>&1
+EXIT_CODE=$?
+if [ "$EXIT_CODE" = "64" ]; then
+    ok "T14d region 形式不正: 終了コード 64"
+else
+    bad "T14d region 形式不正: exit=$EXIT_CODE (64 が必要) — $WORK/t14d.log"
+fi
+
 # ---- サマリ -------------------------------------------------------------------
 
 echo ""

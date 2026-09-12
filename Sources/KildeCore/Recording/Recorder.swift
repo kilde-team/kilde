@@ -26,6 +26,9 @@ public enum VideoCodecKind: String, CaseIterable {
 public struct RecordOptions {
     public var displayIndex = 0
     public var windowMatch: String?
+    /// 収録する矩形領域 (ポイント座標、ディスプレイ左上が原点)。nil ならディスプレイ全体。
+    /// ウィンドウ収録 (windowMatch) や音声のみ (wantsVideo = false) とは併用しない
+    public var region: CGRect?
     public var audioSources: [AudioSourceSpec] = [.system]
     public var trackPolicy: AudioTrackPolicy = .mixed
     public var wantsVideo = true
@@ -348,9 +351,33 @@ public final class Recorder {
             } else {
                 let display = try await DisplayCatalog.display(at: options.displayIndex)
                 if options.wantsVideo {
-                    cfg.width = Int(display.width)
-                    cfg.height = Int(display.height)
-                    videoSize = CGSize(width: display.width, height: display.height)
+                    if let region = options.region {
+                        let bounds = CGRect(x: 0, y: 0,
+                                            width: CGFloat(display.width), height: CGFloat(display.height))
+                        guard bounds.contains(region) else {
+                            throw KilError.failed(
+                                "--region がディスプレイの範囲外です: "
+                                + "\(Int(region.origin.x)),\(Int(region.origin.y)),"
+                                + "\(Int(region.width)),\(Int(region.height)) "
+                                + "(display[\(options.displayIndex)] は \(display.width)x\(display.height))")
+                        }
+                        // H.264 は偶数サイズしか扱えないので切り捨てる。sourceRect も同じ大きさに
+                        // 揃える — 揃えないと切り捨てたぶんだけ引き伸ばされ、指定と違う絵になる
+                        let w = Int(region.width) & ~1
+                        let h = Int(region.height) & ~1
+                        guard w >= 2, h >= 2 else {
+                            throw KilError.failed("--region の幅と高さは 2 ポイント以上にしてください")
+                        }
+                        cfg.sourceRect = CGRect(x: region.origin.x, y: region.origin.y,
+                                                width: CGFloat(w), height: CGFloat(h))
+                        cfg.width = w
+                        cfg.height = h
+                        videoSize = CGSize(width: w, height: h)
+                    } else {
+                        cfg.width = Int(display.width)
+                        cfg.height = Int(display.height)
+                        videoSize = CGSize(width: display.width, height: display.height)
+                    }
                 }
                 filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
             }
