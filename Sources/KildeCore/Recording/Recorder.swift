@@ -423,6 +423,10 @@ public final class Recorder {
         let progressTask = startProgressEmissionIfNeeded()
         // 停止要求と duration のどちらか早い方を待つ
         await waitForStopOrDuration()
+        // 録画経過はこの時点で確定させる — 以降のファイナライズ (SCK の drain、
+        // mixer の flush) に時間がかかると elapsed が伸び、短時間録画を誤って
+        // 消灯・ロック扱いの案内にしてしまうため
+        let recordedElapsed = Date().timeIntervalSince(startDate)
         // cancel だけでなく終了まで待つ — sleep 起き直し直後の yield と
         // finalizing 遷移の間にプリエンプション窓があると、progress が
         // .completed より後に届いてイベントの順序が崩れるため
@@ -442,8 +446,8 @@ public final class Recorder {
         do {
             try Self.validateVideoFrameCount(
                 wantsVideo: options.wantsVideo,
-                videoAppended: w.videoAppended,
-                elapsed: Date().timeIntervalSince(startDate)
+                videoAppended: w.countersSnapshot().videoAppended,
+                elapsed: recordedElapsed
             )
         } catch {
             // 映像アンカーが立たない空振りを成功扱いせず、空の出力も残さない。
