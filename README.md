@@ -24,11 +24,33 @@ with a menu bar app in development.
 - 🛡️ Safely finalize the output file when you stop recording with Ctrl+C
 - ⌨️ Start and stop recording with a global hotkey while working in another app
 
-## Requirements and build
+## Installation and build
 
 - macOS 14 or later
-- Swift Package Manager
 - Runtime testing is currently performed on macOS 26 on Apple Silicon
+
+### Homebrew
+
+The Homebrew tap will become available after the v0.1.0 release. Once it is
+published, install kilde with either form:
+
+```sh
+brew tap takezou621/kilde
+brew install kilde
+
+# Or install directly from the tap
+brew install takezou621/kilde/kilde
+```
+
+To build the latest `main` branch from source through Homebrew, add `--HEAD`:
+
+```sh
+brew install --HEAD takezou621/kilde/kilde
+```
+
+### Build from source
+
+Building from source requires Swift Package Manager.
 
 ```sh
 git clone https://github.com/takezou621/kilde.git
