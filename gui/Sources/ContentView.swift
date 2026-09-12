@@ -9,6 +9,7 @@ import KildeCore
 struct ContentView: View {
     @ObservedObject var setup: RecordingSetup
     @ObservedObject var recording: RecordingController
+    @ObservedObject var permissions: PermissionsModel
 
     private enum Mode: Hashable {
         case display, window, audioOnly
@@ -21,7 +22,14 @@ struct ContentView: View {
                 sessionView
             } else {
                 ScrollView {
-                    form.padding(.trailing, 6)
+                    VStack(alignment: .leading, spacing: 14) {
+                        // 権限の案内はスクロール領域の**先頭**に置く。下に積むと、
+                        // ウィンドウ一覧が長いときに固定高さ (600) のポップオーバーから
+                        // はみ出して、肝心の案内が見えなくなる
+                        permissionGuide
+                        form
+                    }
+                    .padding(.trailing, 6)
                 }
                 .frame(maxHeight: 420)
                 resultView
@@ -45,8 +53,15 @@ struct ContentView: View {
         .padding(12)
         .frame(width: 380)
         // 録画中は選択肢を出さないので列挙しない (止められない SCK の列挙を録画と並走させない)
-        .onAppear { if !recording.isActive { setup.reload() } }
+        .onAppear {
+            // 権限は録画中でも取り直す (案内の表示だけで、SCK の列挙とは無関係)
+            permissions.refresh()
+            if !recording.isActive { setup.reload() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .kildePopoverDidShow)) { _ in
+            // macOS 15 以降、画面収録権限は一度許可しても定期的に再確認されて失効しうる
+            // (DESIGN.md F4)。開くたびに取り直して、失効していれば案内を出す
+            permissions.refresh()
             // 録画中は選択肢を出さないので列挙しない (SCK の列挙を録画と並走させない)
             if !recording.isActive { setup.reload() }
         }
@@ -286,12 +301,22 @@ struct ContentView: View {
         // 同時に SCK へ行くことになるので受け付けない。タイムアウト後も返らない列挙が
         // 残っている間 (enumerationsRunning > 0) も同じ理由で止める —
         // ただし SCK を使わない構成 (音声のみ + システム音声オフ) は競合しないので止めない
+        // 権限が足りない構成では開始させない (issue #19)。足りない権限は permissionGuide が案内する
         .disabled(setup.loading
             || (usesScreenCapture && setup.enumerationsRunning > 0)
-            || (mode == .audioOnly && setup.request.audioSourceCount == 0))
+            || (mode == .audioOnly && setup.request.audioSourceCount == 0)
+            || !permissions.missing(for: setup.request).isEmpty)
     }
 
     private func start() {
+        // 開始の直前に取り直す — ポップオーバーを開いたまま権限を取り消された場合や、
+        // macOS 15 以降の定期再確認 (DESIGN.md F4) で失効した場合に、SCK のエラーではなく
+        // 案内で止めるため
+        permissions.refresh()
+        guard permissions.missing(for: setup.request).isEmpty else {
+            setup.notice = "権限が足りないため開始できません"
+            return
+        }
         do {
             let options = try setup.makeOptions()
             setup.notice = nil
@@ -392,6 +417,78 @@ struct ContentView: View {
         case "system": return "システム音声"
         case "mic": return "マイク"
         default: return label.hasPrefix("dev:") ? String(label.dropFirst("dev:".count)) : label
+        }
+    }
+
+    // MARK: - 権限の案内
+
+    /// 今の構成に足りない権限だけを案内する (issue #19)。
+    /// 音声のみ + システム音声オフの録音に画面収録権限を求めない、のように
+    /// 「要らない権限を要求しない」ことを優先する
+    @ViewBuilder
+    private var permissionGuide: some View {
+        let missing = permissions.missing(for: setup.request)
+        if !missing.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(missing, id: \.self) { requirement in
+                    switch requirement {
+                    case .screen: screenGuide
+                    case .mic: micGuide
+                    }
+                }
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Color.orange.opacity(0.12)))
+        }
+    }
+
+    private var screenGuide: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label("画面収録の権限がありません", systemImage: "lock.circle")
+                .font(.caption)
+                .foregroundStyle(.orange)
+            // 許可しても、プロセスを再起動するまで CGPreflightScreenCaptureAccess() は false のまま。
+            // 「許可したのに録画できない」と見えるので、要求後は再起動を明示する
+            Text(permissions.didRequestScreen
+                ? "システム設定で許可したら、kilde を終了して起動し直してください (許可は再起動後に反映されます)"
+                : "システム設定 → プライバシーとセキュリティ → 画面とオーディオを収録 で kilde を許可してください")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 12) {
+                Button("許可を求める") { permissions.requestScreen() }
+                Button("システム設定を開く") { permissions.openScreenSettings() }
+            }
+            .buttonStyle(.link)
+            .font(.caption)
+        }
+    }
+
+    private var micGuide: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label("マイクの権限がありません", systemImage: "mic.slash")
+                .font(.caption)
+                .foregroundStyle(.orange)
+            if case .notDetermined = permissions.micStatus {
+                Text("「許可する」を押すと確認ダイアログが出ます")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Button("許可する") {
+                    Task { await permissions.requestMic() }
+                }
+                .buttonStyle(.link)
+                .font(.caption)
+            } else {
+                // 拒否済みではダイアログが出ないので、システム設定へ誘導するしかない
+                Text("システム設定 → プライバシーとセキュリティ → マイク で kilde を許可してください")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("システム設定を開く") { permissions.openMicSettings() }
+                    .buttonStyle(.link)
+                    .font(.caption)
+            }
         }
     }
 
