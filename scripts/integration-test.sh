@@ -36,10 +36,20 @@ cleanup() {
     fi
     # T11 の GUI プロセスもどの分岐で失敗しても残さない
     [ -n "$GUI_PID" ] && kill "$GUI_PID" 2>/dev/null
+    # ディスプレイのスリープ抑止を解除する
+    [ -n "${CAFFEINATE_PID:-}" ] && kill "$CAFFEINATE_PID" 2>/dev/null
     echo ""
     echo "作業ディレクトリ (失敗時の調査用に残します): $WORK"
 }
 trap cleanup EXIT
+
+# テスト中にディスプレイが消灯すると SCK が映像を出さず、T3〜T8 が全滅する
+# (2026-09-12 に 2 回観測 — doctor は権限「あり」なのに [sck] displays=0)。
+# すでに消えている画面は -dims では起こせないため、-u で 1 度起こしてから
+# -dims で保持する二段構えにする (ロック画面は人手で解除してもらう前提)
+caffeinate -u -t 1 2>/dev/null
+caffeinate -dims >/dev/null 2>&1 &
+CAFFEINATE_PID=$!
 
 # T3 / T4b / T5 などは「既定 = system / mixed」を前提にするため、出力先の環境変数は外す。
 # 設定と monitor state は作業ディレクトリへ分離し、ユーザーの ~/.kilde には触れない。
