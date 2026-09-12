@@ -201,6 +201,8 @@ recording with exit status `1`.
 
 ## Development
 
+- Official releases (Developer ID signing and notarization): [docs/RELEASE.md](docs/RELEASE.md)
+
 - Build, permissions, testing, and troubleshooting:
   [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
 - Architecture and behavior: [docs/DESIGN.md](docs/DESIGN.md)
