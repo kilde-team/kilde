@@ -1,0 +1,27 @@
+docs/DESIGN.md
+  s_35faeec28b4c4b::t_94abdc59b945e3 248
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_8b16e71714e410 580
+  s_35faeec28b4c4b::t_92db8be05f8883 607-609,613-615,617
+  s_35faeec28b4c4b::t_d05840cb62c022 560-562,564
+  s_35faeec28b4c4b::t_1e1a7c10f0aeb9 586-591
+Sources/KildeCore/Devices/DisplayCatalog.swift
+  s_35faeec28b4c4b::t_3e58a06aa76db2 79
+  s_35faeec28b4c4b::t_c4648ac6b85431 102-106,108-109,113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "bf1467d759a49137c152ce48e97621b67017482d",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
