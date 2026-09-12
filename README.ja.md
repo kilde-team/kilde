@@ -110,12 +110,14 @@ kilde rec --hotkey cmd+shift+r 会議.mov
 #   (絶対パスか ~ 始まりのみ。相対パスはエラー)
 #   優先順位: CLI 引数 > --preset > KILDE_OUTPUT_DIR > 設定ファイル > 既定値
 #   hotkey は --hotkey > 設定 hotkey > 待機モードなし
+#   ホットキーは排他登録で、先に登録したプロセスが勝つ (GUI 常駐時は GUI が握る)。
+#   取れないとき、設定由来なら警告を出して即時録画へ縮退し、--hotkey 明示なら失敗する
 #   不正な設定や存在しない保存先は、録画を始める前にエラー (終了コード 1)
 #   rec --fps 0 のような値の誤りはオプション検証エラー (終了コード 64)
 kilde config set outputDirectory ~/Movies/kilde
 kilde config set defaultAudioSources system,mic
 kilde config set showsCursor false   # その回だけ写したいときは kilde rec --cursor
-kilde config set hotkey cmd+shift+r  # rec を常にホットキー待機で起動
+kilde config set hotkey cmd+shift+r  # rec をホットキー待機で起動 (下記の排他に注意)
 kilde config show                    # 現在値と既定値 (unset <key> で既定に戻す / path でファイルの場所)
 
 設定キーは `outputDirectory` / `defaultAudioSources` / `audioTracks` / `codec` /
@@ -157,6 +159,9 @@ Finder で該当ファイルを選択表示する。パネルには保存先の�
 録ったファイルも出る**)、クリックで同じく Finder に表示する。パネルでグローバル
 ホットキーを設定すると、他のアプリを使っている間でも開始・停止できる。設定値は
 同じ設定ファイルの `hotkey` に入るので、`kilde rec` もそれを見て待機モードで起動する。
+ただし**ホットキーは排他登録で、先に登録したプロセスが勝つ** — GUI がログイン時起動で
+常駐していると GUI 側が握るので、後から起動した `kilde rec` は警告を出して待機せずに
+録画を始める (`--hotkey` を明示したときだけ、縮退せず理由を示して失敗する)。
 ログイン時起動のチェックボックスは `SMAppService` で登録する (macOS がシステム設定での
 承認を求めることがある)。
 

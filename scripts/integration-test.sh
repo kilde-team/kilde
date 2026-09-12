@@ -26,6 +26,7 @@ MONITOR_SET_UP=0
 SOUNDAPP_PID=""
 GUI_PID=""
 T21_PID=""
+T23_HOLDER_PID=""
 
 cleanup() {
     if [ "$MONITOR_SET_UP" = "1" ]; then
@@ -49,6 +50,11 @@ T22_PID=""
     # T21 の self-test はバックグラウンド起動なので、スイートを途中で止めたときに
     # KildeGUI が残る。録画はしていないので安全停止の待ちは要らない
     [ -n "$T21_PID" ] && kill "$T21_PID" 2>/dev/null
+    # T23 の占有役 (rec --hotkey の待機) も残さない。**残すと次回以降のスイートが壊れる** —
+    # ホットキーは排他登録なので、孤児が同じキーを握ったままだと T23 の占有役が登録できず、
+    # 以後ずっと「占有役が待機に入れませんでした」で落ち続ける (開発中に実際に踏んだ)。
+    # 待機中は録画していないのでファイナライズの待ちは要らない
+    [ -n "$T23_HOLDER_PID" ] && kill -INT "$T23_HOLDER_PID" 2>/dev/null
     # T15 の録画は 12 秒走る。スイートを途中で止めたときに録画だけ残さない
     # (安全停止を送ってファイナライズを待つ)
     if [ -n "${T15_PID:-}" ] && kill -0 "$T15_PID" 2>/dev/null; then
@@ -454,7 +460,7 @@ else
     bad "T13 hotkey 待機中止: ready=$T13_READY exit=$T13_EXIT files=$T13_FILES — $WORK/t13.log"
 fi
 
-# ---- T22: ホットキーの排他と縮退 (issue #80) -------------------------------------
+# ---- T23: ホットキーの排他と縮退 (issue #80) -------------------------------------
 # 同じキーは 2 プロセスが同時に持てない (kEventHotKeyExclusive)。常駐した GUI が
 # キーを握っている状況を、占有役の `rec --hotkey` で再現する — GUI をビルドせずに
 # 同じ衝突を作れるので、この契約は CLI だけで機械検証できる。
@@ -462,68 +468,68 @@ fi
 #   * --hotkey 明示で取れない → 縮退せず失敗 (exit 1・ファイルなし)
 # T13 とはキーを分ける — 取り違えで「実は誰も握っていない」状態を緑と誤認しないため
 
-log "T22: ホットキー排他 — 設定由来は縮退し、--hotkey 明示は失敗する"
-T22_KEY="cmd+opt+ctrl+shift+f10"
-T22_DIR="$WORK/t22"
-T22_CFG_DIR="$WORK/t22-config"
-mkdir -p "$T22_DIR" "$T22_CFG_DIR"
-printf '{"hotkey": "%s"}\n' "$T22_KEY" > "$T22_CFG_DIR/config.json"
+log "T23: ホットキー排他 — 設定由来は縮退し、--hotkey 明示は失敗する"
+T23_KEY="cmd+opt+ctrl+shift+f10"
+T23_DIR="$WORK/t23"
+T23_CFG_DIR="$WORK/t23-config"
+mkdir -p "$T23_DIR" "$T23_CFG_DIR"
+printf '{"hotkey": "%s"}\n' "$T23_KEY" > "$T23_CFG_DIR/config.json"
 # 占有役。T13 と同じ理由で exec を使う (kill を kilde 本体に届かせる)
-(cd "$WORK" && exec "$KILDE" rec --no-video --hotkey "$T22_KEY" \
-    > "$WORK/t22-holder.log" 2>&1) &
-T22_HOLDER_PID=$!
-T22_HELD=0
+(cd "$WORK" && exec "$KILDE" rec --no-video --hotkey "$T23_KEY" \
+    > "$WORK/t23-holder.log" 2>&1) &
+T23_HOLDER_PID=$!
+T23_HELD=0
 for _ in $(seq 1 20); do
-    if grep -q "待機中" "$WORK/t22-holder.log" 2>/dev/null; then T22_HELD=1; break; fi
+    if grep -q "待機中" "$WORK/t23-holder.log" 2>/dev/null; then T23_HELD=1; break; fi
     sleep 0.5
 done
 
-if [ "$T22_HELD" != "1" ]; then
+if [ "$T23_HELD" != "1" ]; then
     # 占有できていないなら以降の判定は無意味 (握られていないキーは当然登録できる)
-    bad "T22 ホットキー排他: 占有役が待機に入れませんでした — $WORK/t22-holder.log"
-    T22_CFG_EXIT=-1; T22_CFG_FILES=-1; T22_CFG_WARN=0; T22_EXP_EXIT=-1; T22_EXP_FILES=-1
+    bad "T23 ホットキー排他: 占有役が待機に入れませんでした — $WORK/t23-holder.log"
+    T23_CFG_EXIT=-1; T23_CFG_FILES=-1; T23_CFG_WARN=0; T23_EXP_EXIT=-1; T23_EXP_FILES=-1
 else
     # (1) 設定由来 — 縮退して録画できるはず
-    (cd "$T22_DIR" && KILDE_CONFIG_DIR="$T22_CFG_DIR" \
-        "$KILDE" rec --no-video --duration 1 > "$WORK/t22-config.log" 2>&1)
-    T22_CFG_EXIT=$?
-    T22_CFG_FILES=$(ls "$T22_DIR" 2>/dev/null | wc -l | tr -d ' ')
+    (cd "$T23_DIR" && KILDE_CONFIG_DIR="$T23_CFG_DIR" \
+        "$KILDE" rec --no-video --duration 1 > "$WORK/t23-config.log" 2>&1)
+    T23_CFG_EXIT=$?
+    T23_CFG_FILES=$(ls "$T23_DIR" 2>/dev/null | wc -l | tr -d ' ')
     # 黙って縮退していないこと (理由が読めること) も契約のうち。
     # grep -c は不一致でも "0" を出しつつ終了コード 1 を返すので `|| echo 0` を足すと
     # "0\n0" を掴んで数値比較が壊れる — -q で真偽だけ取る
-    if grep -q "WARNING: ホットキー" "$WORK/t22-config.log" 2>/dev/null; then
-        T22_CFG_WARN=1
+    if grep -q "WARNING: ホットキー" "$WORK/t23-config.log" 2>/dev/null; then
+        T23_CFG_WARN=1
     else
-        T22_CFG_WARN=0
+        T23_CFG_WARN=0
     fi
 
     # (2) --hotkey 明示 — 縮退せず失敗するはず
-    T22_EXP_DIR="$WORK/t22-explicit"
-    mkdir -p "$T22_EXP_DIR"
-    (cd "$T22_EXP_DIR" && "$KILDE" rec --no-video --duration 1 --hotkey "$T22_KEY" \
-        > "$WORK/t22-explicit.log" 2>&1)
-    T22_EXP_EXIT=$?
-    T22_EXP_FILES=$(ls "$T22_EXP_DIR" 2>/dev/null | wc -l | tr -d ' ')
+    T23_EXP_DIR="$WORK/t23-explicit"
+    mkdir -p "$T23_EXP_DIR"
+    (cd "$T23_EXP_DIR" && "$KILDE" rec --no-video --duration 1 --hotkey "$T23_KEY" \
+        > "$WORK/t23-explicit.log" 2>&1)
+    T23_EXP_EXIT=$?
+    T23_EXP_FILES=$(ls "$T23_EXP_DIR" 2>/dev/null | wc -l | tr -d ' ')
 fi
 
 # 占有役を畳む (T13 と同じ段階的強制)
-kill -INT $T22_HOLDER_PID 2>/dev/null
+kill -INT $T23_HOLDER_PID 2>/dev/null
 for _ in $(seq 1 10); do
-    if ! kill -0 $T22_HOLDER_PID 2>/dev/null; then break; fi
+    if ! kill -0 $T23_HOLDER_PID 2>/dev/null; then break; fi
     sleep 0.5
 done
-if kill -0 $T22_HOLDER_PID 2>/dev/null; then
-    kill -TERM $T22_HOLDER_PID 2>/dev/null
+if kill -0 $T23_HOLDER_PID 2>/dev/null; then
+    kill -TERM $T23_HOLDER_PID 2>/dev/null
     sleep 1
-    kill -0 $T22_HOLDER_PID 2>/dev/null && kill -KILL $T22_HOLDER_PID 2>/dev/null
+    kill -0 $T23_HOLDER_PID 2>/dev/null && kill -KILL $T23_HOLDER_PID 2>/dev/null
 fi
-wait $T22_HOLDER_PID 2>/dev/null
+wait $T23_HOLDER_PID 2>/dev/null
 
-if [ "$T22_CFG_EXIT" = "0" ] && [ "$T22_CFG_FILES" = "1" ] && [ "$T22_CFG_WARN" -ge 1 ] \
-    && [ "$T22_EXP_EXIT" = "1" ] && [ "$T22_EXP_FILES" = "0" ]; then
-    ok "T22 ホットキー排他: 設定由来は縮退 (exit=0・警告あり)・明示は exit=1"
+if [ "$T23_CFG_EXIT" = "0" ] && [ "$T23_CFG_FILES" = "1" ] && [ "$T23_CFG_WARN" -ge 1 ] \
+    && [ "$T23_EXP_EXIT" = "1" ] && [ "$T23_EXP_FILES" = "0" ]; then
+    ok "T23 ホットキー排他: 設定由来は縮退 (exit=0・警告あり)・明示は exit=1"
 else
-    bad "T22 ホットキー排他: cfg_exit=$T22_CFG_EXIT cfg_files=$T22_CFG_FILES cfg_warn=$T22_CFG_WARN exp_exit=$T22_EXP_EXIT exp_files=$T22_EXP_FILES — $WORK/t22-config.log / $WORK/t22-explicit.log"
+    bad "T23 ホットキー排他: cfg_exit=$T23_CFG_EXIT cfg_files=$T23_CFG_FILES cfg_warn=$T23_CFG_WARN exp_exit=$T23_EXP_EXIT exp_files=$T23_EXP_FILES — $WORK/t23-config.log / $WORK/t23-explicit.log"
 fi
 
 # ---- T14: 矩形領域の収録 (issue #9) ---------------------------------------------

@@ -205,7 +205,7 @@ with `kilde config show|set|unset|path` rather than editing the file by hand.
 kilde config set outputDirectory ~/Movies/kilde
 kilde config set defaultAudioSources system,mic
 kilde config set showsCursor false   # Use kilde rec --cursor to override it once
-kilde config set hotkey cmd+shift+r  # Always start rec in hotkey-waiting mode
+kilde config set hotkey cmd+shift+r  # Start rec in hotkey-waiting mode (see below)
 kilde config show
 kilde config unset hotkey
 kilde config path
@@ -224,6 +224,14 @@ Recording settings are resolved in this order, from highest to lowest priority:
 
 The hotkey has its own equivalent order: `--hotkey`, then the configured
 `hotkey`, then no waiting mode.
+
+A global hotkey can only be held by one process at a time, so **whichever
+registers it first wins**. This matters when the menu bar app is running,
+since it launches at login and holds the configured hotkey. If the key is
+already taken, a hotkey that came from the configuration file is skipped:
+`rec` prints a warning and starts recording immediately instead of waiting.
+An explicit `--hotkey` fails with the reason instead, because waiting is
+what you asked for.
 
 Set `KILDE_CONFIG_DIR` to relocate both `config.json` and
 `monitor-state.json`, which is useful for isolated environments and testing.
