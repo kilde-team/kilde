@@ -1,0 +1,21 @@
+docs/DESIGN.md
+  s_34d31eef171f3f::t_d6307604bc2f74 412-417
+Sources/KildeCore/Recording/RecordRequest.swift
+  s_34d31eef171f3f::t_958117f63dd473 91-95,98-104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "3bdc993fd5a093548aac37d4a139eacbc5332cd5",
+  "prompts": {},
+  "sessions": {
+    "s_34d31eef171f3f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2fe81784-1008-4b9f-8671-2ec2cf21a534",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
