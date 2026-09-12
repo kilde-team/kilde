@@ -21,7 +21,35 @@ QuickTime Player の画面収録では録れない**システム音声を含め�
 - 🛡️ Ctrl+C でもファイルが必ずファイナライズされる安全な停止
 - ⌨️ グローバルホットキーで、他アプリの操作中でも録画を開始 / 停止
 
-## ビルドと実行
+## インストールとビルド
+
+- 要件: macOS 14+ (動作検証は macOS 26 / Apple Silicon)
+
+### Homebrew
+
+Homebrew tap は v0.1.0 のリリース後に利用可能になります。公開後は、次のどちらかで
+インストールできます。
+
+```sh
+brew tap takezou621/kilde
+brew install kilde
+
+# tap から直接インストールする場合
+brew install takezou621/kilde/kilde
+```
+
+Homebrew で最新の `main` ブランチをソースからビルドする場合は `--HEAD` を指定します。
+
+```sh
+brew install --HEAD takezou621/kilde/kilde
+```
+
+HEAD ビルドには Xcode 15.3 以降が必要です (マニフェストが Swift 5.10
+ツールチェーンを要求するため。Xcode 15.0〜15.2 は Swift 5.9 でビルドできません)。
+
+### ソースからビルド
+
+ソースからのビルドには Swift Package Manager が必要です。
 
 ```sh
 git clone https://github.com/takezou621/kilde.git
@@ -36,7 +64,6 @@ swift build
 ln -sf "$PWD/.build/debug/kilde" /usr/local/bin/kilde
 ```
 
-- 要件: macOS 14+ (動作検証は macOS 26 / Apple Silicon)
 - 依存: [swift-argument-parser](https://github.com/apple/swift-argument-parser)
 - BlackHole 利用時: `brew install --cask blackhole-2ch`
 
