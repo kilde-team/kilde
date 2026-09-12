@@ -88,7 +88,7 @@ public struct RecordRequest: Equatable {
         var overrides = RecordOverrides()
         overrides.audio = audioSourceStrings
         overrides.audioTracks = trackPolicy.name
-        overrides.outputPath = Self.availableOutputURL(
+        overrides.outputPath = try Self.availableOutputURL(
             in: outputDirectory, ext: wantsVideo ? "mov" : "m4a").path
         // GUI を起動元の環境変数に依存させない (KILDE_OUTPUT_DIR は CLI 用)
         try RecordSettings.apply(overrides, config: config, environment: [:], to: &options)
@@ -98,7 +98,7 @@ public struct RecordRequest: Equatable {
     /// 空いている出力名を選ぶ。既定名は秒までしか持たないので、短い録画を止めてすぐ録り直すと
     /// 同じ名前になり、`MovieWriter` が既存ファイルを消してしまう (直前の録画が失われる)。
     /// 衝突したら `kilde-….mov` → `kilde-…-2.mov` のように連番を付ける
-    static func availableOutputURL(in directory: URL, ext: String) -> URL {
+    static func availableOutputURL(in directory: URL, ext: String) throws -> URL {
         let base = defaultOutputName(ext: ext)
         let first = directory.appendingPathComponent(base)
         guard FileManager.default.fileExists(atPath: first.path) else { return first }
@@ -107,7 +107,8 @@ public struct RecordRequest: Equatable {
             let candidate = directory.appendingPathComponent("\(stem)-\(suffix).\(ext)")
             if !FileManager.default.fileExists(atPath: candidate.path) { return candidate }
         }
-        return first
+        // 空きが無いのに既存の名前を返すと、MovieWriter がそれを消してから録り始めてしまう
+        throw KilError.failed("空いている出力ファイル名が見つかりません: \(directory.path)")
     }
 
     /// 現在の選択 (音声ソース・トラック方針・保存先) を既定値として書き込んだ設定を返す。

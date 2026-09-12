@@ -78,11 +78,25 @@ enum SelfTest {
             fflush(stdout)
         }
 
+        let closed = ClosedState()
+
         recording.whenSessionEnds {
             switch recording.phase {
             case .finished(let url):
                 let bytes = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int)
                     .flatMap { $0 } ?? 0
+                if closesPopover {
+                    // 「閉じた後も録画が進んだ」ことを成功条件にする。outputBytes は
+                    // フレームの来ない環境では増えないので、経過時間 (progress 由来) で見る
+                    guard let closedAt = closed.elapsed else {
+                        fail("ポップオーバーを閉じる前に録画が終わりました")
+                    }
+                    guard recording.elapsed > closedAt else {
+                        fail("ポップオーバーを閉じた後に録画が進んでいません (elapsed \(closedAt)s のまま)")
+                    }
+                    print("selftest: recording continued after close "
+                        + "(elapsed \(String(format: "%.1f", closedAt))s → \(String(format: "%.1f", recording.elapsed))s)")
+                }
                 print("selftest: finished \(url.path) bytes=\(bytes) popoverShown=\(popover.isShown())")
                 fflush(stdout)
                 exit(0)
@@ -92,23 +106,71 @@ enum SelfTest {
                 fail("想定外の状態で終了: \(recording.phase)")
             }
         }
+        // 失敗時に停止 → ファイナライズできるよう、開始前に覚えておく
+        active = recording
         recording.start(options)
-        if closesPopover {
-            // 録画が始まってから閉じる (開始直後は準備中なのでファイルがまだ伸びていない)
-            DispatchQueue.main.asyncAfter(deadline: .now() + max(1.5, seconds / 3)) {
-                popover.close()
-                print("selftest: popover closed shown=\(popover.isShown())"
-                    + " elapsed=\(String(format: "%.1f", recording.elapsed))s bytes=\(recording.outputBytes)")
-                fflush(stdout)
+        guard closesPopover else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
+                recording.stop()
             }
+            return
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
+        Task { @MainActor in
+            // start() は .recording への遷移を待たずに返るので、実際に録画が始まってから閉じる
+            let deadline = Date().addingTimeInterval(20)
+            while recording.phase != .recording, Date() < deadline {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+            guard recording.phase == .recording else {
+                fail("録画が始まりません (phase=\(recording.phase))")
+            }
+            popover.close()
+            // 閉じるのはアニメーション付きで、isShown はその間 true のままになる。
+            // 固定待ちだと環境次第で取りこぼすのでポーリングで待つ
+            let closeDeadline = Date().addingTimeInterval(3)
+            while popover.isShown(), Date() < closeDeadline {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+            guard !popover.isShown() else {
+                fail("ポップオーバーを閉じられませんでした (3 秒待っても isShown=true)")
+            }
+            closed.elapsed = recording.elapsed
+            print("selftest: popover closed shown=false"
+                + " elapsed=\(String(format: "%.1f", recording.elapsed))s bytes=\(recording.outputBytes)")
+            fflush(stdout)
+            // 閉じた後に進捗 (0.5 秒周期) が何度か来る時間を置いてから停止する
+            try? await Task.sleep(nanoseconds: UInt64(max(2.0, seconds / 2) * 1_000_000_000))
             recording.stop()
         }
     }
 
+    /// ポップオーバーを閉じた時点の経過時間 (閉じる側と終了側のクロージャで共有する)
+    @MainActor
+    private final class ClosedState {
+        var elapsed: TimeInterval?
+    }
+
+    /// 実行中のセッション。失敗時に停止 → ファイナライズしてから終わるために持つ
+    @MainActor private static var active: RecordingController?
+
+    /// 失敗して終了する。録画中なら停止してファイナライズを待つ — そのまま exit すると
+    /// 書きかけのファイルが残り、`kilde inspect` が "Cannot Open" (-11829) になる
     private static func fail(_ message: String) -> Never {
         FileHandle.standardError.write("selftest: \(message)\n".data(using: .utf8)!)
+        // fail() は常にメインスレッドから呼ばれる。MainActor 隔離のプロパティに触るので
+        // 参照はすべて assumeIsolated の中で行う
+        let wasActive = MainActor.assumeIsolated { () -> Bool in
+            guard let recording = active, recording.isActive else { return false }
+            recording.stop()
+            return true
+        }
+        if wasActive {
+            // ファイナライズの完了を待つ (待てなければあきらめて終了する)
+            let deadline = Date().addingTimeInterval(10)
+            while Date() < deadline, MainActor.assumeIsolated({ active?.isActive ?? false }) {
+                RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+            }
+        }
         exit(1)
     }
 }

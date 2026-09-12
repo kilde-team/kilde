@@ -26,6 +26,10 @@ final class RecordingController: ObservableObject {
     @Published private(set) var peaks: [String: Float] = [:]
     @Published private(set) var warnings: [String] = []
     @Published private(set) var outputURL: URL?
+    /// 出力ファイルがまだ作られていない段階か (Recorder の preparing の間だけ true)。
+    /// armed 以降は MovieWriter が startWriting 済みなので、終了要求を待たずにプロセスを
+    /// 落とすとファイナライズされないファイルが残る — 終了の猶予判定はこれで行う
+    @Published private(set) var isBeforeOutputFile = false
 
     private var recorder: Recorder?
     private var sessionEndHandlers: [() -> Void] = []
@@ -42,6 +46,7 @@ final class RecordingController: ObservableObject {
         let recorder = Recorder(options: options)
         self.recorder = recorder
         phase = .starting
+        isBeforeOutputFile = true
         elapsed = 0
         outputBytes = 0
         peaks = [:]
@@ -81,9 +86,11 @@ final class RecordingController: ObservableObject {
         switch event {
         case .stateChanged(let state):
             switch state {
-            case .preparing, .armed: phase = .starting
-            case .recording: phase = .recording
-            case .finalizing: phase = .finalizing
+            // armed = ストリーム構築済み・writer 生成済み (出力ファイルができている)
+            case .preparing: phase = .starting; isBeforeOutputFile = true
+            case .armed: phase = .starting; isBeforeOutputFile = false
+            case .recording: phase = .recording; isBeforeOutputFile = false
+            case .finalizing: phase = .finalizing; isBeforeOutputFile = false
             // 結果は .completed / .failed で確定させる (done / error の遷移は必ずその直前に来る)
             case .idle, .done, .error: break
             }
@@ -110,6 +117,7 @@ final class RecordingController: ObservableObject {
     private func endSession() {
         recorder = nil
         peaks = [:]
+        isBeforeOutputFile = false
         let handlers = sessionEndHandlers
         sessionEndHandlers = []
         handlers.forEach { $0() }

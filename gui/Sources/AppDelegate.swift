@@ -51,7 +51,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 setup: self.setup, recording: self.recording,
                 popover: SelfTest.PopoverControl(
                     show: { [weak self] in self?.showPopover() },
-                    close: { [weak self] in self?.popover?.performClose(nil) },
+                    // performClose は「閉じる要求」なので transient の popover では
+                    // 遅延・無視されうる。検証では確実に閉じたいので close() を使う
+                    close: { [weak self] in self?.popover?.close() },
                     isShown: { [weak self] in self?.popover?.isShown ?? false }))
         }
     }
@@ -64,14 +66,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.reply(toApplicationShouldTerminate: true)
         }
         recording.stop()
-        // 準備中 (マイク権限のダイアログ待ち、SCK のデバイス列挙待ち) は stop() では中断できず、
-        // セッション終了イベントが来ないまま終了できなくなることがある。まだ 1 フレームも
-        // 書いていない段階なので、猶予を過ぎたら終了を許す — 録画中・ファイナライズ中は
-        // この分岐に入らないので、書きかけのファイルを放置することはない。
+        // 権限ダイアログ待ち・デバイス列挙待ちの間は stop() が効かず、セッション終了イベントが
+        // 来ないまま終了できなくなることがある。**出力ファイルがまだ無い preparing の間だけ**
+        // 猶予後に終了を許す — armed 以降は writer が startWriting 済みで、待たずに落とすと
+        // ファイナライズされないファイルが残るため、その場合は従来どおり待ち続ける。
         // (準備フェーズ自体をキャンセル可能にするのは Recorder 側の課題 — issue #56)
-        if case .starting = recording.phase {
+        if recording.isBeforeOutputFile {
             DispatchQueue.main.asyncAfter(deadline: .now() + Self.startingTerminateGrace) { [weak self] in
-                guard let self, case .starting = self.recording.phase else { return }
+                guard let self, self.recording.isBeforeOutputFile else { return }
                 NSApp.reply(toApplicationShouldTerminate: true)
             }
         }

@@ -84,6 +84,9 @@ macOS 標準の QuickTime Player による画面収録は**システム音声を
 ┌─────────────────────────────┐    ┌─────────────────────────────┐
 │  kilde (CLI)                 │    │  KildeGUI (M3, メニューバー) │
 │  swift-argument-parser       │    │  NSStatusItem + NSPopover     │
+│  run() で完了まで待つ         │    │  RecordingController (#18)    │
+│                              │    │   - AppDelegate が保持し、     │
+│                              │    │     events を購読して表示     │
 └──────────────┬──────────────┘    └──────────────┬──────────────┘
                │                                  │
                └────────────┬─────────────────────┘
@@ -91,8 +94,9 @@ macOS 標準の QuickTime Player による画面収録は**システム音声を
               ┌───────────────────────────────┐
               │  KildeCore (Swift library)     │
               ├───────────────────────────────┤
-              │ RecorderController (ファサード) │
+              │ Recorder (セッションの指揮)     │
               │  - 状態機械・ライフサイクル      │
+              │  - start()/stop()/run()/events │
               ├───────────────┬───────────────┤
               │ CaptureSession│ DeviceCatalog  │
               │  SCStream     │  ディスプレイ   │
@@ -392,8 +396,15 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
 > `RecordSettings.apply()` を通して `RecordOptions` にする — CLI と同じ解決規則・同じ
 > `Recorder`。設定ファイルは初期値として読み、「既定にする」を押したときだけ書き戻す
 > (GUI の操作で CLI の既定を黙って変えないため)。保存先の既定は `~/Movies`
-> (GUI はカレントディレクトリが `/`)。録画中の終了は停止 → ファイナライズを待ってから。
+> (GUI はカレントディレクトリが `/`)。録画中の終了は停止 → ファイナライズを待ってから
+> (出力ファイルがまだ無い `preparing` の間だけ、猶予後の終了を許す — issue #56)。
 > ウィンドウ一覧のサムネイルは `DisplayCatalog.windowThumbnails` (SCScreenshotManager)。
+>
+> **出力名の例外**: 既定名 `kilde-yyyyMMdd-HHmmss.*` は秒までしか持たないため、止めてすぐ
+> 録り直すと同じ名前になり、`MovieWriter` が既存ファイルを消してしまう。出力パスを省略した
+> 場合に限り、衝突時は `kilde-yyyyMMdd-HHmmss-2.mov` のように連番を付ける
+> (空きが無ければ録画を始めずに失敗する)。同じ秒に別プロセスが同じ名前を取る競合は
+> 残っており、予約と作成の原子化は issue #59 で追跡する。
 - グローバルホットキー (開始/停止)。CLI と設定 (出力先・既定ソース) を共有
   (`~/.kilde/config.json` と `KildeCore.ConfigStore` / `RecordSettings` — §6、#14 で実装済み)。
 - 権限の初回ガイドを GUI で丁寧に出す (CLI の `doctor` と同一ロジック)。

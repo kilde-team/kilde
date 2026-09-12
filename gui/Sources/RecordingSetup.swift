@@ -27,6 +27,10 @@ final class RecordingSetup: ObservableObject {
     private var hasLoadedOnce = false
     /// 列挙の世代。タイムアウト後に遅れて返ってきた古い結果 (一覧・サムネイル) を捨てるために使う
     private var generation = 0
+    /// 実際に走っている列挙の数。タイムアウトしても SCShareableContent の列挙自体は止められないので、
+    /// 上限を設けて「応答しない環境で更新を連打するとタスクが無限に積み上がる」のを防ぐ
+    private var runningEnumerations = 0
+    private static let maxConcurrentEnumerations = 3
 
     private static let enumerationTimeout: TimeInterval = 10
     /// サムネイルを撮るウィンドウ数の上限 (1 枚ごとに SCScreenshotManager の撮影が走るため)
@@ -110,7 +114,13 @@ final class RecordingSetup: ObservableObject {
             if hasLoadedOnce { needsReload = true }
             return
         }
+        guard runningEnumerations < Self.maxConcurrentEnumerations else {
+            // 前の列挙が返ってこないまま上限に達した (権限プロンプト保留中など)
+            loadError = "画面/ウィンドウの列挙が応答しません。画面収録の権限確認が保留になっていないか確認してください"
+            return
+        }
         enumerationInFlight = true
+        runningEnumerations += 1
         loading = true
         generation += 1
         let generation = self.generation
@@ -127,6 +137,11 @@ final class RecordingSetup: ObservableObject {
         let enumerate = Task.detached { () -> Result<(displays: [DisplayInfo], windows: [WindowInfo]), Error> in
             do { return .success(try await DisplayCatalog.snapshot()) }
             catch { return .failure(error) }
+        }
+        // タイムアウトしても列挙は止められないので、実際に完了した時点で本数を戻す
+        Task { [weak self] in
+            _ = await enumerate.value
+            self?.runningEnumerations -= 1
         }
         Task { [weak self] in
             let finished = await Self.value(of: enumerate, timeout: Self.enumerationTimeout)
@@ -175,6 +190,9 @@ final class RecordingSetup: ObservableObject {
             default:
                 break
             }
+            // 新しい一覧に古い画像を残さない (windowID は再利用されるので、別のウィンドウの
+            // 見た目で選んでしまう)。取得できるまでプレースホルダを出す
+            thumbnails = [:]
             loadThumbnails(generation: generation)
         case .failure(let error):
             // 画面収録の権限が無いとここに来る (オンボーディングは issue #19)
