@@ -46,9 +46,12 @@ trap cleanup EXIT
 # テスト中にディスプレイが消灯すると SCK が映像を出さず、T3〜T8 が全滅する
 # (2026-09-12 に 2 回観測 — doctor は権限「あり」なのに [sck] displays=0)。
 # すでに消えている画面は -dims では起こせないため、-u で 1 度起こしてから
-# -dims で保持する二段構えにする (ロック画面は人手で解除してもらう前提)
+# -dims で保持する二段構えにする (ロック画面は人手で解除してもらう前提)。
+# -w $$ で親 (このスクリプト) の終了を caffeinate 自身にも監視させる —
+# trap が走らない kill -9 などで死んでも抑止が孤児として残らない
+# (scripts/drift-test.sh と同じ形)
 caffeinate -u -t 1 2>/dev/null
-caffeinate -dims >/dev/null 2>&1 &
+caffeinate -dims -w $$ >/dev/null 2>&1 &
 CAFFEINATE_PID=$!
 
 # T3 / T4b / T5 などは「既定 = system / mixed」を前提にするため、出力先の環境変数は外す。
