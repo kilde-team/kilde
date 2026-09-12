@@ -1,0 +1,22 @@
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_ddb4ff0703f946 488-490
+  s_35faeec28b4c4b::t_28affe4590da58 529-530,533-535
+Sources/kilde/RecCommand.swift
+  s_35faeec28b4c4b::t_af1fb4770a37a2 431-435
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "dd87b8fc2ade663d0285b45384e2a68afedfdd56",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
