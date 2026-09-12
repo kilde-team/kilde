@@ -345,9 +345,10 @@ public enum HotkeyDiagnostics {
         } catch {
             // start() は RegisterEventHotKey 失敗時に自前で後始末するが、その後始末
             // (RemoveEventHandler) 自体が失敗するとハンドラと retainedSelf が残る。
-            // stop() は残っていれば解除を再試行するので、ここで一度呼んでおく
-            _ = monitor.stop()
-            return .taken
+            // stop() は残っていれば解除を再試行するので、ここで一度呼ぶ。
+            // **戻り値を捨てない** — 捨てて .taken を返すと、ハンドラが残ったまま
+            // 縮退して録画に入り、録画中ずっと不要な Carbon ハンドラを抱えることになる
+            return monitor.stop() ? .taken : .probeStuck
         }
         return monitor.stop() ? .available : .probeStuck
     }

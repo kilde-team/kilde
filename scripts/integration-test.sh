@@ -73,13 +73,20 @@ T22_PID=""
     T23_HOLDER_PID=""
     # T23 のサブ実行 (rec 本体) も回収する。待機回帰なら同じキーを、録画中なら
     # 録画デバイスと未完了ファイルを残すため、占有役だけ止めても足りない
+    # **占有役と同じく SIGINT を終了まで送り直す。** こちらは実際に録画しているので、
+    # installStopSignalHandler の設置前に届いた SIGINT を取りこぼしたまま KILL すると
+    # Recorder.stop() が走らず未完了ファイルが残る (「Ctrl+C でも必ずファイナライズ」に反する)
     if [ -n "${T23_RUN_PID:-}" ] && kill -0 "$T23_RUN_PID" 2>/dev/null; then
-        kill -INT "$T23_RUN_PID" 2>/dev/null
-        for _ in $(seq 1 10); do
+        for _ in $(seq 1 20); do
+            kill -INT "$T23_RUN_PID" 2>/dev/null
             kill -0 "$T23_RUN_PID" 2>/dev/null || break
             sleep 0.5
         done
-        kill -0 "$T23_RUN_PID" 2>/dev/null && kill -KILL "$T23_RUN_PID" 2>/dev/null
+        if kill -0 "$T23_RUN_PID" 2>/dev/null; then
+            kill -TERM "$T23_RUN_PID" 2>/dev/null
+            sleep 1
+            kill -0 "$T23_RUN_PID" 2>/dev/null && kill -KILL "$T23_RUN_PID" 2>/dev/null
+        fi
         wait "$T23_RUN_PID" 2>/dev/null
     fi
     T23_RUN_PID=""
