@@ -1,0 +1,33 @@
+scripts/release/sign.sh
+  s_bfc5f143ffdc24::t_ac3d5158d5366c 152,163-166
+  s_bfc5f143ffdc24::t_9c494cfe9a0348 202-203
+  s_bfc5f143ffdc24::t_06a04b3dc1add3 1-110,113-151,153-162,167-201,204-221
+  s_bfc5f143ffdc24::t_fb1a1494787ff5 111-112
+docs/RELEASE.md
+  s_bfc5f143ffdc24::t_06a04b3dc1add3 1-67,69-128
+  s_bfc5f143ffdc24::t_fb1a1494787ff5 68
+docs/DEVELOPMENT.md
+  s_bfc5f143ffdc24::t_06a04b3dc1add3 58-60
+README.md
+  s_bfc5f143ffdc24::t_06a04b3dc1add3 82
+.gitignore
+  s_bfc5f143ffdc24::t_9c494cfe9a0348 22
+scripts/release/entitlements.plist
+  s_bfc5f143ffdc24::t_06a04b3dc1add3 1-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "5a0d6d9acd35fdfbce904bf34111944192b600aa",
+  "prompts": {},
+  "sessions": {
+    "s_bfc5f143ffdc24": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09350-9942-7903-a80f-cf0d8a69a3ab",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
