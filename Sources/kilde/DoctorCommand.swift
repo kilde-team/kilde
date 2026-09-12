@@ -52,5 +52,12 @@ struct DoctorCommand: ParsableCommand {
             }
         }
         print("[monitor] kilde Monitor: \(MonitorDevice.exists ? "存在する" : "存在しない")")
+
+        do {
+            try HotkeyDiagnostics.checkRegistration()
+            print("[hotkey] グローバルホットキー登録: OK")
+        } catch {
+            print("[hotkey] ERROR: \(error)")
+        }
     }
 }

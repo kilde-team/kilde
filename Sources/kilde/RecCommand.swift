@@ -54,6 +54,9 @@ struct RecCommand: ParsableCommand {
     @Option(help: "プリセット: meeting = ウィンドウ対話選択 + system + mic + ミックス")
     var preset: String?
 
+    @Option(help: "グローバルホットキーで開始 / 停止 (例: cmd+shift+r。未指定時は設定 hotkey を使用)")
+    var hotkey: String?
+
     func validate() throws {
         if audio.contains("none") && audio.contains(where: { $0 != "none" }) {
             throw ValidationError("--audio none は他の音声ソースと併用できません")
@@ -82,6 +85,19 @@ struct RecCommand: ParsableCommand {
         if let d = duration, parseDuration(d) == nil {
             throw ValidationError("--duration の形式が不正: \(d) (例: 30s, 5m)")
         }
+        if let hotkey {
+            do {
+                _ = try HotkeyParser.parse(hotkey)
+            } catch {
+                throw ValidationError("\(error)")
+            }
+            // 待機モードでは countdown は「待機開始までの」カウントになって録画の
+            // 開始を守れなくなる (守るなら開始後のカウントダウンで別機能)。
+            // 挙動が期待とずれるのを避けるため併用を拒否する
+            if countdown > 0 {
+                throw ValidationError("--countdown と --hotkey は併用できません (カウントダウンが待機前に消費されるため)")
+            }
+        }
     }
 
     mutating func run() {
@@ -96,6 +112,18 @@ struct RecCommand: ParsableCommand {
             config = try ConfigStore.load()
         } catch {
             cliError(error)
+        }
+        let resolvedHotkey: String?
+        do {
+            resolvedHotkey = try HotkeySettings.resolve(explicit: hotkey, config: config)
+        } catch {
+            cliError(error)
+        }
+        // validate() は CLI 引数しか見られないため、設定ファイルの hotkey との組合せは
+        // ここで初めて分かる。カウントダウンが待機前に消費される挙動は期待とずれるので
+        // 設定由来も同じく拒否する (設定値との組合せエラーのため終了コードは 1)
+        if resolvedHotkey != nil, countdown > 0 {
+            cliError(KilError.failed("--countdown と hotkey は併用できません (カウントダウンが待機前に消費されるため)"))
         }
 
         var options = RecordOptions()
@@ -154,28 +182,89 @@ struct RecCommand: ParsableCommand {
             }
         }
 
+        if let resolvedHotkey {
+            waitForHotkey(resolvedHotkey, options: options, overrides: overrides, config: config)
+        } else {
+            runImmediately(options: options)
+        }
+    }
+
+    // MARK: - 実行モード
+
+    /// 従来の即時録画経路。--hotkey 未指定かつ設定もない場合の挙動を変えない。
+    private func runImmediately(options: RecordOptions) {
         let recorder = Recorder(options: options)
         installStopSignalHandler { [weak recorder] in
             recorder?.stop()
         }
 
+        let result: Result<Recorder.Summary, Error>
+        print("● 録画\(!options.wantsVideo ? " (音声のみ)" : "") → \(options.outputURL!.path)  (Ctrl+C で停止)")
+        let ticker = startStatusTicker(recorder)
+        result = Result { try recorder.run() }
+        ticker.cancel()
+        finish(recorder: recorder, result: result)
+    }
+
+    /// Carbon イベントを受け取るためメイン RunLoop を維持し、Recorder.run() の
+    /// 長時間ブロックだけをワーカーへ逃がす。状態の変更はすべてメインキュー上で行う。
+    private func waitForHotkey(_ source: String, options: RecordOptions,
+                               overrides: RecordOverrides, config: KildeConfig) {
+        var ticker: DispatchSourceTimer?
+        var outcome: HotkeyRecordingController.Outcome?
+
         do {
-            print("● 録画\(!options.wantsVideo ? " (音声のみ)" : "") → \(options.outputURL!.path)  (Ctrl+C で停止)")
-            let ticker = startStatusTicker(recorder)
-            let summary = try recorder.run()
-            ticker.cancel()
-            print("")
-            printSummary(summary)
-            for warning in recorder.cleanupWarnings {
-                FileHandle.standardError.write("WARNING: \(warning)\n".data(using: .utf8)!)
+            let controller = try HotkeyRecordingController(
+                hotkey: source, options: options, overrides: overrides, config: config,
+                environment: ProcessInfo.processInfo.environment,
+                onStarted: { recorder, startedOptions, normalized in
+                    print("● 録画\(!startedOptions.wantsVideo ? " (音声のみ)" : "") → \(startedOptions.outputURL!.path)  (Ctrl+C / \(normalized) で停止)")
+                    ticker = startStatusTicker(recorder)
+                },
+                onFinished: { result in
+                    ticker?.cancel()
+                    outcome = result
+                    CFRunLoopStop(CFRunLoopGetMain())
+                }
+            )
+            try controller.start()
+            installStopSignalHandler {
+                controller.requestStop()
             }
+            print("⏳ 待機中 — \(controller.normalizedHotkey) で開始 / Ctrl+C で終了")
+            // stdout がファイルにリダイレクトされていると C stdio はフルバッファになり、
+            // この後 RunLoop で無期限にブロックするため「待機中」が exit まで出ない。
+            // 統合テスト (T13) はこの行をログから待つので、ここで必ず吐き出す
+            fflush(stdout)
+            while outcome == nil {
+                _ = RunLoop.current.run(mode: .default, before: .distantFuture)
+            }
+        } catch {
+            cliError(error)
+        }
+
+        switch outcome! {
+        case .cancelled:
+            return
+        case .failed(let error):
+            cliError(error)
+        case .completed(let recorder, let result):
+            finish(recorder: recorder, result: result)
+        }
+    }
+
+    private func finish(recorder: Recorder, result: Result<Recorder.Summary, Error>) {
+        print("")
+        for warning in recorder.cleanupWarnings {
+            FileHandle.standardError.write("WARNING: \(warning)\n".data(using: .utf8)!)
+        }
+        switch result {
+        case .success(let summary):
+            printSummary(summary)
             if !recorder.cleanupWarnings.isEmpty {
                 Darwin.exit(1)
             }
-        } catch {
-            for warning in recorder.cleanupWarnings {
-                FileHandle.standardError.write("WARNING: \(warning)\n".data(using: .utf8)!)
-            }
+        case .failure(let error):
             cliError(error)
         }
     }

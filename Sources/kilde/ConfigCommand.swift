@@ -11,6 +11,7 @@ struct ConfigCommand: ParsableCommand {
         discussion: """
         設定値は kilde rec の既定値になります。優先順位は
         CLI 引数 > --preset > 環境変数 (KILDE_OUTPUT_DIR) > 設定ファイル > 既定値 です。
+        hotkey は --hotkey > 設定 hotkey > 待機モードなし の順です。
         """,
         subcommands: [Show.self, SetValue.self, Unset.self, Path.self],
         defaultSubcommand: Show.self

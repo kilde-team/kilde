@@ -418,6 +418,47 @@ else
     CONFIG_TOUCHED=0
 fi
 
+# ---- T13: ホットキー待機 — 待機中の SIGINT は録画を始めず exit 0 ----------------
+# ホットキーの実際の押下は人間の確認が必要だが、「待機中の Ctrl+C はファイルを
+# 作らず終了 0」の契約はここで機械検証する
+
+log "T13: rec --hotkey — 待機中の SIGINT は録画を始めず exit 0"
+T13_DIR="$WORK/t13"
+mkdir -p "$T13_DIR"
+# exec でサブシェル自身を kilde に置き換える — 置き換えないと $! はサブシェルの PID に
+# なり、kill -INT が kilde に届かず wait がハングする
+(cd "$T13_DIR" && exec "$KILDE" rec --no-video --hotkey cmd+opt+ctrl+shift+f11 \
+    > "$WORK/t13.log" 2>&1) &
+T13_PID=$!
+# 「待機中」の表示 (登録完了) を待つ — 出ないままなら start に失敗している
+T13_READY=0
+for _ in $(seq 1 20); do
+    if grep -q "待機中" "$WORK/t13.log" 2>/dev/null; then T13_READY=1; break; fi
+    sleep 0.5
+done
+sleep 1
+kill -INT $T13_PID 2>/dev/null
+# wait にタイムアウトがないと、待機中 SIGINT で終了しない回帰があったときに
+# スイート全体が無言でハングする — SIGINT 後 5 秒生きていたら段階的に強制する
+T13_EXIT=-1
+for _ in $(seq 1 10); do
+    if ! kill -0 $T13_PID 2>/dev/null; then break; fi
+    sleep 0.5
+done
+if kill -0 $T13_PID 2>/dev/null; then
+    kill -TERM $T13_PID 2>/dev/null
+    sleep 1
+    kill -0 $T13_PID 2>/dev/null && kill -KILL $T13_PID 2>/dev/null
+fi
+wait $T13_PID
+T13_EXIT=$?
+T13_FILES=$(ls "$T13_DIR" 2>/dev/null | wc -l | tr -d ' ')
+if [ "$T13_READY" = "1" ] && [ "$T13_EXIT" = "0" ] && [ "$T13_FILES" = "0" ]; then
+    ok "T13 hotkey 待機中止: exit=0・出力ファイルなし"
+else
+    bad "T13 hotkey 待機中止: ready=$T13_READY exit=$T13_EXIT files=$T13_FILES — $WORK/t13.log"
+fi
+
 # ---- サマリ -------------------------------------------------------------------
 
 echo ""
