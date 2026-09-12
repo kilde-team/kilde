@@ -496,6 +496,38 @@ else
     bad "T14d region 引数検証: 上記の組合せが想定どおりに弾かれていない"
 fi
 
+# ---- T19: コーデック別のピクセル形式 (issue #15) ---------------------------------
+# pixelFormat をコーデックのクロマに合わせて出し分けている (h264/hevc → 420v、
+# prores → BGRA)。SCStreamConfiguration は単体テストから触れないので、
+# 両方の経路で実際に録れることをここで担保する。
+# 特に ProRes は「420v に統一する」変更で静かに壊れる側なので、回帰を捕まえる意味が大きい
+
+log "T19: rec --codec prores — BGRA 経路で録れる"
+F="$WORK/t19-prores.mov"
+if "$KILDE" rec --codec prores --duration 3s --output "$F" > "$WORK/t19.log" 2>&1; then
+    VD=$(video_duration_of "$F")
+    if grep -q "video: present" <(inspect "$F") && num_between "${VD:-0}" 2 5; then
+        ok "T19 codec prores: 映像あり (${VD}s)"
+    else
+        bad "T19 codec prores: duration=${VD:-N/A}s — $WORK/t19.log"
+    fi
+else
+    bad "T19 codec prores: コマンド失敗 — $WORK/t19.log"
+fi
+
+log "T19b: rec --codec hevc — 420v 経路で録れる"
+F="$WORK/t19b-hevc.mov"
+if "$KILDE" rec --codec hevc --duration 3s --output "$F" > "$WORK/t19b.log" 2>&1; then
+    VD=$(video_duration_of "$F")
+    if grep -q "video: present" <(inspect "$F") && num_between "${VD:-0}" 2 5; then
+        ok "T19b codec hevc: 映像あり (${VD}s)"
+    else
+        bad "T19b codec hevc: duration=${VD:-N/A}s — $WORK/t19b.log"
+    fi
+else
+    bad "T19b codec hevc: コマンド失敗 — $WORK/t19b.log"
+fi
+
 # ---- サマリ -------------------------------------------------------------------
 
 echo ""
