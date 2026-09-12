@@ -1,0 +1,28 @@
+gui/Sources/SelfTest.swift
+  s_6e1b71b77323e6::t_f83ef7f72dfdce 88-90,94
+gui/Sources/RecordingSetup.swift
+  s_6e1b71b77323e6::t_60f6a472bce6e3 134-144
+gui/Sources/ContentView.swift
+  s_6e1b71b77323e6::t_33d4c459043b8a 287-290
+  s_6e1b71b77323e6::t_cce3f89e6d234c 128-133
+Sources/KildeCore/Recording/RecordRequest.swift
+  s_6e1b71b77323e6::t_7db23f89a653c4 101-104
+Tests/KildeCoreTests/RecordRequestTests.swift
+  s_6e1b71b77323e6::t_e3ef552fb3d145 96-100,104-106,109,111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "8c53354fa4698fc2a5b2d53d318377d4df525fad",
+  "prompts": {},
+  "sessions": {
+    "s_6e1b71b77323e6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0f56a8e5-68cd-4330-8471-cbfa3a206358",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
