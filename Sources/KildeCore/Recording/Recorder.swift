@@ -158,6 +158,7 @@ public final class Recorder {
     /// `--hdr` を指定したが SDR で録ることになった理由 (issue #16)。
     /// 失敗ではないので cleanupWarnings とは別に持ち、Summary に載せて伝える
     private var hdrFallback: String?
+    private var hdrPresetDescription: String?
     /// HDR で書き出すか (issue #16)。**セッション開始時に 1 回だけ決めて持ち回す** —
     /// 都度判定するとストリーム側と書き出し側で答えが割れ、8-bit のバッファに
     /// Main10 + PQ のタグが付いた「HDR のつもりのファイル」ができる。
@@ -191,6 +192,9 @@ public final class Recorder {
         /// `--hdr` を指定したが SDR で録った場合の理由 (issue #16)。nil なら該当なし。
         /// 失敗ではないので cleanupWarnings ではなくここに載せる (終了コードは 0 のまま)
         public let hdrFallback: String?
+        /// HDR で録ったときの方式の表示名 (issue #76)。例: "HDR10 (SDR 保護付き)"。
+        /// SDR のときと HDR を指定していないときは nil
+        public let hdrPreset: String?
     }
 
     /// 録画が 1 フレームも成立しないまま、準備の途中で停止されたか (issue #56)。
@@ -720,6 +724,7 @@ public final class Recorder {
             }
             let hdr = try hdrDecision(targetDisplayID: targetDisplayID)
             recordsHDR = hdr.isHDR
+            hdrPresetDescription = hdr.presetDescription
             // HDR を指定したのに SDR へ落ちたときは、必ず理由を伝える。黙って落とすと
             // 「HDR で録れたつもりのファイル」ができ、再生して初めて気づくことになる。
             // ただし cleanupWarnings には載せない — あれは「録画は成立したが後始末に失敗した」
@@ -871,6 +876,7 @@ public final class Recorder {
             // 収録対象のディスプレイは無いので nil を渡す (映像なしの時点で SDR に落ちる)
             let hdr = try hdrDecision(targetDisplayID: nil)
             recordsHDR = hdr.isHDR
+            hdrPresetDescription = hdr.presetDescription
             hdrFallback = hdr.fallbackReason
         }
 
@@ -1008,7 +1014,8 @@ public final class Recorder {
             firstPTSOffsets: w.firstPTSOffsets,
             mixedDecodeFailures: mixer?.decodeFailures ?? 0,
             pausedDuration: pausedDuration,
-            hdrFallback: hdrFallback
+            hdrFallback: hdrFallback,
+            hdrPreset: hdrPresetDescription
         )
     }
 
@@ -1037,12 +1044,15 @@ public final class Recorder {
         let configuration: SCStreamConfiguration?
         let isHDR: Bool
         let fallbackReason: String?
+        /// HDR で録るときの方式の表示名 (issue #76)。macOS 26 では HDR10 メタデータ付き
+        /// プリセット、15 では Stream Local Display。SDR のときは nil
+        let presetDescription: String?
 
-        static let sdr = HDRDecision(configuration: nil, isHDR: false, fallbackReason: nil)
+        static let sdr = HDRDecision(configuration: nil, isHDR: false, fallbackReason: nil, presetDescription: nil)
 
         /// SDR に落ちる理由つきの結果。`--hdr` を求められたのに応えられなかった場合に使う
         static func fallback(_ reason: String) -> HDRDecision {
-            HDRDecision(configuration: nil, isHDR: false, fallbackReason: reason)
+            HDRDecision(configuration: nil, isHDR: false, fallbackReason: reason, presetDescription: nil)
         }
     }
 
@@ -1089,13 +1099,19 @@ public final class Recorder {
         // captureDynamicRange / pixelFormat / colorSpace / colorMatrix を自分で組み合わせるのは
         // 間違えやすいので、Apple が「これなら HDR になる」と保証している組を使う。
         //
-        // **macOS 26 の captureHDRRecordingPreservedSDRHDR10 (HDR10 メタデータ付き) は使わない。**
-        // CI は macos-15 ランナーで、その SDK にシンボルが無いためコンパイルできない。
-        // `#available` は実行時チェックなので回避にならない (可用性ブロックの中に書いても、
-        // SDK に無いシンボルは参照できない)。対応は issue #76 に切り出した
+        // macOS 26 は録画向けの HDR10 プリセット (SDR 範囲の見え方を保ち、HDR10 メタデータが
+        // 付く) を使う。CI の SDK の壁は PR #81 でランナーを macos-26 に上げて解消済み。
+        // 15 では引き続き Stream Local Display (メタデータ無し・見た目は SDR 側に寄る)
+        if #available(macOS 26.0, *) {
+            return HDRDecision(
+                configuration: SCStreamConfiguration(preset: .captureHDRRecordingPreservedSDRHDR10),
+                isHDR: true, fallbackReason: nil,
+                presetDescription: "HDR10 (SDR 保護付き)")
+        }
         return HDRDecision(
             configuration: SCStreamConfiguration(preset: .captureHDRStreamLocalDisplay),
-            isHDR: true, fallbackReason: nil)
+            isHDR: true, fallbackReason: nil,
+            presetDescription: "HDR (Stream Local Display)")
     }
 
     /// 指定したディスプレイが HDR を出せるか。

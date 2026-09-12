@@ -575,6 +575,11 @@ struct RecCommand: ParsableCommand {
             // 「HDR で録れたつもりのファイル」ができるので、結果に必ず出す (issue #16)
             print("⚠ HDR: \(reason)")
         }
+        if let preset = s.hdrPreset {
+            // HDR で録れたときは「どの方式か」を結果に出す (issue #76)。HDR10 (SDR 保護付き)
+            // と Stream Local Display はメタデータの有無が違い、再生環境での見え方に効く
+            print("HDR: \(preset) で録画しました")
+        }
         if let report = try? FileInspection.report(url: s.outputURL) {
             if let size = report.videoSize {
                 print(String(format: "video: %dx%d duration=%.2fs", Int(size.width), Int(size.height), report.duration))

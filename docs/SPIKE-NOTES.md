@@ -212,7 +212,7 @@ error: type 'SCStreamConfiguration.Preset' has no member 'captureHDRRecordingPre
 **`#available` では回避できない。** `if #available(macOS 26, *)` は「実行時にその OS か」を
 見るものであって、**コンパイル時に SDK へ存在しないシンボルは、可用性チェックの中に
 書いてあっても参照できない**。`@available` を付けても同じ。新しい SDK の API を使うときは
-「実行時の OS」と「ビルド時の SDK」を分けて考える必要がある。対応は issue #76 に切り出した
+「実行時の OS」と「ビルド時の SDK」を分けて考える必要がある。~~対応は issue #76 に切り出した~~ → **#76 で対応済み** (CI を macos-26 に上げて SDK の壁を解消し、macOS 26 では `captureHDRRecordingPreservedSDRHDR10` を使用)
 (CI の最小 SDK をどうするかという、#16 より広い判断を含むため)。
 
 **書き出す色域は使うプリセットで決まる。** 上表のとおり `captureHDRStreamLocalDisplay` は
