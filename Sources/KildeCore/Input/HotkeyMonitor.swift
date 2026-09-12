@@ -313,14 +313,85 @@ public enum HotkeyDiagnostics {
         }
         throw lastError ?? KilError.failed("ホットキー登録の診断に失敗しました")
     }
+
+    /// `canRegister` の結果。**「登録できない」と「プローブがキーを握ったまま」を
+    /// 区別する** — どちらも「待機はできない」だが、後者で即時録画へ縮退すると
+    /// 録画中ずっとキーを占有し、GUI も CLI もそのキーを使えなくなる (issue #80)
+    public enum Registrability: Equatable {
+        /// 登録でき、解除もできた。待機してよい
+        case available
+        /// 競合などで登録できなかった。キーは握っていないので縮退してよい
+        case taken
+        /// 登録はできたが**解除に失敗した**。プローブがキーを保持したままなので縮退してはならない
+        case probeStuck
+    }
+
+    /// 指定のキーを**このプロセスが今**登録できるかを、実際に一度登録して確かめる (issue #80)。
+    ///
+    /// `RegisterEventHotKey` は `kEventHotKeyExclusive` なので、GUI が常駐して同じキーを
+    /// 握っていると CLI 側の登録は失敗する。**待機に入ってから失敗しても即時録画へ
+    /// 引き返せない** ため (理由は `RecCommand.shouldWaitForHotkey`)、分岐の前にここで試す。
+    ///
+    /// 試用の直後に同じキーを登録し直せるのは `stop()` をメインスレッドで同期的に
+    /// 呼んでいるからで、`HotkeyRecordingController.deinit` が非同期の解除を避けているのと
+    /// 同じ理由。**`stop()` の失敗を `.taken` と同じ扱いにしない** — `stop()` は解除に
+    /// 失敗すると再試行を要求して参照を保持する設計なので、ここでモニターを捨てて
+    /// 縮退すると、解放されないプローブがキーを握ったまま録画が始まる
+    public static func canRegister(_ source: String) -> Registrability {
+        precondition(Thread.isMainThread, "ホットキーの登録可否判定はメインスレッドから実行してください")
+        guard let monitor = try? HotkeyMonitor(source, handler: {}) else { return .taken }
+        do {
+            try monitor.start()
+        } catch {
+            // start() は RegisterEventHotKey 失敗時に自前で後始末するが、その後始末
+            // (RemoveEventHandler) 自体が失敗するとハンドラと retainedSelf が残る。
+            // stop() は残っていれば解除を再試行するので、ここで一度呼ぶ。
+            // **戻り値を捨てない** — 捨てて .taken を返すと、ハンドラが残ったまま
+            // 縮退して録画に入り、録画中ずっと不要な Carbon ハンドラを抱えることになる
+            return monitor.stop() ? .taken : .probeStuck
+        }
+        return monitor.stop() ? .available : .probeStuck
+    }
 }
 
 /// CLI と GUI で同じ優先順位を使うため、ホットキーの解決を KildeCore に置く。
 public enum HotkeySettings {
+    /// ホットキーの出どころ。**登録に失敗したときの扱いが出どころで変わる** ため、
+    /// 解決結果はキー文字列だけでなくこれも返す (issue #80)。
+    /// `--hotkey` を明示したなら待機が目的なので失敗させるべきだが、設定ファイル由来は
+    /// 「たまたま GUI が常駐していた」だけで `kilde rec` 全体が使えなくなるのは重すぎる
+    public enum Origin: Equatable {
+        /// `--hotkey` で明示された
+        case explicit
+        /// 設定ファイルの `hotkey` から来た
+        case config
+    }
+
+    public struct Resolution: Equatable {
+        public let source: String
+        public let origin: Origin
+
+        public init(source: String, origin: Origin) {
+            self.source = source
+            self.origin = origin
+        }
+    }
+
+    /// 優先順位は CLI 引数 > 設定ファイル > 待機モードなし。出どころ付きで返す。
+    public static func resolveDetailed(explicit: String?,
+                                       config: KildeConfig) throws -> Resolution? {
+        if let explicit {
+            _ = try HotkeyParser.parse(explicit)
+            return Resolution(source: explicit, origin: .explicit)
+        }
+        guard let configured = config.hotkey else { return nil }
+        _ = try HotkeyParser.parse(configured)
+        return Resolution(source: configured, origin: .config)
+    }
+
+    /// 出どころを問わない呼び出し元 (GUI は設定ファイルしか見ないため) 用の薄いラッパ。
     /// 優先順位は CLI 引数 > 設定ファイル > 待機モードなし。
     public static func resolve(explicit: String?, config: KildeConfig) throws -> String? {
-        guard let source = explicit ?? config.hotkey else { return nil }
-        _ = try HotkeyParser.parse(source)
-        return source
+        try resolveDetailed(explicit: explicit, config: config)?.source
     }
 }

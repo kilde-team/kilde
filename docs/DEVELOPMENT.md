@@ -288,6 +288,7 @@ scripts/integration-test.sh
 | T11 | GUI — KildeGUI のビルド・起動・正常終了 (xcodegen 未導入 / kilde-dev 証明書なし / KildeGUI 起動中は SKIP。メニューバー表示は目視確認) |
 | T12 | 設定ファイル — `outputDirectory` が既定の保存先になる / 存在しない保存先は録画前に exit 1 |
 | T13 | `rec --hotkey` — 待機中の SIGINT は録画を始めず exit 0・出力ファイルなし (ホットキーの押下自体は目視確認) |
+| T23 | ホットキーの排他と縮退 (issue #80) — 占有役の `rec --hotkey` に同じキーを握らせた状態で、設定ファイル由来のキーは警告つきで即時録画へ縮退 (exit 0)・`--hotkey` 明示は exit 1 でファイルなし。GUI を起動せずに衝突を再現する。キーは T13 (f11) / T21 (f9) と分けてある (T23 は f10) |
 | T14 | `rec --region` — 指定した矩形の解像度で録れる / 奇数は偶数へ切り捨て / 範囲外は録画前に exit 1 / 形式不正は exit 64 |
 | T15 | `rec` 一時停止 / 再開 — SIGUSR1 で挟んだ区間が映像・音声のどちらの長さにも含まれず、A/V の差が 1 秒未満 (`p` キーは端末が要るので目視確認) |
 | T16 | `rec --format mp4` — ISO Media コンテナで録れる / 出力パスの拡張子から自動判定 / 既定は MOV のまま / ProRes・`--no-video`・不正値との組合せは録画前に exit 64 (設定ファイル由来の codec は exit 1) |
