@@ -73,15 +73,19 @@ public enum DisplayCatalog {
         try await snapshot().windows.filter { $0.isOnScreen && $0.bundleIdentifier != nil }
     }
 
-    /// 部分一致で SCWindow を解決する (複数ヒット時は面積が最大のもの)。
+    /// SCWindow を解決する。windowID の完全一致を最優先し、無ければタイトル / bundleID の
+    /// 部分一致 (複数ヒット時は面積が最大のもの)。
     /// Recorder のセッション (async) からのみ使うので async 版だけを持つ
     static func resolveWindow(matching match: String) async throws -> SCWindow {
         let content = try await shareableContent("ウィンドウの一覧を取得できません")
         let candidates = content.windows.filter { $0.isOnScreen && $0.owningApplication != nil }
+        // windowID の完全一致 (kilde devices の [ID]、GUI・meeting プリセットの選択結果) を先に見る。
+        // 部分一致と同列に扱うと、タイトルに同じ数字を含むより大きいウィンドウが選ばれてしまう
+        if let exact = candidates.first(where: { String($0.windowID) == match }) {
+            return exact
+        }
         let matched = candidates.filter {
-            // windowID の完全一致 (kilde devices に表示される [ID] を直接指定できる)
-            String($0.windowID) == match
-                || ($0.title ?? "").localizedCaseInsensitiveContains(match)
+            ($0.title ?? "").localizedCaseInsensitiveContains(match)
                 || ($0.owningApplication?.bundleIdentifier ?? "").localizedCaseInsensitiveContains(match)
         }
         guard let best = matched.max(by: { $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height })
@@ -98,6 +102,30 @@ public enum DisplayCatalog {
             throw KilError.deviceNotFound("ディスプレイ \(index) は範囲外です (0...\(content.displays.count - 1))")
         }
         return content.displays[index]
+    }
+
+    /// ウィンドウのサムネイル (GUI のウィンドウ選択用 — issue #18)。列挙は 1 回にまとめ、
+    /// 撮れなかったウィンドウ (最小化・権限不足・撮影中に閉じた等) は結果に含めない。
+    /// サムネイルは補助表示なので、失敗しても例外にせず空の結果で返す
+    public static func windowThumbnails(windowIDs: [UInt32], maxDimension: Int = 160) async -> [UInt32: CGImage] {
+        guard !windowIDs.isEmpty, let content = try? await SCShareableContent.current else { return [:] }
+        var images: [UInt32: CGImage] = [:]
+        for id in windowIDs {
+            guard let window = content.windows.first(where: { $0.windowID == id }) else { continue }
+            let longest = max(window.frame.width, window.frame.height, 1)
+            let scale = min(1, CGFloat(maxDimension) / longest)
+            let configuration = SCStreamConfiguration()
+            // points 基準の縮小サイズで撮る (Retina の実解像度はサムネイルには不要)
+            configuration.width = max(1, Int(window.frame.width * scale))
+            configuration.height = max(1, Int(window.frame.height * scale))
+            configuration.showsCursor = false
+            let filter = SCContentFilter(desktopIndependentWindow: window)
+            if let image = try? await SCScreenshotManager.captureImage(contentFilter: filter,
+                                                                      configuration: configuration) {
+                images[id] = image
+            }
+        }
+        return images
     }
 
     /// SCShareableContent の取得失敗は画面収録権限の不足として扱う (終了コード 2)

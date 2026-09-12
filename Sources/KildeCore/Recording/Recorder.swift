@@ -26,6 +26,9 @@ public enum VideoCodecKind: String, CaseIterable {
 public struct RecordOptions {
     public var displayIndex = 0
     public var windowMatch: String?
+    /// 収録する矩形領域 (ポイント座標、ディスプレイ左上が原点)。nil ならディスプレイ全体。
+    /// ウィンドウ収録 (windowMatch) や音声のみ (wantsVideo = false) とは併用しない
+    public var region: CGRect?
     public var audioSources: [AudioSourceSpec] = [.system]
     public var trackPolicy: AudioTrackPolicy = .mixed
     public var wantsVideo = true
@@ -376,6 +379,17 @@ public final class Recorder {
 
     private func performSession() async throws -> Summary {
         cleanupWarnings.removeAll()
+        // 入力の矛盾は副作用 (権限ダイアログ・monitor の既定出力変更) より前に弾く。
+        // CLI でも弾いているが、GUI (M3) や HotkeyRecordingController も同じ RecordOptions を
+        // 組み立てるため、ここで止めないと「指定した領域と違う範囲を無警告で録る」ことになる
+        if options.region != nil {
+            guard options.wantsVideo else {
+                throw KilError.failed("領域指定 (region) は音声のみのモードでは使えません")
+            }
+            guard options.windowMatch == nil else {
+                throw KilError.failed("領域指定 (region) はウィンドウ収録とは併用できません")
+            }
+        }
         let ext = options.wantsVideo ? "mov" : "m4a"
         let url = options.outputURL ?? URL(fileURLWithPath: defaultOutputName(ext: ext))
         outputURL = url
@@ -454,9 +468,40 @@ public final class Recorder {
             } else {
                 let display = try await DisplayCatalog.display(at: options.displayIndex)
                 if options.wantsVideo {
-                    cfg.width = Int(display.width)
-                    cfg.height = Int(display.height)
-                    videoSize = CGSize(width: display.width, height: display.height)
+                    if let region = options.region {
+                        // region はポイント座標なので、比較もポイントで行う。
+                        // CGDisplayBounds はポイント寸法を返すのでこれを基準にする
+                        // (SCDisplay の width/height と取り違えると Retina で範囲判定がずれる)
+                        let pointSize = CGDisplayBounds(display.displayID).size
+                        let bounds = CGRect(origin: .zero,
+                                            size: pointSize.width > 0 && pointSize.height > 0
+                                                ? pointSize
+                                                : CGSize(width: CGFloat(display.width),
+                                                         height: CGFloat(display.height)))
+                        guard bounds.contains(region) else {
+                            throw KilError.failed(
+                                "--region がディスプレイの範囲外です: "
+                                + "\(Int(region.origin.x)),\(Int(region.origin.y)),"
+                                + "\(Int(region.width)),\(Int(region.height)) "
+                                + "(display[\(options.displayIndex)] は \(Int(bounds.width))x\(Int(bounds.height)) ポイント)")
+                        }
+                        // H.264 は偶数サイズしか扱えないので切り捨てる。sourceRect も同じ大きさに
+                        // 揃える — 揃えないと切り捨てたぶんだけ引き伸ばされ、指定と違う絵になる
+                        let w = Int(region.width) & ~1
+                        let h = Int(region.height) & ~1
+                        guard w >= 2, h >= 2 else {
+                            throw KilError.failed("--region の幅と高さは 2 ポイント以上にしてください")
+                        }
+                        cfg.sourceRect = CGRect(x: region.origin.x, y: region.origin.y,
+                                                width: CGFloat(w), height: CGFloat(h))
+                        cfg.width = w
+                        cfg.height = h
+                        videoSize = CGSize(width: w, height: h)
+                    } else {
+                        cfg.width = Int(display.width)
+                        cfg.height = Int(display.height)
+                        videoSize = CGSize(width: display.width, height: display.height)
+                    }
                 }
                 filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
             }
