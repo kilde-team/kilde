@@ -110,18 +110,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ///
     /// **新しい登録が成功するまで旧モニターを捨てない。** 先に解除してから登録すると、
     /// 登録に失敗したときに**旧ホットキーまで失われる** (設定だけ新しい値が残り、
-    /// どのキーも効かない状態になる)。`revertingTo` が渡されているときは、
+    /// どのキーも効かない状態になる)。`revert` が渡されているときは、
     /// 失敗した設定を書き戻さないよう永続設定も旧値へ巻き戻す。
     ///
     /// 登録失敗 (他アプリとの競合) 自体は録画機能を止める理由にならないので、
     /// notice に出して続ける — 黙って無効にすると «押しても効かない» になる
-    func applyHotkeyFromConfig(revertingTo previous: String? = nil) {
+    /// `revert` を渡すと、登録に失敗したときに設定をその値へ巻き戻す。
+    /// **`Optional<String?>` にしているのは «巻き戻さない» と «nil (未設定) へ戻す» を
+    /// 区別するため** — 未設定からホットキーを足して登録に失敗したとき、
+    /// 区別できないと競合するキーが設定に残り、次回起動でも GUI と CLI が同じ失敗を繰り返す
+    func applyHotkeyFromConfig(revert: String?? = nil) {
+        let previous = revert ?? nil
         let source: String?
         do {
             source = try HotkeySettings.resolve(explicit: nil, config: setup.config)
         } catch {
             setup.notice = "ホットキーの設定を解釈できません: \(error)"
-            if let previous { setup.restoreHotkey(previous) }
+            if revert != nil { setup.restoreHotkey(previous) }
             return
         }
 
@@ -139,7 +144,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 replacement = monitor
             } catch {
                 setup.notice = "ホットキーを登録できません (旧設定のままにします): \(error)"
-                if let previous { setup.restoreHotkey(previous) }
+                if revert != nil { setup.restoreHotkey(previous) }
                 // 同じキーの再適用で解除だけ済んでいた場合は、旧設定で登録し直す
                 if hotkeyMonitor == nil, let previous,
                    let monitor = try? HotkeyMonitor(previous, handler: { [weak self] in
@@ -150,21 +155,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 return
             }
         }
-        // 新しい登録が成功した (または設定が空になった) のでここで旧モニターを手放す
-        releaseHotkeyMonitor()
+        // 新しい登録が成功した (または設定が空になった) のでここで旧モニターを手放す。
+        // **解除に失敗したら置き換えない** — 上書きすると旧モニターへの参照が消え、
+        // 新旧のホットキーが両方効いたまま、旧モニターを再解除する機会も失われる
+        guard releaseHotkeyMonitor() else {
+            replacement?.stop()
+            return
+        }
         hotkeyMonitor = replacement
     }
 
     /// 旧モニターを解除する。`stop()` が false を返したら解除しきれていない —
     /// HotkeyMonitor は «参照を保持したままリークさせ、再 stop() で再試行できる»
     /// 契約なので、失敗時は参照を捨てずに残す
-    private func releaseHotkeyMonitor() {
-        guard let monitor = hotkeyMonitor else { return }
+    @discardableResult
+    private func releaseHotkeyMonitor() -> Bool {
+        guard let monitor = hotkeyMonitor else { return true }
         if monitor.stop() {
             hotkeyMonitor = nil
-        } else {
-            setup.notice = "前のホットキーを解除できませんでした (もう一度「適用」を押すと再試行します)"
+            return true
         }
+        setup.notice = "前のホットキーを解除できませんでした (もう一度「適用」を押すと再試行します)"
+        return false
     }
 
     /// ホットキーでの開始/停止。録画中なら止め、そうでなければ今の選択で始める。

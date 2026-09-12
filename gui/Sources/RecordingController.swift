@@ -177,11 +177,17 @@ final class RecordingController: ObservableObject {
     /// 通知が返らないせいでアプリが終われなくなるのは本末転倒なので、短い上限を置く。
     /// 二重に呼ばれても `endSession` は 1 回だけ走らせる
     private func notifyThenEndSession(_ notify: (@escaping () -> Void) -> Void) {
+        // タイムアウトは **このセッションにだけ効かせる**。フラグだけで多重呼び出しを
+        // 防いでも、2 秒を超えた後に次の録画が始まっていると、遅れて発火した
+        // タイムアウトが**新しいセッションの recorder を破棄**してしまう
+        // (停止できない録画が残り、sessionEndHandlers も失われる)
+        let session = recorder
         var finished = false
         let finish = { [weak self] in
             guard !finished else { return }
             finished = true
-            self?.endSession()
+            guard let self, self.recorder === session else { return }
+            self.endSession()
         }
         notify(finish)
         // 通知の登録が 2 秒で返らなければ諦めて先へ進む (ファイナライズは済んでいる)。

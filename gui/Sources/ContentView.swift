@@ -340,7 +340,9 @@ struct ContentView: View {
         // 挟むプロキシのせいで `as? AppDelegate` が nil になる (AppDelegate.shared のコメント)。
         // ここを NSApp.delegate にしていたため「適用」を押してもホットキーが
         // 再登録されず、設定だけ書き換わって無反応になっていた
-        AppDelegate.shared?.applyHotkeyFromConfig(revertingTo: previous)
+        // .some(previous) を渡すことで «失敗したら巻き戻す» を明示する
+        // (previous 自体が nil = 未設定だった場合も巻き戻しの対象)
+        AppDelegate.shared?.applyHotkeyFromConfig(revert: .some(previous))
     }
 
     // MARK: - 開始・結果

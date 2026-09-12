@@ -264,9 +264,15 @@ enum SelfTest {
             print("selftest: hotkeyRegistered=true source=\(registered)")
         } else {
             // 失敗の理由は AppDelegate が notice に入れている。出さないと
-            // «登録できなかった» としか分からず、原因の切り分けができない
+            // «登録できなかった» としか分からず、原因の切り分けができない。
+            //
+            // **print して続行してはいけない** — 走査のタイムアウトを fail() にしたのと
+            // 同じ理由で、検証していない (できていない) のに exit(0) で «成功» と
+            // 報告することになる
             print("selftest: hotkeyRegistered=false resolved=\(resolved ?? "none")"
                 + " notice=\(setup.notice ?? "(なし)")")
+            fflush(stdout)
+            fail("ホットキーを登録できませんでした (resolved=\(resolved ?? "none"))")
         }
 
         // 最近の録画の走査。結果は Task 経由で MainActor に届くので、**RunLoop を回しても
