@@ -202,8 +202,22 @@ scripts/drift-test.sh [録画時間 (既定 15m)] [マーカー間隔秒 (既定
 
 点滅 + ビープのマーカーを出すウィンドウを収録し、映像 / system / mic のずれが
 録画中に増えていかないかを ms 単位で出します (issue #3)。統合テストとは別物で、
-既定の 15 分 × 2 モードで ~31 分かかります。前提は統合テストと同じ (権限・スピーカー音量) に加えて、
-静かな環境で行い、計測中は `KildeDriftMarker` ウィンドウを隠さないこと。
+既定の 15 分 × 2 モードで ~31 分かかります。前提は統合テストと同じ (権限・音量) に加えて、
+計測中は `KildeDriftMarker` ウィンドウを隠さず、画面をロックしないこと
+(ロック中は SCK がフレームを出さず映像が 0 秒になります)。
+音響経路 (スピーカー → マイク) で測る場合は、静かな環境で行ってください
+(物音が入るとマーカーの検出が欠けて値が汚れます)。
+
+鳴らす先とマイクは環境変数で指定できます (`OUT` はシステムの既定出力を変えません)。
+
+```sh
+OUT="BlackHole" MIC="device:BlackHole" scripts/drift-test.sh   # 音響経路なし (ループバック)
+OUT="MacBook Proのスピーカー" MIC="device:MacBook" scripts/drift-test.sh  # 音響経路あり
+```
+
+内蔵スピーカー・内蔵マイクはクラムシェル (蓋を閉じた状態) では使えないため、
+蓋を開けられない Mac では BlackHole ループバックを使います。この場合 mic 側は
+BlackHole の仮想クロックになる点に注意してください。
 仕組みと結果の記録先は SPIKE-NOTES.md F-E です。
 
 ### 単体テスト
@@ -249,7 +263,7 @@ SCK / AVCapture / CoreAudio の実デバイスには触れません。
 | 2 | `feature/m1-cli-mvp` を `main` へマージ | 済 (PR #1) |
 | 3 | `Tests/KildeCoreTests` の作成 | issue #5 |
 | 4 | CI (`.github/workflows`) で `swift build` + 単体テスト | issue #6 |
-| 5 | 長時間 (10 分級) の A/V ドリフト測定 | issue #3 |
+| 5 | 長時間 (10 分級) の A/V ドリフト測定 | 部分完了 — BlackHole ループバックで 15 分 (最大 12 ms)、実マイクでの計測は未実施 (issue #3、SPIKE-NOTES F-E) |
 | 6 | 旧 OS (14/15) での S7 / S8 / S9 挙動の確認 | issue #4 |
 | 7 | `LICENSE` (MIT) の追加 | 済 (issue #21) |
 | 8 | DESIGN.md §6 の終了コード `130` と実装 (SIGINT で exit 0) の食い違いを解消 | 済 — exit 0 に統一 (issue #7) |

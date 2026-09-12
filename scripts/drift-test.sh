@@ -10,14 +10,21 @@
 #   例: scripts/drift-test.sh            # 15 分 × separate と mixed の 2 回 (計 ~31 分)
 #       scripts/drift-test.sh 1m 5 separate   # 手順の確認用 (短時間)
 #       MIC="device:EMEET" scripts/drift-test.sh   # マイクを明示する (kilde rec --audio の値)
+#       OUT="LG Ultra HD" MIC="device:EMEET" scripts/drift-test.sh   # 鳴らす先も明示する
+#       OUT="BlackHole" MIC="device:BlackHole 2ch" scripts/drift-test.sh  # 音響経路なしのループバック
 #
 # 前提:
-#   - 画面収録・マイクの権限 (先に `kilde doctor`)、スピーカー音量が 0 / ミュートでないこと
-#     (マイクはスピーカーから回り込んだビープを拾う。イヤホン・ヘッドホンでは計測できない)
-#   - MacBook を閉じて外部ディスプレイで使っている (クラムシェル) と内蔵マイクは無音になる。
-#     その場合は MIC="device:<Webカメラ等のマイク名>" で聞こえるマイクを指定する (kilde devices で確認)
+#   - 画面収録・マイクの権限 (先に `kilde doctor`)、鳴らす先の音量が 0 / ミュートでないこと
+#     (既定では、マイクはスピーカーから回り込んだビープを拾う。イヤホン・ヘッドホンでは計測できない)
+#   - OUT を指定すると、システムの既定出力を変えずにその出力デバイスへ鳴らす (部分一致、kilde devices で確認)。
+#     MacBook を閉じている (クラムシェル) と内蔵マイクは無音・内蔵スピーカーも鳴らせないので、
+#     OUT で外部出力 (外部ディスプレイ等) を、MIC="device:<名前>" で外部マイクを指定する。
+#     音響経路が作れない場合は OUT="BlackHole" + MIC="device:BlackHole 2ch" でデジタルに折り返せる
+#     (この場合 mic 側は BlackHole の仮想クロックなので、実マイクのドリフトとは限らない点に注意)
 #   - 計測中は KildeDriftMarker ウィンドウを他のウィンドウで隠さない。静かな環境で行う
 #   - 1 回の録画は最大で録画時間 + 30 秒ほどかかる。途中で Mac をスリープさせない
+#   - 画面が消えている / ロックされていると SCK が映像を出さないので、スクリプトが caffeinate で
+#     点灯 (-u) と消灯抑止 (-dims) を行う。ただしロック画面は解除できないので、ロックしないこと
 
 set -u
 
@@ -27,15 +34,26 @@ DUR="${1:-15m}"
 INTERVAL="${2:-30}"
 MODE="${3:-both}"
 MIC="${MIC:-mic}"
+OUTDEV="${OUT:-}"   # 空なら drift-marker はシステムの既定出力に鳴らす
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/kilde-drift.XXXXXX")"
 MARKER_PID=""
 REC_PID=""
 INTERRUPTED=0
+CAFFEINATE_PID=""
+
+# 画面が消えていると SCK は映像フレームを 1 枚も出さず、録画は exit 0 なのに出力ファイルすら
+# 作られない (2026-09-12 に 15 分の計測を 2 回失った)。
+# - caffeinate -u: 消えている画面を点ける。-d は「消えるのを防ぐ」だけで、既に消えた画面は点かない
+# - caffeinate -dims -w $$: このスクリプトが終わるまで消灯・スリープを抑止する
+caffeinate -u -t 1 2>/dev/null || true
+caffeinate -dims -w $$ 2>/dev/null &
+CAFFEINATE_PID=$!
 
 cleanup() {
     # 想定外の終了経路でも録画を放置しない (安全停止を依頼してファイナライズを待つ)
     if [ -n "$REC_PID" ]; then kill -INT "$REC_PID" 2>/dev/null; wait "$REC_PID" 2>/dev/null; fi
     [ -n "$MARKER_PID" ] && kill "$MARKER_PID" 2>/dev/null
+    [ -n "$CAFFEINATE_PID" ] && kill "$CAFFEINATE_PID" 2>/dev/null
     echo ""
     echo "作業ディレクトリ (録画・ログ・解析結果): $WORK"
 }
@@ -97,8 +115,8 @@ run_one() { # run_one <separate|mixed>
     local tracks="$1"
     local out="$WORK/drift-$tracks.mov"
     echo ""
-    echo "== $tracks: ${DUR} 録画 (マーカー ${INTERVAL}s 間隔、マイク: $MIC) =="
-    "$WORK/drift-marker" "$INTERVAL" "$LIFETIME" > "$WORK/marker-$tracks.log" 2>&1 &
+    echo "== $tracks: ${DUR} 録画 (マーカー ${INTERVAL}s 間隔、マイク: $MIC、出力: ${OUTDEV:-既定}) =="
+    "$WORK/drift-marker" "$INTERVAL" "$LIFETIME" "$OUTDEV" > "$WORK/marker-$tracks.log" 2>&1 &
     MARKER_PID=$!
     # ウィンドウが表示されてから --window で解決させる。固定の sleep だと起動が遅いときに解決に失敗するので、
     # drift-marker の "ready" を最大 15 秒待つ (マーカーの寿命の余裕 30 秒の内側に収める)
