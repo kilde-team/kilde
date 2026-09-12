@@ -30,6 +30,12 @@ swift build
 .build/debug/kilde doctor   # 初回は権限を確認・要求します
 ```
 
+必要なら PATH に置くと、このあとの例はそのまま動きます:
+
+```sh
+ln -sf "$PWD/.build/debug/kilde" /usr/local/bin/kilde
+```
+
 - 要件: macOS 14+ (動作検証は macOS 26 / Apple Silicon)
 - 依存: [swift-argument-parser](https://github.com/apple/swift-argument-parser)
 - BlackHole 利用時: `brew install --cask blackhole-2ch`
@@ -84,6 +90,9 @@ kilde config set defaultAudioSources system,mic
 kilde config set showsCursor false   # その回だけ写したいときは kilde rec --cursor
 kilde config set hotkey cmd+shift+r  # rec を常にホットキー待機で起動
 kilde config show                    # 現在値と既定値 (unset <key> で既定に戻す / path でファイルの場所)
+
+設定キーは `outputDirectory` / `defaultAudioSources` / `audioTracks` / `codec` /
+`fps` / `showsCursor` / `hotkey` の 7 種 (英語版 README と同じ一覧)。
 
 kilde devices      # ディスプレイ / ウィンドウ / オーディオ機器の一覧
 kilde doctor       # 権限と環境の診断

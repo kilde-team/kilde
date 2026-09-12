@@ -37,6 +37,12 @@ swift build
 .build/debug/kilde doctor   # Check and request permissions on first run
 ```
 
+Optionally put the binary on your PATH so the examples below work as written:
+
+```sh
+ln -sf "$PWD/.build/debug/kilde" /usr/local/bin/kilde
+```
+
 The only package dependency is
 [swift-argument-parser](https://github.com/apple/swift-argument-parser).
 
