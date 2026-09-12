@@ -139,6 +139,38 @@ final class ConfigTests: XCTestCase {
             explicit: "invalid", config: KildeConfig(hotkey: "cmd+r")))
     }
 
+    /// 出どころ (明示 / 設定由来) の区別 (issue #80)。CLI の縮退はここでしか分岐できない —
+    /// 設定由来だけ即時録画へ落とし、明示は失敗させるため、取り違えると
+    /// 「`--hotkey` を指定したのに黙って録画が始まる」か
+    /// 「GUI が常駐しているだけで `kilde rec` が exit 1」のどちらかに戻る
+    func testHotkeyResolutionReportsOrigin() throws {
+        let config = KildeConfig(hotkey: "cmd+shift+r")
+        XCTAssertEqual(try HotkeySettings.resolveDetailed(explicit: "ctrl+f12", config: config),
+                       HotkeySettings.Resolution(source: "ctrl+f12", origin: .explicit))
+        // **設定と同じ文字列を明示しても「明示」** — 出どころは値ではなく経路で決まる。
+        // 値で判定すると、設定と同じキーを --hotkey で渡したときに黙って縮退してしまう
+        XCTAssertEqual(try HotkeySettings.resolveDetailed(explicit: "cmd+shift+r",
+                                                         config: config)?.origin, .explicit)
+        XCTAssertEqual(try HotkeySettings.resolveDetailed(explicit: nil, config: config),
+                       HotkeySettings.Resolution(source: "cmd+shift+r", origin: .config))
+        XCTAssertNil(try HotkeySettings.resolveDetailed(explicit: nil, config: KildeConfig()))
+    }
+
+    /// `resolve` は `resolveDetailed` の薄いラッパ。**GUI の 2 箇所は `resolve` を使い続ける**ので、
+    /// 両者がずれると CLI と GUI で待機するキーが食い違う
+    func testHotkeyResolveMatchesDetailedForAllCombinations() throws {
+        let configs = [KildeConfig(), KildeConfig(hotkey: "cmd+shift+r")]
+        let explicits: [String?] = [nil, "ctrl+f12", "cmd+shift+r"]
+        for config in configs {
+            for explicit in explicits {
+                let plain = try HotkeySettings.resolve(explicit: explicit, config: config)
+                let detailed = try HotkeySettings.resolveDetailed(explicit: explicit, config: config)
+                XCTAssertEqual(plain, detailed?.source,
+                               "explicit=\(explicit ?? "nil") config=\(config.hotkey ?? "nil")")
+            }
+        }
+    }
+
     private func resolve(_ o: RecordOverrides = RecordOverrides(), config: KildeConfig = KildeConfig(),
                          env: [String: String] = [:], wantsVideo: Bool = true) throws -> RecordOptions {
         var options = RecordOptions()

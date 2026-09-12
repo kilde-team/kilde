@@ -454,6 +454,78 @@ else
     bad "T13 hotkey 待機中止: ready=$T13_READY exit=$T13_EXIT files=$T13_FILES — $WORK/t13.log"
 fi
 
+# ---- T22: ホットキーの排他と縮退 (issue #80) -------------------------------------
+# 同じキーは 2 プロセスが同時に持てない (kEventHotKeyExclusive)。常駐した GUI が
+# キーを握っている状況を、占有役の `rec --hotkey` で再現する — GUI をビルドせずに
+# 同じ衝突を作れるので、この契約は CLI だけで機械検証できる。
+#   * 設定ファイル由来のキーが取れない → 警告を出して即時録画へ縮退 (exit 0・ファイルあり)
+#   * --hotkey 明示で取れない → 縮退せず失敗 (exit 1・ファイルなし)
+# T13 とはキーを分ける — 取り違えで「実は誰も握っていない」状態を緑と誤認しないため
+
+log "T22: ホットキー排他 — 設定由来は縮退し、--hotkey 明示は失敗する"
+T22_KEY="cmd+opt+ctrl+shift+f10"
+T22_DIR="$WORK/t22"
+T22_CFG_DIR="$WORK/t22-config"
+mkdir -p "$T22_DIR" "$T22_CFG_DIR"
+printf '{"hotkey": "%s"}\n' "$T22_KEY" > "$T22_CFG_DIR/config.json"
+# 占有役。T13 と同じ理由で exec を使う (kill を kilde 本体に届かせる)
+(cd "$WORK" && exec "$KILDE" rec --no-video --hotkey "$T22_KEY" \
+    > "$WORK/t22-holder.log" 2>&1) &
+T22_HOLDER_PID=$!
+T22_HELD=0
+for _ in $(seq 1 20); do
+    if grep -q "待機中" "$WORK/t22-holder.log" 2>/dev/null; then T22_HELD=1; break; fi
+    sleep 0.5
+done
+
+if [ "$T22_HELD" != "1" ]; then
+    # 占有できていないなら以降の判定は無意味 (握られていないキーは当然登録できる)
+    bad "T22 ホットキー排他: 占有役が待機に入れませんでした — $WORK/t22-holder.log"
+    T22_CFG_EXIT=-1; T22_CFG_FILES=-1; T22_CFG_WARN=0; T22_EXP_EXIT=-1; T22_EXP_FILES=-1
+else
+    # (1) 設定由来 — 縮退して録画できるはず
+    (cd "$T22_DIR" && KILDE_CONFIG_DIR="$T22_CFG_DIR" \
+        "$KILDE" rec --no-video --duration 1 > "$WORK/t22-config.log" 2>&1)
+    T22_CFG_EXIT=$?
+    T22_CFG_FILES=$(ls "$T22_DIR" 2>/dev/null | wc -l | tr -d ' ')
+    # 黙って縮退していないこと (理由が読めること) も契約のうち。
+    # grep -c は不一致でも "0" を出しつつ終了コード 1 を返すので `|| echo 0` を足すと
+    # "0\n0" を掴んで数値比較が壊れる — -q で真偽だけ取る
+    if grep -q "WARNING: ホットキー" "$WORK/t22-config.log" 2>/dev/null; then
+        T22_CFG_WARN=1
+    else
+        T22_CFG_WARN=0
+    fi
+
+    # (2) --hotkey 明示 — 縮退せず失敗するはず
+    T22_EXP_DIR="$WORK/t22-explicit"
+    mkdir -p "$T22_EXP_DIR"
+    (cd "$T22_EXP_DIR" && "$KILDE" rec --no-video --duration 1 --hotkey "$T22_KEY" \
+        > "$WORK/t22-explicit.log" 2>&1)
+    T22_EXP_EXIT=$?
+    T22_EXP_FILES=$(ls "$T22_EXP_DIR" 2>/dev/null | wc -l | tr -d ' ')
+fi
+
+# 占有役を畳む (T13 と同じ段階的強制)
+kill -INT $T22_HOLDER_PID 2>/dev/null
+for _ in $(seq 1 10); do
+    if ! kill -0 $T22_HOLDER_PID 2>/dev/null; then break; fi
+    sleep 0.5
+done
+if kill -0 $T22_HOLDER_PID 2>/dev/null; then
+    kill -TERM $T22_HOLDER_PID 2>/dev/null
+    sleep 1
+    kill -0 $T22_HOLDER_PID 2>/dev/null && kill -KILL $T22_HOLDER_PID 2>/dev/null
+fi
+wait $T22_HOLDER_PID 2>/dev/null
+
+if [ "$T22_CFG_EXIT" = "0" ] && [ "$T22_CFG_FILES" = "1" ] && [ "$T22_CFG_WARN" -ge 1 ] \
+    && [ "$T22_EXP_EXIT" = "1" ] && [ "$T22_EXP_FILES" = "0" ]; then
+    ok "T22 ホットキー排他: 設定由来は縮退 (exit=0・警告あり)・明示は exit=1"
+else
+    bad "T22 ホットキー排他: cfg_exit=$T22_CFG_EXIT cfg_files=$T22_CFG_FILES cfg_warn=$T22_CFG_WARN exp_exit=$T22_EXP_EXIT exp_files=$T22_EXP_FILES — $WORK/t22-config.log / $WORK/t22-explicit.log"
+fi
+
 # ---- T14: 矩形領域の収録 (issue #9) ---------------------------------------------
 # 指定した領域の大きさで録れること。H.264 の制約で偶数に切り捨てられる点も確認する
 

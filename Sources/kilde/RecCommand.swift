@@ -222,15 +222,19 @@ struct RecCommand: ParsableCommand {
         } catch {
             cliError(error)
         }
-        let resolvedHotkey: String?
+        let resolvedHotkey: HotkeySettings.Resolution?
         do {
-            resolvedHotkey = try HotkeySettings.resolve(explicit: hotkey, config: config)
+            resolvedHotkey = try HotkeySettings.resolveDetailed(explicit: hotkey, config: config)
         } catch {
             cliError(error)
         }
         // validate() は CLI 引数しか見られないため、設定ファイルの hotkey との組合せは
         // ここで初めて分かる。カウントダウンが待機前に消費される挙動は期待とずれるので
-        // 設定由来も同じく拒否する (設定値との組合せエラーのため終了コードは 1)
+        // 設定由来も同じく拒否する (設定値との組合せエラーのため終了コードは 1)。
+        //
+        // **issue #80 の縮退 (登録できなければ即時録画) を理由にここを緩めない。**
+        // 緩めると「GUI が起動しているかどうか」で同じコマンドが成功したり終了コード 1 に
+        // なったりする。設定と引数の組合せの可否は、他プロセスの生死に依存させない
         if resolvedHotkey != nil, countdown > 0 {
             cliError(KilError.failed("--countdown と hotkey は併用できません (カウントダウンが待機前に消費されるため)"))
         }
@@ -296,13 +300,37 @@ struct RecCommand: ParsableCommand {
             }
         }
 
-        if let resolvedHotkey {
-            waitForHotkey(resolvedHotkey, options: options, overrides: overrides, config: config)
+        if let resolvedHotkey, shouldWaitForHotkey(resolvedHotkey) {
+            waitForHotkey(resolvedHotkey.source, options: options,
+                          overrides: overrides, config: config)
         } else {
             var options = options
             reserveDefaultOutputIfNeeded(&options)
             runImmediately(options: options)
         }
+    }
+
+    /// 待機モードに入れるかを、登録を実際に試してから決める (issue #80)。
+    ///
+    /// `--hotkey` を明示したときは待機そのものが目的なので、登録できなくても待機経路へ進め、
+    /// `waitForHotkey` に理由付きで失敗させる。**ここで黙って即時録画へ化けさせない** —
+    /// ホットキーで開始するつもりだった録画が、その場で始まってしまう。
+    /// 設定ファイル由来のときだけ警告を出して即時録画へ縮退する。GUI が常駐して同じキーを
+    /// 握っているだけで `kilde rec` 全体が exit 1 になるのは重すぎるため。
+    ///
+    /// **この判定を `waitForHotkey` の catch には置けない。** あちらは issue #67 の理由で
+    /// `controller.start()` より前に停止シグナルを設置しており、catch に来た時点で
+    /// 死んだコントローラを掴んだハンドラが残っている。そこから `runImmediately` に
+    /// 落とすと `installStopSignalHandler` が二重に積まれ、Ctrl+C が解放済みの
+    /// コントローラを触る
+    private func shouldWaitForHotkey(_ resolution: HotkeySettings.Resolution) -> Bool {
+        guard resolution.origin == .config else { return true }
+        guard !HotkeyDiagnostics.canRegister(resolution.source) else { return true }
+        let warning = "WARNING: ホットキー \"\(resolution.source)\" を登録できないため、"
+            + "待機せずに録画を開始します "
+            + "(GUI など他のアプリが同じキーを先に登録している可能性があります)\n"
+        FileHandle.standardError.write(warning.data(using: .utf8)!)
+        return false
     }
 
     // MARK: - 実行モード

@@ -313,14 +313,67 @@ public enum HotkeyDiagnostics {
         }
         throw lastError ?? KilError.failed("ホットキー登録の診断に失敗しました")
     }
+
+    /// 指定のキーを**このプロセスが今**登録できるかを、実際に一度登録して確かめる (issue #80)。
+    ///
+    /// `RegisterEventHotKey` は `kEventHotKeyExclusive` なので、GUI が常駐して同じキーを
+    /// 握っていると CLI 側の登録は失敗する。**待機に入ってから失敗しても即時録画へ
+    /// 引き返せない** ため (理由は `RecCommand.shouldWaitForHotkey`)、分岐の前にここで試す。
+    ///
+    /// 解除まで成功したときだけ true を返す — `stop()` が false のときはキーが予約された
+    /// ままで、続く本登録がどのみち失敗するため。試用の直後に同じキーを登録し直せるのは
+    /// `stop()` をメインスレッドで同期的に呼んでいるからで、
+    /// `HotkeyRecordingController.deinit` が非同期の解除を避けているのと同じ理由
+    public static func canRegister(_ source: String) -> Bool {
+        precondition(Thread.isMainThread, "ホットキーの登録可否判定はメインスレッドから実行してください")
+        guard let monitor = try? HotkeyMonitor(source, handler: {}) else { return false }
+        do {
+            try monitor.start()
+        } catch {
+            return false
+        }
+        return monitor.stop()
+    }
 }
 
 /// CLI と GUI で同じ優先順位を使うため、ホットキーの解決を KildeCore に置く。
 public enum HotkeySettings {
+    /// ホットキーの出どころ。**登録に失敗したときの扱いが出どころで変わる** ため、
+    /// 解決結果はキー文字列だけでなくこれも返す (issue #80)。
+    /// `--hotkey` を明示したなら待機が目的なので失敗させるべきだが、設定ファイル由来は
+    /// 「たまたま GUI が常駐していた」だけで `kilde rec` 全体が使えなくなるのは重すぎる
+    public enum Origin: Equatable {
+        /// `--hotkey` で明示された
+        case explicit
+        /// 設定ファイルの `hotkey` から来た
+        case config
+    }
+
+    public struct Resolution: Equatable {
+        public let source: String
+        public let origin: Origin
+
+        public init(source: String, origin: Origin) {
+            self.source = source
+            self.origin = origin
+        }
+    }
+
+    /// 優先順位は CLI 引数 > 設定ファイル > 待機モードなし。出どころ付きで返す。
+    public static func resolveDetailed(explicit: String?,
+                                       config: KildeConfig) throws -> Resolution? {
+        if let explicit {
+            _ = try HotkeyParser.parse(explicit)
+            return Resolution(source: explicit, origin: .explicit)
+        }
+        guard let configured = config.hotkey else { return nil }
+        _ = try HotkeyParser.parse(configured)
+        return Resolution(source: configured, origin: .config)
+    }
+
+    /// 出どころを問わない呼び出し元 (GUI は設定ファイルしか見ないため) 用の薄いラッパ。
     /// 優先順位は CLI 引数 > 設定ファイル > 待機モードなし。
     public static func resolve(explicit: String?, config: KildeConfig) throws -> String? {
-        guard let source = explicit ?? config.hotkey else { return nil }
-        _ = try HotkeyParser.parse(source)
-        return source
+        try resolveDetailed(explicit: explicit, config: config)?.source
     }
 }
