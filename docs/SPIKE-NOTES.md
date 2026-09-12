@@ -171,6 +171,63 @@ mic 側は音響経路のあるマイクか、BlackHole ループバックで行
   ただしこの傾きはマーカーごとの変動幅 (23〜31 ms) に埋もれる水準なので、外挿の確度は高くない。
   判定の基準は 15 分の計測 (issue #3) であり、1 時間級の会議録画で補正が要るかは実測で確かめること
 
+### F-H: HDR 収録 (issue #16) — 実装済み、ただし**当機では検証できていない**
+
+**この検証機に繋がっているディスプレイ (LG Ultra HD) は HDR 非対応**のため、
+issue #16 の受け入れ条件「HDR ディスプレイで `--hdr` 録画が HDR として再生される」は
+**未達のまま**である。実装とフォールバックは入れたが、HDR として再生されることの確認は
+HDR ディスプレイを持つ環境で行う必要がある (#2 / #4 / #55 と同じ「ハード待ち」)。
+
+判定に使った値 (録画なしで取得):
+
+```
+screen[0] LG Ultra HD
+  EDR: current=1.0 potential=1.0 reference=0.0  → HDR対応=false
+```
+
+`maximumPotentialExtendedDynamicRangeColorComponentValue` が「その画面が到達しうる
+EDR の上限」で、SDR ディスプレイでは 1.0 のままになる。**現在値 (`maximum...Value`) の方は
+明るさ設定や表示中の内容で変動するので、対応可否の判定には使えない。**
+
+`SCStreamConfiguration` の HDR プリセットが実際に設定する値 (macOS 26 で実測):
+
+| プリセット | pixelFormat | colorSpace | captureDynamicRange |
+|-----------|-------------|------------|---------------------|
+| `captureHDRStreamLocalDisplay` | `xf44` | `DisplayP3_PQ` | 1 (HDRLocalDisplay) |
+| `captureHDRStreamCanonicalDisplay` | `xf44` | `DisplayP3_PQ` | 2 (HDRCanonicalDisplay) |
+| `captureHDRRecordingPreservedSDRHDR10` | `x420` | `ITUR_2100_PQ` | 2 |
+
+実装が使うのは **`captureHDRStreamLocalDisplay` (macOS 15+) のみ**。プリセットを使うのは、
+`captureDynamicRange` / `pixelFormat` / `colorSpace` / `colorMatrix` を自分で
+整合させるのが間違えやすいため。書き出し側は HEVC **Main10** + Display P3 / PQ を明示する
+(色情報を書かないと再生側が SDR と解釈する)。
+
+**`captureHDRRecordingPreservedSDRHDR10` (macOS 26、HDR10 メタデータ付き) は使っていない。**
+CI が `macos-15` ランナーで動いており、**その SDK にシンボルが存在しないためコンパイルできない**:
+
+```
+error: type 'SCStreamConfiguration.Preset' has no member 'captureHDRRecordingPreservedSDRHDR10'
+```
+
+**`#available` では回避できない。** `if #available(macOS 26, *)` は「実行時にその OS か」を
+見るものであって、**コンパイル時に SDK へ存在しないシンボルは、可用性チェックの中に
+書いてあっても参照できない**。`@available` を付けても同じ。新しい SDK の API を使うときは
+「実行時の OS」と「ビルド時の SDK」を分けて考える必要がある。対応は issue #76 に切り出した
+(CI の最小 SDK をどうするかという、#16 より広い判断を含むため)。
+
+**書き出す色域は使うプリセットで決まる。** 上表のとおり `captureHDRStreamLocalDisplay` は
+Display P3 のバッファを渡すので、書き出しも P3-D65 とタグ付けする。一律 BT.2020 にすると
+P3 のバッファを BT.2020 と称することになり、再生時に彩度が落ちる。
+**ただし PQ と組み合わせる YCbCr マトリクスは、色域が P3 でも BT.2020 を使う** —
+P3 に BT.709 を合わせるのは SDR (709 伝達関数) と HLG の話で、PQ では標準の組み合わせに無い。
+709 で変換すると、BT.2020 の部分集合である P3 の彩度の高い色が範囲外の Cb/Cr になって
+クランプされ、色相と彩度がずれる。
+
+**フォールバックは終了コードを汚さない。** 条件を満たさない環境では SDR で録るが、
+これは失敗ではないので `cleanupWarnings` (CLI が終了コード 1 に変換する) には載せず、
+`Summary.hdrFallback` に理由を載せて結果表示に出す。終了コードは 0 のまま。
+黙って SDR にすると「HDR で録れたつもりのファイル」ができてしまうため、
+理由 (OS が古い / ディスプレイが非対応 / 映像を録っていない) は必ず出し分ける。
 ### F-F: アプリ除外 (`--exclude-app`) はシステム音声にも効く (issue #13)
 
 `SCContentFilter(display:excludingApplications:exceptingWindows:)` で除外したアプリは、
