@@ -428,8 +428,9 @@ public final class Recorder {
                 throw KilError.failed("領域指定 (region) はウィンドウ収録とは併用できません")
             }
         }
-<<<<<<< HEAD
-        let ext = options.wantsVideo ? "mov" : "m4a"
+        // #12 (MP4 コンテナ) と #59 (出力名予約) の統合: 拡張子はコンテナ種別に従い、
+        // 既定名は予約を挟んで確定させる
+        let ext = options.wantsVideo ? options.container.rawValue : "m4a"
         let preferredURL = options.outputURL ?? URL(fileURLWithPath: defaultOutputName(ext: ext))
         // 呼び出し側の予約を優先し、無ければ既定名 (非明示) のときここで予約する。
         // 明示パスは従来どおり予約なしの上書き
@@ -445,10 +446,6 @@ public final class Recorder {
             reservation = try OutputFileReservation.reserve(preferredURL: preferredURL)
         }
         let url = reservation?.url ?? preferredURL
-=======
-        let ext = options.wantsVideo ? options.container.rawValue : "m4a"
-        let url = options.outputURL ?? URL(fileURLWithPath: defaultOutputName(ext: ext))
->>>>>>> origin/main
         outputURL = url
         // 権限・デバイス解決など writer 構築前のどの失敗経路でも予約ゴミを残さないのは
         // 冒頭の defer (activeReservation) の役割。writer が予約を消費した後は inode が
