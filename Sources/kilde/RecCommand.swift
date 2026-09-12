@@ -16,7 +16,7 @@ struct RecCommand: ParsableCommand {
     @Option(help: "ウィンドウ単位で収録 (title / bundleID / windowID の部分一致)。音声もそのアプリにスコープされる。複数回指定するとそのウィンドウ群をまとめて収録 (出力はディスプレイ全体の大きさになり、対象外は黒で埋まる)")
     var window: [String] = []
 
-    @Option(help: "ディスプレイ収録から除外するアプリの bundleID (完全一致、複数回指定可。kilde devices で確認)。--window / --no-video / --preset meeting とは併用不可")
+    @Option(help: "ディスプレイ収録から除外するアプリの bundleID (完全一致、複数回指定可。kilde devices で確認)。映像だけでなくそのアプリのシステム音声も出力に入らない。--window / --no-video / --preset meeting とは併用不可")
     var excludeApp: [String] = []
 
     @Option(help: "ディスプレイの一部だけを収録 x,y,w,h (ポイント座標、左上が原点)。幅・高さは 2 以上で偶数に切り捨て、ディスプレイの範囲外は録画前に失敗 (終了コード 1)。--window / --no-video / --preset meeting とは併用不可")
