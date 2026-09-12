@@ -1,0 +1,39 @@
+Sources/KildeCore/Support/Config.swift
+  s_35faeec28b4c4b::t_2cefbae1d001b7 337-338
+  s_35faeec28b4c4b::t_565ea8c527b1e0 386-407
+  s_35faeec28b4c4b::t_9f28154070f3e5 442-443,447
+  s_35faeec28b4c4b::t_3b2628ef308511 422-423
+Sources/KildeCore/Recording/Recorder.swift
+  s_35faeec28b4c4b::t_7f554150d76e1c 53-54
+  s_35faeec28b4c4b::t_3ce8d88cdb6600 293
+  s_35faeec28b4c4b::t_8985d5bb1d1956 26-43
+  s_35faeec28b4c4b::t_7b7fd3d0213277 389
+docs/DESIGN.md
+  s_35faeec28b4c4b::t_b7cd22ec08e3f9 249
+Tests/KildeCoreTests/ContainerFormatTests.swift
+  s_35faeec28b4c4b::t_1aec0654dd9d91 1-120
+docs/DEVELOPMENT.md
+  s_35faeec28b4c4b::t_6d19b671dcd574 193
+Sources/kilde/RecCommand.swift
+  s_35faeec28b4c4b::t_236545a406073e 44-46
+  s_35faeec28b4c4b::t_9a40ce45fbee65 85-97
+  s_35faeec28b4c4b::t_4138416b3e38e6 158
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_5af5d311e56cfc 438-478
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "08e699b426b9d7b9b58c5e06ad4879eb76272466",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
