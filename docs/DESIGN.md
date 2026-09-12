@@ -298,11 +298,15 @@ KildeCore (`ConfigStore` / `RecordSettings`) にある。値は CLI 引数と同
 | `hotkey` | `cmd+shift+r` 形式の文字列 | `--hotkey`。cmd / shift / opt / ctrl と英数字、F1〜F12、主要キーに対応 (fn はハードウェアにインターセプトされるため不可) |
 
 - 優先順位: **CLI 引数 > `--preset` > 環境変数 > 設定ファイル > 既定値**。
-  環境変数は `KILDE_OUTPUT_DIR` (録画の保存先) と `KILDE_CONFIG_DIR`
-  (`config.json` と `monitor-state.json` の保存先。未設定・空文字なら `~/.kilde`。
-  相対パスは不可)。
-  環境変数は `KILDE_OUTPUT_DIR` (保存先) のみ。ホットキーは
-  **`--hotkey` > 設定 `hotkey` > 待機モードなし** (プリセットと環境変数は関与しない)
+  **この鎖に入る環境変数は `KILDE_OUTPUT_DIR` (録画の保存先) だけ**で、設定
+  `outputDirectory` を上書きする (`RecordSettings.outputDirectoryEnvironmentKey`)
+- `KILDE_CONFIG_DIR` は**上の優先順位には関与しない** — 値を上書きするのではなく、
+  **設定ファイル自体をどこから読むか**を決める (`config.json` と `monitor-state.json` の
+  保存先。未設定・空文字なら `~/.kilde`。絶対パスか `~` 始まりのみで相対パスは不可)。
+  つまり「環境変数 > 設定ファイル」の*環境変数*側ではなく、*設定ファイル*側の置き場所を
+  差し替える変数で、隔離した環境やテスト (`scripts/integration-test.sh`) で使う
+- ホットキーの優先順位は **`--hotkey` > 設定 `hotkey` > 待機モードなし**
+  (プリセットと環境変数は関与しない)
 - **ホットキーの排他 — 先に登録したプロセスが勝つ** (issue #80)。`HotkeyMonitor` は
   `RegisterEventHotKey` を `kEventHotKeyExclusive` で呼ぶため、**同じキーを 2 つの
   プロセスが同時には持てない**。GUI (M3) はログイン時起動 (`SMAppService`) で常駐しがちなので、
