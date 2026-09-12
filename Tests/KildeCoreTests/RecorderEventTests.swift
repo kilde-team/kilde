@@ -37,11 +37,13 @@ final class RecorderEventTests: XCTestCase {
     }
 
     /// 成功フロー: preparing → armed → recording → finalizing → done の順に遷移し、
-    /// completed が末尾に来る。stop() は冪等なので二度呼んでも遷移は増えない
+    /// completed が末尾に来る。
+    /// 停止は duration に任せる — start() 直後の stop() は準備フェーズに割り込んで
+    /// 録画に入らずキャンセルされる (issue #56) ので、成功フローの検証には使えない
     func testStateOrderForSuccessfulSession() async throws {
         let url = tempURL()
         defer { try? FileManager.default.removeItem(at: url) }
-        let recorder = Recorder(options: emptySessionOptions(url: url))
+        let recorder = Recorder(options: emptySessionOptions(url: url, duration: 0.2))
         XCTAssertEqual(recorder.currentState, .idle)
 
         var events: [RecorderEvent] = []
@@ -49,8 +51,6 @@ final class RecorderEventTests: XCTestCase {
             for await e in recorder.events { events.append(e) }
         }
         recorder.start()
-        recorder.stop()
-        recorder.stop()
         await collector.value
 
         XCTAssertEqual(events.compactMap(\.state), [.preparing, .armed, .recording, .finalizing, .done])
@@ -186,6 +186,55 @@ final class RecorderEventTests: XCTestCase {
         })
         // 二重起動していても遷移列が二重になることはない
         XCTAssertEqual(events.compactMap(\.state), [.preparing, .armed, .recording, .finalizing, .done])
+    }
+
+    /// 準備中の停止 (issue #56): start() より前に stop() を呼ぶと、停止要求が立った状態で
+    /// セッションが走り出す。最初の中断点で畳まれ、**録画には入らず**終端イベントが流れる。
+    /// 空セッションは準備が一瞬で終わるので、「準備中に割り込む」のではなく
+    /// 「最初から停止済み」にすることで、タイミングに依存せず決定的に検証する
+    func testStopBeforeStartCancelsDuringPreparation() async throws {
+        let url = tempURL()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let recorder = Recorder(options: emptySessionOptions(url: url, duration: 5))
+
+        // stop() は冪等 — 二度呼んでも遷移は増えない
+        recorder.stop()
+        recorder.stop()
+        let events = await collectEvents(recorder)
+
+        // recording には入らない (preparing から直接畳まれる)
+        let states = events.compactMap(\.state)
+        XCTAssertEqual(states, [.preparing, .error], "録画に入ってしまいました: \(states)")
+        XCTAssertFalse(states.contains(.recording))
+        XCTAssertTrue(recorder.cancelledBeforeRecording)
+
+        // 終端イベントは必ず流れる — 購読側 (GUI の applicationShouldTerminate) が
+        // 待ち続けないことがこの issue の主眼
+        guard case .failed(let error, let partialFileExists) = events.last else {
+            return XCTFail("末尾が failed ではありません: \(events)")
+        }
+        XCTAssertEqual("\(error)", Recorder.cancelledDuringPreparationMessage)
+        XCTAssertFalse(partialFileExists)
+        // 録画が成立していないので出力ファイルを残さない
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
+    }
+
+    /// 同期 run() でも準備中の停止は例外として返る (CLI はこれを exit 0 に読み替える)。
+    /// run() が固まらないこと自体が回帰対象 — 完了通知に到達しないと呼び出し元が待ち続ける
+    func testRunWrapperReturnsWhenCancelledDuringPreparation() throws {
+        let url = tempURL()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let recorder = Recorder(options: emptySessionOptions(url: url, duration: 5))
+
+        recorder.stop()
+        XCTAssertThrowsError(try recorder.run()) { error in
+            guard case KilError.failed(let message) = error else {
+                return XCTFail("KilError.failed ではありません: \(error)")
+            }
+            XCTAssertEqual(message, Recorder.cancelledDuringPreparationMessage)
+        }
+        XCTAssertTrue(recorder.cancelledBeforeRecording)
+        XCTAssertEqual(recorder.currentState, .error)
     }
 
     /// 実ストリームを必要としない純粋判定で、映像ありの 0 フレームだけを失敗にする。

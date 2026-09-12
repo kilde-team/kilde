@@ -108,6 +108,11 @@ public final class Recorder {
         public let mixedDecodeFailures: Int
     }
 
+    /// 録画が 1 フレームも成立しないまま、準備の途中で停止されたか (issue #56)。
+    /// CLI はこれを見て「失敗」ではなく正常終了 (exit 0) として扱う —
+    /// Ctrl+C は kilde の正規の停止操作なので、準備中に押しても 0 を返す (DESIGN.md §6)
+    public private(set) var cancelledBeforeRecording = false
+
     private let options: RecordOptions
     private let lock = NSLock()
     private var stopRequested = false
@@ -186,6 +191,49 @@ public final class Recorder {
         stopRequested = true
         lock.unlock()
         stopSignalContinuation.yield()
+    }
+
+    /// 停止が要求済みか (準備フェーズの中断判定に使う — issue #56)
+    private var isStopRequested: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return stopRequested
+    }
+
+    /// 準備フェーズの中断点。停止済みなら後片付けを呼び出し側に任せて抜ける。
+    /// `preparing` / `armed` の各ステップの合間に挟むことで、
+    /// 「停止を頼んだのに準備が終わるまで止まらない」状態をなくす
+    private func checkCancelledDuringPreparation() throws {
+        guard isStopRequested else { return }
+        cancelledBeforeRecording = true
+        throw KilError.failed(Self.cancelledDuringPreparationMessage)
+    }
+
+    /// 準備中の停止で投げるメッセージ。CLI / GUI が「失敗ではない」と判別する目印も兼ねる
+    public static let cancelledDuringPreparationMessage =
+        "録画は開始されませんでした (準備中に停止しました)"
+
+    /// 中断できない処理を停止要求と競走させ、停止が先なら nil を返す。
+    /// SCK の列挙や TCC ダイアログは外から止められないので、**結果を捨てて先に進む**
+    /// (待ち続けると停止要求に応えられない)。放置したタスクは完了後に破棄される。
+    ///
+    /// stopSignal ではなくフラグのポーリングで待つ理由: stopSignal は
+    /// `waitForStopOrDuration()` が単独で消費する前提の AsyncStream で、
+    /// ここで for await すると停止イベントを奪ってしまい、録画中の停止が効かなくなる
+    private func awaitOrStop<T: Sendable>(
+        _ body: @escaping @Sendable () async -> T
+    ) async -> T? {
+        await withTaskGroup(of: Optional<T>.self) { group in
+            group.addTask { await body() }
+            group.addTask { [weak self] in
+                while let self, !self.isStopRequested {
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                }
+                return nil
+            }
+            let first = await group.next() ?? nil
+            group.cancelAll()
+            return first
+        }
     }
 
     /// 録画を実行し、完了までブロックする (CLI 互換の同期 API — start() のラッパ)。
@@ -288,6 +336,10 @@ public final class Recorder {
         let url = options.outputURL ?? URL(fileURLWithPath: defaultOutputName(ext: ext))
         outputURL = url
 
+        // 権限ダイアログや monitor の既定出力変更といった**副作用を起こす前**に、
+        // 既に停止が要求されていないか確かめる (issue #56)
+        try checkCancelledDuringPreparation()
+
         let wantsSCK = options.wantsVideo || options.audioSources.contains(.system)
         if wantsSCK && !Permissions.hasScreenCapture {
             throw KilError.permission(
@@ -302,10 +354,20 @@ public final class Recorder {
         // async 版を使う — TCC ダイアログの応答待ちで協調プールのスレッドを塞がないため (issue #35)。
         // `a && await b` は && の autoclosure 内で await できないので guard に分けている
         if needsMicPermission {
-            guard await Permissions.requestMic() else {
+            // TCC ダイアログはこちらからは閉じられないので、停止要求と競走させて
+            // 「待つのをやめる」ことで応答する (issue #56)。ダイアログは画面に残るが、
+            // ユーザーが後で許可すれば次回の録画で使われる
+            guard let granted = await awaitOrStop({ await Permissions.requestMic() }) else {
+                try checkCancelledDuringPreparation()
+                throw KilError.failed(Self.cancelledDuringPreparationMessage)
+            }
+            guard granted else {
                 throw KilError.permission("マイク (入力) の権限がありません")
             }
         }
+
+        // 既定出力を書き換える前にもう一度確かめる — ここを過ぎると teardown が要る
+        try checkCancelledDuringPreparation()
 
         // 既存の kilde Monitor (手動で setup されたもの) は勝手に解体しない
         var monitorCreatedByUs = false
@@ -315,6 +377,9 @@ public final class Recorder {
         }
 
         do {
+            // monitor の setup 中に停止されていたら、ここで抜けて catch 側の
+            // teardownMonitorIfNeeded に既定出力を戻させる
+            try checkCancelledDuringPreparation()
             let summary = try await recordAndFinalize(url: url)
             teardownMonitorIfNeeded(monitorCreatedByUs)
             // 復元失敗は録画の失敗ではないが、購読側が気づけないと既定出力が
@@ -409,6 +474,10 @@ public final class Recorder {
             }
         }
 
+        // 対象の解決 (SCShareableContent の列挙) に時間がかかる間に停止されていたら、
+        // writer を作る前に抜ける — ここまでならファイルは 1 つも作られていない
+        try checkCancelledDuringPreparation()
+
         let w = try MovieWriter(
             url: url,
             fileType: options.wantsVideo ? .mov : .m4a,
@@ -449,6 +518,16 @@ public final class Recorder {
             // 残ったファイルは .failed イベントの partialFileExists で呼び出し元に伝わる
             w.cancel()
             throw error
+        }
+
+        // ここから先は writer が startWriting 済み。停止するなら必ず cancel して
+        // 書きかけのファイルを残さない — 「writer が作られる瞬間は状態イベントから
+        // 判別できない」ために GUI の終了猶予を撤廃した (PR #47)、その根本側の対処
+        if isStopRequested {
+            cancelledBeforeRecording = true
+            // micStreams はまだ start() していないので stop() は呼ばない
+            w.cancel(removingOutput: true)
+            throw KilError.failed(Self.cancelledDuringPreparationMessage)
         }
 
         setState(.armed)

@@ -295,6 +295,12 @@ struct RecCommand: ParsableCommand {
                 Darwin.exit(1)
             }
         case .failure(let error):
+            // 準備中の停止は「失敗」ではない — Ctrl+C は kilde の正規の停止操作なので
+            // 0 で返す (DESIGN.md §6)。録画は 1 フレームも成立していないのでサマリは出さない
+            if recorder.cancelledBeforeRecording {
+                print(Recorder.cancelledDuringPreparationMessage)
+                return
+            }
             cliError(error)
         }
     }

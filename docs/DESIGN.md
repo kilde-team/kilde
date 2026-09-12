@@ -131,6 +131,15 @@ idle → preparing (権限/デバイス確認)
 - すべての状態遷移はイベント駆動で、CLI はこれを表示に写像する。
 - `finalizing` での失敗 (ディスク満杯等) は `error` に遷移し、部分ファイルの
   有無を明示する。
+- **`preparing` / `armed` の途中で停止を要求されたら、その場で畳んで `error` に遷移する**
+  (issue #56)。各ステップ (権限確認・monitor セットアップ・対象解決・ストリーム構築) の
+  合間に中断点を置き、中断できない処理 (TCC ダイアログ) は停止要求と競走させて
+  「待つのをやめる」。録画は 1 フレームも成立していないので `Recorder` は
+  `cancelledBeforeRecording` を立て、**CLI はこれを失敗ではなく正常終了 (0) として扱う**
+  (§6 — Ctrl+C は正規の停止操作)。writer を作った後で中断するときは
+  `cancel(removingOutput:)` で書きかけのファイルを残さない。
+  状態は `error` を使い回す — `RecorderState` に `cancelled` を足すと購読側
+  (GUI・CLI・テスト) の網羅性に広く波及するため
 
 > **実装 (issue #8 / M2):** `Recorder` は状態遷移・進捗・完了・失敗を
 > `events: AsyncStream<RecorderEvent>` で配信する。`start()` は非ブロッキングで、
@@ -346,7 +355,7 @@ kilde rec --hotkey cmd+shift+r out.mov
 
 | コード | 意味 |
 |-------|------|
-| `0` | 成功。**Ctrl+C / SIGTERM / SIGHUP / `--duration` による停止も、ファイナライズが完了すれば 0** |
+| `0` | 成功。**Ctrl+C / SIGTERM / SIGHUP / `--duration` による停止も、ファイナライズが完了すれば 0**。**録画が始まる前 (準備中) の停止も 0** — ファイルは作られず「録画は開始されませんでした」とだけ出す (issue #56) |
 | `1` | その他の失敗 (`KilError.failed`: ファイナライズ失敗、映像ありモードの 0 フレーム、monitor の復元失敗、meeting の選択中止など) |
 | `2` | 権限不足 (画面収録 / マイク) |
 | `3` | デバイス・ウィンドウ・ディスプレイが見つからない (BlackHole 未導入を含む) |
