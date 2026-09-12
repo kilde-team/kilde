@@ -503,7 +503,9 @@ T18_DIR="$WORK/t18"
 mkdir -p "$T18_DIR"
 # コマンド起動中に秒境界をまたいでも衝突候補が必ずあるよう、直近数秒ぶんを予約しておく。
 # 既存の 0 バイトファイルも他人の所有物として残すことを同時に検証する。
-for OFFSET in 0 1 2 3 4; do
+# 起動 (権限・設定の解決を含む) に時間がかかると予約のタイムスタンプが
+# ダミーの範囲外にずれて -2 に退避しなくなるため、十分な幅を持たせる
+for OFFSET in 0 1 2 3 4 5 6 7 8 9; do
     STAMP=$(date -v+"${OFFSET}"S +%Y%m%d-%H%M%S)
     touch "$T18_DIR/kilde-$STAMP.m4a"
 done
@@ -533,6 +535,11 @@ fi
 # 固まった場合でもテストが進むことを保証するタイムアウトを主眼に置く
 
 log "T18b: 既定名 — 同秒の 2 本同時起動で互いのファイルを消さない"
+# 秒境界の計算に python3 を使う (BSD date に +%N が無いため)。無い環境では
+# 同期を諦めてスキップする — 失敗にすると python3 の無い環境で常に赤になる
+if ! command -v python3 >/dev/null 2>&1; then
+    skip "T18b 同時起動: python3 が無いため秒境界の同期ができません"
+else
 T18B_DIR="$WORK/t18b"
 mkdir -p "$T18B_DIR"
 # 次の秒の先頭まで待ってから同時に出す (date +%N は BSD date に無いため python3 で)
@@ -566,6 +573,7 @@ if [ "$T18B_NAMES" = "2" ]; then
 else
     bad "T18b 同時起動: 名前数=$T18B_NAMES (2 が必要) exit=$T18B_EXIT1/$T18B_EXIT2 — $WORK/t18b-1.log $WORK/t18b-2.log"
 fi
+fi  # python3 ありのときのみ T18b を実行
 
 # ---- サマリ -------------------------------------------------------------------
 

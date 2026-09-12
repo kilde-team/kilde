@@ -67,9 +67,17 @@ public struct OutputFileReservation: Sendable {
     /// writer 構築前の失敗時に予約だけが残らないよう、自分の空ファイルなら片付ける。
     /// 他プロセスが差し替えたファイルはデータ損失を避けるため触らない。
     /// GUI の RecordingController が options を使わずに破棄する経路からも呼ぶため public
-    public func removeIfStillReserved() {
-        guard matchesReservedEmptyFile() else { return }
-        try? FileManager.default.removeItem(at: url)
+    @discardableResult
+    public func removeIfStillReserved() -> Bool {
+        guard matchesReservedEmptyFile() else { return true }
+        do {
+            try FileManager.default.removeItem(at: url)
+            return true
+        } catch {
+            // 失敗を握りつぶすと 0 バイトの予約が残ったまま気づけない — 呼び出し側が
+            // 警告に出せるよう成否を返す (「触らない」は所有物でないため成功扱い)
+            return false
+        }
     }
 
     private func matchesReservedEmptyFile() -> Bool {

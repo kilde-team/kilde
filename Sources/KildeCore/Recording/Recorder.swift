@@ -280,6 +280,18 @@ public final class Recorder {
 
     private func performSession() async throws -> Summary {
         cleanupWarnings.removeAll()
+        // 呼び出し側から予約を注入された場合、この関数のどの経路で失敗しても清掃する。
+        // region/window の入力検証は予約の解決より前で throw しうるため、関数冒頭から
+        // defer を登録しないと検証失敗で予約が 0 バイトのまま残り、同じ秒の候補名を
+        // 恒久的に占有してしまう
+        let injectedReservation = options.outputReservation
+        if injectedReservation != nil {
+            defer {
+                if let r = injectedReservation, !r.removeIfStillReserved() {
+                    cleanupWarnings.append("予約した出力ファイルを削除できませんでした: \(r.url.path)")
+                }
+            }
+        }
         // 入力の矛盾は副作用 (権限ダイアログ・monitor の既定出力変更) より前に弾く。
         // CLI でも弾いているが、GUI (M3) や HotkeyRecordingController も同じ RecordOptions を
         // 組み立てるため、ここで止めないと「指定した領域と違う範囲を無警告で録る」ことになる
@@ -310,7 +322,11 @@ public final class Recorder {
         outputURL = url
         // 権限・デバイス解決など writer 構築前のどの失敗経路でも予約ゴミを残さない。
         // writer が予約を消費した後は inode が変わるため、完成中/完成済みファイルには触れない。
-        defer { reservation?.removeIfStillReserved() }
+        defer {
+            if let r = reservation, !r.removeIfStillReserved() {
+                cleanupWarnings.append("予約した出力ファイルを削除できませんでした: \(r.url.path)")
+            }
+        }
 
         let wantsSCK = options.wantsVideo || options.audioSources.contains(.system)
         if wantsSCK && !Permissions.hasScreenCapture {
