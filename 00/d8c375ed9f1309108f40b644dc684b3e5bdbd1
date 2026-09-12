@@ -1,0 +1,25 @@
+docs/DESIGN.md
+  s_35faeec28b4c4b::t_7590b216c9f1d2 257
+README.md
+  s_35faeec28b4c4b::t_798bb32829e3c1 67-68
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_b3e5e61b241279 499-540
+docs/DEVELOPMENT.md
+  s_35faeec28b4c4b::t_6ac6c08fb748a2 248
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "00d8c375ed9f1309108f40b644dc684b3e5bdbd1",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
