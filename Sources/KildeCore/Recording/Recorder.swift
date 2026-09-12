@@ -220,17 +220,34 @@ public final class Recorder {
     /// 片方だけだと、出力が一時停止ぶん伸びるか、音声が無音で埋まるかのどちらかになる
     public func resume() {
         lock.lock()
-        guard paused else { lock.unlock(); return }
+        // 停止後 (finalizing / done / error) は再開しない。'p' キーと SIGUSR1 の
+        // ハンドラはプロセスが終わるまで生きているため、ファイナライズ中に再開されると
+        // 書き込み済みより前の PTS を作ったり、完了済みの状態を .recording に戻してしまう
+        guard paused, state == .recording || state == .paused else { lock.unlock(); return }
         paused = false
         let gap = pausedSince.map { Date().timeIntervalSince($0) } ?? 0
         pausedSince = nil
         pausedTotal += gap
-        lock.unlock()
+        // ロックを保持したままタイムラインを詰める。先にロックを解いてから詰めると、その隙間に
+        // 届いたサンプルが古いアンカー / オフセットで処理され、mixed トラックに一時停止ぶんの
+        // 無音が入る (writer と mixer のロックはリーフなので、この順序で取っても逆順は生じない)
         if gap > 0 {
             writer?.addPauseGap(seconds: gap)
             mixer?.advanceAnchor(by: gap)
         }
+        lock.unlock()
         setState(.recording)
+    }
+
+    /// 一時停止したまま停止されたときに、その区間を確定する (停止時に 1 回だけ呼ぶ)。
+    /// 確定しないとファイナライズ中も計測し続けて合計が過大になり、
+    /// 完了後も isPaused が true のまま残る
+    private func finalizePauseIfNeeded() {
+        lock.lock(); defer { lock.unlock() }
+        guard paused else { return }
+        paused = false
+        pausedTotal += pausedSince.map { Date().timeIntervalSince($0) } ?? 0
+        pausedSince = nil
     }
 
     /// 一時停止中か (CLI のステータス表示用)
@@ -498,6 +515,8 @@ public final class Recorder {
         progressTask.cancel()
         _ = await progressTask.value
 
+        // 一時停止したまま停止された場合は、ここで区間を確定してから終了フェーズに入る
+        finalizePauseIfNeeded()
         setState(.finalizing)
         // SCK のコールバックを吐き切ってから writer を閉じる (stop() が drain まで待つ)
         await sck?.stop()
@@ -541,7 +560,9 @@ public final class Recorder {
                 } catch {
                     return  // キャンセルされた
                 }
-                guard let self, !Task.isCancelled, self.currentState == .recording else { continue }
+                // 一時停止中も流す — 購読側 (GUI) が isPaused とレベルを更新できるように
+                guard let self, !Task.isCancelled,
+                      self.currentState == .recording || self.currentState == .paused else { continue }
                 guard let p = self.progress() else { continue }
                 self.eventContinuation.yield(.progress(p))
             }

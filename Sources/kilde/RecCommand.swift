@@ -225,13 +225,17 @@ struct RecCommand: ParsableCommand {
                                overrides: RecordOverrides, config: KildeConfig) {
         var ticker: DispatchSourceTimer?
         var outcome: HotkeyRecordingController.Outcome?
+        // 待機モードでも SIGUSR1 を掴む。既定の動作 (即時終了) のままだと
+        // kill -USR1 でファイナライズされずに死に、壊れたファイルが残る
+        var activeRecorder: Recorder?
 
         do {
             let controller = try HotkeyRecordingController(
                 hotkey: source, options: options, overrides: overrides, config: config,
                 environment: ProcessInfo.processInfo.environment,
                 onStarted: { recorder, startedOptions, normalized in
-                    print("● 録画\(!startedOptions.wantsVideo ? " (音声のみ)" : "") → \(startedOptions.outputURL!.path)  (Ctrl+C / \(normalized) で停止)")
+                    activeRecorder = recorder
+                    print("● 録画\(!startedOptions.wantsVideo ? " (音声のみ)" : "") → \(startedOptions.outputURL!.path)  (Ctrl+C / \(normalized) で停止 / SIGUSR1 で一時停止・再開)")
                     ticker = startStatusTicker(recorder)
                 },
                 onFinished: { result in
@@ -243,6 +247,11 @@ struct RecCommand: ParsableCommand {
             try controller.start()
             installStopSignalHandler {
                 controller.requestStop()
+            }
+            // 録画が始まっていなければ何もしない (待機中の SIGUSR1 は無視)
+            installPauseSignalHandler {
+                guard let recorder = activeRecorder else { return }
+                if recorder.isPaused { recorder.resume() } else { recorder.pause() }
             }
             print("⏳ 待機中 — \(controller.normalizedHotkey) で開始 / Ctrl+C で終了")
             // stdout がファイルにリダイレクトされていると C stdio はフルバッファになり、
