@@ -11,6 +11,15 @@ final class MovieWriter {
 
     enum Anchor { case firstVideo, firstAudio }
 
+    enum OutputFilePolicy {
+        /// 明示パスは CLI の従来契約として上書きする。
+        case overwrite
+        /// 既定名は、自分が原子的に作った予約ファイルだけを置き換える。
+        case reserved(OutputFileReservation)
+        /// 予約も明示的な上書き指定もない呼び出し元は、既存ファイルを保護する。
+        case rejectExisting
+    }
+
     let writer: AVAssetWriter
     let videoInput: AVAssetWriterInput?
     let audioInputs: [String: AVAssetWriterInput]
@@ -30,7 +39,8 @@ final class MovieWriter {
     private(set) var lastAudioPTS: [String: CMTime] = [:]
 
     init(url: URL, fileType: AVFileType, video: Bool, videoSize: CGSize?,
-         codec: VideoCodecKind, audioLabels: [String], anchor: Anchor) throws {
+         codec: VideoCodecKind, audioLabels: [String], anchor: Anchor,
+         outputFilePolicy: OutputFilePolicy = .rejectExisting) throws {
         self.url = url
         self.anchor = anchor
         // AVAssetWriter は出力先ディレクトリが無くても init / startWriting を失敗させず
@@ -42,7 +52,25 @@ final class MovieWriter {
             || !isDirectory.boolValue {
             throw KilError.failed("出力先ディレクトリが存在しません: \(dir.path)")
         }
-        try? FileManager.default.removeItem(at: url)
+        switch outputFilePolicy {
+        case .overwrite:
+            if FileManager.default.fileExists(atPath: url.path) {
+                do {
+                    try FileManager.default.removeItem(at: url)
+                } catch {
+                    throw KilError.failed("既存の出力ファイルを上書きできません: \(url.path) (\(error))")
+                }
+            }
+        case .reserved(let reservation):
+            guard reservation.url == url else {
+                throw KilError.failed("出力ファイルの予約 URL が一致しません: \(url.path)")
+            }
+            try reservation.consume()
+        case .rejectExisting:
+            if FileManager.default.fileExists(atPath: url.path) {
+                throw KilError.failed("出力ファイルが既に存在します: \(url.path)")
+            }
+        }
         writer = try AVAssetWriter(outputURL: url, fileType: fileType)
 
         if video {

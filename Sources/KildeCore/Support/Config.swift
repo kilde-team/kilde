@@ -409,6 +409,7 @@ public enum RecordSettings {
             }
         }
         options.outputURL = url
+        options.outputPathIsExplicit = o.outputPath != nil
     }
 
     /// 出力先を一度だけ解決する。表示と Recorder が同一 URL を使うため

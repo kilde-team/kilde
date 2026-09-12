@@ -496,6 +496,34 @@ else
     bad "T14d region 引数検証: 上記の組合せが想定どおりに弾かれていない"
 fi
 
+# ---- T18: 既定出力名の原子的な予約 -------------------------------------------
+
+log "T18: 既定出力名 — 同名ファイルがあれば -2 に逃がす"
+T18_DIR="$WORK/t18"
+mkdir -p "$T18_DIR"
+# コマンド起動中に秒境界をまたいでも衝突候補が必ずあるよう、直近数秒ぶんを予約しておく。
+# 既存の 0 バイトファイルも他人の所有物として残すことを同時に検証する。
+for OFFSET in 0 1 2 3 4; do
+    STAMP=$(date -v+"${OFFSET}"S +%Y%m%d-%H%M%S)
+    touch "$T18_DIR/kilde-$STAMP.m4a"
+done
+if (cd "$T18_DIR" && KILDE_OUTPUT_DIR="$T18_DIR" "$KILDE" rec --no-video --duration 3s \
+    > "$WORK/t18.log" 2>&1); then
+    T18_OUTPUT=$(find "$T18_DIR" -type f -name 'kilde-*-2.m4a' -size +0c | head -1)
+    if [ -n "$T18_OUTPUT" ]; then
+        T18_BASE="${T18_OUTPUT%-2.m4a}.m4a"
+        if [ -f "$T18_BASE" ] && [ ! -s "$T18_BASE" ]; then
+            ok "T18 既定名予約: ダミーを保持し、$(basename "$T18_OUTPUT") に退避"
+        else
+            bad "T18 既定名予約: 対応するダミーが保持されていない — $WORK/t18.log"
+        fi
+    else
+        bad "T18 既定名予約: -2 の録画ファイルがない — $WORK/t18.log"
+    fi
+else
+    bad "T18 既定名予約: コマンド失敗 — $WORK/t18.log"
+fi
+
 # ---- サマリ -------------------------------------------------------------------
 
 echo ""

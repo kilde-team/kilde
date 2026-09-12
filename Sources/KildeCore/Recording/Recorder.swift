@@ -33,6 +33,9 @@ public struct RecordOptions {
     public var trackPolicy: AudioTrackPolicy = .mixed
     public var wantsVideo = true
     public var outputURL: URL?
+    /// CLI の位置引数 / --output で指定されたパスだけは従来どおり上書きを許可する。
+    /// false の既定名は Recorder が原子的に予約し、既存の録画を保護する。
+    public var outputPathIsExplicit = false
     public var duration: TimeInterval?
     public var codec: VideoCodecKind = .h264
     public var fps: Int?
@@ -285,8 +288,15 @@ public final class Recorder {
             }
         }
         let ext = options.wantsVideo ? "mov" : "m4a"
-        let url = options.outputURL ?? URL(fileURLWithPath: defaultOutputName(ext: ext))
+        let preferredURL = options.outputURL ?? URL(fileURLWithPath: defaultOutputName(ext: ext))
+        let reservation = options.outputPathIsExplicit
+            ? nil
+            : try OutputFileReservation.reserve(preferredURL: preferredURL)
+        let url = reservation?.url ?? preferredURL
         outputURL = url
+        // 権限・デバイス解決など writer 構築前のどの失敗経路でも予約ゴミを残さない。
+        // writer が予約を消費した後は inode が変わるため、完成中/完成済みファイルには触れない。
+        defer { reservation?.removeIfStillReserved() }
 
         let wantsSCK = options.wantsVideo || options.audioSources.contains(.system)
         if wantsSCK && !Permissions.hasScreenCapture {
@@ -315,7 +325,7 @@ public final class Recorder {
         }
 
         do {
-            let summary = try await recordAndFinalize(url: url)
+            let summary = try await recordAndFinalize(url: url, reservation: reservation)
             teardownMonitorIfNeeded(monitorCreatedByUs)
             // 復元失敗は録画の失敗ではないが、購読側が気づけないと既定出力が
             // kilde Monitor のまま残る — 完了の前に警告イベントで伝える
@@ -333,7 +343,7 @@ public final class Recorder {
         }
     }
 
-    private func recordAndFinalize(url: URL) async throws -> Summary {
+    private func recordAndFinalize(url: URL, reservation: OutputFileReservation?) async throws -> Summary {
         audioLabels = try labeledSources().map { $0.label }
         let useMixer = options.trackPolicy == .mixed && options.audioSources.count > 1
 
@@ -416,7 +426,8 @@ public final class Recorder {
             videoSize: videoSize,
             codec: options.codec,
             audioLabels: useMixer ? ["mixed"] : audioLabels,
-            anchor: options.wantsVideo ? .firstVideo : .firstAudio
+            anchor: options.wantsVideo ? .firstVideo : .firstAudio,
+            outputFilePolicy: reservation.map(MovieWriter.OutputFilePolicy.reserved) ?? .overwrite
         )
         writer = w
         if useMixer {
