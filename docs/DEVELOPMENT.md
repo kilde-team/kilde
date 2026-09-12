@@ -178,7 +178,10 @@ KILDE_GUI_SELFTEST_RECORD=3 KILDE_GUI_SELFTEST_OUTPUT=/tmp "$APP/Contents/MacOS/
 KILDE_GUI_SELFTEST_PERMISSIONS=1 "$APP/Contents/MacOS/KildeGUI"
 # → selftest: screen=true mic=authorized
 #   selftest: [画面 + システム音声] needsScreen=true needsMic=false missing=なし
+#   selftest: [画面 + マイク] needsScreen=true needsMic=true missing=なし
+#   selftest: [音声のみ + システム音声] needsScreen=true needsMic=false missing=なし
 #   selftest: [音声のみ + マイクのみ] needsScreen=false needsMic=true missing=なし
+#   selftest: [音声のみ + 入力デバイス指定] needsScreen=false needsMic=true missing=なし
 ```
 
 `KILDE_GUI_SELFTEST_DENY=screen,mic` を付けると、**実際には許可されている権限を「無い」ことにして**
@@ -187,9 +190,16 @@ KILDE_GUI_SELFTEST_PERMISSIONS=1 "$APP/Contents/MacOS/KildeGUI"
 
 ```sh
 KILDE_GUI_SELFTEST_PERMISSIONS=1 KILDE_GUI_SELFTEST_DENY=screen "$APP/Contents/MacOS/KildeGUI"
-# → selftest: [画面 + システム音声] needsScreen=true needsMic=false missing=screen
+# → selftest: screen=false mic=authorized
+#   selftest: [画面 + システム音声] needsScreen=true needsMic=false missing=screen
+#   selftest: [画面 + マイク] needsScreen=true needsMic=true missing=screen
+#   selftest: [音声のみ + システム音声] needsScreen=true needsMic=false missing=screen
 #   selftest: [音声のみ + マイクのみ] needsScreen=false needsMic=true missing=なし
+#   selftest: [音声のみ + 入力デバイス指定] needsScreen=false needsMic=true missing=なし
 ```
+
+画面収録を拒否しても「音声のみ + マイクのみ」が `missing=なし` のままである点が、この機能の要です
+(要らない権限を求めない)。
 
 案内の文面や配置そのものは、最終的には人の目で確認してください。
 

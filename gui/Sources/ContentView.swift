@@ -22,11 +22,17 @@ struct ContentView: View {
                 sessionView
             } else {
                 ScrollView {
-                    form.padding(.trailing, 6)
+                    VStack(alignment: .leading, spacing: 14) {
+                        // 権限の案内はスクロール領域の**先頭**に置く。下に積むと、
+                        // ウィンドウ一覧が長いときに固定高さ (600) のポップオーバーから
+                        // はみ出して、肝心の案内が見えなくなる
+                        permissionGuide
+                        form
+                    }
+                    .padding(.trailing, 6)
                 }
                 .frame(maxHeight: 420)
                 resultView
-                permissionGuide
                 startButton
             }
             if let notice = setup.notice {
