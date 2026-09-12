@@ -630,6 +630,42 @@ else
     bad "T16d 設定由来 codec: テスト設定の書き込みに失敗"
 fi
 
+# ---- T19: コーデック別の収録経路 (issue #15) -------------------------------------
+# pixelFormat をコーデックのクロマに合わせて出し分けている (h264/hevc → 420v、
+# prores → BGRA)。SCStreamConfiguration は単体テストから触れないので、
+# 両方の経路で実際に録れることをここで通す。
+#
+# 注意: **pixelFormat そのものは検証していない** — 出力ファイルからは観測できず、
+# inspect はコーデックも出さない (解像度と duration のみ)。ここで捕まえられるのは「片方の経路が
+# 録画すらできなくなる」退行までで、「ProRes が静かに 420v になる」品質劣化は
+# 捕まらない。クロマの検証が要るなら別途 ffprobe 等で pix_fmt を見ること
+
+log "T19: rec --codec prores — BGRA 経路で録れる"
+F="$WORK/t19-prores.mov"
+if "$KILDE" rec --codec prores --duration 3s --output "$F" > "$WORK/t19.log" 2>&1; then
+    VD=$(video_duration_of "$F")
+    if grep -q "video: present" <(inspect "$F") && num_between "${VD:-0}" 2 5; then
+        ok "T19 codec prores: 映像あり (${VD}s)"
+    else
+        bad "T19 codec prores: duration=${VD:-N/A}s — $WORK/t19.log"
+    fi
+else
+    bad "T19 codec prores: コマンド失敗 — $WORK/t19.log"
+fi
+
+log "T19b: rec --codec hevc — 420v 経路で録れる"
+F="$WORK/t19b-hevc.mov"
+if "$KILDE" rec --codec hevc --duration 3s --output "$F" > "$WORK/t19b.log" 2>&1; then
+    VD=$(video_duration_of "$F")
+    if grep -q "video: present" <(inspect "$F") && num_between "${VD:-0}" 2 5; then
+        ok "T19b codec hevc: 映像あり (${VD}s)"
+    else
+        bad "T19b codec hevc: duration=${VD:-N/A}s — $WORK/t19b.log"
+    fi
+else
+    bad "T19b codec hevc: コマンド失敗 — $WORK/t19b.log"
+fi
+
 # ---- サマリ -------------------------------------------------------------------
 
 echo ""
