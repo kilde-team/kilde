@@ -1,0 +1,35 @@
+scripts/integration-test.sh
+  s_1f53592037fbdf::t_6a1bf664b788a5 438-465
+Sources/KildeCore/Support/Config.swift
+  s_1f53592037fbdf::t_3f1816ff08211e 412
+Tests/KildeCoreTests/OutputFileReservationTests.swift
+  s_1f53592037fbdf::t_6a1bf664b788a5 1-55,65-102
+  s_1f53592037fbdf::t_d1732d793e707c 56-64
+Sources/KildeCore/Recording/Recorder.swift
+  s_1f53592037fbdf::t_3f1816ff08211e 33-35,277-281,314,332,384-385
+  s_1f53592037fbdf::t_6a1bf664b788a5 283-285
+Sources/KildeCore/Recording/MovieWriter.swift
+  s_1f53592037fbdf::t_3f1816ff08211e 14-22,42-43,55-72
+Tests/KildeCoreTests/ConfigTests.swift
+  s_1f53592037fbdf::t_6a1bf664b788a5 161,195
+docs/DESIGN.md
+  s_1f53592037fbdf::t_6a1bf664b788a5 243
+Sources/KildeCore/Support/OutputFileReservation.swift
+  s_1f53592037fbdf::t_3f1816ff08211e 1-113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1069ebab24a7c12a5b3035d56029e7f54b035390",
+  "prompts": {},
+  "sessions": {
+    "s_1f53592037fbdf": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09350-880f-7350-835b-fcbb4765dd89",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
