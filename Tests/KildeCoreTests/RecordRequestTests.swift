@@ -30,6 +30,58 @@ final class RecordRequestTests: XCTestCase {
         XCTAssertTrue(options.outputURL?.lastPathComponent.hasPrefix("kilde-") ?? false)
     }
 
+    /// `RecordRequest.usesScreenCapture` が `RecordOptions.usesScreenCapture` と一致すること (issue #72)。
+    ///
+    /// 2 つの型は語彙が違う (`captureSystemAudio: Bool` と `audioSources: [AudioSourceSpec]`) ので
+    /// 定義を物理的に 1 箇所にはできない。**代わりにここで全組み合わせを回して縛る** —
+    /// どちらかを変えたらこのテストが落ちる。
+    ///
+    /// ずれると実害が出る: GUI が「録画できる構成」を止める、あるいは SCK を使わない
+    /// 構成で画面収録権限を要求する (issue #72 の背景)
+    func testUsesScreenCaptureMatchesResolvedOptions() throws {
+        let targets: [RecordRequest.Target] = [.display(index: 0), .window(id: 1), .audioOnly]
+        for target in targets {
+            for system in [true, false] {
+                for mic in [true, false] {
+                    for devices in [[], ["BlackHole 2ch"]] {
+                        var request = RecordRequest(outputDirectory: dir)
+                        request.target = target
+                        request.captureSystemAudio = system
+                        request.captureMic = mic
+                        request.inputDevices = devices
+                        // 音声ソースが 1 つも無い音声のみ構成は makeOptions が弾く (録れるものが無い)
+                        if target == .audioOnly && request.audioSourceCount == 0 { continue }
+
+                        let options = try request.makeOptions(config: KildeConfig())
+                        XCTAssertEqual(
+                            request.usesScreenCapture, options.usesScreenCapture,
+                            "target=\(target) system=\(system) mic=\(mic) devices=\(devices) で"
+                            + " RecordRequest (\(request.usesScreenCapture)) と"
+                            + " RecordOptions (\(options.usesScreenCapture)) がずれています")
+                    }
+                }
+            }
+        }
+    }
+
+    /// 設定ファイルの `defaultAudioSources` が `usesScreenCapture` の一致を崩さないこと。
+    /// `makeOptions` は `overrides.audio` を必ず渡すので設定は割り込まない、という
+    /// 前提そのものを検証する — 崩れると上のテストの根拠が失われる
+    func testConfigDefaultAudioSourcesDoNotAffectUsesScreenCapture() throws {
+        var config = KildeConfig()
+        config.defaultAudioSources = ["system"]  // GUI の選択と反対の値を置く
+
+        var request = RecordRequest(outputDirectory: dir)
+        request.target = .audioOnly
+        request.captureSystemAudio = false
+        request.captureMic = true
+
+        let options = try request.makeOptions(config: config)
+        XCTAssertFalse(options.usesScreenCapture,
+                       "設定ファイルの defaultAudioSources が GUI の選択を上書きしています")
+        XCTAssertEqual(request.usesScreenCapture, options.usesScreenCapture)
+    }
+
     func testWindowTargetPassesWindowID() throws {
         var request = RecordRequest(outputDirectory: dir)
         request.target = .window(id: 4242)

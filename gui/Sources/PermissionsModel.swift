@@ -57,13 +57,10 @@ final class PermissionsModel: ObservableObject {
         return result
     }
 
-    /// SCK を使う構成か。`Recorder` の `wantsSCK = wantsVideo || audioSources.contains(.system)`
-    /// と同じ条件にする (ここがずれると、録画できる構成を GUI が止めてしまう)
+    /// SCK を使う構成か。**判定は `RecordRequest` が持つ** — ここに書き写すと
+    /// `Recorder` 側とずれて、録画できる構成を GUI が止めてしまう (issue #72)
     static func needsScreen(_ request: RecordRequest) -> Bool {
-        if case .audioOnly = request.target {
-            return request.captureSystemAudio
-        }
-        return true
+        request.usesScreenCapture
     }
 
     /// マイク (AVCaptureSession) を使う構成か。既定のマイクだけでなく、

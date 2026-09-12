@@ -88,8 +88,8 @@ final class RecordingSetup: ObservableObject {
     /// (ボタンは押せないことで伝わるが、他アプリ前面で押したキーには何も見えない)
     func startBlockReason(permissions: PermissionsModel) -> String? {
         // SCK を使う構成でだけ列挙との競合を避ける (音声のみ + システム音声オフは競合しない)。
-        // 判定の定義は Recorder の wantsSCK と揃える必要がある — 集約は issue #72
-        let usesScreenCapture = request.target != .audioOnly || request.captureSystemAudio
+        // 判定は RecordRequest が持つ — ここに書き写すと Recorder 側とずれる (issue #72)
+        let usesScreenCapture = request.usesScreenCapture
         // loading も列挙の状態なので SCK を使う構成にだけ効かせる。
         // 無条件に塞ぐと、**SCK を一切使わないマイクのみの録音まで画面列挙の完了待ちに
         // なる** — Recorder はその構成で SCK に触れないので、待たせる理由が無い
