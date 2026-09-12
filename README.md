@@ -59,6 +59,8 @@ kilde rec --no-video --audio "device:BlackHole 2ch" --monitor 会議.m4a
 kilde rec --hotkey cmd+shift+r 会議.mov
 
 # 既定値を設定ファイル (~/.kilde/config.json) で変更
+#   KILDE_CONFIG_DIR で config.json と monitor-state.json の保存先を差し替え可能
+#   (絶対パスか ~ 始まりのみ。相対パスはエラー)
 #   優先順位: CLI 引数 > --preset > KILDE_OUTPUT_DIR > 設定ファイル > 既定値
 #   hotkey は --hotkey > 設定 hotkey > 待機モードなし
 #   不正な設定や存在しない保存先は、録画を始める前にエラー (終了コード 1)

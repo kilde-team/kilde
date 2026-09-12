@@ -28,6 +28,35 @@ final class ConfigTests: XCTestCase {
 
     // MARK: - 読み書き
 
+    func testConfigDirectoryDefaultsWhenEnvironmentIsMissingOrEmpty() {
+        let expected = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".kilde", isDirectory: true)
+        XCTAssertEqual(ConfigStore.configDirectory(environment: [:]), expected)
+        XCTAssertEqual(ConfigStore.configDirectory(environment: ["KILDE_CONFIG_DIR": ""]), expected)
+    }
+
+    func testConfigDirectoryUsesEnvironmentAndExpandsTilde() {
+        XCTAssertEqual(
+            ConfigStore.configDirectory(environment: ["KILDE_CONFIG_DIR": "/tmp/kilde-config"]).path,
+            "/tmp/kilde-config"
+        )
+        XCTAssertEqual(
+            ConfigStore.configDirectory(environment: ["KILDE_CONFIG_DIR": "~/test-kilde-config"]).path,
+            NSString(string: "~/test-kilde-config").expandingTildeInPath
+        )
+    }
+
+    func testConfigDirectoryRejectsRelativePath() {
+        // outputDirectory と同じ基準 — 起動時 CWD 次第で参照先が変わるのを防ぐ
+        XCTAssertThrowsError(try ConfigStore.checkConfigDirectory("kilde-config")) { error in
+            guard case KilError.failed = error else {
+                return XCTFail("KilError.failed であるべき: \(error)")
+            }
+        }
+        XCTAssertNoThrow(try ConfigStore.checkConfigDirectory("/tmp/kilde-config"))
+        XCTAssertNoThrow(try ConfigStore.checkConfigDirectory("~/kilde-config"))
+    }
+
     func testMissingFileLoadsEmptyConfig() throws {
         XCTAssertEqual(try ConfigStore.load(), KildeConfig())
     }

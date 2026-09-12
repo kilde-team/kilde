@@ -229,16 +229,47 @@ extension AudioTrackPolicy {
 // MARK: - 読み書き
 
 public enum ConfigStore {
-    /// 設定の保存先。monitor-state.json と同じ ~/.kilde を使う。
+    /// 環境変数から設定の保存先を解決する。config.json と monitor-state.json で共用する。
+    static func configDirectory(environment: [String: String]) -> URL {
+        guard let configured = environment["KILDE_CONFIG_DIR"], !configured.isEmpty else {
+            return FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent(".kilde", isDirectory: true)
+        }
+        return URL(
+            fileURLWithPath: NSString(string: configured).expandingTildeInPath,
+            isDirectory: true
+        )
+    }
+
+    /// KILDE_CONFIG_DIR の値を検証する。outputDirectory (checkOutputDirectory) と同じく
+    /// 相対パスは拒否する — 起動時のカレントディレクトリ次第で参照先が変わり、
+    /// GUI (カレントディレクトリが / になる) では意図しない場所を見てしまうため。
+    /// static var の初期化は throw できないため、実際に設定を触る load()/save() と
+    /// MonitorDevice.saveState() の入口で呼ぶ
+    static func checkConfigDirectory(_ value: String) throws {
+        guard NSString(string: value).expandingTildeInPath.hasPrefix("/") else {
+            throw KilError.failed("KILDE_CONFIG_DIR は絶対パスか ~ 始まりで指定してください: \(value)")
+        }
+    }
+
+    /// 実プロセスの環境変数で KILDE_CONFIG_DIR が相対パスならエラーにする。
+    /// `kilde config path` のように load() を通らない経路でも検証できるよう公開
+    public static func checkConfigDirectoryEnvironment() throws {
+        if let value = ProcessInfo.processInfo.environment["KILDE_CONFIG_DIR"], !value.isEmpty {
+            try checkConfigDirectory(value)
+        }
+    }
+
+    /// 設定の保存先。monitor-state.json と同じディレクトリを使う。
     /// 単体テストでは実環境の設定を壊さないよう一時ディレクトリに差し替える
-    public static var directory = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent(".kilde", isDirectory: true)
+    public static var directory = configDirectory(environment: ProcessInfo.processInfo.environment)
 
     public static var fileURL: URL { directory.appendingPathComponent("config.json") }
 
     /// 設定ファイルを読む。ファイルが無ければ空の設定 (すべて既定値)。
     /// 壊れた JSON・未知のキー・不正値はエラーにする (typo が黙って無視されるのを防ぐ)
     public static func load() throws -> KildeConfig {
+        try checkConfigDirectoryEnvironment()
         let url = fileURL
         guard FileManager.default.fileExists(atPath: url.path) else { return KildeConfig() }
         let data: Data
@@ -280,6 +311,7 @@ public enum ConfigStore {
     }
 
     public static func save(_ config: KildeConfig) throws {
+        try checkConfigDirectoryEnvironment()
         // 不正値を永続化すると、次回の load() (= kilde rec) が自分の書いたファイルで失敗する
         try config.validate()
         do {
