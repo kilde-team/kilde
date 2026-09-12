@@ -41,7 +41,13 @@ final class RecordingController: ObservableObject {
         guard !isActive else {
             // 既に録画中で options を使わないとき、makeOptions が確保した予約だけが
             // 0 バイトのファイルとして残る — Recorder に渡らないため誰も消さない
-            options.outputReservation?.removeIfStillReserved()
+            if let r = options.outputReservation, !r.removeIfStillReserved() {
+                // この経路は Recorder に渡らないため cleanupWarnings も出ない —
+                // 残留予約が黙らないよう stderr に直接出す
+                FileHandle.standardError.write(
+                    "WARNING: 予約した出力ファイルを削除できませんでした: \(r.url.path)\n"
+                        .data(using: .utf8)!)
+            }
             return
         }
         let recorder = Recorder(options: options)

@@ -618,7 +618,18 @@ wait $T18B_PID2 2>/dev/null; T18B_EXIT2=$?
 # 片方が固まって 0 バイトのままでも、名前が片寄らず両方残っていれば保護は機能している
 T18B_NAMES=$(ls "$T18B_DIR" 2>/dev/null | wc -l | tr -d ' ')
 if [ "$T18B_NAMES" = "2" ]; then
-    ok "T18b 同時起動: 2 つの名前が共存 (exit=$T18B_EXIT1/$T18B_EXIT2, ls: $(cd "$T18B_DIR" && ls | tr '\n' ' '))"
+    # 両者のタイムスタンプが同じ秒なら、片方が必ず -2 に退避しているはず。異なる秒に
+    # 落ちた場合は起動の揺らぎで、名前の衝突自体が起きていない (同一秒の決定的検証は T18 が担う)
+    T18B_SAME=$(cd "$T18B_DIR" && ls | sed -E 's/kilde-([0-9]{8}-[0-9]{6})(-2)?\..*/\1/' | sort -u | wc -l | tr -d ' ')
+    if [ "$T18B_SAME" = "1" ]; then
+        if ls "$T18B_DIR" | grep -q -- "-2\."; then
+            ok "T18b 同時起動: 同一秒で -2 に退避して共存 (exit=$T18B_EXIT1/$T18B_EXIT2)"
+        else
+            bad "T18b 同時起動: 同一秒なのに -2 が無い (ls: $(cd "$T18B_DIR" && ls | tr '\n' ' '))"
+        fi
+    else
+        ok "T18b 同時起動: 2 つの名前が共存・別秒に分岐 (exit=$T18B_EXIT1/$T18B_EXIT2)"
+    fi
 else
     bad "T18b 同時起動: 名前数=$T18B_NAMES (2 が必要) exit=$T18B_EXIT1/$T18B_EXIT2 — $WORK/t18b-1.log $WORK/t18b-2.log"
 fi
