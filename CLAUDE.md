@@ -120,9 +120,16 @@ swift build                       # ビルド (バイナリは .build/debug/kild
 1〜5 の出典は SPIKE-NOTES.md F-C / F-D。6 は `FileInspection.swift` のコメント、
 7 は `Package.swift` の `linkerSettings` とコミット `11768a9` が出典。
 
-1. **`cfg.pixelFormat = kCVPixelFormatType_32BGRA` を外さない。**
-   SCK は既定で圧縮済みフレームを返すため、AVAssetWriter で再圧縮する現構成では
-   非圧縮を明示的に要求する必要がある
+1. **`cfg.pixelFormat` を明示し、コーデックのクロマに合わせる。** 既定に頼らない。
+   - **H.264 / HEVC は `kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange`。BGRA に戻さないこと** —
+     エンコーダ入力はどのみち 4:2:0 YUV なので、BGRA を渡すと色変換が 1 回余計に入り、
+     実測で CPU が +24% (うち sys はほぼ倍) になる。画質は PSNR 47.6 dB / SSIM 0.9998 (F-G)
+   - **ProRes は `kCVPixelFormatType_32BGRA` のまま。420v にしないこと** —
+     ProRes 422 は 4:2:2 なので、4:2:0 で渡すとクロマを半分捨てたまま復元できない。
+     編集用の中間ファイルという `--codec prores` の用途が損なわれる
+
+   なお「SCK は既定で圧縮済みフレームを渡す」という旧 F-D.1 の記述は**誤り**で、
+   SCK が渡すのは常に非圧縮の pixel buffer である (issue #15 で訂正)
 2. **映像の `outputSettings` に `AVVideoWidthKey` / `AVVideoHeightKey` は必須。**
    欠けると `NSInvalidArgumentException` でクラッシュする
 3. **`RecCommand.run()` 冒頭の `NSApplication.shared` +

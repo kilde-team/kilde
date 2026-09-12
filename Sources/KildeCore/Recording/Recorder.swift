@@ -496,9 +496,18 @@ public final class Recorder {
                 let windows = try await DisplayCatalog.resolveWindows(matching: options.windowMatches)
                 if let win = windows.first, windows.count == 1 {
                     if options.wantsVideo {
-                        cfg.width = Int(win.frame.width)
-                        cfg.height = Int(win.frame.height)
-                        videoSize = CGSize(width: win.frame.width, height: win.frame.height)
+                        // H.264 / HEVC では偶数へ丸める (420v の 4:2:0 制約。ProRes は丸めない —
+                        // captureSize を参照)。ウィンドウは 1 ポイント単位でリサイズできるので
+                        // 普通に奇数になる (issue #15)
+                        let (w, h) = Self.captureSize(win.frame.size, codec: options.codec)
+                        guard w >= 2, h >= 2 else {
+                            throw KilError.failed(
+                                "ウィンドウが小さすぎて収録できません "
+                                + "(\(Int(win.frame.width))x\(Int(win.frame.height))、2x2 以上が必要)")
+                        }
+                        cfg.width = w
+                        cfg.height = h
+                        videoSize = CGSize(width: w, height: h)
                     }
                     filter = SCContentFilter(desktopIndependentWindow: win)
                 } else {
@@ -518,9 +527,18 @@ public final class Recorder {
                             + "--display で収録するディスプレイを選べます)")
                     }
                     if options.wantsVideo {
-                        cfg.width = Int(display.width)
-                        cfg.height = Int(display.height)
-                        videoSize = CGSize(width: CGFloat(display.width), height: CGFloat(display.height))
+                        // 複数ウィンドウでもディスプレイ全体の大きさになるので、
+                        // 単一ウィンドウと同じく偶数へ丸める (issue #15 の 4:2:0 制約)
+                        let (w, h) = Self.captureSize(
+                            CGSize(width: display.width, height: display.height),
+                            codec: options.codec)
+                        guard w >= 2, h >= 2 else {
+                            throw KilError.failed(
+                                "ディスプレイが小さすぎて収録できません (\(display.width)x\(display.height))")
+                        }
+                        cfg.width = w
+                        cfg.height = h
+                        videoSize = CGSize(width: w, height: h)
                     }
                     filter = SCContentFilter(display: display, including: windows)
                 }
@@ -557,9 +575,18 @@ public final class Recorder {
                         cfg.height = h
                         videoSize = CGSize(width: w, height: h)
                     } else {
-                        cfg.width = Int(display.width)
-                        cfg.height = Int(display.height)
-                        videoSize = CGSize(width: display.width, height: display.height)
+                        // ディスプレイ全体も H.264 / HEVC では偶数へ丸める — Retina の
+                        // 非整数スケーリングでは奇数ピクセルになりうるため (captureSize を参照)
+                        let (w, h) = Self.captureSize(
+                            CGSize(width: display.width, height: display.height),
+                            codec: options.codec)
+                        guard w >= 2, h >= 2 else {
+                            throw KilError.failed(
+                                "ディスプレイが小さすぎて収録できません (\(display.width)x\(display.height))")
+                        }
+                        cfg.width = w
+                        cfg.height = h
+                        videoSize = CGSize(width: w, height: h)
                     }
                 }
                 let excluded = try await DisplayCatalog.resolveApplications(bundleIDs: options.excludedBundleIDs)
@@ -568,8 +595,19 @@ public final class Recorder {
                                          exceptingWindows: [])
             }
             if options.wantsVideo {
-                // AVAssetWriter で再圧縮するため非圧縮 BGRA を要求 (SPIKE-NOTES F-D.1)
-                cfg.pixelFormat = kCVPixelFormatType_32BGRA
+                // 非圧縮のピクセル形式を明示する (既定に任せない — SPIKE-NOTES F-D.1)。
+                // 値はコーデックのクロマに合わせる (SPIKE-NOTES F-G)
+                switch options.codec {
+                case .h264, .hevc:
+                    // エンコーダ入力がどのみち 4:2:0 なので、BGRA を渡すと色変換が
+                    // 1 回余計に入る。実測で CPU -24%、うち sys はほぼ半減する
+                    cfg.pixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
+                case .prores:
+                    // ProRes 422 は 4:2:2。ここで 4:2:0 にするとクロマを半分捨てたまま
+                    // エンコーダが 4:2:2 へ戻すだけで、失った情報は復元できない。
+                    // 編集用の中間ファイルという用途に反するので BGRA のままにする
+                    cfg.pixelFormat = kCVPixelFormatType_32BGRA
+                }
             }
             let mode: ScreenAudioStream.Mode = options.wantsVideo ? .screenAndAudio : .audioOnly
             sck = try ScreenAudioStream(filter: filter, configuration: cfg, mode: mode) { [weak self] sb, type in
@@ -706,7 +744,24 @@ public final class Recorder {
         }
     }
 
-    /// recording 中 0.5 秒周期で progress イベントを流ぶ (GUI 向け)。
+    /// 収録サイズを決める (issue #15)。
+    ///
+    /// H.264 / HEVC は 420v で受けるので、4:2:0 のクロマ面 (w/2 × h/2) を作るために
+    /// 幅・高さとも偶数でなければならない。ウィンドウは 1 ポイント単位でリサイズでき、
+    /// ディスプレイも Retina の非整数スケーリングで奇数になりうるので丸める。
+    ///
+    /// **ProRes は丸めない。** 4:2:2 で BGRA を受けるので偶数制約が無く、丸めると
+    /// 奇数サイズのウィンドウで不要に 1px 削ることになる。「ProRes ではクロマを落とさない」
+    /// というこの issue の方針に反するため、コーデックで分ける
+    private static func captureSize(_ size: CGSize,
+                                    codec: VideoCodecKind) -> (width: Int, height: Int) {
+        switch codec {
+        case .prores: return (Int(size.width), Int(size.height))
+        case .h264, .hevc: return (Int(size.width) & ~1, Int(size.height) & ~1)
+        }
+    }
+
+    /// recording 中 0.5 秒周期で progress イベントを流す (GUI 向け)。
     /// 経過時間・出力サイズ・レベルは progress() と同じ計算経路を使う。
     /// チェックから yield までのわずかな競合窓は残るが、sleep 起き直し後の
     /// isCancelled と recording 状態の二重チェックで実質的に finalizing 以降には流さない
