@@ -1,0 +1,21 @@
+docs/DEVELOPMENT.md
+  s_35faeec28b4c4b::t_9bf5200c603669 291
+Sources/kilde/RecCommand.swift
+  s_35faeec28b4c4b::t_413262a2873873 431-436
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "de840d79b00d7b6d57a298806dc7e3ab6fdb70a9",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
