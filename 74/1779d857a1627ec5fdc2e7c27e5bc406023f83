@@ -1,0 +1,25 @@
+Sources/KildeCore/Recording/Recorder.swift
+  s_35faeec28b4c4b::t_7a20c93e3d2fab 563-565
+  s_35faeec28b4c4b::t_31aee8b0d8010f 223-226,231-233,238,242-250
+  s_35faeec28b4c4b::t_0283a9eab7c0b5 518-519
+Sources/kilde/RecCommand.swift
+  s_35faeec28b4c4b::t_26a02bf418d392 237-238
+  s_35faeec28b4c4b::t_bc55e7471d1f88 251-255
+  s_35faeec28b4c4b::t_a08fb421fc73ef 228-230
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "741779d857a1627ec5fdc2e7c27e5bc406023f83",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
