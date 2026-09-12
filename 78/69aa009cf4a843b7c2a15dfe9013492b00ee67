@@ -1,0 +1,89 @@
+Sources/kilde/ConfigCommand.swift
+  s_065686e7a376f4::t_de0197d58097c2 14
+gui/Sources/ContentView.swift
+  s_14688823243adc::t_873c30557cdad8 17-21
+  s_14688823243adc::t_dedcc688cbc0d8 113-115,122,157-165
+Sources/KildeCore/Input/HotkeyRecordingController.swift
+  s_34d31eef171f3f::t_9ca50c73f58165 53-55,57-61
+  s_34d31eef171f3f::t_a6fb17bc39e152 51-52,62-64,66-67,71
+  s_34d31eef171f3f::t_72729f1ecc2b30 56
+  s_065686e7a376f4::t_9dfdb749efdc50 1-50,65,68-70,72-138,140-142
+  s_34d31eef171f3f::t_b8b27ae9228b6b 139
+Sources/kilde/RecCommand.swift
+  s_34d31eef171f3f::t_80137fb8333c87 94-99
+  s_34d31eef171f3f::t_a833ae47c11f1d 122-127
+  s_065686e7a376f4::t_fd960bcad7ee10 254
+  s_065686e7a376f4::t_73c39a43befd95 57-59,88-93,100,116-121,185-195,201-213,215,227-228,231,240,243-245,253,255-265,267
+  s_065686e7a376f4::t_9dfdb749efdc50 214,217-226,229-230,232,234,239,246-252
+  s_34d31eef171f3f::t_683530eba8dbf2 235-238
+Tests/KildeCoreTests/HotkeyParserTests.swift
+  s_065686e7a376f4::t_9304bccd56f801 57
+  s_065686e7a376f4::t_dffd2e8f1886b8 72-74
+  s_34d31eef171f3f::t_41ad4d6deab493 29-40
+  s_065686e7a376f4::t_d59e0bf8f11e4e 1-28,41-56,58-71,75-78
+Sources/KildeCore/Support/Config.swift
+  s_065686e7a376f4::t_12657fc678de74 23,58,98
+Sources/kilde/DoctorCommand.swift
+  s_065686e7a376f4::t_12657fc678de74 55-61
+docs/DESIGN.md
+  s_34d31eef171f3f::t_eea7d49df9ad94 418-419
+  s_34d31eef171f3f::t_16bb6d435a19f9 267
+  s_065686e7a376f4::t_33b72452a3f3ee 4,70,317-319
+  s_065686e7a376f4::t_9304bccd56f801 109-112,396
+  s_34d31eef171f3f::t_702cafde6eea68 247,249
+scripts/integration-test.sh
+  s_34d31eef171f3f::t_9db6720974777f 404-415
+  s_34d31eef171f3f::t_cf05bf051129bc 384-390,394-403,416-424
+  s_34d31eef171f3f::t_f2c60942856b68 391-393
+Tests/KildeCoreTests/ConfigTests.swift
+  s_065686e7a376f4::t_d59e0bf8f11e4e 72,79,102,133-140
+Sources/KildeCore/Input/HotkeyMonitor.swift
+  s_34d31eef171f3f::t_dfa68dadb75503 76
+  s_34d31eef171f3f::t_e4f5fb7ff1274d 225-228
+  s_065686e7a376f4::t_fd8647c7225bf2 45,60-61,64,70,79-80
+  s_065686e7a376f4::t_9304bccd56f801 110,114,118,122,220
+  s_065686e7a376f4::t_9f879ca07a7155 1-4,8-44,46,53-59,62-63,65-69,71-75,77-78,81-109,111-113,115-117,119-121,123-174,179-192,194-196,198-206,208-211,213-214,216-219,221-222,229-233,241,263-290,294,300-302,315-326
+  s_34d31eef171f3f::t_33e3144d848626 223-224
+  s_34d31eef171f3f::t_f6e39067817154 47-52
+  s_34d31eef171f3f::t_7c9e721ac0c96a 235-240,242-247,249-251,253-255
+  s_34d31eef171f3f::t_4a674baa6e05e6 5-7
+  s_34d31eef171f3f::t_b2319c952eda24 175-178,193,197,207,212,215,234,256-262
+  s_34d31eef171f3f::t_84820db646fb05 248,252
+  s_34d31eef171f3f::t_444cd975dc6528 291-293,295-299,303-314
+README.md
+  s_065686e7a376f4::t_9304bccd56f801 107
+  s_065686e7a376f4::t_33b72452a3f3ee 20,57,59-60,65,71
+  s_34d31eef171f3f::t_155c7c67fa1221 58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7869aa009cf4a843b7c2a15dfe9013492b00ee67",
+  "prompts": {},
+  "sessions": {
+    "s_065686e7a376f4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09125-82d5-73f3-b083-e5c4a39c3ac2",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    },
+    "s_14688823243adc": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ddbf470b-d6da-4876-8dbc-a2c696d20b1c",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    },
+    "s_34d31eef171f3f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2fe81784-1008-4b9f-8671-2ec2cf21a534",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
