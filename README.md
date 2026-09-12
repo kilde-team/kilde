@@ -273,13 +273,23 @@ elapsed time and the panel shows per-source level meters. Closing the panel
 does not stop the recording. Initial values are read from the same
 `~/.kilde/config.json` as the CLI.
 
+When a recording finishes, a notification shows its name, length, and size;
+clicking it reveals the file in Finder. The panel also lists the five most
+recent recordings in the output directory — including ones made with the CLI —
+and clicking one reveals it in Finder. Set a global hotkey in the panel to
+start and stop recording from any app; it is stored as `hotkey` in the same
+configuration file, so `kilde rec` picks it up as well. A checkbox registers
+the app to launch at login through `SMAppService`, which macOS may ask you to
+approve in System Settings.
+
 ## Roadmap
 
 - **M0** ✅ Technical spike: validated ScreenCaptureKit audio capture
 - **M1** ✅ CLI MVP: `kilde rec / devices / doctor / audio monitor / inspect`
 - **M2** Global hotkey ✅; region capture ✅; pause/resume
-- **M3** Menu bar GUI app: skeleton ✅ / recording UI ✅; permission
-  onboarding and notifications are upcoming
+- **M3** Menu bar GUI app: skeleton ✅ / recording UI ✅ / permission
+  onboarding ✅ / completion notifications, recent recordings, global hotkey,
+  and launch at login ✅
 
 ## Contributing
 

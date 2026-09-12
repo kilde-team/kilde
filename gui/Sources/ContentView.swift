@@ -28,6 +28,10 @@ struct ContentView: View {
                         // はみ出して、肝心の案内が見えなくなる
                         permissionGuide
                         form
+                        // 「最近の録画」もスクロール領域の中に入れる。外に置くと、
+                        // 5 件並んだ通常の状態で開始ボタンが固定 600pt の外へ
+                        // 押し出されて**録画を始められなくなる**
+                        recentRecordings
                     }
                     .padding(.trailing, 6)
                 }
@@ -56,14 +60,28 @@ struct ContentView: View {
         .onAppear {
             // 権限は録画中でも取り直す (案内の表示だけで、SCK の列挙とは無関係)
             permissions.refresh()
-            if !recording.isActive { setup.reload() }
+            if !recording.isActive {
+                setup.reload()
+                setup.reloadRecentRecordings()
+            }
+        }
+        // 録画が終わった瞬間に一覧を取り直す。ポップオーバーを開いたまま録画を終えると、
+        // onAppear も kildePopoverDidShow も発火しないので、閉じて開き直すまで
+        // 出来たばかりのファイルが «最近の録画» に出てこない
+        .onChange(of: recording.phase) { _, newPhase in
+            if case .finished = newPhase { setup.reloadRecentRecordings() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .kildePopoverDidShow)) { _ in
             // macOS 15 以降、画面収録権限は一度許可しても定期的に再確認されて失効しうる
             // (DESIGN.md F4)。開くたびに取り直して、失効していれば案内を出す
             permissions.refresh()
             // 録画中は選択肢を出さないので列挙しない (SCK の列挙を録画と並走させない)
-            if !recording.isActive { setup.reload() }
+            if !recording.isActive {
+                setup.reload()
+                // onAppear だけでは再表示を拾えない (この通知を足した理由そのもの)。
+                // 閉じている間に終わった録画を一覧に出すため、ここでも取り直す
+                setup.reloadRecentRecordings()
+            }
         }
     }
 
@@ -137,13 +155,16 @@ struct ContentView: View {
             section("保存先") {
                 outputRow
             }
+            section("グローバルホットキー") {
+                hotkeyRow
+            }
+            section("起動") {
+                Toggle("ログイン時に kilde を起動する", isOn: Binding(
+                    get: { setup.launchesAtLogin },
+                    set: { setup.setLaunchesAtLogin($0) }))
+                    .toggleStyle(.checkbox)
+            }
         }
-    }
-
-    /// この構成が SCK を使うか (映像あり、またはシステム音声あり)。
-    /// Recorder の `wantsSCK = wantsVideo || audioSources.contains(.system)` と同じ条件
-    private var usesScreenCapture: Bool {
-        mode != .audioOnly || setup.request.captureSystemAudio
     }
 
     private var mode: Mode {
@@ -284,6 +305,48 @@ struct ContentView: View {
         }
     }
 
+    /// ホットキーの設定 (issue #20)。値は CLI と同じ `~/.kilde/config.json` の `hotkey` に入るので、
+    /// ここで設定すると `kilde rec` も待機モードで起動するようになる (DESIGN.md の優先順位どおり)
+    private var hotkeyRow: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Image(systemName: "keyboard")
+                TextField("例: cmd+shift+r", text: $setup.hotkeyDraft)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit { applyHotkey() }
+                // 保存済みの値と同じでも押せるようにする — 設定ファイルへの保存が
+                // 成功しても Carbon への登録が失敗する (他アプリとの競合) ことがあり、
+                // そのとき draft == config なので無効にすると**再試行できなくなる**
+                Button("適用") { applyHotkey() }
+            }
+            Text("他のアプリを使っている間でも、このキーで録画を開始・停止できます。空にすると無効になります")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// 保存 → AppDelegate に再登録させる。登録の成否は notice に出る。
+    ///
+    /// 設定ファイルへ書くのと Carbon への登録は別物なので、**書けても登録に失敗しうる**。
+    /// 保存に失敗したまま登録へ進むと、旧ホットキーの解除だけが行われて何も登録されない
+    /// 状態になるため、**保存が成功したときだけ登録へ進む**。登録に失敗した場合は
+    /// AppDelegate 側が設定を旧値へ巻き戻す (設定だけ新しい値が残ると、次回の起動で
+    /// CLI も GUI も登録できない値を読むことになる)
+    private func applyHotkey() {
+        // 巻き戻し値は **保存直前にファイルにあった値** を使う。setup.config は GUI
+        // 起動時のスナップショットなので、その間に CLI が変更していると上書きになる
+        let (saved, previous) = setup.saveHotkey()
+        guard saved else { return }
+        // `NSApp.delegate` からは取れない — @NSApplicationDelegateAdaptor が
+        // 挟むプロキシのせいで `as? AppDelegate` が nil になる (AppDelegate.shared のコメント)。
+        // ここを NSApp.delegate にしていたため「適用」を押してもホットキーが
+        // 再登録されず、設定だけ書き換わって無反応になっていた
+        // .some(previous) を渡すことで «失敗したら巻き戻す» を明示する
+        // (previous 自体が nil = 未設定だった場合も巻き戻しの対象)
+        AppDelegate.shared?.applyHotkeyFromConfig(revert: .some(previous))
+    }
+
     // MARK: - 開始・結果
 
     private var startButton: some View {
@@ -297,15 +360,11 @@ struct ContentView: View {
         .tint(.red)
         .controlSize(.large)
         .keyboardShortcut(.defaultAction)
-        // 列挙中の開始は、進行中の SCShareableContent 列挙と Recorder の対象解決が
-        // 同時に SCK へ行くことになるので受け付けない。タイムアウト後も返らない列挙が
-        // 残っている間 (enumerationsRunning > 0) も同じ理由で止める —
-        // ただし SCK を使わない構成 (音声のみ + システム音声オフ) は競合しないので止めない
-        // 権限が足りない構成では開始させない (issue #19)。足りない権限は permissionGuide が案内する
-        .disabled(setup.loading
-            || (usesScreenCapture && setup.enumerationsRunning > 0)
-            || (mode == .audioOnly && setup.request.audioSourceCount == 0)
-            || !permissions.missing(for: setup.request).isEmpty)
+        // 開始可否の判定は RecordingSetup に集約してある — グローバルホットキー
+        // (ボタンを経由しない開始経路) と条件がずれないようにするため。
+        // 理由は startBlockReason のコメントを参照 (issue #20 / #70)
+        .disabled(setup.startBlockReason(permissions: permissions) != nil)
+        .help(setup.startBlockReason(permissions: permissions) ?? "")
     }
 
     private func start() {
@@ -313,8 +372,8 @@ struct ContentView: View {
         // macOS 15 以降の定期再確認 (DESIGN.md F4) で失効した場合に、SCK のエラーではなく
         // 案内で止めるため
         permissions.refresh()
-        guard permissions.missing(for: setup.request).isEmpty else {
-            setup.notice = "権限が足りないため開始できません"
+        if let reason = setup.startBlockReason(permissions: permissions) {
+            setup.notice = reason
             return
         }
         do {
@@ -351,6 +410,36 @@ struct ContentView: View {
                 .fixedSize(horizontal: false, vertical: true)
         default:
             EmptyView()
+        }
+    }
+
+    /// 直近の録画 (issue #20)。クリックで Finder に表示する。
+    /// 保存先を走査して作るので、CLI で録ったファイルもここに出る
+    @ViewBuilder
+    private var recentRecordings: some View {
+        if !setup.recentRecordings.isEmpty {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("最近の録画")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                ForEach(setup.recentRecordings, id: \.self) { url in
+                    Button {
+                        RecordingNotifier.revealInFinder(url)
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "film")
+                                .foregroundStyle(.secondary)
+                            Text(url.lastPathComponent)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            Spacer(minLength: 0)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help("Finder で表示: \(url.path)")
+                }
+            }
         }
     }
 

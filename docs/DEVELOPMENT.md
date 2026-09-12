@@ -296,6 +296,7 @@ scripts/integration-test.sh
 | T18b | 同秒の 2 本同時起動で互いのファイルを消さない (共存を検証。固まる場合は #70 をタイムアウトで回収) |
 | T19 | `rec --codec prores` — ProRes (BGRA 経路) で録れる |
 | T19b | `rec --codec hevc` — HEVC (420v 経路) で録れる。`SCStreamConfiguration` は単体テストから触れないため、両経路をここで通す |
+| T21 | GUI 通知・最近の録画・ホットキー (issue #20) — `KILDE_GUI_SELFTEST_NOTIFY=1` で UI を操作せずに検証する。最近の録画の走査 (上限 5 件・更新時刻の新しい順・接頭辞/拡張子/ディレクトリ/隠しファイルの除外)、Finder に渡す URL (実在ファイルはそれ自身、消えていれば親ディレクトリ)、ホットキーの登録可否。**通知バナーの表示とクリック、他アプリ前面でのキー押下は自動化できない** (Notification Center と TCC の状態に依存) ので目視確認。T11 と同じく xcodegen 未導入 / kilde-dev 証明書なし / KildeGUI 起動中は SKIP |
 | T20 | `rec --hdr` — SDR 機でのフォールバック (理由を `⚠ HDR:` で表示し、録画は成功して **exit 0**) / **`--codec` を明示**して hevc 以外にした場合と `--no-video` との併用は録画前に exit 64。**`--codec` 省略時と設定ファイル由来の非 hevc は exit 64 ではなく、警告つき SDR フォールバック (exit 0)** — CLI の引数検証は明示指定しか見られず、解決後の値は `Recorder` が判定するため。HDR として録れることの確認は HDR ディスプレイが要るため別 (下記の手動確認) |
 
 作業ディレクトリ (録画物とログ) は失敗調査のため削除されず、最後に

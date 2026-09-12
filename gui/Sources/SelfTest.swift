@@ -32,6 +32,16 @@ enum SelfTest {
             reportPermissions(setup: setup, permissions: permissions)
             exit(0)
         }
+        // KILDE_GUI_SELFTEST_NOTIFY=1: issue #20 の «通知・Finder 表示・最近の録画・ホットキー» を
+        // UI 操作なしで確かめる。通知の配信自体は Notification Center の状態に依存して自動化
+        // できないが、**kilde 側の責任範囲 (Finder に渡す URL が正しいか、一覧の走査が
+        // 正しいか、ホットキーを登録できるか) は機械的に確かめられる**
+        // 終了は reportNotifyTargets の中 (走査結果を待つ Task の末尾) で行う。
+        // ここで exit(0) すると、走査の完了を待たずにプロセスが落ちる
+        if env["KILDE_GUI_SELFTEST_NOTIFY"] == "1" {
+            reportNotifyTargets(setup: setup)
+            return
+        }
         guard let text = env["KILDE_GUI_SELFTEST_RECORD"] else { return }
         guard let seconds = Double(text), seconds > 0 else {
             fail("KILDE_GUI_SELFTEST_RECORD は正の秒数で指定してください: \(text)")
@@ -209,6 +219,133 @@ enum SelfTest {
                 + " needsMic=\(PermissionsModel.needsMic(request)) missing=\(missingText)")
         }
         fflush(stdout)
+    }
+
+    /// issue #20 の検証 (KILDE_GUI_SELFTEST_NOTIFY=1)。
+    ///
+    /// 自動で確かめられるのはここまで、という線引きを明示しておく:
+    /// - **確かめられる**: 最近の録画の走査結果、Finder に渡す URL、存在しないファイルの
+    ///   フォールバック先、ホットキーを Carbon に登録できるか
+    /// - **確かめられない**: 通知バナーが実際に出るか (Notification Center の状態と TCC 次第)、
+    ///   バナーのクリックで Finder が前面に出るか、他アプリ前面でのキー押下が届くか。
+    ///   これらは人の目と手が要る — PR に手順として書き、ここで «通った» ことにしない
+    @MainActor
+    private static func reportNotifyTargets(setup: RecordingSetup) {
+        if let dir = ProcessInfo.processInfo.environment["KILDE_GUI_SELFTEST_OUTPUT"] {
+            // シンボリックリンクを解決しておく — /var は /private/var へのリンクなので、
+            // 解決しないと «列挙で得た URL (解決済み)» と «環境変数から作った URL» が
+            // 同じディレクトリを指しているのに別の文字列になり、検証側で比較できない
+            setup.request.outputDirectory = URL(fileURLWithPath: dir, isDirectory: true)
+                .resolvingSymlinksInPath()
+        }
+        print("selftest: outputDirectory=\(setup.request.outputDirectory.path)")
+
+        // ホットキーは **AppDelegate が起動時に登録した結果**を報告する。
+        //
+        // ここで自前の `HotkeyMonitor` を作ってはいけない — `AppDelegate` が
+        // `applicationDidFinishLaunching` で同じキーを登録済みで、Carbon の
+        // 排他登録 (`kEventHotKeyExclusive`) は**同一プロセス内でも二重登録を拒む**ため、
+        // 必ず失敗する。実際それで T21 が落ちた。
+        //
+        // 解決の経路 (設定ファイル → `HotkeySettings.resolve`) も `AppDelegate` が
+        // 通っているので、登録できていること自体がその経路の検証になる
+        // **throw と nil を潰さない。** `try?` でまとめると「設定に hotkey が無い」と
+        // 「設定はあるが解釈できない」が同じ nil になり、後者を «未設定» として
+        // 成功扱いにしてしまう (検証していないのに成功と報告しない、という方針に反する)
+        let resolved: String?
+        do {
+            resolved = try HotkeySettings.resolve(explicit: nil, config: setup.config)
+        } catch {
+            print("selftest: hotkeyResolved=invalid error=\(error)")
+            fflush(stdout)
+            fail("設定の hotkey を解釈できません: \(error)")
+        }
+        print("selftest: hotkeyResolved=\(resolved ?? "none")")
+        print("selftest: configPath=\(ConfigStore.fileURL.path)")
+        print("selftest: configHotkey=\(setup.config.hotkey ?? "(なし)")")
+        // registeredHotkey が nil のとき、原因は «登録失敗» とは限らない。
+        // AppDelegate に届いていない / setup が別インスタンス / 呼ばれる順序、の
+        // どれかを切り分けられるようにしておく
+        let delegate = AppDelegate.shared
+        print("selftest: delegate=\(delegate == nil ? "nil" : "ok")"
+            + " sameSetup=\(delegate.map { $0.debugUsesSameSetup(setup) } ?? false)")
+        let registered = delegate?.registeredHotkey
+        if let registered {
+            // **解決値と一致するかまで見る。** 非 nil というだけでは «古い登録が
+            // 残っている» 場合も成功になり、設定を反映できていない退行を見逃す
+            if registered != resolved {
+                print("selftest: hotkeyRegistered=true source=\(registered)"
+                    + " (解決値 \(resolved ?? "none") と一致しません)")
+                fflush(stdout)
+                fail("登録されたホットキー (\(registered)) が設定の解決結果"
+                    + " (\(resolved ?? "none")) と一致しません")
+            }
+            print("selftest: hotkeyRegistered=true source=\(registered)")
+        } else {
+            // 失敗の理由は AppDelegate が notice に入れている。出さないと
+            // «登録できなかった» としか分からず、原因の切り分けができない。
+            //
+            // **print して続行してはいけない** — 走査のタイムアウトを fail() にしたのと
+            // 同じ理由で、検証していない (できていない) のに exit(0) で «成功» と
+            // 報告することになる
+            print("selftest: hotkeyRegistered=false resolved=\(resolved ?? "none")"
+                + " notice=\(setup.notice ?? "(なし)")")
+            fflush(stdout)
+            // **«設定が無いから登録されていない» と «登録に失敗した» を分ける。**
+            // 前者で「登録できませんでした」と exit 1 にすると、設定なしで手動実行
+            // したときに原因を取り違える
+            if resolved == nil {
+                print("selftest: hotkeyUnset=true (設定に hotkey が無いので登録対象なし)")
+                fflush(stdout)
+            } else {
+                fail("ホットキーを登録できませんでした (resolved=\(resolved!))")
+            }
+        }
+
+        // 最近の録画の走査。結果は Task 経由で MainActor に届くので、**RunLoop を回しても
+        // 届かない** — RunLoop.main.run(until:) は Swift Concurrency の main executor に
+        // 積まれたタスクを実行しない。既存の待機 (popover.isShown / recording.isActive) が
+        // RunLoop で成立しているのは、そちらが同期的に更新される状態を見ているため。
+        // ここは await で待ってから出力し、終了もその中で行う
+        setup.reloadRecentRecordings()
+        Task { @MainActor in
+            // 走査の «完了» を待つ。結果が空かどうかで判定すると、本当に 0 件の
+            // ディレクトリでも 5 秒待たされ、しかも «未完了» と区別できない
+            let deadline = Date().addingTimeInterval(5)
+            while !setup.recentScanFinished, Date() < deadline {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+            print("selftest: scanFinished=\(setup.recentScanFinished)")
+            print("selftest: recentCount=\(setup.recentRecordings.count)")
+            for url in setup.recentRecordings {
+                print("selftest: recent=\(url.lastPathComponent)")
+            }
+
+            // Finder に渡す URL は **実装本体 (RecordingNotifier.revealTarget) に決めさせる**。
+            // ここで分岐を書き写すと、実装が退行してもこの検証は通ってしまう
+            if let first = setup.recentRecordings.first {
+                let target = RecordingNotifier.revealTarget(for: first)
+                print("selftest: revealTarget=\(target.url.path) select=\(target == .select(first))")
+            }
+            // 欠損ファイルの URL は **列挙で得た URL から作る** — outputDirectory は
+            // 環境変数の文字列由来で /tmp のままだが、列挙結果は解決済みの
+            // /private/tmp を返す。同じディレクトリなのに文字列が違うので、
+            // 基準を揃えないと検証側で比較できない
+            let baseDirectory = setup.recentRecordings.first?.deletingLastPathComponent()
+                ?? setup.request.outputDirectory
+            let missing = baseDirectory.appendingPathComponent("kilde-does-not-exist.mov")
+            let fallback = RecordingNotifier.revealTarget(for: missing)
+            print("selftest: revealFallback=\(fallback.url.path)"
+                + " select=\(fallback == .select(missing))")
+            fflush(stdout)
+            // 走査が終わらないまま時間切れになったら **失敗として終える**。
+            // exit(0) にすると、検証していないのに «成功» と報告することになる
+            // (T21 は stdout も見るが、終了コードだけを見る手動実行が誤判定する)
+            guard setup.recentScanFinished else {
+                fail("最近の録画の走査が 5 秒で完了しませんでした")
+            }
+            exit(0)
+        }
     }
 
     /// ポップオーバーを閉じた時点の経過時間 (閉じる側と終了側のクロージャで共有する)
