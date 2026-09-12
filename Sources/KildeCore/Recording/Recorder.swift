@@ -88,6 +88,22 @@ public struct RecordOptions {
     public var autoMonitor = false
 
     public init() {}
+
+    /// ScreenCaptureKit を使う構成か (映像を録るか、システム音声を録るか)。
+    ///
+    /// **この判定を各所に書き写さない。** 画面収録権限の要否・SCStream の構築・
+    /// GUI の開始ガードがすべて同じ条件を見ており、手で揃える前提だと必ずずれる
+    /// (issue #72)。GUI が扱う `RecordRequest` にも同名の property があり、
+    /// `RecordRequestTests` が両者の一致を縛っている。
+    ///
+    /// **この判定の内側に処理を足すときは、それが本当に「SCK を使う構成に限られる」のかを
+    /// 確認すること。** ユーザーの要求に対する応答 (警告・エラー・フォールバックの通知) は、
+    /// たいてい**条件の外**で行う必要がある — 内側に置くと、その構成に入らなかったときに
+    /// 要求が黙殺される。issue #16 では HDR 可否の判定をこの条件の内側に置いたため、
+    /// `--no-video` かつシステム音声なしの構成で `--hdr` が理由も示されず無視された
+    public var usesScreenCapture: Bool {
+        wantsVideo || audioSources.contains(.system)
+    }
 }
 
 /// 録画セッションの状態 (DESIGN.md §4)。
@@ -610,8 +626,7 @@ public final class Recorder {
         // 既に停止が要求されていないか確かめる (issue #56)
         try checkCancelledDuringPreparation()
 
-        let wantsSCK = options.wantsVideo || options.audioSources.contains(.system)
-        if wantsSCK && !Permissions.hasScreenCapture {
+        if options.usesScreenCapture && !Permissions.hasScreenCapture {
             throw KilError.permission(
                 "画面収録の権限がありません。`kilde doctor` を実行して許可 → 再実行してください"
             )
@@ -675,8 +690,9 @@ public final class Recorder {
         // SCStream (映像またはシステム音声が必要な場合)
         var sck: ScreenAudioStream?
         var videoSize: CGSize?
+        // capturesAudio の設定にも使うので、条件とは別に残す
         let captureAudio = options.audioSources.contains(.system)
-        if options.wantsVideo || captureAudio {
+        if options.usesScreenCapture {
             // 収録対象を先に解決する — HDR 可否は「実際にどの画面に写るか」で決まるので、
             // ウィンドウ収録では --display ではなくそのウィンドウが載っている画面を見る。
             // 複数ウィンドウ (issue #13) はディスプレイ座標系へ合成するので、

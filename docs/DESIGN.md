@@ -479,12 +479,19 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
 > **実装 (issue #19):** 権限の状態は `PermissionsModel` が持ち、判定は CLI の `doctor` と
 > 同じ `KildeCore.Permissions` を使う (GUI 側で独自に判定すると、`doctor` が「あり」と言うのに
 > GUI が止まる — あるいはその逆 — が起きるため)。**その構成に要る権限だけ**を求める:
-> 画面収録は `Recorder` の `wantsSCK` と同じ条件 (映像あり、またはシステム音声あり)、
+> 画面収録は `RecordRequest.usesScreenCapture` (映像あり、またはシステム音声あり)、
 > マイクは既定マイクまたは入力デバイスを選んだとき。足りなければ `ContentView` が案内を出し、
 > 「録画開始」を無効にする。macOS 15 以降は許可済みの画面収録権限が定期的に再確認されて
 > 失効しうる (F4) ため、ポップオーバーを開くたびと**開始の直前**に取り直す (SCK のエラーではなく
 > 案内で止めるため)。画面収録の許可はプロセスを再起動するまで `CGPreflightScreenCaptureAccess()`
 > に反映されないので、要求後は再起動を促す文面に変える。
+>
+> **「SCK を使う構成か」の判定は GUI 側に書かない** (issue #72)。`RecordOptions` と
+> `RecordRequest` がそれぞれ `usesScreenCapture` を持ち、`Recorder` の権限判定・
+> SCStream の構築・`PermissionsModel.needsScreen`・`RecordingSetup.startBlockReason` が
+> すべてそこを通る。2 つの型は語彙が違う (`audioSources` と `captureSystemAudio`) ので
+> 定義を 1 箇所にはできず、`RecordRequestTests` が全組み合わせで両者の一致を縛っている。
+> 集約前は 4 箇所に書き写されており、コメントで「手で揃える」と指示されていた。
 
 ## 10. リポジトリ構成と開発プロセス
 

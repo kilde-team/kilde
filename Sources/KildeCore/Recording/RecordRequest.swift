@@ -31,6 +31,18 @@ public struct RecordRequest: Equatable {
 
     public var wantsVideo: Bool { target != .audioOnly }
 
+    /// ScreenCaptureKit を使う構成か (issue #72)。
+    ///
+    /// `RecordOptions.usesScreenCapture` と**同じことを言う**が、こちらは GUI が
+    /// 録画を始める前に持っている語彙 (`captureSystemAudio: Bool`) で表す。
+    /// 型が違うので定義を 1 箇所にはできないため、**`RecordRequestTests` が
+    /// 両者の一致を全組み合わせで縛っている** — ずれたらテストが落ちる。
+    ///
+    /// 変換が決定的であることは確認済み: `makeOptions` は `overrides.audio` に
+    /// `audioSourceStrings` を必ず渡し (空なら `["none"]`)、`RecordSettings.apply` は
+    /// その枝を通るので、設定ファイルの `defaultAudioSources` は割り込まない
+    public var usesScreenCapture: Bool { wantsVideo || captureSystemAudio }
+
     /// `--audio` と同じ表現の音声ソース列。何も選ばれていなければ ["none"]
     public var audioSourceStrings: [String] {
         var list: [String] = []
