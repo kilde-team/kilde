@@ -19,3 +19,4 @@ gui/*.xcodeproj/xcuserdata/
 # Build artifacts
 *.o
 *.d
+/dist/

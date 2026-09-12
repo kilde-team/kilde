@@ -77,6 +77,16 @@ public final class AudioMixer {
         return sources[label]?.lastPeak ?? 0
     }
 
+    /// 一時停止していた長さぶんアンカーを進める (issue #11)。
+    /// 一時停止中は push が来ないため、進めないと再開後のバッファが「アンカーから見て
+    /// 遅れて届いた」ことになり、一時停止区間が無音で埋められてしまう
+    public func advanceAnchor(by seconds: TimeInterval) {
+        lock.lock(); defer { lock.unlock() }
+        guard let a = anchor, seconds > 0 else { return }
+        anchor = CMTimeAdd(a, CMTime(seconds: seconds,
+                                     preferredTimescale: CMTimeScale(AudioMixer.sampleRate)))
+    }
+
     /// ソースからのバッファを受け、合成が進んだ分の出力チャンクを返す
     public func push(_ label: String, _ sb: CMSampleBuffer) -> [CMSampleBuffer] {
         guard let decoded = AudioConversion.decode(sb) else {

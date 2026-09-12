@@ -55,6 +55,9 @@ swift build -c release           # リリースビルド → .build/release/kild
 .build/debug/kilde rec --help
 ```
 
+公式配布物の Developer ID 署名、notarization、zip / DMG 作成は
+[RELEASE.md](RELEASE.md) と `scripts/release/sign.sh` を参照してください。
+
 PATH に置いて `kilde` として使う場合:
 
 ```sh
@@ -136,6 +139,13 @@ xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI -configuration Debug bui
   「この音声・保存先の選択を既定にする」を押したときだけ保存する (CLI の既定も変わるため)
 - 設定に保存先が無いときは `~/Movies` に保存する (GUI はカレントディレクトリが `/` のため)
 
+権限が足りない構成を選ぶと、パネルに案内が出て「録画開始」が押せなくなります (issue #19)。
+判定は CLI の `kilde doctor` と同じ `KildeCore.Permissions` を使い、**その構成に要る権限だけ**を
+求めます — 音声のみ + マイクのみの録音では画面収録権限を求めません。画面収録の権限は
+許可してもプロセスを再起動するまで有効にならないため、案内も再起動を促す文面に変わります。
+macOS 15 以降は一度許可した画面収録権限が定期的に再確認されて失効しうる (DESIGN.md F4) ので、
+パネルを開くたびと録画開始の直前に取り直します。
+
 `project.yml` を変更したら `xcodegen` を再実行してください (再生成し忘れによる乖離を
 防ぐため、変更は必ず project.yml 側に行う)。
 
@@ -163,6 +173,39 @@ KILDE_GUI_SELFTEST_RECORD=3 KILDE_GUI_SELFTEST_OUTPUT=/tmp "$APP/Contents/MacOS/
 失敗経路を踏むための指定で、これが無かったために「閉じ失敗を exit 0 と誤判定する」回帰を
 見逃しました。
 
+`KILDE_GUI_SELFTEST_PERMISSIONS=1` は録画せず、**構成ごとにどの権限を要求するか**を出して終わります
+(issue #19)。TCC の許可を実際に取り消さなくても「音声のみの録音に画面収録権限を求めない」などの
+判定を確認できます:
+
+```sh
+KILDE_GUI_SELFTEST_PERMISSIONS=1 "$APP/Contents/MacOS/KildeGUI"
+# → selftest: screen=true mic=authorized
+#   selftest: [画面 + システム音声] needsScreen=true needsMic=false missing=なし
+#   selftest: [画面 + マイク] needsScreen=true needsMic=true missing=なし
+#   selftest: [音声のみ + システム音声] needsScreen=true needsMic=false missing=なし
+#   selftest: [音声のみ + マイクのみ] needsScreen=false needsMic=true missing=なし
+#   selftest: [音声のみ + 入力デバイス指定] needsScreen=false needsMic=true missing=なし
+```
+
+`KILDE_GUI_SELFTEST_DENY=screen,mic` を付けると、**実際には許可されている権限を「無い」ことにして**
+扱えます。権限を外さずに「案内が出る」「録画開始が押せない」経路を踏めるので、セルフテストの
+権限レポートと併用して確認します (通常起動で付ければ、案内そのものを目で見ることもできます):
+
+```sh
+KILDE_GUI_SELFTEST_PERMISSIONS=1 KILDE_GUI_SELFTEST_DENY=screen "$APP/Contents/MacOS/KildeGUI"
+# → selftest: screen=false mic=authorized
+#   selftest: [画面 + システム音声] needsScreen=true needsMic=false missing=screen
+#   selftest: [画面 + マイク] needsScreen=true needsMic=true missing=screen
+#   selftest: [音声のみ + システム音声] needsScreen=true needsMic=false missing=screen
+#   selftest: [音声のみ + マイクのみ] needsScreen=false needsMic=true missing=なし
+#   selftest: [音声のみ + 入力デバイス指定] needsScreen=false needsMic=true missing=なし
+```
+
+画面収録を拒否しても「音声のみ + マイクのみ」が `missing=なし` のままである点が、この機能の要です
+(要らない権限を求めない)。
+
+案内の文面や配置そのものは、最終的には人の目で確認してください。
+
 > **検証時の環境の注意**: 画面がロックされている、または**ディスプレイが消灯している**間は
 > SCK がフレームを出しません。録画は成功 (exit 0) するのに `kilde inspect` が `duration=0.00s` に
 > なります (CLI も同じ)。実録画の検証はロックを解除してから行ってください。
@@ -184,7 +227,8 @@ KILDE_GUI_SELFTEST_RECORD=3 KILDE_GUI_SELFTEST_OUTPUT=/tmp "$APP/Contents/MacOS/
 > システム設定 → プライバシーとセキュリティ → 画面とオーディオを収録 に
 > KildeGUI を追加し、**アプリを再起動**してください (画面収録権限はプロセスの
 > 再起動で有効化 — CLI の `doctor` と同じ仕様)。未付与の間はオーディオ機器
-> 一覧のみ表示されます (画面収録権限は不要なため)。
+> 一覧のみ表示され、パネルには権限の案内が出ます (issue #19)。
+> 音声のみ + マイク/入力デバイスの録音は画面収録権限なしでも開始できます。
 
 > **開発用署名証明書 (kilde-dev)**: TCC 権限はコード署名でアプリを識別するため、
 > ad-hoc 署名のビルドでは権限のトグルが再起動のたびに外れることがある。
@@ -245,6 +289,7 @@ scripts/integration-test.sh
 | T12 | 設定ファイル — `outputDirectory` が既定の保存先になる / 存在しない保存先は録画前に exit 1 |
 | T13 | `rec --hotkey` — 待機中の SIGINT は録画を始めず exit 0 (ホットキーの押下自体は目視確認) |
 | T14 | `rec --region` — 指定した矩形の解像度で録れる / 奇数は偶数へ切り捨て / 範囲外は録画前に exit 1 / 形式不正は exit 64 |
+| T15 | `rec` 一時停止 / 再開 — SIGUSR1 で挟んだ区間が映像・音声のどちらの長さにも含まれず、A/V の差が 1 秒未満 (`p` キーは端末が要るので目視確認) |
 
 作業ディレクトリ (録画物とログ) は失敗調査のため削除されず、最後に
 パスが表示されます。
