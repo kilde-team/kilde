@@ -16,10 +16,12 @@ concurrency:
 jobs:
   test:
     name: Swift build and test
-    # macos-15 の既定 Xcode を使用する。ローカルの Xcode 26.5 との差異は
-    # swift --version + SDK バージョンのハッシュをキャッシュキーに含めて混在を防ぐ。
-    # macOS 14 / 15 の実機差異は手動検証 issue #4 の対象とする。
-    runs-on: macos-15
+    # macos-26 を使用する — kilde は macOS 26 の SCStreamConfiguration.Preset
+    # (captureHDRRecordingPreservedSDRHDR10、issue #76) を参照するため、
+    # ビルドに Xcode 26 SDK が必須になった。実行は macOS 14+ のまま (deployment
+    # target は SDK 由来)。macOS 14 / 15 の実機差異は手動検証 issue #4 の対象。
+    # swift --version + SDK バージョンのハッシュをキャッシュキーに含めて混入を防ぐ。
+    runs-on: macos-26
     timeout-minutes: 15
 
     steps:
