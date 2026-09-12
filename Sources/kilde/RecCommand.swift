@@ -297,7 +297,9 @@ struct RecCommand: ParsableCommand {
         case .failure(let error):
             // 準備中の停止は「失敗」ではない — Ctrl+C は kilde の正規の停止操作なので
             // 0 で返す (DESIGN.md §6)。録画は 1 フレームも成立していないのでサマリは出さない
-            if recorder.cancelledBeforeRecording {
+            // ただし後始末の警告 (monitor の復元失敗など) があるときは通常の失敗として扱う —
+            // 既定出力が `kilde Monitor` のまま残っているのを exit 0 で隠さない
+            if recorder.cancelledBeforeRecording && recorder.cleanupWarnings.isEmpty {
                 print(Recorder.cancelledDuringPreparationMessage)
                 return
             }

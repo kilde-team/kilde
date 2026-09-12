@@ -219,6 +219,83 @@ final class RecorderEventTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
     }
 
+    /// `awaitOrStop` そのものの回帰テスト (issue #56)。
+    ///
+    /// 当初 `withTaskGroup` で書いていたため 2 つの欠陥があった:
+    /// (a) タスクグループはスコープ終了時に未完了の子を暗黙 await するので、停止しても
+    ///     本体 (TCC ダイアログ) の完了まで戻らない
+    /// (b) 監視側の `try? await Task.sleep` がキャンセル例外を握り潰すので、本体が先に
+    ///     終わるとループが回り続けて戻らない
+    ///
+    /// (b) は**停止要求が無い通常経路**で起きる。セッション経由のテストでは権限状態に
+    /// 左右されてこの経路を確実に通せないので、ヘルパを直接叩く
+    func testAwaitOrStopReturnsValueWhenBodyFinishesFirst() async throws {
+        let recorder = Recorder(options: emptySessionOptions(url: tempURL()))
+        let value = await recorder.awaitOrStop { 42 }
+        XCTAssertEqual(value, 42, "本体が先に完了したのに戻ってきませんでした (欠陥 b の回帰)")
+    }
+
+    /// 停止が先なら nil を返し、**本体の完了を待たない**。
+    /// 待ってしまうと「準備中の停止」がユーザーのダイアログ応答まで効かず、この issue の
+    /// 目的そのものが失われる (欠陥 a の回帰)
+    func testAwaitOrStopReturnsNilWithoutWaitingForBody() async throws {
+        let recorder = Recorder(options: emptySessionOptions(url: tempURL()))
+        recorder.stop()
+
+        let started = Date()
+        let value: Int? = await recorder.awaitOrStop {
+            // 外から止められない処理の代役 (TCC ダイアログに相当)
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            return 1
+        }
+        let elapsed = Date().timeIntervalSince(started)
+
+        XCTAssertNil(value)
+        XCTAssertLessThan(elapsed, 3.0, "本体 (5 秒) の完了を待ってしまっています: \(elapsed)s")
+    }
+
+    /// マイクを要求する構成でもセッションが**終端する**こと (issue #56)。
+    ///
+    /// このテストが無かったために、`awaitOrStop` の欠陥 (structured なタスクグループが
+    /// スコープ終了時に子を暗黙 await するため停止しても戻れない / ポーリング側が
+    /// `Task.isCancelled` を見ずに回り続ける) を見逃した。既存のテストはすべて
+    /// `audioSources = []` の空セッションで、**権限要求の経路を一度も通っていなかった**。
+    ///
+    /// 権限の許可状態には依存しない — 許可でも拒否でも「終端イベントが流れる」ことだけを見る。
+    /// 固まると XCTest のタイムアウトではなくここで待ち続けるので、明示的に時間を区切る
+    func testMicSessionTerminatesEvenWhenStoppedDuringPreparation() async throws {
+        let url = tempURL()
+        defer { try? FileManager.default.removeItem(at: url) }
+        var options = emptySessionOptions(url: url, duration: 5)
+        options.audioSources = [.mic]  // needsMicPermission = true → awaitOrStop を通る
+
+        let recorder = Recorder(options: options)
+        recorder.stop()
+
+        let finished = Task { () -> [RecorderEvent] in
+            var events: [RecorderEvent] = []
+            for await e in recorder.events { events.append(e) }
+            return events
+        }
+        recorder.start()
+
+        // 10 秒で終端しなければ「固まった」とみなす (TCC ダイアログの応答待ちを含めても十分)
+        let guardTask = Task { [finished] in
+            try? await Task.sleep(nanoseconds: 10_000_000_000)
+            finished.cancel()
+        }
+        let events = await finished.value
+        guardTask.cancel()
+
+        XCTAssertFalse(events.isEmpty, "終端イベントが流れませんでした (セッションが固まった疑い)")
+        // 録画には入らない。権限が拒否されていれば .permission、停止が先なら準備中キャンセル
+        XCTAssertFalse(events.compactMap(\.state).contains(.recording),
+                       "停止を要求したのに録画に入りました: \(events.compactMap(\.state))")
+        guard case .failed = events.last else {
+            return XCTFail("末尾が failed ではありません: \(events)")
+        }
+    }
+
     /// 同期 run() でも準備中の停止は例外として返る (CLI はこれを exit 0 に読み替える)。
     /// run() が固まらないこと自体が回帰対象 — 完了通知に到達しないと呼び出し元が待ち続ける
     func testRunWrapperReturnsWhenCancelledDuringPreparation() throws {

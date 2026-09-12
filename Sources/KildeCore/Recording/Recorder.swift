@@ -212,6 +212,24 @@ public final class Recorder {
     public static let cancelledDuringPreparationMessage =
         "録画は開始されませんでした (準備中に停止しました)"
 
+    /// writer を作った後の中断を畳む。開始済みのストリームを止め、出力を消してから抜ける。
+    /// **削除に失敗してファイルが残ったときは「正常な停止」にしない** — 部分ファイルを
+    /// 残したまま exit 0 にすると、壊れたファイルを残さないという最重要要件と、
+    /// CLI 側の失敗検出の両方を壊すため
+    private func cancelBeforeRecording(writer w: MovieWriter, url: URL,
+                                       sck: ScreenAudioStream?,
+                                       micStreams: [MicStream]) async throws -> Never {
+        await sck?.stop()
+        for m in micStreams { m.stop() }
+        w.cancel(removingOutput: true)
+        if fileExists(url) {
+            throw KilError.failed(
+                "停止しましたが、書きかけのファイルを削除できませんでした: \(url.path)")
+        }
+        cancelledBeforeRecording = true
+        throw KilError.failed(Self.cancelledDuringPreparationMessage)
+    }
+
     /// 中断できない処理を停止要求と競走させ、停止が先なら nil を返す。
     /// SCK の列挙や TCC ダイアログは外から止められないので、**結果を捨てて先に進む**
     /// (待ち続けると停止要求に応えられない)。放置したタスクは完了後に破棄される。
@@ -219,21 +237,36 @@ public final class Recorder {
     /// stopSignal ではなくフラグのポーリングで待つ理由: stopSignal は
     /// `waitForStopOrDuration()` が単独で消費する前提の AsyncStream で、
     /// ここで for await すると停止イベントを奪ってしまい、録画中の停止が効かなくなる
-    private func awaitOrStop<T: Sendable>(
+    /// (テストから直接叩けるよう internal にしている — セッション経由では
+    /// マイク権限の状態に左右されて、この経路を確実に通せないため)
+    func awaitOrStop<T: Sendable>(
         _ body: @escaping @Sendable () async -> T
     ) async -> T? {
-        await withTaskGroup(of: Optional<T>.self) { group in
-            group.addTask { await body() }
-            group.addTask { [weak self] in
-                while let self, !self.isStopRequested {
-                    try? await Task.sleep(nanoseconds: 100_000_000)
-                }
-                return nil
+        // **structured (withTaskGroup) では実現できない**: タスクグループはスコープを抜けるときに
+        // 未完了の子を暗黙に待つため、`cancelAll()` しても TCC ダイアログの応答まで戻れず、
+        // 「待つのをやめる」という目的を果たせない。そこで unstructured な Task で走らせ、
+        // 先に結果を出した方を採る
+        let (stream, continuation) = AsyncStream.makeStream(
+            of: Optional<T>.self, bufferingPolicy: .bufferingNewest(1))
+        let work = Task.detached { continuation.yield(await body()) }
+        let watcher = Task.detached { [weak self] in
+            // `Task.isCancelled` も見る — 見ないと、本体が先に終わったときにこのループが
+            // 回り続ける (`try?` が sleep のキャンセル例外を握り潰すため)。
+            // 回り続けると待ち側が永久に解放されず、準備フェーズがそこで止まる
+            while let self, !self.isStopRequested, !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 100_000_000)
             }
-            let first = await group.next() ?? nil
-            group.cancelAll()
-            return first
+            continuation.yield(nil)
         }
+        defer {
+            work.cancel()
+            watcher.cancel()
+            continuation.finish()
+        }
+        for await value in stream {
+            return value
+        }
+        return nil
     }
 
     /// 録画を実行し、完了までブロックする (CLI 互換の同期 API — start() のラッパ)。
@@ -524,10 +557,8 @@ public final class Recorder {
         // 書きかけのファイルを残さない — 「writer が作られる瞬間は状態イベントから
         // 判別できない」ために GUI の終了猶予を撤廃した (PR #47)、その根本側の対処
         if isStopRequested {
-            cancelledBeforeRecording = true
             // micStreams はまだ start() していないので stop() は呼ばない
-            w.cancel(removingOutput: true)
-            throw KilError.failed(Self.cancelledDuringPreparationMessage)
+            try await cancelBeforeRecording(writer: w, url: url, sck: sck, micStreams: [])
         }
 
         setState(.armed)
@@ -541,6 +572,14 @@ public final class Recorder {
             w.cancel()
             throw error
         }
+        // `.armed` から `.recording` へ入る途中 (mic / SCK の起動中) に停止された場合も、
+        // 録画は 1 フレームも成立していないので準備中キャンセルとして畳む。
+        // ここを見ないと `cancelledBeforeRecording` が false のまま通常失敗になり、
+        // CLI が exit 1 を返してしまう
+        if isStopRequested {
+            try await cancelBeforeRecording(writer: w, url: url, sck: sck, micStreams: micStreams)
+        }
+
         setState(.recording)
 
         // 進捗イベントの定期配信 (同期 run() 経由では無効)
