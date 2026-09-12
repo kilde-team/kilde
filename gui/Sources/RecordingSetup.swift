@@ -286,6 +286,10 @@ final class RecordingSetup: ObservableObject {
                 .prefix(limit)
                 .map { $0 }
         }
+        // 走査を始める前に一覧を空にする。**残したままだと、保存先を変えた直後の
+        // 走査中に旧ディレクトリのファイルが操作可能なまま表示され、クリックすると
+        // 旧ディレクトリが開く。** 画面の列挙 (apply) が古い一覧を残さないのと同じ理由
+        recentRecordings = []
         recentScanFinished = false
         Task { [weak self] in
             let urls = await scan.value
