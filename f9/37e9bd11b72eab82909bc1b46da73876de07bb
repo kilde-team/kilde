@@ -1,0 +1,25 @@
+docs/DEVELOPMENT.md
+  s_35faeec28b4c4b::t_86ca6c00c8abe0 248
+Sources/KildeCore/Input/HotkeyRecordingController.swift
+  s_35faeec28b4c4b::t_470f151aafca72 100-106
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_7bf479422de86b 506,510-513,515-536,539
+Sources/KildeCore/Recording/Recorder.swift
+  s_35faeec28b4c4b::t_d325291ddebca2 108,110-112
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "f937e9bd11b72eab82909bc1b46da73876de07bb",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
