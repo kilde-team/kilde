@@ -99,9 +99,9 @@ public struct RecordRequest: Equatable {
         // 予約に差し替える (issue #59)。以前の availableOutputURL は fileExists の
         // 確認と作成の間に隙間があり、GUI×CLI の同秒開始で後の録画が先のファイルを
         // 消しえた。予約は Recorder が開始に失敗した時点で自分で片付ける
-        options.outputReservation = try OutputFileReservation.reserve(preferredURL: preferred)
-        options.outputURL = options.outputReservation?.url
         options.outputPathIsExplicit = false
+        options.outputURL = preferred
+        try OutputFileReservation.resolveDefaultOutput(on: &options)
         return options
     }
 

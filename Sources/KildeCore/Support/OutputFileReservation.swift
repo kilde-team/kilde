@@ -66,7 +66,8 @@ public struct OutputFileReservation: Sendable {
 
     /// writer 構築前の失敗時に予約だけが残らないよう、自分の空ファイルなら片付ける。
     /// 他プロセスが差し替えたファイルはデータ損失を避けるため触らない。
-    func removeIfStillReserved() {
+    /// GUI の RecordingController が options を使わずに破棄する経路からも呼ぶため public
+    public func removeIfStillReserved() {
         guard matchesReservedEmptyFile() else { return }
         try? FileManager.default.removeItem(at: url)
     }
@@ -109,5 +110,18 @@ public struct OutputFileReservation: Sendable {
             }
             return .success(Identity(device: info.st_dev, inode: info.st_ino))
         }
+    }
+}
+
+extension OutputFileReservation {
+    /// 既定名 (非明示) でまだ予約されていない options に予約を確定して反映する。
+    /// 開始表示に実際の出力先を出したい呼び出し元 (CLI・ホットキー・GUI) が
+    /// Recorder に渡す前に使う共用入口 — ここだけに書くことで「-2 に退避したときの
+    /// 表示と実態の不一致」対策の処理が呼び出し先に散らばらないようにする
+    public static func resolveDefaultOutput(on options: inout RecordOptions) throws {
+        guard options.outputReservation == nil, !options.outputPathIsExplicit,
+              let preferred = options.outputURL else { return }
+        options.outputReservation = try reserve(preferredURL: preferred)
+        options.outputURL = options.outputReservation?.url
     }
 }

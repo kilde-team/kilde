@@ -72,6 +72,9 @@ enum SelfTest {
                 popover.show()
             }
             guard popover.isShown() else {
+                // この時点ではまだ recording.start していないため、makeOptions が確保した
+                // 予約の清掃を Recorder に任せられない — 自分で片付けてから失敗する
+                options.outputReservation?.removeIfStillReserved()
                 fail("ポップオーバーを開けませんでした (isShown=false)")
             }
             print("selftest: popover shown=true")

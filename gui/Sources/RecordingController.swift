@@ -38,7 +38,12 @@ final class RecordingController: ObservableObject {
     }
 
     func start(_ options: RecordOptions) {
-        guard !isActive else { return }
+        guard !isActive else {
+            // 既に録画中で options を使わないとき、makeOptions が確保した予約だけが
+            // 0 バイトのファイルとして残る — Recorder に渡らないため誰も消さない
+            options.outputReservation?.removeIfStillReserved()
+            return
+        }
         let recorder = Recorder(options: options)
         self.recorder = recorder
         phase = .starting

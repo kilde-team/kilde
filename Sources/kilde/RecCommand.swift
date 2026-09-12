@@ -227,11 +227,8 @@ struct RecCommand: ParsableCommand {
     /// 予約は Recorder 内でも行えるが、後から -2 に退避すると「● 録画 → path」の表示が
     /// 実際の出力先と食い違うため、CLI は先に確定して正しいパスを表示する
     private func reserveDefaultOutputIfNeeded(_ options: inout RecordOptions) {
-        guard options.outputReservation == nil, !options.outputPathIsExplicit,
-              let preferred = options.outputURL else { return }
         do {
-            options.outputReservation = try OutputFileReservation.reserve(preferredURL: preferred)
-            options.outputURL = options.outputReservation?.url
+            try OutputFileReservation.resolveDefaultOutput(on: &options)
         } catch {
             cliError(error)
         }
