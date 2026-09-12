@@ -84,6 +84,9 @@ macOS 標準の QuickTime Player による画面収録は**システム音声を
 ┌─────────────────────────────┐    ┌─────────────────────────────┐
 │  kilde (CLI)                 │    │  KildeGUI (M3, メニューバー) │
 │  swift-argument-parser       │    │  NSStatusItem + NSPopover     │
+│  run() で完了まで待つ         │    │  RecordingController (#18)    │
+│                              │    │   - AppDelegate が保持し、     │
+│                              │    │     events を購読して表示     │
 └──────────────┬──────────────┘    └──────────────┬──────────────┘
                │                                  │
                └────────────┬─────────────────────┘
@@ -91,8 +94,9 @@ macOS 標準の QuickTime Player による画面収録は**システム音声を
               ┌───────────────────────────────┐
               │  KildeCore (Swift library)     │
               ├───────────────────────────────┤
-              │ RecorderController (ファサード) │
+              │ Recorder (セッションの指揮)     │
               │  - 状態機械・ライフサイクル      │
+              │  - start()/stop()/run()/events │
               ├───────────────┬───────────────┤
               │ CaptureSession│ DeviceCatalog  │
               │  SCStream     │  ディスプレイ   │
@@ -390,6 +394,24 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
   (待機/録画中 + 経過時間)。
 - ポップオーバー: ディスプレイ・音声ソース選択、Rec/Stop、出力先指定、
   レベルメーター、録音結果の通知 (Finder reveal)。
+
+> **実装 (issue #18):** 録画の状態は AppDelegate が持つ `RecordingController` にあり、
+> `Recorder.start()` + `events` を購読して状態・経過時間・ソース別ピークを出す。
+> ポップオーバー (`ContentView`) は表示と操作の受け渡しだけなので、閉じても録画は続く。
+> 選択 (収録対象・音声ソース・トラック方針・保存先) は KildeCore の `RecordRequest` が
+> `RecordSettings.apply()` を通して `RecordOptions` にする — CLI と同じ解決規則・同じ
+> `Recorder`。設定ファイルは初期値として読み、「既定にする」を押したときだけ書き戻す
+> (GUI の操作で CLI の既定を黙って変えないため)。保存先の既定は `~/Movies`
+> (GUI はカレントディレクトリが `/`)。録画中の終了は停止 → ファイナライズを待ってから
+> (待たずに終了する猶予は設けない — writer が作られる瞬間は状態イベントから判別できず、
+> 未ファイナライズのファイルを残しうるため。準備中に停止が効かない問題は issue #56)。
+> ウィンドウ一覧のサムネイルは `DisplayCatalog.windowThumbnails` (SCScreenshotManager)。
+>
+> **出力名の例外**: 既定名 `kilde-yyyyMMdd-HHmmss.*` は秒までしか持たないため、止めてすぐ
+> 録り直すと同じ名前になり、`MovieWriter` が既存ファイルを消してしまう。出力パスを省略した
+> 場合に限り、衝突時は `kilde-yyyyMMdd-HHmmss-2.mov` のように連番を付ける
+> (空きが無ければ録画を始めずに失敗する)。同じ秒に別プロセスが同じ名前を取る競合は
+> 残っており、予約と作成の原子化は issue #59 で追跡する。
 - グローバルホットキー (開始/停止)。CLI と設定 (出力先・既定ソース) を共有
   (`~/.kilde/config.json` と `KildeCore.ConfigStore` / `RecordSettings` — §6、#14 で実装済み)。
 - 権限の初回ガイドを GUI で丁寧に出す (CLI の `doctor` と同一ロジック)。

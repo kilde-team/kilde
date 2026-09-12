@@ -37,11 +37,11 @@ targets:
         # 起動直後に落ちる。無効化してコードを本体に直接リンクする
         ENABLE_DEBUG_DYLIB: NO
         # 配布 (issue #23) での Developer ID 署名・notarization の前提。
-        # 注意: Hardened Runtime 下でマイク入力 (#18 で MicStream を繋ぐとき) には
-        # com.apple.security.device.audio-input エンタイトルメントが必須。
-        # 欠けるとクラッシュやエラーなしに無音になるため、#18 で entitlements
-        # ファイルを作成して CODE_SIGN_ENTITLEMENTS に設定すること
         ENABLE_HARDENED_RUNTIME: YES
+        # Hardened Runtime 下でマイク・入力デバイス (MicStream) を使うには
+        # com.apple.security.device.audio-input が必須 (issue #18)。欠けると
+        # クラッシュもエラーもなく無音のトラックになる
+        CODE_SIGN_ENTITLEMENTS: Resources/KildeGUI.entitlements
         # SWIFT_VERSION は swift-tools-version とは別物の「言語モード」指定で、
         # 有効値は 4 / 4.2 / 5 / 6 のみ (5.10 は invalid とされる)。
         # ルートパッケージ (swift-tools-version:5.10) が使う言語モード 5 に揃える

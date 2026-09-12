@@ -122,9 +122,62 @@ cd gui && xcodegen
 xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI -configuration Debug build
 ```
 
-現在の GUI はディスプレイ・ウィンドウ・オーディオ機器の一覧表示のみです
-(録画 UI は #18 以降)。`project.yml` を変更したら `xcodegen` を再実行して
-ください (再生成し忘れによる乖離を防ぐため、変更は必ず project.yml 側に行う)。
+メニューバーの ● をクリックすると録画パネルが開きます (issue #18):
+収録対象 (画面 / ウィンドウ (サムネイル付き) / 音声のみ)・音声ソース (システム音声 /
+マイク / 入力デバイス)・複数ソースの合成か分離・保存先を選んで「録画開始」。
+録画中はメニューバーに経過時間が出て、パネルにはソース別のレベルメーターと停止ボタンが
+出ます。**パネルを閉じても録画は続きます** (録画はパネルではなく AppDelegate が持つ
+`RecordingController` にある)。録画中にアプリを終了すると、停止してファイナライズを
+待ってから終わります。
+
+- 選択 → 録画オプションの変換は KildeCore の `RecordRequest` で行い、CLI と同じ
+  `RecordSettings.apply()` → `Recorder` を通る (codec / fps / カーソルは設定ファイルの値)
+- 初期値は `~/.kilde/config.json` から読む。GUI の操作で設定ファイルは書き換えず、
+  「この音声・保存先の選択を既定にする」を押したときだけ保存する (CLI の既定も変わるため)
+- 設定に保存先が無いときは `~/Movies` に保存する (GUI はカレントディレクトリが `/` のため)
+
+`project.yml` を変更したら `xcodegen` を再実行してください (再生成し忘れによる乖離を
+防ぐため、変更は必ず project.yml 側に行う)。
+
+**GUI 経由の録画をコマンドラインで確かめる (セルフテスト)**: 環境変数を付けて実行ファイルを
+直接起動すると、UI を操作せずに GUI と同じ経路 (`RecordingSetup` → `RecordRequest` →
+`RecordingController` → `Recorder`) でディスプレイ 0 + システム音声を録画して終了します。
+ターミナルから直接起動した場合、画面収録の権限はターミナルのものが使われます:
+
+```sh
+APP=$(xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI -configuration Debug \
+      -showBuildSettings 2>/dev/null | awk '/ BUILT_PRODUCTS_DIR /{print $3}')/KildeGUI.app
+KILDE_GUI_SELFTEST_RECORD=3 KILDE_GUI_SELFTEST_OUTPUT=/tmp "$APP/Contents/MacOS/KildeGUI"
+# → selftest: finished /tmp/kilde-yyyyMMdd-HHmmss.mov (終了コード 0)
+../.build/debug/kilde inspect /tmp/kilde-*.mov   # CLI の録画と同じトラック構成か確認
+```
+
+`KILDE_GUI_SELFTEST_AUDIO` で音声ソースを変えられます: `system` (既定) / `none` (映像のみ — 音声出力が
+使えない環境でも GUI → Recorder の経路は確かめられる) / `device:<UID または名前>`
+(例: `device:BlackHole 2ch`。スピーカーを介さずに信号を入れて検証でき、既定の出力デバイスも変えずに済む)。
+
+`KILDE_GUI_SELFTEST_POPOVER=close` を付けると、録画中にポップオーバーを開いてから閉じ、
+**閉じた後も録画が続く** (経過時間が伸びる) ことを成功条件にします (issue #18 の受け入れ条件 2)。
+`KILDE_GUI_SELFTEST_FORCE_CLOSE_FAIL=1` を併用すると閉じる操作をわざと行わず、
+「閉じられなかったときに終了コード 1 で失敗する」ことを確認できます — セルフテスト自身の
+失敗経路を踏むための指定で、これが無かったために「閉じ失敗を exit 0 と誤判定する」回帰を
+見逃しました。
+
+> **検証時の環境の注意**: 画面がロックされている、または**ディスプレイが消灯している**間は
+> SCK がフレームを出しません。録画は成功 (exit 0) するのに `kilde inspect` が `duration=0.00s` に
+> なります (CLI も同じ)。実録画の検証はロックを解除してから行ってください。
+> **消灯対策は「起こす」と「消させない」の 2 段構え**です — `caffeinate -dims` は自動消灯を
+> 止めるだけで、**すでに消えているディスプレイは起こしません**。録画を始める前に
+> `caffeinate -u -t 1` で起こし、続けて `caffeinate -dims -w $$ &` で保持します
+> (消えたまま録ると、1 フレームも来ないまま録画時間だけが過ぎ、出力ファイルすら作られません)。
+> ロック画面はこの方法では解除できないので、人手でのロック解除が必要です。また、蓋を閉じたクラムシェル運用で既定出力が内蔵スピーカーだと、
+> `afplay` が `AudioQueueStart failed (-66681)`、SCK のシステム音声が `-3818` で失敗します。
+> 既定出力を外部スピーカーや BlackHole ループバックに変えてから検証してください。
+
+> **マイクのエンタイトルメント**: Hardened Runtime 下でマイク・入力デバイスを使うには
+> `com.apple.security.device.audio-input` が必要です (`gui/Resources/KildeGUI.entitlements`)。
+> 欠けるとエラーもクラッシュもなく無音のトラックになります。GUI にはマイクの TCC 権限も
+> 別途必要です (初回の録画開始時にダイアログが出る)。
 
 > **GUI にも権限が必要**: ディスプレイ/ウィンドウ一覧には画面収録権限が要ります
 > (CLI とは別プロセスなので、CLI に許可があっても別途付与が必要)。

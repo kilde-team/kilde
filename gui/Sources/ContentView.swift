@@ -2,225 +2,426 @@ import SwiftUI
 import AppKit
 import KildeCore
 
-/// 最小の診断パネル (issue #17): KildeCore のデバイス列挙 API が
-/// GUI プロセスから呼べることを確認する。録画 UI 自体は issue #18 以降
+/// ポップオーバーの中身 (issue #18): 収録対象・音声ソース・トラック方針・保存先の選択と、
+/// Rec / Stop・経過時間・ソース別レベルメーター。
+/// 状態は AppDelegate が持つモデル (RecordingSetup / RecordingController) にあり、このビューは
+/// 表示と操作の受け渡しだけ — ポップオーバーを閉じても録画は続く
 struct ContentView: View {
-    @State private var displays: [DisplayInfo] = []
-    @State private var windows: [WindowInfo] = []
-    @State private var audioDevices: [AudioDeviceInfo] = []
-    @State private var loadError: String?
-    /// 列挙の多重発火を防ぐ。@MainActor を明示する — View の隔離を継承するのは
-    /// body だけで、通常のメソッドは nonisolated のため明示なしでは呼び出し側の
-    /// 引き込み次第になる。実行中に来た再読込要求はドロップせず記録して、完了時に再実行する
-    @State private var reloading = false
-    @State private var needsReload = false
-    /// 列挙タスクの生存と UI の読み込み表示は別物 — タイムアウトで reloading は
-    /// 解除して再試行を許すが、同期 awaitSync を wrap した列挙タスク自体は cancel
-    /// できず残る。前の列挙と次の列挙が並走してタスクが蓄積するのを防ぐため、
-    /// 実列挙の完了まで新規開始を 1 件に制限する (残った要求は完了後に再実行)
-    @State private var enumerationInFlight = false
-    /// 初回ロードが完了したか。完了前は onAppear と popover 表示通知が同時に来るが、
-    /// in-flight の初回ロードと同じ結果になるため 2 回目を走らせない
-    @State private var hasLoadedOnce = false
+    @ObservedObject var setup: RecordingSetup
+    @ObservedObject var recording: RecordingController
+
+    private enum Mode: Hashable {
+        case display, window, audioOnly
+    }
 
     var body: some View {
-        // 画面上のウィンドウは通常 15〜25 件あり固定高さに収まらないため、
-        // このパネルの目的 (診断情報の提示) のためにスクロールを許す
-        ScrollView {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: "record.circle")
-                        .foregroundStyle(.red)
-                    Text("kilde")
-                        .font(.headline)
-                    Spacer()
-                    Button {
-                        reload()
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    .buttonStyle(.borderless)
-                    .help("デバイス一覧を更新")
+        VStack(alignment: .leading, spacing: 10) {
+            header
+            if recording.isActive {
+                sessionView
+            } else {
+                ScrollView {
+                    form.padding(.trailing, 6)
                 }
-
-                // 読み込み中をエラーより優先する — 一度失敗した後の再試行でも、
-                // 古いエラーではなく進行中であることを示す
-                if reloading {
-                    // SCShareableContent の初回列挙は数百 ms かかる。ハングした場合も
-                    // 「デバイス無し」と混同されないよう、読み込み中であることを示す
-                    // (列挙自体のタイムアウトは issue #35 の async 化で扱う)
-                    HStack(spacing: 4) {
-                        ProgressView()
-                            .controlSize(.small)
-                        Text("読み込み中…")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.bottom, 4)
-                } else if let loadError {
-                    Label(loadError, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.orange)
-                        .font(.caption)
-                        .padding(.bottom, 4)
-                }
-
-                section("ディスプレイ") {
-                    ForEach(displays, id: \.displayID) { d in
-                        Text(d.description)
-                    }
-                }
-                section("ウィンドウ (画面上)") {
-                    ForEach(windows, id: \.windowID) { w in
-                        Text(w.description)
-                    }
-                }
-                section("オーディオ機器") {
-                    ForEach(audioDevices, id: \.id) { a in
-                        HStack {
-                            Text(a.name)
-                            Spacer()
-                            Text(a.kind)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-
-                Divider()
+                .frame(maxHeight: 420)
+                resultView
+                startButton
+            }
+            if let notice = setup.notice {
+                Text(notice)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Divider()
+            HStack {
+                Spacer()
                 Button("終了") {
+                    // 録画中なら AppDelegate.applicationShouldTerminate がファイナライズを待つ
                     NSApplication.shared.terminate(nil)
                 }
-                .frame(maxWidth: .infinity)
             }
-            .padding(12)
         }
-        .frame(width: 360)
-        .frame(maxHeight: 480)
-        .onAppear(perform: reload)
-        // NSPopover の内容は key window にならないため didBecomeKey は使えない。
-        // AppDelegate がポップオーバーを開いた直後に投げる通知で再読込する
-        // (閉じている間のモニタ接続等のデバイス増減を拾う)
+        .padding(12)
+        .frame(width: 380)
+        // 録画中は選択肢を出さないので列挙しない (止められない SCK の列挙を録画と並走させない)
+        .onAppear { if !recording.isActive { setup.reload() } }
         .onReceive(NotificationCenter.default.publisher(for: .kildePopoverDidShow)) { _ in
-            reload()
+            // 録画中は選択肢を出さないので列挙しない (SCK の列挙を録画と並走させない)
+            if !recording.isActive { setup.reload() }
         }
     }
 
-    /// SCShareableContent の初回列挙は数百 ms かかる (権限プロンプト保留中は
-    /// 返らないことすらある)。列挙は async 版 snapshot() を detached タスクで
-    /// 走らせ、UI 側では `enumerationTimeout` 秒のタイムアウトを設けて loading を
-    /// 解除する — これが無いと権限保留中に再オープンも手動更新もすべて黙殺され、
-    /// 権限不要なオーディオ一覧まで表示されない
-    @MainActor private func reload() {
-        guard !reloading, !enumerationInFlight else {
-            // 初回ロードの完了前に来た要求は同じ結果になるので捨てる。以降の要求は
-            // 最新化のために記録し、列挙の完了時に再実行する
-            if hasLoadedOnce {
-                needsReload = true
-            }
-            return
-        }
-        reloading = true
-        enumerationInFlight = true
-        // 権限不要で速いオーディオ列挙は画面収録権限の待ちに巻き込まれないよう独立に反映
-        Task.detached {
-            let devices = AudioDeviceCatalog.devices
-            await MainActor.run { audioDevices = devices }
-        }
-        let enumerate = Task.detached { () -> EnumerationResult in
-            do { return .success(try await DisplayCatalog.snapshot()) }
-            catch { return .failure(error) }
-        }
-        Task {
-            let finished = await Self.firstFinishedOrTimedOut(enumerate, timeout: Self.enumerationTimeout)
-            await MainActor.run {
-                defer {
-                    reloading = false
-                    hasLoadedOnce = true
+    // MARK: - ヘッダ
+
+    private var header: some View {
+        HStack {
+            Image(systemName: "record.circle")
+                .foregroundStyle(.red)
+            Text("kilde")
+                .font(.headline)
+            Spacer()
+            if !recording.isActive {
+                if setup.loading {
+                    ProgressView()
+                        .controlSize(.small)
                 }
-                guard let result = finished else {
-                    displays = []
-                    windows = []
-                    loadError = "画面/ウィンドウの列挙がタイムアウトしました。画面収録の権限確認が保留になっていないか確認し、再度更新してください"
-                    return
+                Button {
+                    setup.reload()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
                 }
-                switch result {
-                case .success(let snapshot):
-                    displays = snapshot.displays
-                    windows = snapshot.windows.filter(\.isOnScreen)
-                    loadError = nil
-                case .failure(let error):
-                    // 画面収録の権限が無いとここに来る (kilde doctor 相当の案内)
-                    displays = []
-                    windows = []
-                    loadError = "画面/ウィンドウの列挙に失敗: \(error)"
-                }
-            }
-            // タイムアウト済みでも cancel できない列挙の実際の完了を待ってから次を
-            // 受け入れる — ここで並走を許すと権限プロンプト保留中の再試行で
-            // 列挙タスクが蓄積する (await なのでメインアクターは塞がない)
-            _ = await enumerate.value
-            await MainActor.run {
-                enumerationInFlight = false
-                if needsReload {
-                    needsReload = false
-                    reload()
-                }
+                .buttonStyle(.borderless)
+                .help("ディスプレイ・ウィンドウ・入力デバイスの一覧を更新")
             }
         }
     }
 
-    private typealias EnumerationResult =
-        Result<(displays: [DisplayInfo], windows: [WindowInfo]), Error>
-    private static let enumerationTimeout: TimeInterval = 10
+    // MARK: - 選択フォーム
 
-    /// 列挙の完了とタイムアウトの先着を返す。タイムアウト時は nil。
-    /// withTaskGroup はスコープ退出時に全子タスクの完了を待つため、cancel できない
-    /// 同期列挙の await を子に置くとタイムアウト後も戻らない (cancelAll は独立
-    /// Task を止めない)。よってここはポーリングで先着を拾い、タイムアウト後も
-    /// 残留する列挙タスクの結果は破棄する
-    private static func firstFinishedOrTimedOut(
-        _ enumerate: Task<EnumerationResult, Never>,
-        timeout: TimeInterval
-    ) async -> EnumerationResult? {
-        final class Box: @unchecked Sendable {
-            let lock = NSLock()
-            var result: EnumerationResult?
-            var done = false
-
-            func store(_ r: EnumerationResult) {
-                lock.lock()
-                if !done {
-                    result = r
-                    done = true
+    private var form: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            section("収録対象") {
+                Picker("収録対象", selection: modeBinding) {
+                    Text("画面").tag(Mode.display)
+                    Text("ウィンドウ").tag(Mode.window)
+                    Text("音声のみ").tag(Mode.audioOnly)
                 }
-                lock.unlock()
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                // 読み込み中は前回のエラーを隠す (再試行中に古い権限エラーが今の結果に見えてしまう)
+                if !setup.loading, let error = setup.loadError {
+                    Label(error, systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                switch mode {
+                case .display:
+                    displayList
+                case .window:
+                    windowList
+                case .audioOnly:
+                    Text("映像は録らず、音声だけを M4A に保存します")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
+            section("音声") {
+                audioToggles
+            }
+            section("複数の音声ソース") {
+                Picker("複数の音声ソース", selection: $setup.request.trackPolicy) {
+                    Text("1 トラックに合成").tag(AudioTrackPolicy.mixed)
+                    Text("ソースごとに分離").tag(AudioTrackPolicy.separate)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .disabled(setup.request.audioSourceCount < 2)
+            }
+            section("保存先") {
+                outputRow
+            }
+        }
+    }
 
-            func load() -> (done: Bool, result: EnumerationResult?) {
-                lock.lock(); defer { lock.unlock() }
-                return (done, result)
+    /// この構成が SCK を使うか (映像あり、またはシステム音声あり)。
+    /// Recorder の `wantsSCK = wantsVideo || audioSources.contains(.system)` と同じ条件
+    private var usesScreenCapture: Bool {
+        mode != .audioOnly || setup.request.captureSystemAudio
+    }
+
+    private var mode: Mode {
+        switch setup.request.target {
+        case .display: return .display
+        case .window: return .window
+        case .audioOnly: return .audioOnly
+        }
+    }
+
+    private var modeBinding: Binding<Mode> {
+        Binding(
+            get: { mode },
+            set: { newMode in
+                switch newMode {
+                case .display:
+                    setup.request.target = .display(index: 0)
+                case .window:
+                    // 面積が最大のウィンドウを仮選択する (一覧は面積の降順)
+                    if let first = setup.windows.first {
+                        setup.request.target = .window(id: first.windowID)
+                    } else {
+                        setup.notice = "収録できるウィンドウが見つかりません (更新ボタンで一覧を取り直せます)"
+                    }
+                case .audioOnly:
+                    setup.request.target = .audioOnly
+                }
+            })
+    }
+
+    private var displayList: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            if setup.displays.isEmpty && !setup.loading {
+                Text("ディスプレイが見つかりません")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            ForEach(setup.displays, id: \.displayID) { display in
+                selectableRow(selected: setup.request.target == .display(index: display.index)) {
+                    setup.request.target = .display(index: display.index)
+                } content: {
+                    Image(systemName: "display")
+                    Text("ディスプレイ \(display.index)")
+                    Spacer()
+                    Text("\(display.width)×\(display.height)")
+                        .foregroundStyle(.secondary)
+                }
             }
         }
-        let box = Box()
-        let watcher = Task { box.store(await enumerate.value) }
-        defer { watcher.cancel() }
-        let deadline = Date().addingTimeInterval(timeout)
-        while Date() < deadline {
-            let (done, result) = box.load()
-            if done { return result }
-            try? await Task.sleep(nanoseconds: 100_000_000)
+    }
+
+    private var windowList: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            if setup.windows.isEmpty && !setup.loading {
+                Text("収録できるウィンドウが見つかりません")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            ForEach(setup.windows, id: \.windowID) { window in
+                selectableRow(selected: setup.request.target == .window(id: window.windowID)) {
+                    setup.request.target = .window(id: window.windowID)
+                } content: {
+                    thumbnail(for: window)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(windowTitle(window))
+                            .lineLimit(1)
+                        Text(window.bundleIdentifier ?? "")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                }
+            }
         }
-        let (done, result) = box.load()
-        return done ? result : nil
+    }
+
+    private func windowTitle(_ window: WindowInfo) -> String {
+        if let title = window.title, !title.isEmpty { return title }
+        return "(タイトルなし)"
+    }
+
+    private func thumbnail(for window: WindowInfo) -> some View {
+        Group {
+            if let image = setup.thumbnails[window.windowID] {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            } else {
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Color.secondary.opacity(0.15))
+                    .overlay(Image(systemName: "macwindow").foregroundStyle(.secondary))
+            }
+        }
+        .frame(width: 64, height: 40)
+    }
+
+    private var audioToggles: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle("システム音声 (相手の声・アプリの音)", isOn: $setup.request.captureSystemAudio)
+            Toggle("マイク (既定の入力デバイス)", isOn: $setup.request.captureMic)
+            ForEach(setup.inputDevices, id: \.uid) { device in
+                Toggle(isOn: Binding(
+                    get: { setup.isSelected(device: device) },
+                    set: { setup.setSelected($0, device: device) })) {
+                    Text(device.name)
+                }
+            }
+            if case .window = setup.request.target, setup.request.captureSystemAudio {
+                // ウィンドウ単位の収録では SCK がそのアプリの音声だけを渡す (SPIKE-NOTES F-B)
+                Text("ウィンドウ収録ではシステム音声もそのアプリの音だけになります")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .toggleStyle(.checkbox)
+    }
+
+    private var outputRow: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Image(systemName: "folder")
+                Text((setup.request.outputDirectory.path as NSString).abbreviatingWithTildeInPath)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .help(setup.request.outputDirectory.path)
+                Spacer()
+                Button("変更…") {
+                    setup.chooseOutputDirectory()
+                }
+            }
+            Button("この音声・保存先の選択を既定にする") {
+                setup.saveAsDefaults()
+            }
+            .buttonStyle(.link)
+            .font(.caption)
+            .help("~/.kilde/config.json に保存します (CLI の kilde rec の既定値も変わります)")
+        }
+    }
+
+    // MARK: - 開始・結果
+
+    private var startButton: some View {
+        Button {
+            start()
+        } label: {
+            Label(mode == .audioOnly ? "録音開始" : "録画開始", systemImage: "record.circle")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(.red)
+        .controlSize(.large)
+        .keyboardShortcut(.defaultAction)
+        // 列挙中の開始は、進行中の SCShareableContent 列挙と Recorder の対象解決が
+        // 同時に SCK へ行くことになるので受け付けない。タイムアウト後も返らない列挙が
+        // 残っている間 (enumerationsRunning > 0) も同じ理由で止める —
+        // ただし SCK を使わない構成 (音声のみ + システム音声オフ) は競合しないので止めない
+        .disabled(setup.loading
+            || (usesScreenCapture && setup.enumerationsRunning > 0)
+            || (mode == .audioOnly && setup.request.audioSourceCount == 0))
+    }
+
+    private func start() {
+        do {
+            let options = try setup.makeOptions()
+            setup.notice = nil
+            recording.start(options)
+        } catch {
+            setup.notice = "開始できません: \(error)"
+        }
     }
 
     @ViewBuilder
-    private func section(_ title: String, @ViewBuilder content: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+    private var resultView: some View {
+        switch recording.phase {
+        case .finished(let url):
+            VStack(alignment: .leading, spacing: 2) {
+                Label("保存しました", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                Text(url.path)
+                    .font(.caption)
+                    .textSelection(.enabled)
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+                ForEach(recording.warnings, id: \.self) { warning in
+                    Label(warning, systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+            }
+        case .failed(let message):
+            Label(message, systemImage: "xmark.octagon.fill")
+                .font(.caption)
+                .foregroundStyle(.red)
+                .fixedSize(horizontal: false, vertical: true)
+        default:
+            EmptyView()
+        }
+    }
+
+    // MARK: - 録画中
+
+    private var sessionView: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                switch recording.phase {
+                case .recording:
+                    Circle()
+                        .fill(.red)
+                        .frame(width: 10, height: 10)
+                    Text(RecordingController.formatElapsed(recording.elapsed))
+                        .font(.system(size: 28, weight: .medium, design: .monospaced))
+                    Spacer()
+                    Text(ByteCountFormatter.string(fromByteCount: recording.outputBytes, countStyle: .file))
+                        .foregroundStyle(.secondary)
+                case .finalizing:
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("ファイルを仕上げています…")
+                default:
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("準備中…")
+                }
+            }
+            if let url = recording.outputURL {
+                Text(url.lastPathComponent)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            if !recording.peaks.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(recording.peaks.keys.sorted(), id: \.self) { label in
+                        LevelMeter(label: sourceName(label), peak: recording.peaks[label] ?? 0)
+                    }
+                }
+            }
+            Button {
+                recording.stop()
+            } label: {
+                Label("停止", systemImage: "stop.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .keyboardShortcut(.defaultAction)
+            // 準備中の停止も受け付ける (Recorder は録画開始直後に停止要求を処理する)
+            .disabled(recording.phase == .finalizing)
+            Text("ポップオーバーを閉じても録画は続きます。経過時間はメニューバーに表示されます")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// Recorder のソースラベル (system / mic / dev:<名前>) を表示名にする
+    private func sourceName(_ label: String) -> String {
+        switch label {
+        case "system": return "システム音声"
+        case "mic": return "マイク"
+        default: return label.hasPrefix("dev:") ? String(label.dropFirst("dev:".count)) : label
+        }
+    }
+
+    // MARK: - 部品
+
+    private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.caption)
                 .foregroundStyle(.secondary)
             content()
-                .font(.system(size: 12, design: .monospaced))
         }
+    }
+
+    private func selectableRow<Content: View>(
+        selected: Bool, action: @escaping () -> Void, @ViewBuilder content: () -> Content
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: selected ? "largecircle.fill.circle" : "circle")
+                    .foregroundStyle(selected ? Color.accentColor : Color.secondary)
+                content()
+            }
+            .padding(.vertical, 3)
+            .padding(.horizontal, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 5)
+                .fill(selected ? Color.accentColor.opacity(0.12) : Color.clear))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
