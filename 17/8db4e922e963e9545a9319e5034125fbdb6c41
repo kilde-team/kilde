@@ -1,0 +1,19 @@
+README.ja.md
+  s_711a2d0ed42662::t_8eb9a819ffbd20 2-107,112-117,119-126
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "178db4e922e963e9545a9319e5034125fbdb6c41",
+  "prompts": {},
+  "sessions": {
+    "s_711a2d0ed42662": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0935f-e8c1-77e1-b697-52307128b2dd",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": null
+    }
+  }
+}
