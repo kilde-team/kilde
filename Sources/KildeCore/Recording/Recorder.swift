@@ -23,18 +23,50 @@ public enum VideoCodecKind: String, CaseIterable {
     case prores
 }
 
+/// 出力コンテナ (issue #12)。音声のみのモードは従来どおり M4A 固定で、ここには関与しない
+public enum ContainerKind: String, CaseIterable {
+    case mov
+    case mp4
+
+    public var fileType: AVFileType {
+        switch self {
+        case .mov: return .mov
+        case .mp4: return .mp4
+        }
+    }
+
+    /// MP4 は ProRes を入れられない (QuickTime コンテナ専用のコーデックのため)
+    public func supports(_ codec: VideoCodecKind) -> Bool {
+        self == .mov || codec != .prores
+    }
+}
+
 public struct RecordOptions {
     public var displayIndex = 0
-    public var windowMatch: String?
+    /// 収録するウィンドウの指定 (title / bundleID / windowID)。空ならディスプレイ収録。
+    /// 2 つ以上指定すると、そのウィンドウ群だけを 1 本にまとめて収録する (issue #13)
+    public var windowMatches: [String] = []
+    /// ディスプレイ収録から除外するアプリの bundleID (issue #13)。
+    /// ウィンドウ収録とは併用しない (収録対象を選ぶ指定と除外する指定が矛盾するため)
+    public var excludedBundleIDs: [String] = []
     /// 収録する矩形領域 (ポイント座標、ディスプレイ左上が原点)。nil ならディスプレイ全体。
-    /// ウィンドウ収録 (windowMatch) や音声のみ (wantsVideo = false) とは併用しない
+    /// ウィンドウ収録 (windowMatches) や音声のみ (wantsVideo = false) とは併用しない
     public var region: CGRect?
     public var audioSources: [AudioSourceSpec] = [.system]
     public var trackPolicy: AudioTrackPolicy = .mixed
     public var wantsVideo = true
     public var outputURL: URL?
+    /// CLI の位置引数 / --output で指定されたパスだけは従来どおり上書きを許可する。
+    /// false の既定名は原子的に予約され、既存の録画を保護する。
+    public var outputPathIsExplicit = false
+    /// 呼び出し側が事前に予約済みの出力 (CLI は表示のために開始前に確定させ、GUI の
+    /// makeOptions もこれを渡す)。無い場合は Recorder が outputPathIsExplicit に従って
+    /// 予約する — 録画の挙動はどちらの経路でも同じになる
+    public var outputReservation: OutputFileReservation?
     public var duration: TimeInterval?
     public var codec: VideoCodecKind = .h264
+    /// 映像ありのときの出力コンテナ (issue #12)。音声のみは M4A 固定
+    public var container: ContainerKind = .mov
     public var fps: Int?
     public var showsCursor = true
     /// HDR で収録する (issue #16)。macOS 15+ かつ HDR ディスプレイのときだけ有効で、
@@ -60,6 +92,7 @@ public struct RecordOptions {
 
 /// 録画セッションの状態 (DESIGN.md §4)。
 /// idle → preparing → armed → recording → finalizing → done | error の一直線。
+/// recording ⇄ paused だけが往復し、paused からも停止 (finalizing) できる。
 public enum RecorderState: String, Equatable, Sendable {
     case idle
     /// 権限確認・デバイス解決・ストリーム構築中
@@ -67,6 +100,10 @@ public enum RecorderState: String, Equatable, Sendable {
     /// 構築完了・キャプチャ開始直前 (カウントダウン等を挟めるタイミング)
     case armed
     case recording
+    /// 一時停止中 (issue #11)。サンプルは破棄し、再開時にその区間を
+    /// タイムラインから詰めるので、出力ファイルには一時停止区間が残らない。
+    /// GUI は events の stateChanged でこの状態を受け取る
+    case paused
     /// 停止後のファイナライズ中 (AVAssetWriter の完了待ち)
     case finalizing
     case done
@@ -113,12 +150,15 @@ public final class Recorder {
     private var recordsHDR = false
 
     public struct Progress: Sendable {
+        /// 録画開始からの経過 (一時停止した区間を含まない — 出力ファイルの長さに対応する)
         public let elapsed: TimeInterval
         public let outputURL: URL
         public let outputBytes: Int64
         public let peaks: [String: Float]
         public let videoAppended: Int
         public let audioAppended: [String: Int]
+        /// 一時停止中か (issue #11)
+        public let isPaused: Bool
     }
 
     public struct Summary: Sendable {
@@ -130,6 +170,8 @@ public final class Recorder {
         public let firstPTSOffsets: [String: Double]
         /// ミックスできず破棄したバッファ数 (0 以外なら非対応フォーマットの疑い)
         public let mixedDecodeFailures: Int
+        /// 一時停止していた合計時間 (issue #11)。出力ファイルの長さには含まれない
+        public let pausedDuration: TimeInterval
         /// `--hdr` を指定したが SDR で録った場合の理由 (issue #16)。nil なら該当なし。
         /// 失敗ではないので cleanupWarnings ではなくここに載せる (終了コードは 0 のまま)
         public let hdrFallback: String?
@@ -146,6 +188,19 @@ public final class Recorder {
     private var peaks: [String: Float] = [:]
     /// mixed トラックへの push → append を直列化する (複数コールバックキュー対策)
     private let mixedAppendLock = NSLock()
+
+    /// 一時停止の判定とサンプルの書き込みを 1 つの区間にまとめるゲート (issue #11)。
+    /// 判定と書き込みが別々だと、判定を通った直後に pause() が走ったコールバックが
+    /// 一時停止中のサンプルを書き、再開後は詰めた PTS と混ざって時刻が逆行する
+    private let sampleGate = NSLock()
+
+    // MARK: 一時停止 (issue #11)。すべて lock 保護
+    /// 一時停止中か。キャプチャのコールバックはこれを見てサンプルを捨てる
+    private var paused = false
+    /// 現在の一時停止が始まった時刻 (再開時に区間の長さを測る)
+    private var pausedSince: Date?
+    /// これまでに一時停止していた合計 (サマリと経過時間の補正に使う)
+    private var pausedTotal: TimeInterval = 0
 
     // MARK: イベント駆動 (issue #8)
 
@@ -215,6 +270,81 @@ public final class Recorder {
         stopSignalContinuation.yield()
     }
 
+    /// 録画を一時停止する (issue #11)。冪等で、recording 以外の状態では何もしない。
+    /// 一時停止中に届いたサンプルは破棄され、再開時にその区間をタイムラインから詰めるので、
+    /// 出力ファイルには一時停止区間が残らない
+    public func pause() {
+        // サンプルの受け入れと同じゲートで状態を確定する。ゲートの外で切り替えると、
+        // 判定を通過済みのコールバックが一時停止中の絵や音を書き込んでしまう
+        sampleGate.lock()
+        lock.lock()
+        guard state == .recording, !paused else { lock.unlock(); sampleGate.unlock(); return }
+        paused = true
+        pausedSince = Date()
+        state = .paused
+        lock.unlock()
+        // イベントもゲートの中で流す。外に出すと、pause と resume が短時間に続いたときに
+        // 配信順が入れ替わり、購読側が最終状態を取り違える
+        eventContinuation.yield(.stateChanged(.paused))
+        sampleGate.unlock()
+    }
+
+    /// 一時停止から再開する (issue #11)。冪等で、一時停止していなければ何もしない。
+    /// 一時停止していた長さぶん、writer の出力 PTS を詰め、mixer のアンカーを進める —
+    /// 片方だけだと、出力が一時停止ぶん伸びるか、音声が無音で埋まるかのどちらかになる
+    public func resume() {
+        // pause() と同じく、サンプルの受け入れを止めた状態でタイムラインを詰めて状態を戻す。
+        // ゲートの外で詰めると、その隙間に届いたサンプルが古いアンカー / オフセットで
+        // 処理され、mixed トラックに一時停止ぶんの無音が入る
+        sampleGate.lock()
+        lock.lock()
+        // 停止後 (finalizing / done / error) は再開しない。'p' キーと SIGUSR1 の
+        // ハンドラはプロセスが終わるまで生きているため、ファイナライズ中に再開されると
+        // 書き込み済みより前の PTS を作ったり、完了済みの状態を .recording に戻してしまう
+        guard paused, state == .paused else { lock.unlock(); sampleGate.unlock(); return }
+        paused = false
+        let gap = pausedSince.map { Date().timeIntervalSince($0) } ?? 0
+        pausedSince = nil
+        pausedTotal += gap
+        state = .recording
+        lock.unlock()
+        // writer と mixer のロックはリーフなので、この順序で取っても逆順は生じない
+        if gap > 0 {
+            writer?.addPauseGap(seconds: gap)
+            mixer?.advanceAnchor(by: gap)
+        }
+        // pause() と同じく、配信順を守るためゲートの中で流す
+        eventContinuation.yield(.stateChanged(.recording))
+        sampleGate.unlock()
+    }
+
+    /// 一時停止したまま停止されたときに、その区間を確定する (停止時に 1 回だけ呼ぶ)。
+    /// 確定しないとファイナライズ中も計測し続けて合計が過大になり、
+    /// 完了後も isPaused が true のまま残る
+    private func finalizePauseIfNeeded() {
+        // 排出中も「一時停止中」を維持したままここへ来る。ゲートを取ってから解除することで、
+        // 解除の瞬間に走っているコールバックが排出済みのサンプルを書き足すのを防ぐ
+        sampleGate.lock(); defer { sampleGate.unlock() }
+        lock.lock(); defer { lock.unlock() }
+        guard paused else { return }
+        paused = false
+        pausedTotal += pausedSince.map { Date().timeIntervalSince($0) } ?? 0
+        pausedSince = nil
+    }
+
+    /// 一時停止中か (CLI のステータス表示用)
+    public var isPaused: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return paused
+    }
+
+    /// 一時停止していた合計 (進行中の一時停止も含む)。
+    /// async なセッション本体から安全に読むための同期ヘルパ
+    private func pausedDurationSnapshot() -> TimeInterval {
+        lock.lock(); defer { lock.unlock() }
+        return pausedTotal + (pausedSince.map { Date().timeIntervalSince($0) } ?? 0)
+    }
+
     /// 録画を実行し、完了までブロックする (CLI 互換の同期 API — start() のラッパ)。
     /// 呼び出しスレッドをセッション終了まで拘束する (数時間にもなりうる) ので、
     /// GUI はこの API を使わず start() + events 購読を使うこと。
@@ -243,7 +373,14 @@ public final class Recorder {
     /// CLI のステータス表示用 (0.5 秒周期で呼ばれる)
     public func progress() -> Progress? {
         guard let url = outputURL else { return nil }
-        let elapsed = Date().timeIntervalSince(startDate)
+        let now = Date()
+        // 一時停止していた区間は出力ファイルに入らないので、経過時間からも差し引く
+        // (ファイルの長さと表示がずれないようにする — issue #11)
+        lock.lock()
+        let pausedNow = paused
+        let pausedSoFar = pausedTotal + (pausedSince.map { now.timeIntervalSince($0) } ?? 0)
+        lock.unlock()
+        let elapsed = max(0, now.timeIntervalSince(startDate) - pausedSoFar)
         let bytes = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int).flatMap { $0 } ?? 0
         var pk: [String: Float] = [:]
         if let mixer {
@@ -259,7 +396,8 @@ public final class Recorder {
             outputBytes: Int64(bytes),
             peaks: pk,
             videoAppended: counters?.videoAppended ?? 0,
-            audioAppended: counters?.audioAppended ?? [:]
+            audioAppended: counters?.audioAppended ?? [:],
+            isPaused: pausedNow
         )
     }
 
@@ -300,6 +438,17 @@ public final class Recorder {
 
     private func performSession() async throws -> Summary {
         cleanupWarnings.removeAll()
+        // 予約の清掃はこの 1 本の defer で賄う。region/window の入力検証は予約の解決より
+        // 前で throw しうるため、関数冒頭から登録する。activeReservation は後段 (注入の
+        // 一致確認・自前予約) で差し替わるので、defer の実行時点で実際の予約を見る —
+        // 二重登録すると削除失敗時に警告が 2 回出る (書き出し側は消費後 inode が変わり
+        // 完成ファイルには触れない)
+        var activeReservation = options.outputReservation
+        defer {
+            if let r = activeReservation, !r.removeIfStillReserved() {
+                cleanupWarnings.append("予約した出力ファイルを削除できませんでした: \(r.url.path)")
+            }
+        }
         // 入力の矛盾は副作用 (権限ダイアログ・monitor の既定出力変更) より前に弾く。
         // CLI でも弾いているが、GUI (M3) や HotkeyRecordingController も同じ RecordOptions を
         // 組み立てるため、ここで止めないと「指定した領域と違う範囲を無警告で録る」ことになる
@@ -307,13 +456,43 @@ public final class Recorder {
             guard options.wantsVideo else {
                 throw KilError.failed("領域指定 (region) は音声のみのモードでは使えません")
             }
-            guard options.windowMatch == nil else {
+            guard options.windowMatches.isEmpty else {
                 throw KilError.failed("領域指定 (region) はウィンドウ収録とは併用できません")
             }
         }
-        let ext = options.wantsVideo ? "mov" : "m4a"
-        let url = options.outputURL ?? URL(fileURLWithPath: defaultOutputName(ext: ext))
+        // 除外 (excludedBundleIDs) はディスプレイ収録の絞り込みなので、収録対象を選ぶ
+        // ウィンドウ収録とは両立しない。region と同じく副作用より前に弾く
+        if !options.excludedBundleIDs.isEmpty {
+            guard options.wantsVideo else {
+                throw KilError.failed("アプリ除外 (exclude-app) は音声のみのモードでは使えません")
+            }
+            guard options.windowMatches.isEmpty else {
+                throw KilError.failed("アプリ除外 (exclude-app) はウィンドウ収録とは併用できません")
+            }
+        }
+        // #12 (MP4 コンテナ) と #59 (出力名予約) の統合: 拡張子はコンテナ種別に従い、
+        // 既定名は予約を挟んで確定させる
+        let ext = options.wantsVideo ? options.container.rawValue : "m4a"
+        let preferredURL = options.outputURL ?? URL(fileURLWithPath: defaultOutputName(ext: ext))
+        // 呼び出し側の予約を優先し、無ければ既定名 (非明示) のときここで予約する。
+        // 明示パスは従来どおり予約なしの上書き
+        let reservation: OutputFileReservation?
+        if let injected = options.outputReservation {
+            guard injected.url == preferredURL else {
+                throw KilError.failed("予約済みの出力と解決された出力が一致しません: \(preferredURL.path)")
+            }
+            reservation = injected
+        } else if options.outputPathIsExplicit {
+            reservation = nil
+        } else {
+            reservation = try OutputFileReservation.reserve(preferredURL: preferredURL)
+        }
+        let url = reservation?.url ?? preferredURL
         outputURL = url
+        // 権限・デバイス解決など writer 構築前のどの失敗経路でも予約ゴミを残さないのは
+        // 冒頭の defer (activeReservation) の役割。writer が予約を消費した後は inode が
+        // 変わるため、完成中/完成済みファイルには触れない
+        activeReservation = reservation
 
         let wantsSCK = options.wantsVideo || options.audioSources.contains(.system)
         if wantsSCK && !Permissions.hasScreenCapture {
@@ -342,7 +521,7 @@ public final class Recorder {
         }
 
         do {
-            let summary = try await recordAndFinalize(url: url)
+            let summary = try await recordAndFinalize(url: url, reservation: reservation)
             teardownMonitorIfNeeded(monitorCreatedByUs)
             // 復元失敗は録画の失敗ではないが、購読側が気づけないと既定出力が
             // kilde Monitor のまま残る — 完了の前に警告イベントで伝える
@@ -360,7 +539,7 @@ public final class Recorder {
         }
     }
 
-    private func recordAndFinalize(url: URL) async throws -> Summary {
+    private func recordAndFinalize(url: URL, reservation: OutputFileReservation?) async throws -> Summary {
         audioLabels = try labeledSources().map { $0.label }
         let useMixer = options.trackPolicy == .mixed && options.audioSources.count > 1
 
@@ -370,22 +549,28 @@ public final class Recorder {
         let captureAudio = options.audioSources.contains(.system)
         if options.wantsVideo || captureAudio {
             // 収録対象を先に解決する — HDR 可否は「実際にどの画面に写るか」で決まるので、
-            // ウィンドウ収録では --display ではなくそのウィンドウが載っている画面を見る
-            let resolvedWindow: SCWindow?
+            // ウィンドウ収録では --display ではなくそのウィンドウが載っている画面を見る。
+            // 複数ウィンドウ (issue #13) はディスプレイ座標系へ合成するので、
+            // 単一ウィンドウと違って合成先ディスプレイの解決が要る
+            let resolvedWindows: [SCWindow]
             let resolvedDisplay: SCDisplay?
-            if let match = options.windowMatch {
-                resolvedWindow = try await DisplayCatalog.resolveWindow(matching: match)
-                resolvedDisplay = nil
+            if !options.windowMatches.isEmpty {
+                resolvedWindows = try await DisplayCatalog.resolveWindows(matching: options.windowMatches)
+                resolvedDisplay = resolvedWindows.count == 1
+                    ? nil   // desktopIndependentWindow で切り出すのでディスプレイは要らない
+                    : try await DisplayCatalog.display(at: options.displayIndex)
             } else {
-                resolvedWindow = nil
+                resolvedWindows = []
                 resolvedDisplay = try await DisplayCatalog.display(at: options.displayIndex)
             }
             // HDR 可否はここで 1 回だけ決めて持ち回す。都度評価すると SCShareableContent を
             // 引き直すことになり、ストリーム側と書き出し側で答えが割れうる (issue #16)
             let targetDisplayID: CGDirectDisplayID?
-            if let resolvedWindow {
-                targetDisplayID = displayID(containing: resolvedWindow.frame)
+            if resolvedWindows.count == 1, let soleWindow = resolvedWindows.first {
+                // 単一ウィンドウはそのウィンドウが最も大きく重なっている画面で判定する
+                targetDisplayID = displayID(containing: soleWindow.frame)
             } else {
+                // 複数ウィンドウは合成先、ディスプレイ収録はその画面
                 targetDisplayID = resolvedDisplay?.displayID
             }
             let hdr = try hdrDecision(targetDisplayID: targetDisplayID)
@@ -407,13 +592,58 @@ public final class Recorder {
                 cfg.minimumFrameInterval = CMTime(seconds: 1.0 / Double(fps), preferredTimescale: 600)
             }
             let filter: SCContentFilter
-            if let win = resolvedWindow {
-                if options.wantsVideo {
-                    cfg.width = Int(win.frame.width)
-                    cfg.height = Int(win.frame.height)
-                    videoSize = CGSize(width: win.frame.width, height: win.frame.height)
+            if !resolvedWindows.isEmpty {
+                // 解決は冒頭で済ませてある (HDR 可否の判定に「どの画面に写るか」が要るため)。
+                // ここで引き直すと SCShareableContent を二重に列挙することになる
+                let windows = resolvedWindows
+                if let win = windows.first, windows.count == 1 {
+                    if options.wantsVideo {
+                        // H.264 / HEVC では偶数へ丸める (420v の 4:2:0 制約。ProRes は丸めない —
+                        // captureSize を参照)。ウィンドウは 1 ポイント単位でリサイズできるので
+                        // 普通に奇数になる (issue #15)
+                        let (w, h) = Self.captureSize(win.frame.size, codec: options.codec)
+                        guard w >= 2, h >= 2 else {
+                            throw KilError.failed(
+                                "ウィンドウが小さすぎて収録できません "
+                                + "(\(Int(win.frame.width))x\(Int(win.frame.height))、2x2 以上が必要)")
+                        }
+                        cfg.width = w
+                        cfg.height = h
+                        videoSize = CGSize(width: w, height: h)
+                    }
+                    filter = SCContentFilter(desktopIndependentWindow: win)
+                } else {
+                    // 複数ウィンドウはディスプレイ座標系のまま合成される (ウィンドウごとに
+                    // 切り出されるわけではない) ので、出力はディスプレイ全体の大きさになる。
+                    // 対象外の領域は黒で埋まる。合成先のディスプレイも冒頭で解決済み
+                    let display = resolvedDisplay!
+                    // 別のディスプレイにあるウィンドウを混ぜると、合成先の座標系の外に出て
+                    // 黙って黒く消える。録画を見返すまで気づけないのでここで止める
+                    let bounds = CGDisplayBounds(display.displayID)
+                    let offDisplay = windows.filter { !bounds.intersects($0.frame) }
+                    if !offDisplay.isEmpty {
+                        let names = offDisplay.map { "\"\($0.title ?? "?")\"" }.joined(separator: ", ")
+                        throw KilError.failed(
+                            "複数ウィンドウの収録では同じディスプレイのウィンドウだけを指定してください "
+                            + "(ディスプレイ \(options.displayIndex) の外: \(names)。"
+                            + "--display で収録するディスプレイを選べます)")
+                    }
+                    if options.wantsVideo {
+                        // 複数ウィンドウでもディスプレイ全体の大きさになるので、
+                        // 単一ウィンドウと同じく偶数へ丸める (issue #15 の 4:2:0 制約)
+                        let (w, h) = Self.captureSize(
+                            CGSize(width: display.width, height: display.height),
+                            codec: options.codec)
+                        guard w >= 2, h >= 2 else {
+                            throw KilError.failed(
+                                "ディスプレイが小さすぎて収録できません (\(display.width)x\(display.height))")
+                        }
+                        cfg.width = w
+                        cfg.height = h
+                        videoSize = CGSize(width: w, height: h)
+                    }
+                    filter = SCContentFilter(display: display, including: windows)
                 }
-                filter = SCContentFilter(desktopIndependentWindow: win)
             } else {
                 let display = resolvedDisplay!
                 if options.wantsVideo {
@@ -447,19 +677,42 @@ public final class Recorder {
                         cfg.height = h
                         videoSize = CGSize(width: w, height: h)
                     } else {
-                        cfg.width = Int(display.width)
-                        cfg.height = Int(display.height)
-                        videoSize = CGSize(width: display.width, height: display.height)
+                        // ディスプレイ全体も H.264 / HEVC では偶数へ丸める — Retina の
+                        // 非整数スケーリングでは奇数ピクセルになりうるため (captureSize を参照)
+                        let (w, h) = Self.captureSize(
+                            CGSize(width: display.width, height: display.height),
+                            codec: options.codec)
+                        guard w >= 2, h >= 2 else {
+                            throw KilError.failed(
+                                "ディスプレイが小さすぎて収録できません (\(display.width)x\(display.height))")
+                        }
+                        cfg.width = w
+                        cfg.height = h
+                        videoSize = CGSize(width: w, height: h)
                     }
                 }
-                filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
+                let excluded = try await DisplayCatalog.resolveApplications(bundleIDs: options.excludedBundleIDs)
+                filter = SCContentFilter(display: display,
+                                         excludingApplications: excluded,
+                                         exceptingWindows: [])
             }
+            // HDR のときは上書きしない — プリセットが pixelFormat / colorSpace /
+            // colorMatrix を整合した組で設定済みで、ここで上書きすると
+            // 10-bit と PQ の情報が落ちて HDR にならない (issue #16)
             if options.wantsVideo && !hdr.isHDR {
-                // AVAssetWriter で再圧縮するため非圧縮 BGRA を要求 (SPIKE-NOTES F-D.1)。
-                // HDR のときは上書きしない — プリセットが pixelFormat / colorSpace /
-                // colorMatrix を整合した組み合わせで設定済みで、ここで BGRA に戻すと
-                // 10-bit と PQ の情報が落ちて HDR にならない
-                cfg.pixelFormat = kCVPixelFormatType_32BGRA
+                // 非圧縮のピクセル形式を明示する (既定に任せない — SPIKE-NOTES F-D.1)。
+                // 値はコーデックのクロマに合わせる (SPIKE-NOTES F-G)
+                switch options.codec {
+                case .h264, .hevc:
+                    // エンコーダ入力がどのみち 4:2:0 なので、BGRA を渡すと色変換が
+                    // 1 回余計に入る。実測で CPU -24%、うち sys はほぼ半減する
+                    cfg.pixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
+                case .prores:
+                    // ProRes 422 は 4:2:2。ここで 4:2:0 にするとクロマを半分捨てたまま
+                    // エンコーダが 4:2:2 へ戻すだけで、失った情報は復元できない。
+                    // 編集用の中間ファイルという用途に反するので BGRA のままにする
+                    cfg.pixelFormat = kCVPixelFormatType_32BGRA
+                }
             }
             let mode: ScreenAudioStream.Mode = options.wantsVideo ? .screenAndAudio : .audioOnly
             sck = try ScreenAudioStream(filter: filter, configuration: cfg, mode: mode) { [weak self] sb, type in
@@ -478,13 +731,14 @@ public final class Recorder {
 
         let w = try MovieWriter(
             url: url,
-            fileType: options.wantsVideo ? .mov : .m4a,
+            fileType: options.wantsVideo ? options.container.fileType : .m4a,
             video: options.wantsVideo,
             videoSize: videoSize,
             codec: options.codec,
             hdr: recordsHDR,
             audioLabels: useMixer ? ["mixed"] : audioLabels,
-            anchor: options.wantsVideo ? .firstVideo : .firstAudio
+            anchor: options.wantsVideo ? .firstVideo : .firstAudio,
+            outputFilePolicy: reservation.map(MovieWriter.OutputFilePolicy.reserved) ?? .overwrite
         )
         writer = w
         if useMixer {
@@ -547,9 +801,12 @@ public final class Recorder {
         _ = await progressTask.value
 
         setState(.finalizing)
-        // SCK のコールバックを吐き切ってから writer を閉じる (stop() が drain まで待つ)
+        // SCK のコールバックを吐き切ってから writer を閉じる (stop() が drain まで待つ)。
+        // 一時停止のまま停止された場合、排出中のサンプルも捨てたいので、
+        // 一時停止の解除は排出が終わってから行う
         await sck?.stop()
         for m in micStreams { m.stop() }
+        finalizePauseIfNeeded()
         if let mixer {
             // チャンク境界に満たない末尾を含め、残データを吐き切ってから完了する
             for chunk in mixer.flush() {
@@ -570,6 +827,9 @@ public final class Recorder {
         }
         try await w.finish()
 
+        // 一時停止したまま停止された場合も、その区間を合計に含める。
+        // async 文脈で NSLock を直接触ると警告になるため同期ヘルパ経由で読む (countersSnapshot と同じ)
+        let pausedDuration = pausedDurationSnapshot()
         return Summary(
             outputURL: url,
             videoAppended: w.videoAppended,
@@ -578,6 +838,7 @@ public final class Recorder {
             audioDropped: w.audioDropped,
             firstPTSOffsets: w.firstPTSOffsets,
             mixedDecodeFailures: mixer?.decodeFailures ?? 0,
+            pausedDuration: pausedDuration,
             hdrFallback: hdrFallback
         )
     }
@@ -703,6 +964,23 @@ public final class Recorder {
         }
     }
 
+    /// 収録サイズを決める (issue #15)。
+    ///
+    /// H.264 / HEVC は 420v で受けるので、4:2:0 のクロマ面 (w/2 × h/2) を作るために
+    /// 幅・高さとも偶数でなければならない。ウィンドウは 1 ポイント単位でリサイズでき、
+    /// ディスプレイも Retina の非整数スケーリングで奇数になりうるので丸める。
+    ///
+    /// **ProRes は丸めない。** 4:2:2 で BGRA を受けるので偶数制約が無く、丸めると
+    /// 奇数サイズのウィンドウで不要に 1px 削ることになる。「ProRes ではクロマを落とさない」
+    /// というこの issue の方針に反するため、コーデックで分ける
+    private static func captureSize(_ size: CGSize,
+                                    codec: VideoCodecKind) -> (width: Int, height: Int) {
+        switch codec {
+        case .prores: return (Int(size.width), Int(size.height))
+        case .h264, .hevc: return (Int(size.width) & ~1, Int(size.height) & ~1)
+        }
+    }
+
     /// recording 中 0.5 秒周期で progress イベントを流す (GUI 向け)。
     /// 経過時間・出力サイズ・レベルは progress() と同じ計算経路を使う。
     /// チェックから yield までのわずかな競合窓は残るが、sleep 起き直し後の
@@ -719,7 +997,9 @@ public final class Recorder {
                 } catch {
                     return  // キャンセルされた
                 }
-                guard let self, !Task.isCancelled, self.currentState == .recording else { continue }
+                // 一時停止中も流す — 購読側 (GUI) が isPaused とレベルを更新できるように
+                guard let self, !Task.isCancelled,
+                      self.currentState == .recording || self.currentState == .paused else { continue }
                 guard let p = self.progress() else { continue }
                 self.eventContinuation.yield(.progress(p))
             }
@@ -800,6 +1080,11 @@ public final class Recorder {
     private func handleSCK(_ sb: CMSampleBuffer, _ type: SCStreamOutputType) {
         switch type {
         case .screen:
+            // 一時停止の判定と書き込みを同じゲートで行う (issue #11)。判定だけを先に済ませると、
+            // 直後に pause() が走ったときに一時停止中のフレームが書き込まれ、
+            // 再開後に詰めた PTS と混ざって時刻が逆行する
+            sampleGate.lock(); defer { sampleGate.unlock() }
+            guard !isPaused else { return }
             writer?.appendVideo(sb)
         case .audio:
             handleAudio(sb, label: "system")
@@ -811,6 +1096,9 @@ public final class Recorder {
     }
 
     private func handleAudio(_ sb: CMSampleBuffer, label: String) {
+        // マイク (AVCapture) からは handleSCK を通らず直接届くので、ここでもゲートを取る
+        sampleGate.lock(); defer { sampleGate.unlock() }
+        guard !isPaused else { return }
         if let mixer {
             // SCK とマイクは別のコールバックキューから来るため、
             // push → append を直列化して mixed 入力への追加上順を保つ

@@ -38,7 +38,18 @@ final class RecordingController: ObservableObject {
     }
 
     func start(_ options: RecordOptions) {
-        guard !isActive else { return }
+        guard !isActive else {
+            // 既に録画中で options を使わないとき、makeOptions が確保した予約だけが
+            // 0 バイトのファイルとして残る — Recorder に渡らないため誰も消さない
+            if let r = options.outputReservation, !r.removeIfStillReserved() {
+                // この経路は Recorder に渡らないため cleanupWarnings も出ない —
+                // 残留予約が黙らないよう stderr に直接出す
+                FileHandle.standardError.write(
+                    "WARNING: 予約した出力ファイルを削除できませんでした: \(r.url.path)\n"
+                        .data(using: .utf8)!)
+            }
+            return
+        }
         let recorder = Recorder(options: options)
         self.recorder = recorder
         phase = .starting
@@ -82,7 +93,10 @@ final class RecordingController: ObservableObject {
         case .stateChanged(let state):
             switch state {
             case .preparing, .armed: phase = .starting
-            case .recording: phase = .recording
+            // 一時停止中も「録画中」として扱う — GUI にはまだ一時停止を始める操作がなく
+            // (issue #11 は CLI のみ)、この状態には入らない。GUI に操作を足すときは
+            // Phase に .paused を足して、メニューバーとポップオーバーの表示を分ける
+            case .recording, .paused: phase = .recording
             case .finalizing: phase = .finalizing
             // 結果は .completed / .failed で確定させる (done / error の遷移は必ずその直前に来る)
             case .idle, .done, .error: break
