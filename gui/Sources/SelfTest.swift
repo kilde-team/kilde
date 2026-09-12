@@ -85,9 +85,13 @@ enum SelfTest {
             case .finished(let url):
                 let bytes = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int)
                     .flatMap { $0 } ?? 0
-                // close に失敗した場合は既に fail() が原因を出して停止させている。
-                // ここで重ねて報告すると、強制停止を「録画が終了した」と誤って説明することになる
-                if closesPopover, !closed.closeFailed {
+                // close に失敗した場合は既に fail() が原因を出し、停止 → ファイナライズを待っている。
+                // ここで先に進むと exit(0) が fail() の exit(1) を追い越し、**失敗を成功と誤判定する**。
+                // ハンドラからは戻るだけにして、fail() 側の exit(1) に処理を譲る
+                if closesPopover, closed.closeFailed {
+                    return
+                }
+                if closesPopover {
                     // 「閉じた後も録画が進んだ」ことを成功条件にする。outputBytes は
                     // フレームの来ない環境では増えないので、経過時間 (progress 由来) で見る
                     guard let closedAt = closed.elapsed else {
@@ -126,7 +130,12 @@ enum SelfTest {
             guard recording.phase == .recording else {
                 fail("録画が始まりません (phase=\(recording.phase))")
             }
-            popover.close()
+            // KILDE_GUI_SELFTEST_FORCE_CLOSE_FAIL=1 のときは閉じない — 「閉じられなかったときに
+            // ちゃんと失敗する (exit 1)」ことを確かめるための経路 (この確認が無かったために、
+            // 閉じ失敗が exit 0 になる回帰を見逃した)
+            if env["KILDE_GUI_SELFTEST_FORCE_CLOSE_FAIL"] != "1" {
+                popover.close()
+            }
             // 閉じるのはアニメーション付きで、isShown はその間 true のままになる。
             // 固定待ちだと環境次第で取りこぼすのでポーリングで待つ
             let closeDeadline = Date().addingTimeInterval(3)

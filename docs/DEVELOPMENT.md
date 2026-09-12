@@ -156,6 +156,13 @@ KILDE_GUI_SELFTEST_RECORD=3 KILDE_GUI_SELFTEST_OUTPUT=/tmp "$APP/Contents/MacOS/
 使えない環境でも GUI → Recorder の経路は確かめられる) / `device:<UID または名前>`
 (例: `device:BlackHole 2ch`。スピーカーを介さずに信号を入れて検証でき、既定の出力デバイスも変えずに済む)。
 
+`KILDE_GUI_SELFTEST_POPOVER=close` を付けると、録画中にポップオーバーを開いてから閉じ、
+**閉じた後も録画が続く** (経過時間が伸びる) ことを成功条件にします (issue #18 の受け入れ条件 2)。
+`KILDE_GUI_SELFTEST_FORCE_CLOSE_FAIL=1` を併用すると閉じる操作をわざと行わず、
+「閉じられなかったときに終了コード 1 で失敗する」ことを確認できます — セルフテスト自身の
+失敗経路を踏むための指定で、これが無かったために「閉じ失敗を exit 0 と誤判定する」回帰を
+見逃しました。
+
 > **検証時の環境の注意**: 画面がロックされている、または**ディスプレイが消灯している**間は
 > SCK がフレームを出しません。録画は成功 (exit 0) するのに `kilde inspect` が `duration=0.00s` に
 > なります (CLI も同じ)。実録画の検証はロックを解除してから行ってください。
