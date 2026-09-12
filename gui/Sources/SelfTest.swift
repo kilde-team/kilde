@@ -271,6 +271,15 @@ enum SelfTest {
             + " sameSetup=\(delegate.map { $0.debugUsesSameSetup(setup) } ?? false)")
         let registered = delegate?.registeredHotkey
         if let registered {
+            // **解決値と一致するかまで見る。** 非 nil というだけでは «古い登録が
+            // 残っている» 場合も成功になり、設定を反映できていない退行を見逃す
+            if registered != resolved {
+                print("selftest: hotkeyRegistered=true source=\(registered)"
+                    + " (解決値 \(resolved ?? "none") と一致しません)")
+                fflush(stdout)
+                fail("登録されたホットキー (\(registered)) が設定の解決結果"
+                    + " (\(resolved ?? "none")) と一致しません")
+            }
             print("selftest: hotkeyRegistered=true source=\(registered)")
         } else {
             // 失敗の理由は AppDelegate が notice に入れている。出さないと

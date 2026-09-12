@@ -28,7 +28,9 @@ final class RecordingController: ObservableObject {
     @Published private(set) var outputURL: URL?
 
     private var recorder: Recorder?
-    private var sessionEndHandlers: [() -> Void] = []
+    /// 終了ハンドラと、登録された時点のセッション。
+    /// セッションを持たないと、別のセッションのハンドラまで発火させてしまう
+    private var sessionEndHandlers: [(session: Recorder?, handler: () -> Void)] = []
 
     /// 録画完了の通知先 (issue #20)。AppDelegate が生成して渡す。
     /// GUI 専用の機能なので Recorder / KildeCore には持たせない
@@ -119,9 +121,14 @@ final class RecordingController: ObservableObject {
         return String(format: "%02d:%02d", seconds / 60, seconds % 60)
     }
 
-    /// 次のセッション終了 (成功・失敗) で 1 回だけ呼ぶ。アプリ終了時のファイナライズ待ちとセルフテストが使う
+    /// 次のセッション終了 (成功・失敗) で 1 回だけ呼ぶ。アプリ終了時のファイナライズ待ちとセルフテストが使う。
+    ///
+    /// **登録時点のセッションに紐付ける。** 紐付けないと、旧セッションの通知が
+    /// 完了したときに新セッション用のハンドラまで実行してしまい、
+    /// `applicationShouldTerminate` が登録した終了応答が**ファイナライズ前に返って
+    /// プロセスが落ちる** — 「停止しても必ずファイナライズする」に反する
     func whenSessionEnds(_ handler: @escaping () -> Void) {
-        sessionEndHandlers.append(handler)
+        sessionEndHandlers.append((session: recorder, handler: handler))
     }
 
     private func handle(_ event: RecorderEvent) {
@@ -220,10 +227,11 @@ final class RecordingController: ObservableObject {
                 self.endSession()
             } else {
                 // 別のセッションが始まっているので recorder は破棄しない。
-                // **ただし登録済みのハンドラは必ず呼ぶ** — ここを素通りさせると、
-                // applicationShouldTerminate が待っている終了応答が永久に来ず、
-                // **アプリが終了できなくなる** (通知が 1 回届かないより重い)
-                self.flushSessionEndHandlers()
+                // **このセッションに紐付いたハンドラだけは必ず呼ぶ** — 素通りさせると
+                // applicationShouldTerminate が待っている終了応答が永久に来ず
+                // アプリが終了できなくなる。一方で全部を呼ぶと、進行中の録画の
+                // ファイナライズ待ちまで発火してファイルが壊れる
+                self.flushSessionEndHandlers(for: session)
             }
         }
         notify(finish)
@@ -236,17 +244,19 @@ final class RecordingController: ObservableObject {
         }
     }
 
-    /// 登録済みの終了ハンドラを 1 回だけ実行する。
-    /// セッションの破棄を伴わないので、別のセッションが進行中でも安全
-    private func flushSessionEndHandlers() {
-        let handlers = sessionEndHandlers
-        sessionEndHandlers = []
-        handlers.forEach { $0() }
+    /// 指定したセッションに紐付く終了ハンドラだけを 1 回実行する。
+    /// **他のセッションのハンドラは残す** — 進行中の録画のファイナライズ待ちを
+    /// 横から発火させないため
+    private func flushSessionEndHandlers(for session: Recorder?) {
+        let matched = sessionEndHandlers.filter { $0.session === session }
+        sessionEndHandlers.removeAll { $0.session === session }
+        matched.forEach { $0.handler() }
     }
 
     private func endSession() {
+        let ended = recorder
         recorder = nil
         peaks = [:]
-        flushSessionEndHandlers()
+        flushSessionEndHandlers(for: ended)
     }
 }
