@@ -52,6 +52,7 @@ public struct RecordOptions {
 
 /// 録画セッションの状態 (DESIGN.md §4)。
 /// idle → preparing → armed → recording → finalizing → done | error の一直線。
+/// recording ⇄ paused だけが往復し、paused からも停止 (finalizing) できる。
 public enum RecorderState: String, Equatable, Sendable {
     case idle
     /// 権限確認・デバイス解決・ストリーム構築中
@@ -59,6 +60,10 @@ public enum RecorderState: String, Equatable, Sendable {
     /// 構築完了・キャプチャ開始直前 (カウントダウン等を挟めるタイミング)
     case armed
     case recording
+    /// 一時停止中 (issue #11)。サンプルは破棄し、再開時にその区間を
+    /// タイムラインから詰めるので、出力ファイルには一時停止区間が残らない。
+    /// GUI は events の stateChanged でこの状態を受け取る
+    case paused
     /// 停止後のファイナライズ中 (AVAssetWriter の完了待ち)
     case finalizing
     case done
@@ -96,12 +101,15 @@ public final class Recorder {
     public private(set) var cleanupWarnings: [String] = []
 
     public struct Progress: Sendable {
+        /// 録画開始からの経過 (一時停止した区間を含まない — 出力ファイルの長さに対応する)
         public let elapsed: TimeInterval
         public let outputURL: URL
         public let outputBytes: Int64
         public let peaks: [String: Float]
         public let videoAppended: Int
         public let audioAppended: [String: Int]
+        /// 一時停止中か (issue #11)
+        public let isPaused: Bool
     }
 
     public struct Summary: Sendable {
@@ -113,6 +121,8 @@ public final class Recorder {
         public let firstPTSOffsets: [String: Double]
         /// ミックスできず破棄したバッファ数 (0 以外なら非対応フォーマットの疑い)
         public let mixedDecodeFailures: Int
+        /// 一時停止していた合計時間 (issue #11)。出力ファイルの長さには含まれない
+        public let pausedDuration: TimeInterval
     }
 
     private let options: RecordOptions
@@ -126,6 +136,19 @@ public final class Recorder {
     private var peaks: [String: Float] = [:]
     /// mixed トラックへの push → append を直列化する (複数コールバックキュー対策)
     private let mixedAppendLock = NSLock()
+
+    /// 一時停止の判定とサンプルの書き込みを 1 つの区間にまとめるゲート (issue #11)。
+    /// 判定と書き込みが別々だと、判定を通った直後に pause() が走ったコールバックが
+    /// 一時停止中のサンプルを書き、再開後は詰めた PTS と混ざって時刻が逆行する
+    private let sampleGate = NSLock()
+
+    // MARK: 一時停止 (issue #11)。すべて lock 保護
+    /// 一時停止中か。キャプチャのコールバックはこれを見てサンプルを捨てる
+    private var paused = false
+    /// 現在の一時停止が始まった時刻 (再開時に区間の長さを測る)
+    private var pausedSince: Date?
+    /// これまでに一時停止していた合計 (サマリと経過時間の補正に使う)
+    private var pausedTotal: TimeInterval = 0
 
     // MARK: イベント駆動 (issue #8)
 
@@ -195,6 +218,81 @@ public final class Recorder {
         stopSignalContinuation.yield()
     }
 
+    /// 録画を一時停止する (issue #11)。冪等で、recording 以外の状態では何もしない。
+    /// 一時停止中に届いたサンプルは破棄され、再開時にその区間をタイムラインから詰めるので、
+    /// 出力ファイルには一時停止区間が残らない
+    public func pause() {
+        // サンプルの受け入れと同じゲートで状態を確定する。ゲートの外で切り替えると、
+        // 判定を通過済みのコールバックが一時停止中の絵や音を書き込んでしまう
+        sampleGate.lock()
+        lock.lock()
+        guard state == .recording, !paused else { lock.unlock(); sampleGate.unlock(); return }
+        paused = true
+        pausedSince = Date()
+        state = .paused
+        lock.unlock()
+        // イベントもゲートの中で流す。外に出すと、pause と resume が短時間に続いたときに
+        // 配信順が入れ替わり、購読側が最終状態を取り違える
+        eventContinuation.yield(.stateChanged(.paused))
+        sampleGate.unlock()
+    }
+
+    /// 一時停止から再開する (issue #11)。冪等で、一時停止していなければ何もしない。
+    /// 一時停止していた長さぶん、writer の出力 PTS を詰め、mixer のアンカーを進める —
+    /// 片方だけだと、出力が一時停止ぶん伸びるか、音声が無音で埋まるかのどちらかになる
+    public func resume() {
+        // pause() と同じく、サンプルの受け入れを止めた状態でタイムラインを詰めて状態を戻す。
+        // ゲートの外で詰めると、その隙間に届いたサンプルが古いアンカー / オフセットで
+        // 処理され、mixed トラックに一時停止ぶんの無音が入る
+        sampleGate.lock()
+        lock.lock()
+        // 停止後 (finalizing / done / error) は再開しない。'p' キーと SIGUSR1 の
+        // ハンドラはプロセスが終わるまで生きているため、ファイナライズ中に再開されると
+        // 書き込み済みより前の PTS を作ったり、完了済みの状態を .recording に戻してしまう
+        guard paused, state == .paused else { lock.unlock(); sampleGate.unlock(); return }
+        paused = false
+        let gap = pausedSince.map { Date().timeIntervalSince($0) } ?? 0
+        pausedSince = nil
+        pausedTotal += gap
+        state = .recording
+        lock.unlock()
+        // writer と mixer のロックはリーフなので、この順序で取っても逆順は生じない
+        if gap > 0 {
+            writer?.addPauseGap(seconds: gap)
+            mixer?.advanceAnchor(by: gap)
+        }
+        // pause() と同じく、配信順を守るためゲートの中で流す
+        eventContinuation.yield(.stateChanged(.recording))
+        sampleGate.unlock()
+    }
+
+    /// 一時停止したまま停止されたときに、その区間を確定する (停止時に 1 回だけ呼ぶ)。
+    /// 確定しないとファイナライズ中も計測し続けて合計が過大になり、
+    /// 完了後も isPaused が true のまま残る
+    private func finalizePauseIfNeeded() {
+        // 排出中も「一時停止中」を維持したままここへ来る。ゲートを取ってから解除することで、
+        // 解除の瞬間に走っているコールバックが排出済みのサンプルを書き足すのを防ぐ
+        sampleGate.lock(); defer { sampleGate.unlock() }
+        lock.lock(); defer { lock.unlock() }
+        guard paused else { return }
+        paused = false
+        pausedTotal += pausedSince.map { Date().timeIntervalSince($0) } ?? 0
+        pausedSince = nil
+    }
+
+    /// 一時停止中か (CLI のステータス表示用)
+    public var isPaused: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return paused
+    }
+
+    /// 一時停止していた合計 (進行中の一時停止も含む)。
+    /// async なセッション本体から安全に読むための同期ヘルパ
+    private func pausedDurationSnapshot() -> TimeInterval {
+        lock.lock(); defer { lock.unlock() }
+        return pausedTotal + (pausedSince.map { Date().timeIntervalSince($0) } ?? 0)
+    }
+
     /// 録画を実行し、完了までブロックする (CLI 互換の同期 API — start() のラッパ)。
     /// 呼び出しスレッドをセッション終了まで拘束する (数時間にもなりうる) ので、
     /// GUI はこの API を使わず start() + events 購読を使うこと。
@@ -223,7 +321,14 @@ public final class Recorder {
     /// CLI のステータス表示用 (0.5 秒周期で呼ばれる)
     public func progress() -> Progress? {
         guard let url = outputURL else { return nil }
-        let elapsed = Date().timeIntervalSince(startDate)
+        let now = Date()
+        // 一時停止していた区間は出力ファイルに入らないので、経過時間からも差し引く
+        // (ファイルの長さと表示がずれないようにする — issue #11)
+        lock.lock()
+        let pausedNow = paused
+        let pausedSoFar = pausedTotal + (pausedSince.map { now.timeIntervalSince($0) } ?? 0)
+        lock.unlock()
+        let elapsed = max(0, now.timeIntervalSince(startDate) - pausedSoFar)
         let bytes = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int).flatMap { $0 } ?? 0
         var pk: [String: Float] = [:]
         if let mixer {
@@ -239,7 +344,8 @@ public final class Recorder {
             outputBytes: Int64(bytes),
             peaks: pk,
             videoAppended: counters?.videoAppended ?? 0,
-            audioAppended: counters?.audioAppended ?? [:]
+            audioAppended: counters?.audioAppended ?? [:],
+            isPaused: pausedNow
         )
     }
 
@@ -520,9 +626,12 @@ public final class Recorder {
         _ = await progressTask.value
 
         setState(.finalizing)
-        // SCK のコールバックを吐き切ってから writer を閉じる (stop() が drain まで待つ)
+        // SCK のコールバックを吐き切ってから writer を閉じる (stop() が drain まで待つ)。
+        // 一時停止のまま停止された場合、排出中のサンプルも捨てたいので、
+        // 一時停止の解除は排出が終わってから行う
         await sck?.stop()
         for m in micStreams { m.stop() }
+        finalizePauseIfNeeded()
         if let mixer {
             // チャンク境界に満たない末尾を含め、残データを吐き切ってから完了する
             for chunk in mixer.flush() {
@@ -543,6 +652,9 @@ public final class Recorder {
         }
         try await w.finish()
 
+        // 一時停止したまま停止された場合も、その区間を合計に含める。
+        // async 文脈で NSLock を直接触ると警告になるため同期ヘルパ経由で読む (countersSnapshot と同じ)
+        let pausedDuration = pausedDurationSnapshot()
         return Summary(
             outputURL: url,
             videoAppended: w.videoAppended,
@@ -550,7 +662,8 @@ public final class Recorder {
             audioAppended: w.audioAppended,
             audioDropped: w.audioDropped,
             firstPTSOffsets: w.firstPTSOffsets,
-            mixedDecodeFailures: mixer?.decodeFailures ?? 0
+            mixedDecodeFailures: mixer?.decodeFailures ?? 0,
+            pausedDuration: pausedDuration
         )
     }
 
@@ -588,7 +701,9 @@ public final class Recorder {
                 } catch {
                     return  // キャンセルされた
                 }
-                guard let self, !Task.isCancelled, self.currentState == .recording else { continue }
+                // 一時停止中も流す — 購読側 (GUI) が isPaused とレベルを更新できるように
+                guard let self, !Task.isCancelled,
+                      self.currentState == .recording || self.currentState == .paused else { continue }
                 guard let p = self.progress() else { continue }
                 self.eventContinuation.yield(.progress(p))
             }
@@ -669,6 +784,11 @@ public final class Recorder {
     private func handleSCK(_ sb: CMSampleBuffer, _ type: SCStreamOutputType) {
         switch type {
         case .screen:
+            // 一時停止の判定と書き込みを同じゲートで行う (issue #11)。判定だけを先に済ませると、
+            // 直後に pause() が走ったときに一時停止中のフレームが書き込まれ、
+            // 再開後に詰めた PTS と混ざって時刻が逆行する
+            sampleGate.lock(); defer { sampleGate.unlock() }
+            guard !isPaused else { return }
             writer?.appendVideo(sb)
         case .audio:
             handleAudio(sb, label: "system")
@@ -680,6 +800,9 @@ public final class Recorder {
     }
 
     private func handleAudio(_ sb: CMSampleBuffer, label: String) {
+        // マイク (AVCapture) からは handleSCK を通らず直接届くので、ここでもゲートを取る
+        sampleGate.lock(); defer { sampleGate.unlock() }
+        guard !isPaused else { return }
         if let mixer {
             // SCK とマイクは別のコールバックキューから来るため、
             // push → append を直列化して mixed 入力への追加上順を保つ

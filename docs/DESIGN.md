@@ -123,7 +123,7 @@ macOS 標準の QuickTime Player による画面収録は**システム音声を
 ```
 idle → preparing (権限/デバイス確認)
      → armed (カウントダウン, 任意)
-     → recording
+     → recording ⇄ paused (一時停止 / 再開 — M2 #11)
      → finalizing (AVAssetWriter の完了待ち)
      → done | error
 ```
@@ -131,6 +131,12 @@ idle → preparing (権限/デバイス確認)
 - すべての状態遷移はイベント駆動で、CLI はこれを表示に写像する。
 - `finalizing` での失敗 (ディスク満杯等) は `error` に遷移し、部分ファイルの
   有無を明示する。
+- `paused` は「保持していて停止ではない」状態。届いたサンプルは捨て、再開時に
+  その区間を writer の PTS と mixer のアンカーから同じだけ詰めるので、出力ファイルには
+  一時停止区間が残らない。`paused` からも停止でき、その場合は通常どおり `finalizing`
+  へ進む (一時停止したまま終了してもファイルは壊れない)。
+  一時停止していた合計は `Summary.pausedDuration`、現在の状態は `Progress.isPaused`
+  と `stateChanged(.paused)` で購読側に伝わる。
 
 > **実装 (issue #8 / M2):** `Recorder` は状態遷移・進捗・完了・失敗を
 > `events: AsyncStream<RecorderEvent>` で配信する。`start()` は非ブロッキングで、
@@ -336,7 +342,11 @@ kilde rec --hotkey cmd+shift+r out.mov
 - 録画中: `REC mm:ss | ファイルサイズ | ソース別ピーク` を 0.5 秒ごとに 1 行で更新する。
   映像ありモードで開始から 10 秒間映像フレームが来なければ、消灯・ロックの可能性を
   stderr に 1 回だけ警告する。
-- 停止後: 映像・音声トラックごとの appended / dropped 件数、映像との first-PTS 差
+  一時停止中 (M2 #11) は先頭が `PAUSED` になり、経過時間は止まる — 一時停止した区間を
+  差し引いた値なので、表示が出力ファイルの長さと一致する。
+  一時停止 / 再開の操作は `p` キー (端末がある場合) と `SIGUSR1` のどちらでもトグルできる。
+- 停止後: 一時停止した合計があれば `一時停止: 合計 N.Ns`、
+  映像・音声トラックごとの appended / dropped 件数、映像との first-PTS 差
   (mixed ではトラックが `mixed` の 1 本なのでソース別には出ない)、
   ファイルパスとサイズ、解像度と長さ、音声トラックごとの RMS / peak を出力する。
   ミックスできなかった音声バッファがあれば警告する。

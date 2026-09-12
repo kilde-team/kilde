@@ -36,6 +36,12 @@ cleanup() {
     fi
     # T11 の GUI プロセスもどの分岐で失敗しても残さない
     [ -n "$GUI_PID" ] && kill "$GUI_PID" 2>/dev/null
+    # T15 の録画は 12 秒走る。スイートを途中で止めたときに録画だけ残さない
+    # (安全停止を送ってファイナライズを待つ)
+    if [ -n "${T15_PID:-}" ] && kill -0 "$T15_PID" 2>/dev/null; then
+        kill -INT "$T15_PID" 2>/dev/null
+        wait "$T15_PID" 2>/dev/null
+    fi
     # ディスプレイのスリープ抑止を解除する
     [ -n "${CAFFEINATE_PID:-}" ] && kill "$CAFFEINATE_PID" 2>/dev/null
     echo ""
@@ -494,6 +500,49 @@ if [ "$T14D_FAIL" = "0" ]; then
     ok "T14d region 引数検証: 5 パターンすべて exit=64・ファイルなし"
 else
     bad "T14d region 引数検証: 上記の組合せが想定どおりに弾かれていない"
+fi
+
+# ---- T15: 一時停止 / 再開 (issue #11) -------------------------------------------
+# SIGUSR1 でトグルする ('p' キーは端末が要るので機械検証しない)。
+# 12 秒の録画の途中で 4 秒止めると、出力は一時停止を除いた約 8 秒になる
+
+log "T15: rec 一時停止 / 再開 — 一時停止区間は出力に含まれない"
+F="$WORK/t15-pause.mov"
+# exec でサブシェル自身を kilde に置き換える (置き換えないと $! に kill -USR1 が届かない)
+(exec "$KILDE" rec --duration 12s --output "$F" > "$WORK/t15.log" 2>&1) &
+T15_PID=$!
+# 固定の sleep で送ると、起動が遅い環境では録画開始前に SIGUSR1 が届いて素通りする。
+# 「● 録画」は run() の前に出るので readiness にならない — ステータス行 (REC mm:ss) は
+# 録画が始まって progress() が返るようになってから出るので、こちらを待つ
+T15_READY=0
+for _ in $(seq 1 40); do
+    if grep -q "REC " "$WORK/t15.log" 2>/dev/null; then T15_READY=1; break; fi
+    sleep 0.5
+done
+sleep 2                            # 数秒ぶんは録ってから止める
+kill -USR1 $T15_PID 2>/dev/null    # 一時停止
+# PAUSED 表示で一時停止が受理されたことを確かめてから再開する
+T15_PAUSED=0
+for _ in $(seq 1 20); do
+    if grep -q "PAUSED" "$WORK/t15.log" 2>/dev/null; then T15_PAUSED=1; break; fi
+    sleep 0.5
+done
+sleep 4
+kill -USR1 $T15_PID 2>/dev/null    # 再開
+wait $T15_PID
+T15_EXIT=$?
+T15_PID=""
+VD=$(video_duration_of "$F")
+# 音声にも一時停止区間が残っていないこと (映像だけ詰めて音声が伸びる回帰を捕まえる)。
+# inspect の audio[0] の duration と映像の差を見る
+AD=$(inspect "$F" | grep '^audio\[0\]' | grep -o 'duration=[0-9.]*' | cut -d= -f2)
+if [ "$T15_READY" = "1" ] && [ "$T15_PAUSED" = "1" ] && [ "$T15_EXIT" = "0" ] \
+    && num_between "${VD:-0}" 5 10 && num_between "${AD:-0}" 5 10 \
+    && awk -v v="${VD:-0}" -v a="${AD:-0}" 'BEGIN{exit !((v-a < 1) && (a-v < 1))}' \
+    && grep -q "一時停止: 合計" "$WORK/t15.log"; then
+    ok "T15 一時停止: 映像 ${VD}s / 音声 ${AD}s (12s のうち 4s 停止)・A/V の差 1s 未満"
+else
+    bad "T15 一時停止: ready=$T15_READY paused=$T15_PAUSED exit=$T15_EXIT video=${VD:-N/A}s audio=${AD:-N/A}s — $WORK/t15.log"
 fi
 
 # ---- T18: 既定出力名の原子的な予約 -------------------------------------------

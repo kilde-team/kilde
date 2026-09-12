@@ -87,7 +87,10 @@ final class RecordingController: ObservableObject {
         case .stateChanged(let state):
             switch state {
             case .preparing, .armed: phase = .starting
-            case .recording: phase = .recording
+            // 一時停止中も「録画中」として扱う — GUI にはまだ一時停止を始める操作がなく
+            // (issue #11 は CLI のみ)、この状態には入らない。GUI に操作を足すときは
+            // Phase に .paused を足して、メニューバーとポップオーバーの表示を分ける
+            case .recording, .paused: phase = .recording
             case .finalizing: phase = .finalizing
             // 結果は .completed / .failed で確定させる (done / error の遷移は必ずその直前に来る)
             case .idle, .done, .error: break
