@@ -261,6 +261,7 @@ kilde config [show|set|unset|path]        設定ファイル ~/.kilde/config.jso
 | `--monitor` | off | 録画中だけ "kilde Monitor" を自動 setup し、終了時に teardown する。手動 setup 済みの Monitor には触れない。BlackHole 未導入なら終了コード 3、復元に失敗したら WARNING を出して終了コード 1 |
 | `--duration <dur>` | なし | `30` (秒) / `30s` / `5m` / `1h` / `1.5m`。経過で自動停止 (SIGINT と同じ経路) |
 | `--codec <c>` | `h264` (設定 `codec`) | `h264` / `hevc` / `prores` |
+| `--format <mov\|mp4>` | `mov` (M2 — #12) | 映像ありのときの出力コンテナ。**出力パスの拡張子が `.mp4` なら自動で mp4** (明示した `--format` が優先)。MP4 に ProRes は入れられないため、`--format mp4 --codec prores` は終了コード 64 (設定ファイル由来の codec との組合せは 1)。`--no-video` とは併用不可 (音声のみは M4A 固定)。既定の出力名の拡張子もコンテナに従う |
 | `--fps <n>` | 指定なし (SCK 既定。設定 `fps`) | 上限フレームレート。1 以上 (0 以下は終了コード 64 — 以前は黙って無視していた) |
 | `--cursor` / `--no-cursor` | 写り込む (設定 `showsCursor`) | カーソルを写し込むか。`--cursor` は設定 `showsCursor: false` をその回だけ打ち消す用 (M1 の `--no-cursor` はそのまま使える) |
 | `--countdown <sec>` | `0` | 開始前カウントダウン。hotkey (CLI 引数) との併用は引数検証エラー (終了コード 64)、設定 `hotkey` との組合せは終了コード 1 で拒否 — 待機モードではカウントダウンが待機開始前に消費され、録画の開始を守れなくなるため |
