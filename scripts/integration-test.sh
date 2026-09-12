@@ -538,9 +538,9 @@ mkdir -p "$T18B_DIR"
 # 次の秒の先頭まで待ってから同時に出す (date +%N は BSD date に無いため python3 で)
 T18B_WAIT=$(python3 -c 'import time; print(max(0.05, 1.02 - (time.time() % 1.0)))')
 sleep "$T18B_WAIT"
-(cd "$T18B_DIR" && "$KILDE" rec --no-video --duration 3s > "$WORK/t18b-1.log" 2>&1) &
+(cd "$T18B_DIR" && exec "$KILDE" rec --no-video --duration 3s > "$WORK/t18b-1.log" 2>&1) &
 T18B_PID1=$!
-(cd "$T18B_DIR" && "$KILDE" rec --no-video --duration 3s > "$WORK/t18b-2.log" 2>&1) &
+(cd "$T18B_DIR" && exec "$KILDE" rec --no-video --duration 3s > "$WORK/t18b-2.log" 2>&1) &
 T18B_PID2=$!
 # 固まり (issue #70) でもスイートが無言で止まらないよう、期限つきで待つ
 T18B_GRACE=25  # duration 3s + 余裕
