@@ -1,0 +1,24 @@
+docs/SPIKE-NOTES.md
+  s_35faeec28b4c4b::t_8251380201228f 196-205
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_34941da7182ab5 579-596
+  s_35faeec28b4c4b::t_ae49a1dd8313ab 566-569,571
+docs/DEVELOPMENT.md
+  s_35faeec28b4c4b::t_2a4c6e6975bcf1 248
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d99c29312fad82492d2f16ed4dc3b887480a9f48",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
