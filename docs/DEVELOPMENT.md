@@ -267,19 +267,13 @@ kilde rec --hdr --codec hevc --duration 10s hdr.mov
 - 結果に `⚠ HDR:` の行が**出ない**こと (出ていれば SDR に落ちています)
 - QuickTime Player でファイルを開き、インスペクタ (⌘I) で色空間が PQ
   (HLG ではない) になっていること
-- `ffprobe -show_streams hdr.mov` で確認する場合、**期待値は OS で違います** —
-  使うプリセットが違うためです (SPIKE-NOTES F-H):
+- `ffprobe -show_streams hdr.mov` なら `color_primaries=smpte432` (Display P3),
+  `color_transfer=smpte2084` (PQ), `color_space=bt2020nc`, `profile=Main 10`
 
-  | | macOS 26 (`captureHDRRecordingPreservedSDRHDR10`) | macOS 15 (`captureHDRStreamLocalDisplay`) |
-  |---|---|---|
-  | `color_primaries` | `bt2020` | `smpte432` (Display P3) |
-  | `color_transfer` | `smpte2084` | `smpte2084` |
-  | `color_space` | `bt2020nc` | `bt2020nc` |
-  | `profile` | `Main 10` | `Main 10` |
-
-  色域 (primaries) だけが違い、伝達関数とマトリクスは共通です。**PQ と組み合わせる
-  YCbCr マトリクスは、色域が P3 でも BT.2020 を使います** (709 を使うと広色域が
-  範囲外に出てクランプされる)。
+  色域が Display P3 なのは、使うプリセットが `captureHDRStreamLocalDisplay` だからです
+  (HDR10 メタデータ付きの `captureHDRRecordingPreservedSDRHDR10` は CI の SDK に
+  シンボルが無く使えていません — issue #76)。**PQ と組み合わせる YCbCr マトリクスは、
+  色域が P3 でも BT.2020 を使います** (709 を使うと広色域が範囲外に出てクランプされる)。
 
 SDR ディスプレイでは逆に、**SDR へのフォールバックが働くこと**を確認できます
 (`⚠ HDR: 収録対象のディスプレイが HDR に対応していないため SDR で録画します

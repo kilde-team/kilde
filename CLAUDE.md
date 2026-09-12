@@ -118,7 +118,8 @@ swift build                       # ビルド (バイナリは .build/debug/kild
 ## 5. 踏んではいけない地雷 (macOS 26 実測)
 
 1〜5 の出典は SPIKE-NOTES.md F-C / F-D。6 は `FileInspection.swift` のコメント、
-7 は `Package.swift` の `linkerSettings` とコミット `11768a9` が出典。
+7 は `Package.swift` の `linkerSettings` とコミット `11768a9`、
+8 は issue #16 (PR #74) の CI 失敗が出典。
 
 1. **`cfg.pixelFormat = kCVPixelFormatType_32BGRA` を外さない。**
    SCK は既定で圧縮済みフレームを返すため、AVAssetWriter で再圧縮する現構成では
@@ -126,7 +127,7 @@ swift build                       # ビルド (バイナリは .build/debug/kild
    **例外: HDR 収録時 (issue #16) はここを設定しないこと。** HDR では
    `SCStreamConfiguration` の HDR プリセットが pixelFormat / colorSpace / colorMatrix を
    整合した組で設定済みで、そこへ BGRA を上書きすると 10-bit と PQ の情報が落ちて
-   **黙って SDR になる**。`Recorder` は `hdr.colorSpace == nil` のときだけ BGRA を設定する
+   **黙って SDR になる**。`Recorder` は HDR で録らないときだけ BGRA を設定する
 2. **映像の `outputSettings` に `AVVideoWidthKey` / `AVVideoHeightKey` は必須。**
    欠けると `NSInvalidArgumentException` でクラッシュする
 3. **`RecCommand.run()` 冒頭の `NSApplication.shared` +
@@ -145,6 +146,14 @@ swift build                       # ビルド (バイナリは .build/debug/kild
    (`Package.swift` の `unsafeFlags`)。バンドルを持たない CLI に
    `NSMicrophoneUsageDescription` を持たせるため。`unsafeFlags` はルートパッケージでのみ
    許可されるので、**kilde をライブラリとして他パッケージから参照できない**点に注意
+8. **新しい OS の API を使うときは、CI の SDK にシンボルがあるかを先に確認する。**
+   CI は `macos-15` ランナー (`.github/workflows/ci.yml`) で、ローカルの Xcode 26.5 より
+   古い SDK を使う。**`#available` はコンパイル時の不在を救わない** — `if #available(macOS 26, *)`
+   は「実行時にその OS か」を見るだけで、可用性ブロックの中身も型チェックされるため、
+   **SDK に無いシンボルはそこでコンパイルエラーになる** (`@available` も同じ)。
+   ローカルで通っても CI で落ちる。実例: issue #16 で
+   `SCStreamConfiguration.Preset.captureHDRRecordingPreservedSDRHDR10` (macOS 26) を
+   `#available` で囲んで使い、CI が `has no member` で失敗した (対応は issue #76)
 
 ## 6. 並行性の規約
 
