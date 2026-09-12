@@ -1,0 +1,129 @@
+docs/DESIGN.md
+  s_065686e7a376f4::t_33b72452a3f3ee 4,70,277-278,321-323
+  s_34d31eef171f3f::t_702cafde6eea68 251,253
+  s_34d31eef171f3f::t_e62592d7378d35 259-261
+  s_b31be53f67f5bb::t_8f14f94a0726f3 274
+  s_34d31eef171f3f::t_16bb6d435a19f9 271
+  s_065686e7a376f4::t_9304bccd56f801 109-112,410
+  s_35faeec28b4c4b::t_8498f4ad6b2f90 207
+  s_35faeec28b4c4b::t_185fe097c93294 208-211
+  s_34d31eef171f3f::t_0b6c6d43b3018b 275-276
+Tests/KildeCoreTests/MonitorDeviceStateTests.swift
+  s_34d31eef171f3f::t_d4975abceba702 34,46,49,51
+  s_b31be53f67f5bb::t_8f14f94a0726f3 23-30
+docs/DEVELOPMENT.md
+  s_35faeec28b4c4b::t_1cf72435daef70 254-255
+  s_b31be53f67f5bb::t_8f14f94a0726f3 83-84,215-216,300
+  s_35faeec28b4c4b::t_2a15d92ac73f88 251-253,256-266
+  s_35faeec28b4c4b::t_76474b99e0466f 312
+scripts/drift-analyze.swift
+  s_35faeec28b4c4b::t_856d2cb0f25126 178-183,185-192,195-200,206-211
+Sources/KildeCore/Recording/Recorder.swift
+  s_34d31eef171f3f::t_f46de29f4e57e9 520-527
+Sources/kilde/RecCommand.swift
+  s_065686e7a376f4::t_73c39a43befd95 57-59,88-93,100,116-121,185-195,201-213,215,227-228,231,240,243-245,253,255-265,267
+  s_065686e7a376f4::t_9dfdb749efdc50 214,217-226,229-230,232,234,239,246-252
+  s_34d31eef171f3f::t_80137fb8333c87 94-99
+  s_34d31eef171f3f::t_683530eba8dbf2 235-238
+  s_34d31eef171f3f::t_a833ae47c11f1d 122-127
+  s_065686e7a376f4::t_fd960bcad7ee10 254
+Sources/kilde/DoctorCommand.swift
+  s_065686e7a376f4::t_12657fc678de74 55-61
+README.md
+  s_065686e7a376f4::t_33b72452a3f3ee 20,57,59-60,65,71
+  s_065686e7a376f4::t_9304bccd56f801 109
+  s_34d31eef171f3f::t_7f76266f2871e4 62-63
+  s_34d31eef171f3f::t_155c7c67fa1221 58
+scripts/drift-test.sh
+  s_35faeec28b4c4b::t_02fa919f7d36dc 118-119
+  s_35faeec28b4c4b::t_316b39c7cea9ca 13-14,17-23
+  s_35faeec28b4c4b::t_a72ce9b66f3d4f 26-27
+  s_35faeec28b4c4b::t_36a4b3f1bb47e3 37
+  s_35faeec28b4c4b::t_db7a35f331bfe9 42-50
+  s_35faeec28b4c4b::t_faf0eb18666845 56
+Sources/KildeCore/Devices/AudioDeviceCatalog.swift
+  s_34d31eef171f3f::t_c235b4809a7604 269-271
+  s_34d31eef171f3f::t_17068e6a380420 277-280,286-287
+  s_34d31eef171f3f::t_27a0638192644f 99-106,109
+  s_34d31eef171f3f::t_aa18745fe57f57 149
+  s_34d31eef171f3f::t_b8791b7e45b02d 193-194,196-198,204
+  s_b31be53f67f5bb::t_8f14f94a0726f3 255-262
+scripts/integration-test.sh
+  s_34d31eef171f3f::t_f2c60942856b68 391-393
+  s_34d31eef171f3f::t_958685f4fb5769 328-331
+  s_34d31eef171f3f::t_9db6720974777f 404-415
+  s_b31be53f67f5bb::t_f77e05f82d6eb1 34
+  s_34d31eef171f3f::t_cf05bf051129bc 384-390,394-403,416-422
+  s_b31be53f67f5bb::t_8f14f94a0726f3 44-45,47-48,350,354,357,359-364,366-375,377,379-382
+docs/SPIKE-NOTES.md
+  s_35faeec28b4c4b::t_0c56c0195de9bc 122-132
+  s_35faeec28b4c4b::t_c5162bd34c9c2c 101-109
+  s_35faeec28b4c4b::t_b796dff9139931 140-141
+  s_35faeec28b4c4b::t_269d744fd65773 148
+  s_35faeec28b4c4b::t_14d547293e538f 150-154
+  s_35faeec28b4c4b::t_2367510a841c4a 164-166
+  s_35faeec28b4c4b::t_470dc160487b5d 155-163
+Sources/KildeCore/Support/Config.swift
+  s_b31be53f67f5bb::t_8f14f94a0726f3 232-243,263,265
+  s_34d31eef171f3f::t_548f53c6c28a76 255-257
+  s_34d31eef171f3f::t_1f7851ffbcc78b 272
+  s_34d31eef171f3f::t_787604e70b0a8e 244-254,258-262
+  s_34d31eef171f3f::t_7b4485b984db91 314
+  s_065686e7a376f4::t_12657fc678de74 23,58,98
+scripts/drift-marker.swift
+  s_35faeec28b4c4b::t_e6ab9120a5c394 127-134
+  s_35faeec28b4c4b::t_d57d625535c32a 96-100
+  s_35faeec28b4c4b::t_0a66190ba8780c 167-173,181-183,185-201,209-211
+  s_35faeec28b4c4b::t_4fbdbe5f4b3c08 90-95,117-121,125,158-161,163,174-180,184
+  s_35faeec28b4c4b::t_9bd17c39e38688 122-124,126,135-138,140
+  s_35faeec28b4c4b::t_cc7fcd10e20632 6,10-15,32-34,37,42,48-53,55,59-62,69-89,101-114,154-157,162,164-166,202,212-213,215-216
+Sources/kilde/AudioCommand.swift
+  s_34d31eef171f3f::t_9c19e9659a4e9e 45-52
+Sources/kilde/ConfigCommand.swift
+  s_34d31eef171f3f::t_1d3a223cd15253 101-107,116-117
+  s_065686e7a376f4::t_de0197d58097c2 14
+Tests/KildeCoreTests/ConfigTests.swift
+  s_065686e7a376f4::t_d59e0bf8f11e4e 72,79,102,133-140
+  s_b31be53f67f5bb::t_8f14f94a0726f3 31-48
+  s_34d31eef171f3f::t_f773fccebb6059 49-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "eaffcd40d0adf5a016358d4690e7a4f3f7080f03",
+  "prompts": {},
+  "sessions": {
+    "s_065686e7a376f4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09125-82d5-73f3-b083-e5c4a39c3ac2",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    },
+    "s_34d31eef171f3f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2fe81784-1008-4b9f-8671-2ec2cf21a534",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    },
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    },
+    "s_b31be53f67f5bb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09120-915a-7252-bb6e-56df07dc7a3b",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
