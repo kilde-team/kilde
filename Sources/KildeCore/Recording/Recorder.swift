@@ -1074,10 +1074,14 @@ public final class Recorder {
         var configuration: SCStreamConfiguration? {
             switch mode {
             case .hdr10:
-                if #available(macOS 26.0, *) {
-                    return SCStreamConfiguration(preset: .captureHDRRecordingPreservedSDRHDR10)
+                // hdrDecision は macOS 26+ でのみ .hdr10 を作るため、ここに .hdr10 が
+                // 来るのに 26 未満という組み合わせは論理矛盾 (プログラミングエラー)。
+                // 黙って Stream Local Display に置き換えると「HDR10 と表示された P3 の
+                // ファイル」ができるので、要求どおりにできないなら失敗させる
+                guard #available(macOS 26.0, *) else {
+                    return nil
                 }
-                return SCStreamConfiguration(preset: .captureHDRStreamLocalDisplay)
+                return SCStreamConfiguration(preset: .captureHDRRecordingPreservedSDRHDR10)
             case .streamLocalDisplay:
                 return SCStreamConfiguration(preset: .captureHDRStreamLocalDisplay)
             case nil:
@@ -1086,11 +1090,11 @@ public final class Recorder {
         }
     }
 
-    /// HDR で録れるかを判定し、必要なら configuration ごと作る (issue #16)。
+    /// HDR で録れるかを判定し、方式 (mode) を 1 つに決める (issue #16 / #76)。
     ///
     /// **セッション開始時に 1 回だけ呼ぶこと。** 判定のたびに `SCShareableContent` を引くと
     /// 結果が食い違いうる。ストリーム側と書き出し側で答えが割れると、たとえば
-    /// 「8-bit のバッファに Main10 + PQ のタグを付けたファイル」ができてしまい、
+    /// 「P3 のバッファに BT.2020 プライマリのタグを付けたファイル」ができてしまい、
     /// まさにこの機能が防ごうとしている「HDR で録れたつもりのファイル」になる。
     ///
     /// 判定材料は 4 つ: 映像を録るか / macOS 15 以上か / **解決後の**コーデックが HEVC か /
