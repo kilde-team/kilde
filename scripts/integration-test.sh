@@ -25,6 +25,7 @@ PASS=0; FAIL=0; SKIP=0
 MONITOR_SET_UP=0
 SOUNDAPP_PID=""
 GUI_PID=""
+T21_PID=""
 
 cleanup() {
     if [ "$MONITOR_SET_UP" = "1" ]; then
@@ -38,6 +39,9 @@ cleanup() {
     fi
     # T11 の GUI プロセスもどの分岐で失敗しても残さない
     [ -n "$GUI_PID" ] && kill "$GUI_PID" 2>/dev/null
+    # T21 の self-test はバックグラウンド起動なので、スイートを途中で止めたときに
+    # KildeGUI が残る。録画はしていないので安全停止の待ちは要らない
+    [ -n "$T21_PID" ] && kill "$T21_PID" 2>/dev/null
     # T15 の録画は 12 秒走る。スイートを途中で止めたときに録画だけ残さない
     # (安全停止を送ってファイナライズを待つ)
     if [ -n "${T15_PID:-}" ] && kill -0 "$T15_PID" 2>/dev/null; then
@@ -991,11 +995,18 @@ else
     : > "$T21_DIR/kilde-20260912-999999.mov"
     # 分は 00-59。ここが一覧の先頭に来ることを期待している
     touch -t "202609121259" "$T21_DIR/kilde-20260912-999999.mov" || T21_FIXTURE_OK=0
-    # 除外すべきもの: 接頭辞違い / 拡張子違い / 同名のディレクトリ / 隠しファイル
+    # 除外すべきもの: 接頭辞違い / 拡張子違い / 同名のディレクトリ / 隠しファイル。
+    # **有効ファイルより新しい固定時刻**にする — 実行時刻のままだと、上限 5 件で
+    # 切られた «圏外» に落ちただけでも «除外された» ように見えてしまい、
+    # 接頭辞・拡張子・隠しファイル・ディレクトリのフィルタ退行を見逃す
     : > "$T21_DIR/other-20260912-120000.m4a"
     : > "$T21_DIR/kilde-20260912-120000.txt"
     : > "$T21_DIR/.kilde-20260912-120000.m4a"
     mkdir -p "$T21_DIR/kilde-20260912-120000.mov"
+    for f in "other-20260912-120000.m4a" "kilde-20260912-120000.txt" \
+             ".kilde-20260912-120000.m4a" "kilde-20260912-120000.mov"; do
+        touch -t "202609121300" "$T21_DIR/$f" || T21_FIXTURE_OK=0
+    done
 
     if [ "$T21_FIXTURE_OK" != "1" ]; then
         bad "T21 GUI 通知/一覧: フィクスチャの更新時刻を設定できません (touch が失敗)"
@@ -1007,14 +1018,44 @@ else
             | grep -m1 "BUILT_PRODUCTS_DIR" | awk '{print $3}')/KildeGUI.app
         # 実行ファイルを直接起動する (open ではない) — T11 のコメントと同じ理由で、
         # TCC はターミナル側の権限が使われる。この経路は録画しないので権限も不要
-        KILDE_CONFIG_DIR="$KILDE_CONFIG_DIR" KILDE_GUI_SELFTEST_NOTIFY=1 \
+        # 設定ファイル経由の解決 (HotkeySettings.resolve) を通す。環境変数で直接
+        # キーを渡すと設定の読み込みが検証されず、そこが壊れても緑になる
+        T21_CFG_DIR="$WORK/t21-config"
+        mkdir -p "$T21_CFG_DIR"
+        printf '{"hotkey": "cmd+opt+ctrl+shift+f9"}\n' > "$T21_CFG_DIR/config.json"
+        # self-test がハングしても統合テスト全体を止めないよう、バックグラウンドで
+        # 起動して制限時間付きで待ち、残っていれば回収する
+        KILDE_CONFIG_DIR="$T21_CFG_DIR" KILDE_GUI_SELFTEST_NOTIFY=1 \
             KILDE_GUI_SELFTEST_OUTPUT="$T21_DIR" \
-            "$T21_APP/Contents/MacOS/KildeGUI" > "$WORK/t21.log" 2>&1
-        T21_EXIT=$?
+            "$T21_APP/Contents/MacOS/KildeGUI" > "$WORK/t21.log" 2>&1 &
+        T21_PID=$!
+        T21_EXIT=""
+        for _ in $(seq 1 40); do
+            if ! kill -0 "$T21_PID" 2>/dev/null; then
+                wait "$T21_PID"; T21_EXIT=$?; break
+            fi
+            sleep 1
+        done
+        if [ -z "$T21_EXIT" ]; then
+            kill -9 "$T21_PID" 2>/dev/null
+            wait "$T21_PID" 2>/dev/null
+            T21_EXIT="timeout"
+        fi
+        T21_PID=""
         T21_SCAN=$(grep -m1 "^selftest: scanFinished=" "$WORK/t21.log" | sed 's/.*=//')
         T21_COUNT=$(grep -m1 "^selftest: recentCount=" "$WORK/t21.log" | sed 's/.*=//')
         T21_FIRST=$(grep -m1 "^selftest: recent=" "$WORK/t21.log" | sed 's/.*=//')
-        T21_FALLBACK=$(grep -m1 "^selftest: revealFallback=" "$WORK/t21.log" | sed 's/.*=//')
+        # 先頭だけでなく 5 件すべての並びを確かめる。先頭しか見ないと、
+        # 2 件目以降の順序が崩れる退行を見逃す
+        T21_ORDER=$(grep "^selftest: recent=" "$WORK/t21.log" | sed 's/.*=//' | tr '\n' ',')
+        T21_ORDER_WANT="kilde-20260912-999999.mov,kilde-20260916-120000.m4a,kilde-20260915-120000.m4a,kilde-20260914-120000.m4a,kilde-20260913-120000.m4a,"
+        # revealTarget / revealFallback は **実装本体 (RecordingNotifier.revealTarget)**
+        # が決めた値。テスト側で分岐を書き写すと実装の退行を見逃す
+        T21_REVEAL=$(grep -m1 "^selftest: revealTarget=" "$WORK/t21.log" | sed 's/^selftest: revealTarget=\(.*\) select=.*/\1/')
+        T21_REVEAL_SEL=$(grep -m1 "^selftest: revealTarget=" "$WORK/t21.log" | sed 's/.* select=//')
+        T21_FALLBACK=$(grep -m1 "^selftest: revealFallback=" "$WORK/t21.log" | sed 's/^selftest: revealFallback=\(.*\) select=.*/\1/')
+        T21_FALLBACK_SEL=$(grep -m1 "^selftest: revealFallback=" "$WORK/t21.log" | sed 's/.* select=//')
+        T21_RESOLVED=$(grep -m1 "^selftest: hotkeyResolved=" "$WORK/t21.log" | sed 's/.*=//')
         T21_HOTKEY=$(grep -m1 "^selftest: hotkeyRegistered=" "$WORK/t21.log" | sed 's/.*hotkeyRegistered=\([a-z]*\).*/\1/')
         T21_EXCLUDED=$(grep -c "^selftest: recent=\(other-\|\.kilde\)" "$WORK/t21.log")
         T21_TXT=$(grep -c "^selftest: recent=.*\.txt" "$WORK/t21.log")
@@ -1023,13 +1064,20 @@ else
         if [ "$T21_EXIT" = "0" ] \
             && [ "$T21_SCAN" = "true" ] \
             && [ "$T21_COUNT" = "5" ] \
-            && [ "$T21_FIRST" = "kilde-20260912-999999.mov" ] \
+            && [ "$T21_ORDER" = "$T21_ORDER_WANT" ] \
+            && [ "$T21_REVEAL" = "$T21_DIR/kilde-20260912-999999.mov" ] \
+            && [ "$T21_REVEAL_SEL" = "true" ] \
             && [ "$T21_FALLBACK" = "$T21_DIR" ] \
+            && [ "$T21_FALLBACK_SEL" = "false" ] \
+            && [ "$T21_RESOLVED" = "cmd+opt+ctrl+shift+f9" ] \
             && [ "$T21_HOTKEY" = "true" ] \
             && [ "$T21_EXCLUDED" = "0" ] && [ "$T21_TXT" = "0" ]; then
-            ok "T21 GUI 通知/一覧: 上限 5 件・更新時刻の新しい順・混ぜ物 4 件を除外・Finder の退避先は親ディレクトリ・ホットキー登録可"
+            ok "T21 GUI 通知/一覧: 上限 5 件・更新時刻の新しい順・混ぜ物 4 件を除外・Finder の対象は実装本体が決定 (実在=選択/欠損=親ディレクトリ)・設定ファイル経由でホットキー登録"
         else
-            bad "T21 GUI 通知/一覧: exit=$T21_EXIT scan=$T21_SCAN count=$T21_COUNT first=$T21_FIRST hotkey=$T21_HOTKEY excluded=$T21_EXCLUDED txt=$T21_TXT — $WORK/t21.log"
+            bad "T21 GUI 通知/一覧: exit=$T21_EXIT scan=$T21_SCAN count=$T21_COUNT hotkey=$T21_HOTKEY excluded=$T21_EXCLUDED txt=$T21_TXT reveal=$T21_REVEAL/$T21_REVEAL_SEL fallback=$T21_FALLBACK/$T21_FALLBACK_SEL resolved=$T21_RESOLVED
+  order  = $T21_ORDER
+  expect = $T21_ORDER_WANT
+  — $WORK/t21.log"
         fi
     else
         bad "T21 GUI 通知/一覧: ビルドに失敗 — $WORK/t21-build.log"

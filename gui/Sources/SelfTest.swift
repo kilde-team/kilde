@@ -237,16 +237,25 @@ enum SelfTest {
         print("selftest: outputDirectory=\(setup.request.outputDirectory.path)")
 
         // ホットキーの登録可否。実際の押下は届かないので «登録できるか» だけを見る。
-        // 先に済ませる — Carbon の登録はメインスレッド同期で、Task の完了を待たない
-        let source = ProcessInfo.processInfo.environment["KILDE_GUI_SELFTEST_HOTKEY"]
-            ?? "cmd+opt+ctrl+shift+f10"
+        // 先に済ませる — Carbon の登録はメインスレッド同期で、Task の完了を待たない。
+        //
+        // **解決は設定ファイル経由 (HotkeySettings.resolve) で行う** — 環境変数の値を
+        // 直接 HotkeyMonitor に渡すと、設定ファイルの読み込みも不正値の扱いも通らず、
+        // そこが壊れても登録だけ成功して «緑» になってしまう
+        let explicit = ProcessInfo.processInfo.environment["KILDE_GUI_SELFTEST_HOTKEY"]
         do {
+            guard let source = try HotkeySettings.resolve(explicit: explicit, config: setup.config) else {
+                print("selftest: hotkeyResolved=none")
+                print("selftest: hotkeyRegistered=false source=(none)")
+                throw KilError.failed("ホットキーが設定されていません")
+            }
+            print("selftest: hotkeyResolved=\(source)")
             let monitor = try HotkeyMonitor(source) {}
             try monitor.start()
             monitor.stop()
             print("selftest: hotkeyRegistered=true source=\(source)")
         } catch {
-            print("selftest: hotkeyRegistered=false source=\(source) error=\(error)")
+            print("selftest: hotkeyRegistered=false error=\(error)")
         }
 
         // 最近の録画の走査。結果は Task 経由で MainActor に届くので、**RunLoop を回しても
@@ -268,16 +277,24 @@ enum SelfTest {
                 print("selftest: recent=\(url.lastPathComponent)")
             }
 
-            // Finder に渡す URL。実在するファイルはそれ自身、消えていれば親ディレクトリ
+            // Finder に渡す URL は **実装本体 (RecordingNotifier.revealTarget) に決めさせる**。
+            // ここで分岐を書き写すと、実装が退行してもこの検証は通ってしまう
             if let first = setup.recentRecordings.first {
-                print("selftest: revealTarget=\(first.path) exists=true")
+                let target = RecordingNotifier.revealTarget(for: first)
+                print("selftest: revealTarget=\(target.url.path) select=\(target == .select(first))")
             }
             let missing = setup.request.outputDirectory
                 .appendingPathComponent("kilde-does-not-exist.mov")
-            let fallback = FileManager.default.fileExists(atPath: missing.path)
-                ? missing : missing.deletingLastPathComponent()
-            print("selftest: revealFallback=\(fallback.path)")
+            let fallback = RecordingNotifier.revealTarget(for: missing)
+            print("selftest: revealFallback=\(fallback.url.path)"
+                + " select=\(fallback == .select(missing))")
             fflush(stdout)
+            // 走査が終わらないまま時間切れになったら **失敗として終える**。
+            // exit(0) にすると、検証していないのに «成功» と報告することになる
+            // (T21 は stdout も見るが、終了コードだけを見る手動実行が誤判定する)
+            guard setup.recentScanFinished else {
+                fail("最近の録画の走査が 5 秒で完了しませんでした")
+            }
             exit(0)
         }
     }

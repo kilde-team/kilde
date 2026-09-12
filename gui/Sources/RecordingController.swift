@@ -142,8 +142,10 @@ final class RecordingController: ObservableObject {
             let recorded = recordingStartedAt.map { started in
                 max(0, (stoppedAt ?? Date()).timeIntervalSince(started) - summary.pausedDuration)
             } ?? 0
-            notifier?.notifyCompleted(url: summary.outputURL, elapsed: recorded)
-            endSession()
+            notifyThenEndSession { [weak self] done in
+                self?.notifier?.notifyCompleted(url: summary.outputURL, elapsed: recorded,
+                                                bytes: self?.outputBytes ?? 0, completion: done)
+            }
         case .failed(let error, let partialFileExists):
             var message = "\(error)"
             if partialFileExists, let outputURL {
@@ -152,8 +154,42 @@ final class RecordingController: ObservableObject {
             phase = .failed(message)
             // ホットキーで他アプリの前面から始めた録画は、失敗しても画面上に何も出ない。
             // 失敗こそ気づかせる必要があるので通知する (issue #20)
-            notifier?.notifyFailed(message: message)
-            endSession()
+            // 準備中 (.recording 未到達) の停止は、ユーザーが自分で止めた結果なので
+            // 失敗通知を出さない。映像を 1 フレームも書けずに止めた録画は
+            // validateVideoFrameCount により .failed になるが、**意図的な即停止まで
+            // 「録画に失敗しました」と通知するのは誤報**で、他アプリの前面にいる
+            // ユーザーに無用の不安を与える。画面上の resultView には理由が残る
+            let startedRecording = recordingStartedAt != nil
+            notifyThenEndSession { [weak self] done in
+                guard startedRecording else { done(); return }
+                self?.notifier?.notifyFailed(message: message, completion: done)
+            }
+        }
+    }
+
+    /// 通知の登録が終わってから `endSession()` を呼ぶ。
+    ///
+    /// `endSession` は `applicationShouldTerminate` のハンドラ経由で
+    /// `NSApp.reply(toApplicationShouldTerminate: true)` を呼ぶことがあり、そこで
+    /// プロセスが終わる。`UNUserNotificationCenter.add` は非同期 (XPC) なので、
+    /// 待たずに進むと**「録画中にアプリを終了」経路で完了通知が消える**。
+    ///
+    /// 通知が返らないせいでアプリが終われなくなるのは本末転倒なので、短い上限を置く。
+    /// 二重に呼ばれても `endSession` は 1 回だけ走らせる
+    private func notifyThenEndSession(_ notify: (@escaping () -> Void) -> Void) {
+        var finished = false
+        let finish = { [weak self] in
+            guard !finished else { return }
+            finished = true
+            self?.endSession()
+        }
+        notify(finish)
+        // 通知の登録が 2 秒で返らなければ諦めて先へ進む (ファイナライズは済んでいる)。
+        // DispatchQueue.asyncAfter に渡すと Sendable 変換の警告 (Swift 6 でエラー) に
+        // なるので、MainActor の Task で待つ
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            finish()
         }
     }
 

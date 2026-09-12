@@ -89,28 +89,63 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// 設定のホットキーを登録し直す (issue #20)。設定画面からの変更でも呼ぶ。
-    /// 登録失敗 (他アプリとの競合) は録画機能を止める理由にならないので、
-    /// notice に出して待機なしで続ける — 黙って無効にすると «押しても効かない» になる
-    func applyHotkeyFromConfig() {
-        // stop() が false を返したら解除しきれていない — HotkeyMonitor はその場合
-        // «参照を保持したままリークさせ、再 stop() で再試行できる» 契約になっている。
-        // ここで参照を捨てると再試行できず、古いホットキーが登録されたまま生き続けて
-        // (リークしたハンドラが録画をトグルする) 新しい登録と二重になる
-        if let monitor = hotkeyMonitor, monitor.stop() {
-            hotkeyMonitor = nil
-        } else if hotkeyMonitor != nil {
-            setup.notice = "前のホットキーを解除できませんでした (もう一度「適用」を押すと再試行します)"
+    ///
+    /// **新しい登録が成功するまで旧モニターを捨てない。** 先に解除してから登録すると、
+    /// 登録に失敗したときに**旧ホットキーまで失われる** (設定だけ新しい値が残り、
+    /// どのキーも効かない状態になる)。`revertingTo` が渡されているときは、
+    /// 失敗した設定を書き戻さないよう永続設定も旧値へ巻き戻す。
+    ///
+    /// 登録失敗 (他アプリとの競合) 自体は録画機能を止める理由にならないので、
+    /// notice に出して続ける — 黙って無効にすると «押しても効かない» になる
+    func applyHotkeyFromConfig(revertingTo previous: String? = nil) {
+        let source: String?
+        do {
+            source = try HotkeySettings.resolve(explicit: nil, config: setup.config)
+        } catch {
+            setup.notice = "ホットキーの設定を解釈できません: \(error)"
+            if let previous { setup.restoreHotkey(previous) }
             return
         }
-        do {
-            guard let source = try HotkeySettings.resolve(explicit: nil, config: setup.config) else { return }
-            let monitor = try HotkeyMonitor(source) { [weak self] in
-                self?.toggleRecordingByHotkey()
+
+        // 新しい登録を先に作る。ここで失敗しても旧モニターは生きたまま
+        var replacement: HotkeyMonitor?
+        if let source {
+            do {
+                let monitor = try HotkeyMonitor(source) { [weak self] in
+                    self?.toggleRecordingByHotkey()
+                }
+                // 旧モニターが同じキーを握っている間は排他登録が必ず失敗するので、
+                // 同じキーへの再適用に限っては先に解除してから登録する
+                if hotkeyMonitor?.source == source { releaseHotkeyMonitor() }
+                try monitor.start()
+                replacement = monitor
+            } catch {
+                setup.notice = "ホットキーを登録できません (旧設定のままにします): \(error)"
+                if let previous { setup.restoreHotkey(previous) }
+                // 同じキーの再適用で解除だけ済んでいた場合は、旧設定で登録し直す
+                if hotkeyMonitor == nil, let previous,
+                   let monitor = try? HotkeyMonitor(previous, handler: { [weak self] in
+                       self?.toggleRecordingByHotkey()
+                   }), (try? monitor.start()) != nil {
+                    hotkeyMonitor = monitor
+                }
+                return
             }
-            try monitor.start()
-            hotkeyMonitor = monitor
-        } catch {
-            setup.notice = "ホットキーを登録できません: \(error)"
+        }
+        // 新しい登録が成功した (または設定が空になった) のでここで旧モニターを手放す
+        releaseHotkeyMonitor()
+        hotkeyMonitor = replacement
+    }
+
+    /// 旧モニターを解除する。`stop()` が false を返したら解除しきれていない —
+    /// HotkeyMonitor は «参照を保持したままリークさせ、再 stop() で再試行できる»
+    /// 契約なので、失敗時は参照を捨てずに残す
+    private func releaseHotkeyMonitor() {
+        guard let monitor = hotkeyMonitor else { return }
+        if monitor.stop() {
+            hotkeyMonitor = nil
+        } else {
+            setup.notice = "前のホットキーを解除できませんでした (もう一度「適用」を押すと再試行します)"
         }
     }
 

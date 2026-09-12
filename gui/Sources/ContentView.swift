@@ -28,12 +28,15 @@ struct ContentView: View {
                         // はみ出して、肝心の案内が見えなくなる
                         permissionGuide
                         form
+                        // 「最近の録画」もスクロール領域の中に入れる。外に置くと、
+                        // 5 件並んだ通常の状態で開始ボタンが固定 600pt の外へ
+                        // 押し出されて**録画を始められなくなる**
+                        recentRecordings
                     }
                     .padding(.trailing, 6)
                 }
                 .frame(maxHeight: 420)
                 resultView
-                recentRecordings
                 startButton
             }
             if let notice = setup.notice {
@@ -324,12 +327,18 @@ struct ContentView: View {
     }
 
     /// 保存 → AppDelegate に再登録させる。登録の成否は notice に出る。
-    /// 設定ファイルへ書くのと Carbon への登録は別物なので、書けても登録に失敗することがある
+    ///
+    /// 設定ファイルへ書くのと Carbon への登録は別物なので、**書けても登録に失敗しうる**。
+    /// 保存に失敗したまま登録へ進むと、旧ホットキーの解除だけが行われて何も登録されない
+    /// 状態になるため、**保存が成功したときだけ登録へ進む**。登録に失敗した場合は
+    /// AppDelegate 側が設定を旧値へ巻き戻す (設定だけ新しい値が残ると、次回の起動で
+    /// CLI も GUI も登録できない値を読むことになる)
     private func applyHotkey() {
-        setup.saveHotkey()
+        let previous = setup.config.hotkey
+        guard setup.saveHotkey() else { return }
         // AppDelegate は NSApplication のデリゲート。ビューからモデルを介さず届ける手段が
         // 無いのでここで取り出す (メニューバーアプリなので常に 1 つしか存在しない)
-        (NSApp.delegate as? AppDelegate)?.applyHotkeyFromConfig()
+        (NSApp.delegate as? AppDelegate)?.applyHotkeyFromConfig(revertingTo: previous)
     }
 
     // MARK: - 開始・結果

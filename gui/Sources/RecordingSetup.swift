@@ -87,12 +87,15 @@ final class RecordingSetup: ObservableObject {
     /// 文字列を返すのは、ホットキー経路が «なぜ始まらないか» を出す必要があるため
     /// (ボタンは押せないことで伝わるが、他アプリ前面で押したキーには何も見えない)
     func startBlockReason(permissions: PermissionsModel) -> String? {
-        if loading {
-            return "一覧を読み込み中です"
-        }
         // SCK を使う構成でだけ列挙との競合を避ける (音声のみ + システム音声オフは競合しない)。
         // 判定の定義は Recorder の wantsSCK と揃える必要がある — 集約は issue #72
         let usesScreenCapture = request.target != .audioOnly || request.captureSystemAudio
+        // loading も列挙の状態なので SCK を使う構成にだけ効かせる。
+        // 無条件に塞ぐと、**SCK を一切使わないマイクのみの録音まで画面列挙の完了待ちに
+        // なる** — Recorder はその構成で SCK に触れないので、待たせる理由が無い
+        if usesScreenCapture && loading {
+            return "画面/ウィンドウの一覧を読み込み中です"
+        }
         if usesScreenCapture && enumerationsRunning > 0 {
             return "画面/ウィンドウの列挙中です (録画開始と同時に行うと両方が止まります)"
         }
@@ -131,7 +134,10 @@ final class RecordingSetup: ObservableObject {
     /// 空文字は «無効» として unset 相当にする。
     /// 保存前に `HotkeyParser` で検証する — 不正な値を書くと CLI 側が起動時に
     /// エラーになり、GUI から直せない状態に陥る
-    func saveHotkey() {
+    /// 戻り値は保存できたか。**失敗したら呼び出し元は登録処理へ進んではいけない** —
+    /// 進むと、旧ホットキーの解除だけが行われて何も登録されない状態になりうる
+    @discardableResult
+    func saveHotkey() -> Bool {
         let trimmed = hotkeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         do {
             if !trimmed.isEmpty {
@@ -145,16 +151,37 @@ final class RecordingSetup: ObservableObject {
             notice = trimmed.isEmpty
                 ? "ホットキーを無効にしました"
                 : "ホットキーを \(trimmed) に設定しました"
+            return true
         } catch {
             notice = "ホットキーを保存できません: \(error)"
+            return false
+        }
+    }
+
+    /// 設定ファイルのホットキーを元の値へ戻す (登録に失敗したときの巻き戻し)。
+    /// 設定だけ新しい値が残ると、次回の起動で **CLI も GUI も登録できない値**を読む
+    func restoreHotkey(_ previous: String?) {
+        do {
+            var updated = try ConfigStore.load()
+            updated.hotkey = previous
+            try ConfigStore.save(updated)
+            config = updated
+            hotkeyDraft = previous ?? ""
+        } catch {
+            notice = "ホットキーの設定を元に戻せません: \(error)"
         }
     }
 
     // MARK: - ログイン時に起動 (issue #20)
 
-    /// ログイン項目に登録されているか。`SMAppService` は状態を同期で返す
+    /// ログイン項目に登録されているか。`SMAppService` は状態を同期で返す。
+    ///
+    /// `.requiresApproval` も**登録済み**として扱う — 登録は成功していて、ユーザーの
+    /// 承認待ちなだけ。false にすると登録直後に Toggle が未チェックへ戻り、
+    /// 「押したのに効かない」ように見える (承認が要ることは notice で案内する)
     var launchesAtLogin: Bool {
-        SMAppService.mainApp.status == .enabled
+        let status = SMAppService.mainApp.status
+        return status == .enabled || status == .requiresApproval
     }
 
     /// ログイン時起動の切り替え。
@@ -192,6 +219,9 @@ final class RecordingSetup: ObservableObject {
         NSApp.activate(ignoringOtherApps: true)
         if panel.runModal() == .OK, let url = panel.url {
             request.outputDirectory = url
+            // 「最近の録画」は保存先を走査して作るので、変更したら取り直す。
+            // 忘れると変更前のディレクトリの一覧が残り、クリックすると別の場所が開く
+            reloadRecentRecordings()
         }
     }
 
