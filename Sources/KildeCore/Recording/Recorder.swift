@@ -354,10 +354,10 @@ public final class Recorder {
             if let match = options.windowMatch {
                 let win = try await DisplayCatalog.resolveWindow(matching: match)
                 if options.wantsVideo {
-                    // 4:2:0 のクロマ面は w/2 × h/2 なので、幅・高さとも偶数でないと作れない。
-                    // ウィンドウは 1 ポイント単位でリサイズできるので普通に奇数になる —
-                    // BGRA は任意サイズに耐えていたので、420v にして初めて効く制約 (issue #15)
-                    let (w, h) = Self.evenSize(win.frame.size)
+                    // H.264 / HEVC では偶数へ丸める (420v の 4:2:0 制約。ProRes は丸めない —
+                    // captureSize を参照)。ウィンドウは 1 ポイント単位でリサイズできるので
+                    // 普通に奇数になる (issue #15)
+                    let (w, h) = Self.captureSize(win.frame.size, codec: options.codec)
                     guard w >= 2, h >= 2 else {
                         throw KilError.failed(
                             "ウィンドウが小さすぎて収録できません "
@@ -401,10 +401,11 @@ public final class Recorder {
                         cfg.height = h
                         videoSize = CGSize(width: w, height: h)
                     } else {
-                        // ディスプレイ全体も偶数へ丸める — Retina の非整数スケーリングでは
-                        // 奇数ピクセルになりうるため (4:2:0 の制約。上の evenSize を参照)
-                        let (w, h) = Self.evenSize(
-                            CGSize(width: display.width, height: display.height))
+                        // ディスプレイ全体も H.264 / HEVC では偶数へ丸める — Retina の
+                        // 非整数スケーリングでは奇数ピクセルになりうるため (captureSize を参照)
+                        let (w, h) = Self.captureSize(
+                            CGSize(width: display.width, height: display.height),
+                            codec: options.codec)
                         guard w >= 2, h >= 2 else {
                             throw KilError.failed(
                                 "ディスプレイが小さすぎて収録できません (\(display.width)x\(display.height))")
@@ -559,18 +560,27 @@ public final class Recorder {
         }
     }
 
-    /// recording 中 0.5 秒周期で progress イベントを流ぶ (GUI 向け)。
+    /// 収録サイズを決める (issue #15)。
+    ///
+    /// H.264 / HEVC は 420v で受けるので、4:2:0 のクロマ面 (w/2 × h/2) を作るために
+    /// 幅・高さとも偶数でなければならない。ウィンドウは 1 ポイント単位でリサイズでき、
+    /// ディスプレイも Retina の非整数スケーリングで奇数になりうるので丸める。
+    ///
+    /// **ProRes は丸めない。** 4:2:2 で BGRA を受けるので偶数制約が無く、丸めると
+    /// 奇数サイズのウィンドウで不要に 1px 削ることになる。「ProRes ではクロマを落とさない」
+    /// というこの issue の方針に反するため、コーデックで分ける
+    private static func captureSize(_ size: CGSize,
+                                    codec: VideoCodecKind) -> (width: Int, height: Int) {
+        switch codec {
+        case .prores: return (Int(size.width), Int(size.height))
+        case .h264, .hevc: return (Int(size.width) & ~1, Int(size.height) & ~1)
+        }
+    }
+
+    /// recording 中 0.5 秒周期で progress イベントを流す (GUI 向け)。
     /// 経過時間・出力サイズ・レベルは progress() と同じ計算経路を使う。
     /// チェックから yield までのわずかな競合窓は残るが、sleep 起き直し後の
     /// isCancelled と recording 状態の二重チェックで実質的に finalizing 以降には流さない
-    /// 4:2:0 のクロマ面は w/2 × h/2 なので、幅・高さとも偶数でなければ作れない (issue #15)。
-    /// BGRA は任意サイズに耐えていたため、H.264 / HEVC を 420v で受けるようにして
-    /// 初めて効くようになった制約。ウィンドウは 1 ポイント単位でリサイズでき、
-    /// ディスプレイも Retina の非整数スケーリングで奇数になりうるので、両方で丸める
-    private static func evenSize(_ size: CGSize) -> (width: Int, height: Int) {
-        (Int(size.width) & ~1, Int(size.height) & ~1)
-    }
-
     private func startProgressEmissionIfNeeded() -> Task<Void, Never> {
         lock.lock()
         let emits = emitsProgressEvents
