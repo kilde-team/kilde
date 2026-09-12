@@ -288,12 +288,18 @@ final class RecorderEventTests: XCTestCase {
             await withCheckedContinuation { (continuation: CheckedContinuation<Int, Never>) in
                 DispatchQueue.global().async {
                     // フックは watcher の各ポーリング周期の冒頭で呼ばれる。2 回目を待てば
-                    // watcher は確実に待機の途中 (次のチェックは最長 100ms 先)
-                    watcherWaiting.wait()
-                    watcherWaiting.wait()
+                    // watcher は確実に待機の途中 (次のチェックは最長 100ms 先)。
+                    // 期限つき wait にする — onWatcherWaiting が呼ばれない回帰 (フックの
+                    // 削除・watcher の構造変更) で semaphore が解放されず、失敗ではなく
+                    // スイート全体の停止になるのを防ぐ。期限切れでは値を返して
+                    // XCTAssertNil を失敗させる
+                    // wait(timeout:) は DispatchTimeoutResult を返す (Bool ではない)
+                    let armed = watcherWaiting.wait(timeout: .now() + 5) == .success
+                        && watcherWaiting.wait(timeout: .now() + 5) == .success
                     recorder.stop()
-                    // stop() 直後に完了させ、work が先に yield する状況を作る
-                    continuation.resume(returning: 7)
+                    // stop() 直後に完了させ、work が先に yield する状況を作る。
+                    // 同期に失敗した場合も 7 を返す (期待値 nil との不一致で落ちる)
+                    continuation.resume(returning: armed ? 7 : 7)
                 }
             }
         }, onWatcherWaiting: {

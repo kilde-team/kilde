@@ -39,6 +39,13 @@ cleanup() {
     fi
     # T11 の GUI プロセスもどの分岐で失敗しても残さない
     [ -n "$GUI_PID" ] && kill "$GUI_PID" 2>/dev/null
+    # T22 の録画プロセスも同様に残さない (待ってから段階的に強制)
+    if [ -n "${T22_PID:-}" ] && kill -0 "$T22_PID" 2>/dev/null; then
+        kill -TERM "$T22_PID" 2>/dev/null
+        sleep 1
+        kill -0 "$T22_PID" 2>/dev/null && kill -KILL "$T22_PID" 2>/dev/null
+    fi
+T22_PID=""
     # T21 の self-test はバックグラウンド起動なので、スイートを途中で止めたときに
     # KildeGUI が残る。録画はしていないので安全停止の待ちは要らない
     [ -n "$T21_PID" ] && kill "$T21_PID" 2>/dev/null
@@ -1124,7 +1131,15 @@ if [ "$T22_EXIT" = "0" ]; then
     if [ "$T22_FILES" = "0" ]; then
         ok "T22 準備中 SIGINT: exit=0・出力ファイルなし (準備フェーズを中断)"
     else
-        ok "T22 準備中 SIGINT: exit=0・ファイルあり (開始後の安全停止に解けた)"
+        T22_OUT=$(ls "$T22_DIR" | head -1)
+        # ファイルがある経路は「開始後の安全停止に解けた」— 再生可能なファイルが
+        # 残っていることまで確認する (空・不完全ファイルを残す回帰を通さない)
+        if grep -q "video: absent" <(inspect "$T22_DIR/$T22_OUT") \
+            || [ "$(stat -f%z "$T22_DIR/$T22_OUT")" -gt 1024 ]; then
+            ok "T22 準備中 SIGINT: exit=0・再生可能なファイル (開始後の安全停止に解けた)"
+        else
+            bad "T22 準備中 SIGINT: ファイルが空/不完全 — $WORK/t22.log"
+        fi
     fi
 else
     bad "T22 準備中 SIGINT: exit=$T22_EXIT — $WORK/t22.log"
