@@ -490,10 +490,43 @@ if [ "$T23_HELD" != "1" ]; then
     # FAIL が 2 増え、スイート末尾の PASS=…/FAIL=… の集計がずれる
     T23_CFG_EXIT=-1; T23_CFG_FILES=-1; T23_CFG_WARN=0; T23_EXP_EXIT=-1; T23_EXP_FILES=-1
 else
+    # 期限付きで rec を 1 本走らせ、終了コードを T23_RUN_EXIT に入れる。
+    # **--duration は待機モードでは効かない** (録画開始後の長さしか縛らない) ので、
+    # 縮退が壊れて待機に入る回帰が起きると前景実行はスイートごと無限に止まる。
+    # ここを FAIL として回収するために、T13 と同じ段階的強制で期限を切る。
+    # 期限超過は T23_RUN_EXIT=-2 として区別する (「待機に入ってしまった」の印)
+    t23_run() {  # $1 = 作業ディレクトリ, $2 = ログ, $3.. = kilde の引数
+        local dir="$1" log="$2"; shift 2
+        # 占有役が先に死んでいたら前提が崩れる (キーが空くので待機に入るのが正常)。
+        # ハングを待つ前にここで落とす
+        if ! kill -0 "$T23_HOLDER_PID" 2>/dev/null; then
+            T23_RUN_EXIT=-3
+            return
+        fi
+        ( cd "$dir" && exec env KILDE_CONFIG_DIR="$T23_CFG_DIR" "$KILDE" "$@" > "$log" 2>&1 ) &
+        local pid=$!
+        local i
+        for i in $(seq 1 30); do
+            kill -0 "$pid" 2>/dev/null || break
+            sleep 0.5
+        done
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -INT "$pid" 2>/dev/null
+            sleep 1
+            kill -0 "$pid" 2>/dev/null && kill -TERM "$pid" 2>/dev/null
+            sleep 1
+            kill -0 "$pid" 2>/dev/null && kill -KILL "$pid" 2>/dev/null
+            wait "$pid" 2>/dev/null
+            T23_RUN_EXIT=-2
+            return
+        fi
+        wait "$pid" 2>/dev/null
+        T23_RUN_EXIT=$?
+    }
+
     # (1) 設定由来 — 縮退して録画できるはず
-    (cd "$T23_DIR" && KILDE_CONFIG_DIR="$T23_CFG_DIR" \
-        "$KILDE" rec --no-video --duration 1 > "$WORK/t23-config.log" 2>&1)
-    T23_CFG_EXIT=$?
+    t23_run "$T23_DIR" "$WORK/t23-config.log" rec --no-video --duration 1
+    T23_CFG_EXIT=$T23_RUN_EXIT
     T23_CFG_FILES=$(ls "$T23_DIR" 2>/dev/null | wc -l | tr -d ' ')
     # 黙って縮退していないこと (理由が読めること) も契約のうち。
     # grep -c は不一致でも "0" を出しつつ終了コード 1 を返すので `|| echo 0` を足すと
@@ -507,9 +540,9 @@ else
     # (2) --hotkey 明示 — 縮退せず失敗するはず
     T23_EXP_DIR="$WORK/t23-explicit"
     mkdir -p "$T23_EXP_DIR"
-    (cd "$T23_EXP_DIR" && "$KILDE" rec --no-video --duration 1 --hotkey "$T23_KEY" \
-        > "$WORK/t23-explicit.log" 2>&1)
-    T23_EXP_EXIT=$?
+    t23_run "$T23_EXP_DIR" "$WORK/t23-explicit.log" \
+        rec --no-video --duration 1 --hotkey "$T23_KEY"
+    T23_EXP_EXIT=$T23_RUN_EXIT
     T23_EXP_FILES=$(ls "$T23_EXP_DIR" 2>/dev/null | wc -l | tr -d ' ')
 fi
 
@@ -538,7 +571,9 @@ elif [ "$T23_HELD" != "1" ]; then
     # 占有役が待機に入れない = 残留プロセスが同じキーを握っている可能性が高い
     bad "T23 ホットキー排他: 占有役が待機に入れませんでした (他のプロセスが $T23_KEY を握っていないか確認してください) — $WORK/t23-holder.log"
 else
-    bad "T23 ホットキー排他: cfg_exit=$T23_CFG_EXIT cfg_files=$T23_CFG_FILES cfg_warn=$T23_CFG_WARN exp_exit=$T23_EXP_EXIT exp_files=$T23_EXP_FILES — $WORK/t23-config.log / $WORK/t23-explicit.log"
+    # exit=-2 は期限超過 (待機モードに入ったまま帰ってこない = 縮退の回帰)、
+    # -3 は占有役が先に死んだ (前提が崩れており判定は無意味)
+    bad "T23 ホットキー排他: cfg_exit=$T23_CFG_EXIT cfg_files=$T23_CFG_FILES cfg_warn=$T23_CFG_WARN exp_exit=$T23_EXP_EXIT exp_files=$T23_EXP_FILES (exit=-2 は待機のまま期限超過 / -3 は占有役が先に終了) — $WORK/t23-config.log / $WORK/t23-explicit.log"
 fi
 
 # ---- T14: 矩形領域の収録 (issue #9) ---------------------------------------------
