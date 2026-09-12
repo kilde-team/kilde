@@ -48,12 +48,24 @@ final class RecordingController: ObservableObject {
     /// 収録開始前に stop() が呼ばれたか (準備中の失敗が自発的な停止かの判定に使う)
     private var stopRequestedDuringPreparation = false
 
+    /// 録画が進行中か。
+    ///
+    /// **通知の登録待ち (`awaitingNotification`) はここに含めない。** `phase` は
+    /// `.finished` / `.failed` を先に立ててから通知を出すので、含めると録画が
+    /// 終わっているのに «進行中» の 2 秒ができてしまう — ポップオーバーが
+    /// 「準備中…」のまま固まり、停止直後の再開が二重起動ガードに掛かり、
+    /// ホットキーが「停止」側へ分岐する。終了を待たせたいのは
+    /// `applicationShouldTerminate` だけなので、そこで個別に見る
     var isActive: Bool {
         switch phase {
         case .starting, .recording, .finalizing: return true
         case .idle, .finished, .failed: return false
         }
     }
+
+    /// 通知の登録完了 (またはタイムアウト) を待っている最中か。
+    /// アプリ終了の保留判定にだけ使う (`isActive` とは別物)
+    @Published private(set) var awaitingNotification = false
 
     func start(_ options: RecordOptions) {
         guard !isActive else {
@@ -166,7 +178,12 @@ final class RecordingController: ObservableObject {
             // 誤報になる。ただし **.recording 未到達というだけで抑止してはいけない** —
             // デバイス解決や SCStream 構築の失敗も同じ条件を満たすので、
             // 本物の失敗まで黙殺してしまう (画面を見ていないユーザーには何も届かない)
-            let suppress = recordingStartedAt == nil && stopRequestedDuringPreparation
+            // **`.recording` 未到達では判定できない。** `Recorder.stop()` は停止要求を
+            // 積むだけでセッションを中断しないので、準備中に押しても Recorder は
+            // 準備を続けて `.recording` を通知し、その直後の `waitForStopOrDuration()`
+            // で積まれた要求を受け取って止まる。つまり `recordingStartedAt` は必ず
+            // 設定される。抑止の根拠は「収録が始まる前に停止を要求したか」だけ
+            let suppress = stopRequestedDuringPreparation
             notifyThenEndSession { [weak self] done in
                 guard !suppress else { done(); return }
                 self?.notifier?.notifyFailed(message: message, completion: done)
@@ -190,11 +207,24 @@ final class RecordingController: ObservableObject {
         // (停止できない録画が残り、sessionEndHandlers も失われる)
         let session = recorder
         var finished = false
+        // 通知の登録を待っている間は awaitingNotification を立てる。
+        // applicationShouldTerminate がこれを見て終了を保留する (isActive には
+        // 含めない — 含めると «録画が終わっているのに進行中» の 2 秒ができる)
+        awaitingNotification = true
         let finish = { [weak self] in
             guard !finished else { return }
             finished = true
-            guard let self, self.recorder === session else { return }
-            self.endSession()
+            guard let self else { return }
+            self.awaitingNotification = false
+            if self.recorder === session {
+                self.endSession()
+            } else {
+                // 別のセッションが始まっているので recorder は破棄しない。
+                // **ただし登録済みのハンドラは必ず呼ぶ** — ここを素通りさせると、
+                // applicationShouldTerminate が待っている終了応答が永久に来ず、
+                // **アプリが終了できなくなる** (通知が 1 回届かないより重い)
+                self.flushSessionEndHandlers()
+            }
         }
         notify(finish)
         // 通知の登録が 2 秒で返らなければ諦めて先へ進む (ファイナライズは済んでいる)。
@@ -206,11 +236,17 @@ final class RecordingController: ObservableObject {
         }
     }
 
-    private func endSession() {
-        recorder = nil
-        peaks = [:]
+    /// 登録済みの終了ハンドラを 1 回だけ実行する。
+    /// セッションの破棄を伴わないので、別のセッションが進行中でも安全
+    private func flushSessionEndHandlers() {
         let handlers = sessionEndHandlers
         sessionEndHandlers = []
         handlers.forEach { $0() }
+    }
+
+    private func endSession() {
+        recorder = nil
+        peaks = [:]
+        flushSessionEndHandlers()
     }
 }

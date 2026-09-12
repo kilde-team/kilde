@@ -97,6 +97,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 録画中に終了 (メニューの終了・ログアウト等) されたら、停止してファイナライズを待ってから終わる。
     /// 「停止しても必ずファイナライズする」は CLI (SIGINT / SIGTERM / SIGHUP) と同じ最重要要件
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        // 録画は終わっていても、**完了通知の登録待ちなら終了を保留する** —
+        // 待たずに落ちると、録画直後に終了した人に結果が届かない (issue #20 の目的)。
+        // 待ちには 2 秒の上限があるので終了が止まり続けることはない。
+        // `isActive` に含めない理由は RecordingController 側のコメントを参照
+        if !recording.isActive, recording.awaitingNotification {
+            recording.whenSessionEnds {
+                NSApp.reply(toApplicationShouldTerminate: true)
+            }
+            return .terminateLater
+        }
         guard recording.isActive else { return .terminateNow }
         recording.whenSessionEnds {
             NSApp.reply(toApplicationShouldTerminate: true)

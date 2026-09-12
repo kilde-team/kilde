@@ -249,8 +249,17 @@ enum SelfTest {
         //
         // 解決の経路 (設定ファイル → `HotkeySettings.resolve`) も `AppDelegate` が
         // 通っているので、登録できていること自体がその経路の検証になる
-        // try? の結果は Swift がフラット化するので String? になる (String?? ではない)
-        let resolved = try? HotkeySettings.resolve(explicit: nil, config: setup.config)
+        // **throw と nil を潰さない。** `try?` でまとめると「設定に hotkey が無い」と
+        // 「設定はあるが解釈できない」が同じ nil になり、後者を «未設定» として
+        // 成功扱いにしてしまう (検証していないのに成功と報告しない、という方針に反する)
+        let resolved: String?
+        do {
+            resolved = try HotkeySettings.resolve(explicit: nil, config: setup.config)
+        } catch {
+            print("selftest: hotkeyResolved=invalid error=\(error)")
+            fflush(stdout)
+            fail("設定の hotkey を解釈できません: \(error)")
+        }
         print("selftest: hotkeyResolved=\(resolved ?? "none")")
         print("selftest: configPath=\(ConfigStore.fileURL.path)")
         print("selftest: configHotkey=\(setup.config.hotkey ?? "(なし)")")
