@@ -1,0 +1,30 @@
+gui/Sources/RecordingController.swift
+  s_35faeec28b4c4b::t_be7493cf8ed8e3 51,53-58,66-67
+  s_35faeec28b4c4b::t_b4e94f318c19e7 239-241,246
+  s_35faeec28b4c4b::t_ee6b3604843f89 181-186
+  s_35faeec28b4c4b::t_760984aa7f28d6 210-212
+  s_35faeec28b4c4b::t_d1a1fc2a3de5c2 219-227
+  s_35faeec28b4c4b::t_73c121bdc6f4d1 52,68
+  s_35faeec28b4c4b::t_f29edc0fd2ba8a 213,217-218
+  s_35faeec28b4c4b::t_03d174adac2de5 250
+gui/Sources/SelfTest.swift
+  s_35faeec28b4c4b::t_fdbf9ef14df772 252-262
+gui/Sources/AppDelegate.swift
+  s_35faeec28b4c4b::t_aada6aa0de6a97 100-109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "80bada763292db20c609c1990c976337dfa1386b",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
