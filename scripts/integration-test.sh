@@ -545,6 +545,126 @@ else
     bad "T15 一時停止: ready=$T15_READY paused=$T15_PAUSED exit=$T15_EXIT video=${VD:-N/A}s audio=${AD:-N/A}s — $WORK/t15.log"
 fi
 
+# ---- T16: 出力コンテナ (issue #12) ---------------------------------------------
+# MP4 で録れること、拡張子からの自動判定、入れられない組合せが録画前に弾かれること
+
+# 拡張子を変えただけの回帰 (中身が MOV のまま) を捕まえるため、コンテナを直接見る
+is_iso_mp4() { file -b "$1" 2>/dev/null | grep -qi 'ISO Media'; }
+
+log "T16: rec --format mp4 — MP4 コンテナで録れる"
+F="$WORK/t16-format.mp4"
+if "$KILDE" rec --format mp4 --duration 3s --output "$F" > "$WORK/t16.log" 2>&1; then
+    VD=$(video_duration_of "$F")
+    if grep -q "video: present" <(inspect "$F") && num_between "${VD:-0}" 2 5 && is_iso_mp4 "$F"; then
+        ok "T16 format mp4: ISO Media コンテナ・映像あり (${VD}s)"
+    else
+        bad "T16 format mp4: duration=${VD:-N/A}s container=$(file -b "$F" 2>/dev/null | head -c 40) — $WORK/t16.log"
+    fi
+else
+    bad "T16 format mp4: コマンド失敗 — $WORK/t16.log"
+fi
+
+log "T16b: rec <出力>.mp4 — 拡張子から自動で MP4 になる"
+F="$WORK/t16b-auto.mp4"
+if "$KILDE" rec --duration 3s --output "$F" > "$WORK/t16b.log" 2>&1; then
+    VD=$(video_duration_of "$F")
+    if grep -q "video: present" <(inspect "$F") && num_between "${VD:-0}" 2 5 && is_iso_mp4 "$F"; then
+        ok "T16b format 自動判定: .mp4 の指定で ISO Media コンテナ (${VD}s)"
+    else
+        bad "T16b format 自動判定: duration=${VD:-N/A}s container=$(file -b "$F" 2>/dev/null | head -c 40) — $WORK/t16b.log"
+    fi
+else
+    bad "T16b format 自動判定: コマンド失敗 — $WORK/t16b.log"
+fi
+
+log "T16b2: rec <出力>.mov — 既定は MOV のまま (回帰確認)"
+F="$WORK/t16b2-mov.mov"
+if "$KILDE" rec --duration 3s --output "$F" > "$WORK/t16b2.log" 2>&1 \
+    && file -b "$F" 2>/dev/null | grep -qi 'QuickTime'; then
+    ok "T16b2 既定 mov: QuickTime コンテナのまま"
+else
+    bad "T16b2 既定 mov: container=$(file -b "$F" 2>/dev/null | head -c 40) — $WORK/t16b2.log"
+fi
+
+log "T16c: rec --format — 入れられない組合せは録画前に exit 64"
+T16C_FAIL=0
+check_format_rejected() {  # check_format_rejected <ログ名> <出力パス> <説明> <引数...>
+    local logname="$1" out="$2" desc="$3"; shift 3
+    local start=$(date +%s)
+    # --duration 30s にしておくと、録画が始まってしまった実装では 30 秒かかる。
+    # 5 秒未満で返ったことをもって「録画前に弾いた」と判定する (T12b と同じ考え方)。
+    # 出力パスは呼び出し側から受け取る — ここで --output を足すと、拡張子で
+    # コンテナを推定するケースの指定を後勝ちで上書きしてしまう
+    "$KILDE" rec "$@" --duration 30s --output "$out" > "$WORK/$logname.log" 2>&1
+    local code=$? elapsed=$(( $(date +%s) - start ))
+    if [ "$code" != "64" ] || [ -f "$out" ] || [ "$elapsed" -ge 5 ]; then
+        echo "  $desc: exit=$code (64 が必要) elapsed=${elapsed}s file=$([ -f "$out" ] && echo あり || echo なし)"
+        T16C_FAIL=1
+    fi
+}
+check_format_rejected t16c "$WORK/t16c.mov" "MP4 + ProRes (--format 明示)" --format mp4 --codec prores
+check_format_rejected t16c2 "$WORK/t16c2.m4a" "--no-video との併用" --format mp4 --no-video
+check_format_rejected t16c3 "$WORK/t16c3.mov" "不正な値" --format mkv
+# 拡張子からの推定でも同じ契約 (CLI 由来は 64)
+check_format_rejected t16c4 "$WORK/t16c4.mp4" "MP4 + ProRes (拡張子で推定)" --codec prores
+if [ "$T16C_FAIL" = "0" ]; then
+    ok "T16c format 引数検証: 4 パターンすべて録画前に exit=64・ファイルなし"
+else
+    bad "T16c format 引数検証: 上記の組合せが想定どおりに弾かれていない"
+fi
+
+log "T16d: 設定ファイル由来の codec との組合せは録画前に exit 1"
+# CLI 引数由来は 64、設定ファイル由来は 1 という公開契約 (DESIGN.md §6) を守る
+if write_test_config '{"codec": "prores"}\n'; then
+    START=$(date +%s)
+    (cd "$WORK" && "$KILDE" rec --format mp4 --duration 30s --output "$WORK/t16d.mp4" > "$WORK/t16d.log" 2>&1)
+    EXIT_CODE=$?
+    ELAPSED=$(( $(date +%s) - START ))
+    if [ "$EXIT_CODE" = "1" ] && [ "$ELAPSED" -lt 5 ] && [ ! -f "$WORK/t16d.mp4" ]; then
+        ok "T16d 設定由来 codec: 録画前に exit=1 (${ELAPSED}s)"
+    else
+        bad "T16d 設定由来 codec: exit=$EXIT_CODE elapsed=${ELAPSED}s — $WORK/t16d.log"
+    fi
+    rm -f "$CONFIG"
+else
+    bad "T16d 設定由来 codec: テスト設定の書き込みに失敗"
+fi
+
+# ---- T19: コーデック別の収録経路 (issue #15) -------------------------------------
+# pixelFormat をコーデックのクロマに合わせて出し分けている (h264/hevc → 420v、
+# prores → BGRA)。SCStreamConfiguration は単体テストから触れないので、
+# 両方の経路で実際に録れることをここで通す。
+#
+# 注意: **pixelFormat そのものは検証していない** — 出力ファイルからは観測できず、
+# inspect はコーデックも出さない (解像度と duration のみ)。ここで捕まえられるのは「片方の経路が
+# 録画すらできなくなる」退行までで、「ProRes が静かに 420v になる」品質劣化は
+# 捕まらない。クロマの検証が要るなら別途 ffprobe 等で pix_fmt を見ること
+
+log "T19: rec --codec prores — BGRA 経路で録れる"
+F="$WORK/t19-prores.mov"
+if "$KILDE" rec --codec prores --duration 3s --output "$F" > "$WORK/t19.log" 2>&1; then
+    VD=$(video_duration_of "$F")
+    if grep -q "video: present" <(inspect "$F") && num_between "${VD:-0}" 2 5; then
+        ok "T19 codec prores: 映像あり (${VD}s)"
+    else
+        bad "T19 codec prores: duration=${VD:-N/A}s — $WORK/t19.log"
+    fi
+else
+    bad "T19 codec prores: コマンド失敗 — $WORK/t19.log"
+fi
+
+log "T19b: rec --codec hevc — 420v 経路で録れる"
+F="$WORK/t19b-hevc.mov"
+if "$KILDE" rec --codec hevc --duration 3s --output "$F" > "$WORK/t19b.log" 2>&1; then
+    VD=$(video_duration_of "$F")
+    if grep -q "video: present" <(inspect "$F") && num_between "${VD:-0}" 2 5; then
+        ok "T19b codec hevc: 映像あり (${VD}s)"
+    else
+        bad "T19b codec hevc: duration=${VD:-N/A}s — $WORK/t19b.log"
+    fi
+else
+    bad "T19b codec hevc: コマンド失敗 — $WORK/t19b.log"
+fi
 # ---- T18: 既定出力名の原子的な予約 -------------------------------------------
 
 log "T18: 既定出力名 — 同名ファイルがあれば -2 に逃がす"

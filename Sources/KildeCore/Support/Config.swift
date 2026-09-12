@@ -334,6 +334,8 @@ public struct RecordOverrides: Sendable {
     public var audio: [String] = []
     public var audioTracks: String?
     public var codec: String?
+    /// `--format mov|mp4` (issue #12)。未指定なら出力パスの拡張子から推定する
+    public var format: String?
     public var fps: Int?
     public var showsCursor: Bool?
     /// `--preset meeting` (system + mic をミックス)
@@ -381,6 +383,28 @@ public enum RecordSettings {
             options.codec = .h264
         }
 
+        // コンテナ: CLI の --format > 出力パスの拡張子 > 既定 (mov)。
+        // 拡張子からの推定は「kilde rec demo.mp4」を意図どおりに動かすため。
+        // 音声のみ (wantsVideo = false) は従来どおり M4A なので container は使わない
+        if let name = o.format {
+            guard let kind = ContainerKind(rawValue: name.lowercased()) else {
+                throw KilError.failed("format は mov か mp4 を指定してください: \(name)")
+            }
+            options.container = kind
+        } else if let path = o.outputPath,
+                  let kind = ContainerKind(rawValue: URL(fileURLWithPath: path).pathExtension.lowercased()) {
+            options.container = kind
+        } else {
+            options.container = .mov
+        }
+        // ProRes は MP4 に入れられない。AVAssetWriter は追加時ではなく書き込み中に失敗するため、
+        // 録画を始める前にここで弾く (CLI でも弾いているが、GUI など他の呼び出し元も守る)
+        if options.wantsVideo, !options.container.supports(options.codec) {
+            throw KilError.failed(
+                "MP4 コンテナに \(options.codec.rawValue) は入れられません "
+                + "(--codec h264 / hevc を使うか --format mov にしてください)")
+        }
+
         // 採用される値 (CLI、なければ設定) で検証する。load() を経ずに KildeConfig を直接渡す
         // 呼び出し元 (GUI 等) でも、0 以下が SCK 設定で黙って無視されて指定と違うフレームレートで
         // 録れてしまわないよう、ここで弾く
@@ -395,7 +419,8 @@ public enum RecordSettings {
         }
 
         let url = outputURL(explicitPath: o.outputPath, config: config,
-                            environment: environment, wantsVideo: options.wantsVideo)
+                            environment: environment, wantsVideo: options.wantsVideo,
+                            container: options.container)
         if o.outputPath == nil {
             // 環境変数・設定ファイル由来の保存先は typo に気付きにくい。AVAssetWriter は存在しない
             // ディレクトリでも録画を始めてしまい、停止時に初めて失敗する (実測: 2 秒録った後に
@@ -415,11 +440,12 @@ public enum RecordSettings {
     /// 出力先を一度だけ解決する。表示と Recorder が同一 URL を使うため
     /// (defaultOutputName を別々に評価すると秒の境界で不一致になり得る)
     static func outputURL(explicitPath: String?, config: KildeConfig,
-                          environment: [String: String], wantsVideo: Bool) -> URL {
+                          environment: [String: String], wantsVideo: Bool,
+                          container: ContainerKind = .mov) -> URL {
         if let path = explicitPath {
             return URL(fileURLWithPath: NSString(string: path).expandingTildeInPath)
         }
-        let name = defaultOutputName(ext: wantsVideo ? "mov" : "m4a")
+        let name = defaultOutputName(ext: wantsVideo ? container.rawValue : "m4a")
         let envDir = environment[outputDirectoryEnvironmentKey].flatMap { $0.isEmpty ? nil : $0 }
         guard let dir = envDir ?? config.outputDirectory else {
             return URL(fileURLWithPath: name)

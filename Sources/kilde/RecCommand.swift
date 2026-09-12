@@ -53,6 +53,9 @@ struct RecCommand: ParsableCommand {
     @Option(help: "映像コーデック: h264 (既定) / hevc / prores (設定 codec で変更可)")
     var codec: String?
 
+    @Option(help: "出力コンテナ: mov (既定) / mp4。出力パスの拡張子が .mp4 なら自動で mp4 になる。MP4 に ProRes は入れられない")
+    var format: String?
+
     @Option(help: "上限フレームレート (1 以上。0 以下は終了コード 64。未指定は設定 fps、どちらも無ければ SCK 既定)")
     var fps: Int?
 
@@ -117,6 +120,29 @@ struct RecCommand: ParsableCommand {
         if let codec, VideoCodecKind(rawValue: codec) == nil {
             throw ValidationError("--codec は h264 / hevc / prores を指定してください")
         }
+        if let format {
+            guard ContainerKind(rawValue: format.lowercased()) != nil else {
+                throw ValidationError("--format は mov か mp4 を指定してください")
+            }
+            // 音声のみの出力は M4A で固定なので、指定しても効かない
+            if noVideo {
+                throw ValidationError("--format と --no-video は併用できません (音声のみの出力は M4A です)")
+            }
+        }
+        // コンテナは --format だけでなく出力パスの拡張子でも決まる (kilde rec demo.mp4)。
+        // CLI で分かる組合せは終了コード 64 で弾く契約なので、実効コンテナで検証する
+        // (設定ファイル由来の codec との組合せだけは KildeCore 側で 1 になる)
+        let effectiveContainer: ContainerKind? = {
+            if let format { return ContainerKind(rawValue: format.lowercased()) }
+            guard let path = output ?? outputPositional else { return nil }
+            return ContainerKind(rawValue: URL(fileURLWithPath: path).pathExtension.lowercased())
+        }()
+        if !noVideo, let codec, let kind = VideoCodecKind(rawValue: codec),
+           let container = effectiveContainer, !container.supports(kind) {
+            throw ValidationError(
+                "\(container.rawValue.uppercased()) コンテナに \(codec) は入れられません "
+                + "(--codec h264 / hevc か --format mov)")
+        }
         for a in audio where a != "none" && AudioSourceSpec.parse(a) == nil {
             throw ValidationError("--audio の値が不正: \(a) (system / mic / device:<名前> / none)")
         }
@@ -178,6 +204,7 @@ struct RecCommand: ParsableCommand {
         overrides.audio = audio
         overrides.audioTracks = audioTracks
         overrides.codec = codec
+        overrides.format = format
         overrides.fps = fps
         overrides.showsCursor = cursor
         overrides.meetingPreset = preset == "meeting"
@@ -294,7 +321,10 @@ struct RecCommand: ParsableCommand {
                     CFRunLoopStop(CFRunLoopGetMain())
                 }
             )
-            try controller.start()
+            // controller.start() より前にシグナルの設置を済ませる — pthread_sigmask は
+            // 呼び出しスレッド (メイン) しかブロックしないため、ホットキー監視等の
+            // スレッドが生まれる前に窓を閉じておかないと、プロセス宛シグナルが
+            // ブロックされていない別スレッドへ配送されて SIG_IGN 破棄されうる (issue #67)
             installStopSignalHandler {
                 controller.requestStop()
             }
@@ -312,6 +342,7 @@ struct RecCommand: ParsableCommand {
             // 待機経路でも 'p' キーを使えるようにする (即時録画と操作を揃える)
             pauseKeyWatcher = startPauseKeyWatcher(toggle)
             defer { stopPauseKeyWatcher(pauseKeyWatcher); pauseKeyWatcher = nil }
+            try controller.start()
             print("⏳ 待機中 — \(controller.normalizedHotkey) で開始 / Ctrl+C で終了")
             // stdout がファイルにリダイレクトされていると C stdio はフルバッファになり、
             // この後 RunLoop で無期限にブロックするため「待機中」が exit まで出ない。
