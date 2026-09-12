@@ -227,11 +227,16 @@ The hotkey has its own equivalent order: `--hotkey`, then the configured
 
 A global hotkey can only be held by one process at a time, so **whichever
 registers it first wins**. This matters when the menu bar app is running,
-since it launches at login and holds the configured hotkey. If the key is
-already taken, a hotkey that came from the configuration file is skipped:
-`rec` prints a warning and starts recording immediately instead of waiting.
-An explicit `--hotkey` fails with the reason instead, because waiting is
-what you asked for.
+since it launches at login and holds the configured hotkey. When `rec`
+finds the key already taken, a hotkey that came from the configuration
+file is skipped: it prints a warning and starts recording immediately
+instead of waiting. An explicit `--hotkey` fails with the reason instead,
+because waiting is what you asked for.
+
+`rec` checks whether the key is available just before it decides, so a
+process that grabs the key in between still makes it exit with the
+registration error — in practice that needs two recordings started at the
+same moment, since a hotkey held by the GUI is caught by the check.
 
 Set `KILDE_CONFIG_DIR` to relocate both `config.json` and
 `monitor-state.json`, which is useful for isolated environments and testing.

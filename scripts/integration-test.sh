@@ -525,6 +525,10 @@ if kill -0 $T23_HOLDER_PID 2>/dev/null; then
     kill -0 $T23_HOLDER_PID 2>/dev/null && kill -KILL $T23_HOLDER_PID 2>/dev/null
 fi
 wait $T23_HOLDER_PID 2>/dev/null
+# 回収済みの PID を trap に残さない — スイートの残りで数百のプロセスが起動するため、
+# PID が一周して再利用されると無関係なプロセスに SIGINT を送りうる (T22 が同じ理由で
+# kill 後に空へ戻している)
+T23_HOLDER_PID=""
 
 if [ "$T23_HELD" = "1" ] && [ "$T23_CFG_EXIT" = "0" ] && [ "$T23_CFG_FILES" = "1" ] \
     && [ "$T23_CFG_WARN" -ge 1 ] \
