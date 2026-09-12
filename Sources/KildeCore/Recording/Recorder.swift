@@ -442,7 +442,8 @@ public final class Recorder {
         do {
             try Self.validateVideoFrameCount(
                 wantsVideo: options.wantsVideo,
-                videoAppended: w.videoAppended
+                videoAppended: w.videoAppended,
+                elapsed: Date().timeIntervalSince(startDate)
             )
         } catch {
             // 映像アンカーが立たない空振りを成功扱いせず、空の出力も残さない。
@@ -464,9 +465,17 @@ public final class Recorder {
     }
 
     /// 映像ありモードでは、停止までに 1 フレームも書けなければ録画不成立とする。
-    /// 純粋な判定として切り出し、権限や実ディスプレイなしでも回帰テストできるようにする
-    static func validateVideoFrameCount(wantsVideo: Bool, videoAppended: Int) throws {
+    /// 純粋な判定として切り出し、権限や実ディスプレイなしでも回帰テストできるようにする。
+    /// 経過時間で案内を分ける — 初回フレーム到着前に止めた短時間録画 (`--duration 0.5s` や
+    /// 開始直後の Ctrl+C) は「消灯・ロック」と断定しない
+    static func validateVideoFrameCount(wantsVideo: Bool, videoAppended: Int,
+                                        elapsed: TimeInterval) throws {
         guard !wantsVideo || videoAppended > 0 else {
+            if elapsed < 2 {
+                throw KilError.failed(
+                    "録画が短すぎて映像を 1 フレームも取得できませんでした (経過 \(String(format: "%.1f", elapsed)) 秒)。もう少し長い時間を指定してください"
+                )
+            }
             throw KilError.failed(
                 "録画が 1 フレームも取得できませんでした — ディスプレイの消灯・ロック中に開始した可能性があります。画面を表示した状態で再実行してください"
             )
