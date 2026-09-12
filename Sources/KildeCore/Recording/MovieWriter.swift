@@ -163,8 +163,12 @@ final class MovieWriter {
         writer.startSession(atSourceTime: t)
     }
 
-    /// セッション開始前に中断するときの後始末。
-    /// 映像が 1 フレームも来なかった場合は成功と誤認できる空ファイルを残さない。
+    /// 書き込みセッションを破棄する後始末。主に開始前の失敗経路で使うが、
+    /// `startSession` 後でも `finishWriting` を呼ぶ前ならいつでも合法 —
+    /// 全フレームが drop されて videoAppended == 0 のまま終わる検証失敗経路では
+    /// セッション開始済みの状態で呼ばれうる。
+    /// removingOutput: 映像が 1 フレームも来なかった場合など、成功と誤認できる
+    /// 空ファイルを残さないときに指定する
     func cancel(removingOutput: Bool = false) {
         writer.cancelWriting()
         if removingOutput {
