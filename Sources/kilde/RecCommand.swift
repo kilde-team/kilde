@@ -4,6 +4,11 @@ import ArgumentParser
 import KildeCore
 import Darwin
 
+/// 'p' キー監視で raw mode にする前の端末設定 (復元用)。
+/// ParsableCommand の struct にプロパティを増やすと引数の解析対象と紛れるため、
+/// 既存の signalSources と同じくファイルスコープに置く
+private var pauseKeyOriginalTermios: termios?
+
 struct RecCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "rec",
@@ -197,9 +202,17 @@ struct RecCommand: ParsableCommand {
         installStopSignalHandler { [weak recorder] in
             recorder?.stop()
         }
+        // 一時停止 / 再開 (issue #11)。SIGUSR1 と 'p' キーのどちらもトグル
+        installPauseSignalHandler { [weak recorder] in
+            guard let recorder else { return }
+            if recorder.isPaused { recorder.resume() } else { recorder.pause() }
+        }
+        let pauseKey = startPauseKeyWatcher(recorder)
+        defer { stopPauseKeyWatcher(pauseKey) }
 
         let result: Result<Recorder.Summary, Error>
-        print("● 録画\(!options.wantsVideo ? " (音声のみ)" : "") → \(options.outputURL!.path)  (Ctrl+C で停止)")
+        let pauseHint = pauseKey != nil ? " / p で一時停止・再開" : " / SIGUSR1 で一時停止・再開"
+        print("● 録画\(!options.wantsVideo ? " (音声のみ)" : "") → \(options.outputURL!.path)  (Ctrl+C で停止\(pauseHint))")
         let ticker = startStatusTicker(recorder)
         result = Result { try recorder.run() }
         ticker.cancel()
@@ -296,6 +309,39 @@ struct RecCommand: ParsableCommand {
         throw KilError.failed("有効なウィンドウ番号が入力されませんでした (--window で直接指定もできます)")
     }
 
+    /// 録画中に stdin の 'p' で一時停止 / 再開する (issue #11)。
+    /// stdin が端末でないとき (パイプ・リダイレクト・統合テスト) は何もしない —
+    /// 端末以外を raw mode にしても入力は来ず、呼び出し元のシェルの端末設定を壊しかねないため
+    private func startPauseKeyWatcher(_ recorder: Recorder) -> DispatchSourceRead? {
+        guard isatty(STDIN_FILENO) == 1 else { return nil }
+        var original = termios()
+        guard tcgetattr(STDIN_FILENO, &original) == 0 else { return nil }
+        var raw = original
+        // 1 文字ずつ即座に受け取り、画面にエコーしない (ステータス行が乱れる)
+        raw.c_lflag &= ~(UInt(ICANON) | UInt(ECHO))
+        guard tcsetattr(STDIN_FILENO, TCSANOW, &raw) == 0 else { return nil }
+        pauseKeyOriginalTermios = original
+        let src = DispatchSource.makeReadSource(fileDescriptor: STDIN_FILENO,
+                                                queue: DispatchQueue(label: "kilde.pausekey"))
+        src.setEventHandler { [weak recorder] in
+            var ch: UInt8 = 0
+            guard read(STDIN_FILENO, &ch, 1) == 1, let recorder else { return }
+            guard ch == UInt8(ascii: "p") || ch == UInt8(ascii: "P") else { return }
+            if recorder.isPaused { recorder.resume() } else { recorder.pause() }
+        }
+        src.resume()
+        return src
+    }
+
+    /// 端末の設定を必ず戻す (戻さないとシェルのエコーが効かないままになる)
+    private func stopPauseKeyWatcher(_ source: DispatchSourceRead?) {
+        source?.cancel()
+        if var original = pauseKeyOriginalTermios {
+            tcsetattr(STDIN_FILENO, TCSANOW, &original)
+            pauseKeyOriginalTermios = nil
+        }
+    }
+
     private func startStatusTicker(_ recorder: Recorder) -> DispatchSourceTimer {
         let q = DispatchQueue(label: "kilde.status")
         let timer = DispatchSource.makeTimerSource(queue: q)
@@ -308,7 +354,9 @@ struct RecCommand: ParsableCommand {
             let levels = p.peaks.sorted(by: { $0.key < $1.key })
                 .map { String(format: "%@:%.2f", $0.key, $0.value) }
                 .joined(separator: " ")
-            print(String(format: "\rREC %02d:%02d | %@ | %@   ", m, s, size, levels), terminator: "")
+            // 一時停止中は PAUSED を出す。経過時間は一時停止ぶんを引いた値なので止まって見える
+            let label = p.isPaused ? "PAUSED" : "REC"
+            print(String(format: "\r%@ %02d:%02d | %@ | %@   ", label, m, s, size, levels), terminator: "")
             fflush(stdout)
         }
         timer.resume()
@@ -327,6 +375,9 @@ struct RecCommand: ParsableCommand {
                 extra = String(format: " (映像との first-PTS 差: %+0.3fs)", off)
             }
             print("audio[\(label)]: appended=\(n) dropped=\(dropped)\(extra)")
+        }
+        if s.pausedDuration > 0 {
+            print(String(format: "一時停止: 合計 %.1fs (出力ファイルの長さには含まれません)", s.pausedDuration))
         }
         print("file: \(s.outputURL.path) (\(fileSizeString(s.outputURL)))")
         if s.mixedDecodeFailures > 0 {

@@ -35,6 +35,18 @@ func cliError(_ error: Error) -> Never {
 
 private var signalSources: [DispatchSourceSignal] = []
 
+/// SIGUSR1 を一時停止 / 再開のトグルに接続する (issue #11)。
+/// 端末が無い実行 (スクリプト・GUI から起動した子プロセス) でも
+/// `kill -USR1 <pid>` で一時停止できるようにするため、キー入力とは別に用意する
+func installPauseSignalHandler(_ handler: @escaping () -> Void) {
+    signal(SIGUSR1, SIG_IGN)
+    let q = DispatchQueue(label: "kilde.signal.pause")
+    let src = DispatchSource.makeSignalSource(signal: SIGUSR1, queue: q)
+    src.setEventHandler(handler: handler)
+    src.resume()
+    signalSources.append(src)
+}
+
 /// SIGINT / SIGTERM / SIGHUP を安全停止に接続する (DESIGN.md §5 — 最重要 UX)。
 /// SIGHUP はターミナル終了時に飛ぶため、これを無視するとファイナライズが省略される。
 func installStopSignalHandler(_ handler: @escaping () -> Void) {

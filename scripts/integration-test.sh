@@ -422,6 +422,29 @@ else
     bad "T13 hotkey 待機中止: ready=$T13_READY exit=$T13_EXIT files=$T13_FILES — $WORK/t13.log"
 fi
 
+# ---- T15: 一時停止 / 再開 (issue #11) -------------------------------------------
+# SIGUSR1 でトグルする ('p' キーは端末が要るので機械検証しない)。
+# 12 秒の録画の途中で 4 秒止めると、出力は一時停止を除いた約 8 秒になる
+
+log "T15: rec 一時停止 / 再開 — 一時停止区間は出力に含まれない"
+F="$WORK/t15-pause.mov"
+# exec でサブシェル自身を kilde に置き換える (置き換えないと $! に kill -USR1 が届かない)
+(exec "$KILDE" rec --duration 12s --output "$F" > "$WORK/t15.log" 2>&1) &
+T15_PID=$!
+sleep 3
+kill -USR1 $T15_PID 2>/dev/null    # 一時停止
+sleep 4
+kill -USR1 $T15_PID 2>/dev/null    # 再開
+wait $T15_PID
+T15_EXIT=$?
+VD=$(video_duration_of "$F")
+if [ "$T15_EXIT" = "0" ] && num_between "${VD:-0}" 6 10 \
+    && grep -q "一時停止: 合計" "$WORK/t15.log"; then
+    ok "T15 一時停止: 出力 ${VD}s (12s のうち 4s 停止 → 約 8s)・サマリに合計を表示"
+else
+    bad "T15 一時停止: exit=$T15_EXIT duration=${VD:-N/A}s — $WORK/t15.log"
+fi
+
 # ---- サマリ -------------------------------------------------------------------
 
 echo ""
