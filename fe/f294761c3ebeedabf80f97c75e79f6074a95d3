@@ -1,0 +1,21 @@
+Sources/KildeCore/Input/HotkeyMonitor.swift
+  s_35faeec28b4c4b::t_9e0a71f8a23f0c 348-351
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_ee9ed776ed0959 76-78,80-81,85-89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "fef294761c3ebeedabf80f97c75e79f6074a95d3",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
