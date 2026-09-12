@@ -517,7 +517,14 @@ public final class Recorder {
     }
 
     private func teardownMonitorIfNeeded(_ monitorCreatedByUs: Bool) {
-        guard monitorCreatedByUs, !MonitorDevice.teardown() else { return }
+        guard monitorCreatedByUs else { return }
+        // 録画の成否とは独立した後始末なので、失敗は警告に落として録画結果は壊さない
+        do {
+            if try MonitorDevice.teardown() { return }
+        } catch {
+            cleanupWarnings.append("\(error)")
+            return
+        }
         cleanupWarnings.append(
             "既定出力の復元に失敗しました。`kilde audio monitor teardown` を実行してください"
         )

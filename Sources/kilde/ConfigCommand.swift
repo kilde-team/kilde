@@ -11,6 +11,7 @@ struct ConfigCommand: ParsableCommand {
         discussion: """
         設定値は kilde rec の既定値になります。優先順位は
         CLI 引数 > --preset > 環境変数 (KILDE_OUTPUT_DIR) > 設定ファイル > 既定値 です。
+        hotkey は --hotkey > 設定 hotkey > 待機モードなし の順です。
         """,
         subcommands: [Show.self, SetValue.self, Unset.self, Path.self],
         defaultSubcommand: Show.self
@@ -97,6 +98,13 @@ struct ConfigCommand: ParsableCommand {
         static let configuration = CommandConfiguration(abstract: "設定ファイルのパスを表示")
 
         func run() {
+            // load() を通らないので、相対 KILDE_CONFIG_DIR を無検証のパスとして
+            // 表示しないようここでも弾く
+            do {
+                try ConfigStore.checkConfigDirectoryEnvironment()
+            } catch {
+                cliError(error)
+            }
             print(ConfigStore.fileURL.path)
         }
     }
@@ -105,6 +113,8 @@ struct ConfigCommand: ParsableCommand {
 /// set / unset 用の読み込み。壊れたファイルは空の設定で上書きしない (他の設定を黙って失うため)。
 /// 代わりに直し方を添えて失敗させる (`kilde config path` は壊れていても使える)
 private func loadForEdit() throws -> KildeConfig {
+    // 環境変数の誤りを「設定ファイルを手で修正」の案内に混ぜないため、先に弾く
+    try ConfigStore.checkConfigDirectoryEnvironment()
     do {
         return try ConfigStore.load()
     } catch {

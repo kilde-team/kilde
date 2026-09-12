@@ -28,6 +28,35 @@ final class ConfigTests: XCTestCase {
 
     // MARK: - 読み書き
 
+    func testConfigDirectoryDefaultsWhenEnvironmentIsMissingOrEmpty() {
+        let expected = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".kilde", isDirectory: true)
+        XCTAssertEqual(ConfigStore.configDirectory(environment: [:]), expected)
+        XCTAssertEqual(ConfigStore.configDirectory(environment: ["KILDE_CONFIG_DIR": ""]), expected)
+    }
+
+    func testConfigDirectoryUsesEnvironmentAndExpandsTilde() {
+        XCTAssertEqual(
+            ConfigStore.configDirectory(environment: ["KILDE_CONFIG_DIR": "/tmp/kilde-config"]).path,
+            "/tmp/kilde-config"
+        )
+        XCTAssertEqual(
+            ConfigStore.configDirectory(environment: ["KILDE_CONFIG_DIR": "~/test-kilde-config"]).path,
+            NSString(string: "~/test-kilde-config").expandingTildeInPath
+        )
+    }
+
+    func testConfigDirectoryRejectsRelativePath() {
+        // outputDirectory と同じ基準 — 起動時 CWD 次第で参照先が変わるのを防ぐ
+        XCTAssertThrowsError(try ConfigStore.checkConfigDirectory("kilde-config")) { error in
+            guard case KilError.failed = error else {
+                return XCTFail("KilError.failed であるべき: \(error)")
+            }
+        }
+        XCTAssertNoThrow(try ConfigStore.checkConfigDirectory("/tmp/kilde-config"))
+        XCTAssertNoThrow(try ConfigStore.checkConfigDirectory("~/kilde-config"))
+    }
+
     func testMissingFileLoadsEmptyConfig() throws {
         XCTAssertEqual(try ConfigStore.load(), KildeConfig())
     }
@@ -40,12 +69,14 @@ final class ConfigTests: XCTestCase {
         try config.set(.codec, "hevc")
         try config.set(.fps, "30")
         try config.set(.showsCursor, "false")
+        try config.set(.hotkey, "cmd+shift+r")
         try ConfigStore.save(config)
 
         let loaded = try ConfigStore.load()
         XCTAssertEqual(loaded, config)
         XCTAssertEqual(loaded.defaultAudioSources, ["system", "mic"])
         XCTAssertEqual(loaded.showsCursor, false)
+        XCTAssertEqual(loaded.hotkey, "cmd+shift+r")
     }
 
     func testUnsetRemovesKey() throws {
@@ -68,6 +99,7 @@ final class ConfigTests: XCTestCase {
         XCTAssertThrowsError(try config.set(.defaultAudioSources, "speaker"))
         XCTAssertThrowsError(try config.set(.defaultAudioSources, "device:"))
         XCTAssertThrowsError(try config.set(.outputDirectory, "relative/dir"))
+        XCTAssertThrowsError(try config.set(.hotkey, "not-a-hotkey"))
         XCTAssertEqual(config, KildeConfig(), "失敗した set で値が変わってはいけない")
     }
 
@@ -97,6 +129,15 @@ final class ConfigTests: XCTestCase {
     }
 
     // MARK: - 優先順位
+
+    func testHotkeyPriorityAndValidation() throws {
+        let config = KildeConfig(hotkey: "cmd+shift+r")
+        XCTAssertEqual(try HotkeySettings.resolve(explicit: "ctrl+f12", config: config), "ctrl+f12")
+        XCTAssertEqual(try HotkeySettings.resolve(explicit: nil, config: config), "cmd+shift+r")
+        XCTAssertNil(try HotkeySettings.resolve(explicit: nil, config: KildeConfig()))
+        XCTAssertThrowsError(try HotkeySettings.resolve(
+            explicit: "invalid", config: KildeConfig(hotkey: "cmd+r")))
+    }
 
     private func resolve(_ o: RecordOverrides = RecordOverrides(), config: KildeConfig = KildeConfig(),
                          env: [String: String] = [:], wantsVideo: Bool = true) throws -> RecordOptions {

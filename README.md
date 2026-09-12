@@ -17,6 +17,7 @@ QuickTime Player の画面収録では録れない**システム音声を含め�
   他アプリの音が入らない
 - 🎙️ 録音 (音声のみ) モード (`--no-video`) — ドライバ追加不要
 - 🛡️ Ctrl+C でもファイルが必ずファイナライズされる安全な停止
+- ⌨️ グローバルホットキーで、他アプリの操作中でも録画を開始 / 停止
 
 ## ビルドと実行
 
@@ -53,13 +54,21 @@ kilde rec --no-video --window zoom 会議.m4a
 # BlackHole 経由で「聞きながら録音」
 kilde rec --no-video --audio "device:BlackHole 2ch" --monitor 会議.m4a
 
+# ターミナルにフォーカスがなくても cmd+shift+r で開始 / 停止
+# 待機中の Ctrl+C はファイルを作らず終了 (--countdown との併用は不可)
+kilde rec --hotkey cmd+shift+r 会議.mov
+
 # 既定値を設定ファイル (~/.kilde/config.json) で変更
+#   KILDE_CONFIG_DIR で config.json と monitor-state.json の保存先を差し替え可能
+#   (絶対パスか ~ 始まりのみ。相対パスはエラー)
 #   優先順位: CLI 引数 > --preset > KILDE_OUTPUT_DIR > 設定ファイル > 既定値
+#   hotkey は --hotkey > 設定 hotkey > 待機モードなし
 #   不正な設定や存在しない保存先は、録画を始める前にエラー (終了コード 1)
 #   rec --fps 0 のような値の誤りはオプション検証エラー (終了コード 64)
 kilde config set outputDirectory ~/Movies/kilde
 kilde config set defaultAudioSources system,mic
 kilde config set showsCursor false   # その回だけ写したいときは kilde rec --cursor
+kilde config set hotkey cmd+shift+r  # rec を常にホットキー待機で起動
 kilde config show                    # 現在値と既定値 (unset <key> で既定に戻す / path でファイルの場所)
 
 kilde devices      # ディスプレイ / ウィンドウ / オーディオ機器の一覧
@@ -97,7 +106,7 @@ open KildeGUI.xcodeproj # Xcode で KildeGUI スキームを Run
 
 - **M0** ✅ 技術スパイク (ScreenCaptureKit の音声経路の検証)
 - **M1** ✅ CLI MVP (`kilde rec / devices / doctor / audio monitor / inspect`)
-- **M2** 領域指定の収録、グローバルホットキー、一時停止/再開
+- **M2** グローバルホットキー ✅、領域指定の収録、一時停止/再開
 - **M3** メニューバー GUI アプリ (骨格 ✅ / 録画 UI ✅ / 権限オンボーディング・通知は今後)
 
 ## コントリビューション

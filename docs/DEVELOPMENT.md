@@ -80,8 +80,8 @@ kilde config show                                   # 設定値と既定値の�
 ```
 
 設定ファイルの値は `kilde rec` の既定値になり、CLI 引数が常に優先されます
-(キーと優先順位は DESIGN.md §6「設定ファイル」)。開発中に実環境の設定の影響を
-避けたいときは `kilde config show` で確認し、`kilde config unset <key>` で戻してください。
+(キーと優先順位は DESIGN.md §6「設定ファイル」)。開発中に実環境の設定と monitor state を
+分離したいときは `KILDE_CONFIG_DIR` に一時ディレクトリを指定してください。
 
 `--window` は windowID の完全一致 / ウィンドウタイトル / bundleID の部分一致で解決し、
 複数ヒットしたら**面積が最大のもの**を選びます。曖昧なときは `kilde devices` で
@@ -212,9 +212,8 @@ scripts/integration-test.sh
 - テスト中に一時的に既定の出力デバイスが `kilde Monitor` に切り替わります
   (T9)。スクリプトは `trap` で必ず復元しますが、強制終了した場合は
   `kilde audio monitor teardown` を手動で実行してください
-- `~/.kilde/config.json` がある場合、テスト中だけ `config.json.kilde-it-backup` に退避して
-  終了時に戻します (T3 などは既定値が前提のため)。強制終了して退避ファイルが残った場合は
-  手で戻してください (残っているとスクリプトは実行を拒否します)
+- 設定ファイルと monitor state は `KILDE_CONFIG_DIR` で作業ディレクトリ内に分離するため、
+  ユーザーの `~/.kilde` には触れません
 
 **テスト項目:**
 
@@ -249,8 +248,22 @@ scripts/drift-test.sh [録画時間 (既定 15m)] [マーカー間隔秒 (既定
 
 点滅 + ビープのマーカーを出すウィンドウを収録し、映像 / system / mic のずれが
 録画中に増えていかないかを ms 単位で出します (issue #3)。統合テストとは別物で、
-既定の 15 分 × 2 モードで ~31 分かかります。前提は統合テストと同じ (権限・スピーカー音量) に加えて、
-静かな環境で行い、計測中は `KildeDriftMarker` ウィンドウを隠さないこと。
+既定の 15 分 × 2 モードで ~31 分かかります。前提は統合テストと同じ (権限・音量) に加えて、
+計測中は `KildeDriftMarker` ウィンドウを隠さず、画面をロックしないこと
+(ロック中は SCK がフレームを出さず映像が 0 秒になります)。
+音響経路 (スピーカー → マイク) で測る場合は、静かな環境で行ってください
+(物音が入るとマーカーの検出が欠けて値が汚れます)。
+
+鳴らす先とマイクは環境変数で指定できます (`OUT` はシステムの既定出力を変えません)。
+
+```sh
+OUT="BlackHole" MIC="device:BlackHole" scripts/drift-test.sh   # 音響経路なし (ループバック)
+OUT="MacBook Proのスピーカー" MIC="device:MacBook" scripts/drift-test.sh  # 音響経路あり
+```
+
+内蔵スピーカー・内蔵マイクはクラムシェル (蓋を閉じた状態) では使えないため、
+蓋を開けられない Mac では BlackHole ループバックを使います。この場合 mic 側は
+BlackHole の仮想クロックになる点に注意してください。
 仕組みと結果の記録先は SPIKE-NOTES.md F-E です。
 
 ### 単体テスト
@@ -284,7 +297,7 @@ SCK / AVCapture / CoreAudio の実デバイスには触れません。
 | 映像トラックが真っ黒 / サイズ不正 | `SCStreamConfiguration.pixelFormat` に BGRA を指定しているか、`outputSettings` に幅・高さがあるか |
 | 音声が無音 (rms=0.0000) | 出力音量、収録対象ウィンドウの取り違え (ウィンドウ収録は他アプリの音が入らないのが仕様) |
 | `--monitor` / `audio monitor setup` で BlackHole が無音 | aggregate device の非公開キー `"stacked": true` が落ちていないか (SPIKE-NOTES F-C) |
-| 既定出力が `kilde Monitor` のまま戻らない | `kilde audio monitor teardown`。状態は `~/.kilde/monitor-state.json` に保存されている |
+| 既定出力が `kilde Monitor` のまま戻らない | `kilde audio monitor teardown`。状態は通常 `~/.kilde/monitor-state.json` に保存される。`KILDE_CONFIG_DIR` を指定して実行した場合は、そのディレクトリの `monitor-state.json` を確認する |
 | サマリの `ミックスできなかった音声バッファ` が 0 でない | 入力デバイスが非対応フォーマット (Float32 以外) を返している。`MicStream.init` の `output.audioSettings` (Float32 / 48k / 2ch) の統一が効いているか |
 | mic の first-PTS 差が大きい | マイクを SCK より先に開始しているか (`Recorder.recordAndFinalize()` の順序) |
 
@@ -296,7 +309,7 @@ SCK / AVCapture / CoreAudio の実デバイスには触れません。
 | 2 | `feature/m1-cli-mvp` を `main` へマージ | 済 (PR #1) |
 | 3 | `Tests/KildeCoreTests` の作成 | issue #5 |
 | 4 | CI (`.github/workflows`) で `swift build` + 単体テスト | issue #6 |
-| 5 | 長時間 (10 分級) の A/V ドリフト測定 | issue #3 |
+| 5 | 長時間 (10 分級) の A/V ドリフト測定 | 部分完了 — BlackHole ループバックで 15 分 (最大 12 ms)、実マイクでの計測は未実施 (issue #3、SPIKE-NOTES F-E) |
 | 6 | 旧 OS (14/15) での S7 / S8 / S9 挙動の確認 | issue #4 |
 | 7 | `LICENSE` (MIT) の追加 | 済 (issue #21) |
 | 8 | DESIGN.md §6 の終了コード `130` と実装 (SIGINT で exit 0) の食い違いを解消 | 済 — exit 0 に統一 (issue #7) |
