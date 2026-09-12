@@ -25,6 +25,8 @@ final class RecordingSetup: ObservableObject {
     private var enumerationInFlight = false
     private var needsReload = false
     private var hasLoadedOnce = false
+    /// 列挙の世代。タイムアウト後に遅れて返ってきた古い結果 (一覧・サムネイル) を捨てるために使う
+    private var generation = 0
 
     private static let enumerationTimeout: TimeInterval = 10
     /// サムネイルを撮るウィンドウ数の上限 (1 枚ごとに SCScreenshotManager の撮影が走るため)
@@ -80,15 +82,22 @@ final class RecordingSetup: ObservableObject {
         }
     }
 
+    /// 設定ファイル・CLI の `device:<spec>` と同じ照合 (UID の完全一致、または名前の部分一致・
+    /// 大文字小文字無視)。`AudioDeviceCatalog.resolveInput` と揃えないと、`device:BlackHole` が
+    /// 実デバイス "BlackHole 2ch" に解決されているのに未選択と表示され、クリックすると元の指定を
+    /// 残したまま UID を足して同じデバイスを二重に録ってしまう
+    private func matches(_ spec: String, _ device: AudioDeviceInfo) -> Bool {
+        spec == device.uid || device.name.localizedCaseInsensitiveContains(spec)
+    }
+
     func isSelected(device: AudioDeviceInfo) -> Bool {
-        // 設定ファイル由来の値は名前のことがあるので、UID と名前の両方で照合する
-        request.inputDevices.contains(device.uid) || request.inputDevices.contains(device.name)
+        request.inputDevices.contains { matches($0, device) }
     }
 
     func setSelected(_ selected: Bool, device: AudioDeviceInfo) {
-        request.inputDevices.removeAll { $0 == device.uid || $0 == device.name }
+        request.inputDevices.removeAll { matches($0, device) }
         if selected {
-            // UID は完全一致で解決されるので、同名のデバイスがあっても取り違えない
+            // 追加は UID (完全一致) で入れるので、同名のデバイスがあっても取り違えない
             request.inputDevices.append(device.uid)
         }
     }
@@ -103,31 +112,45 @@ final class RecordingSetup: ObservableObject {
         }
         enumerationInFlight = true
         loading = true
-        // 入力デバイスは CoreAudio で権限不要・即時。画面の列挙の待ちに巻き込まない
-        inputDevices = AudioDeviceCatalog.devices.filter { $0.inputChannels > 0 }
+        generation += 1
+        let generation = self.generation
+        // 入力デバイスの列挙 (CoreAudio) は権限不要で普通は速いが、デバイス構成の変更中などに
+        // ブロックすることがある。メニューバーの UI を止めないよう detached で回し、結果だけ反映する
+        Task.detached {
+            let devices = AudioDeviceCatalog.devices.filter { $0.inputChannels > 0 }
+            await MainActor.run { [weak self] in
+                guard let self, generation == self.generation else { return }
+                self.inputDevices = devices
+            }
+        }
 
         let enumerate = Task.detached { () -> Result<(displays: [DisplayInfo], windows: [WindowInfo]), Error> in
             do { return .success(try await DisplayCatalog.snapshot()) }
             catch { return .failure(error) }
         }
-        Task {
+        Task { [weak self] in
             let finished = await Self.value(of: enumerate, timeout: Self.enumerationTimeout)
-            apply(finished)
-            loading = false
-            hasLoadedOnce = true
-            // タイムアウト後も列挙の実際の完了を待ってから次を受け付ける (列挙の積み上がり防止)。
-            // await なのでメインアクターは塞がない
-            _ = await enumerate.value
-            enumerationInFlight = false
-            if needsReload {
-                needsReload = false
-                reload()
+            guard let self, generation == self.generation else { return }
+            self.apply(finished, generation: generation)
+            self.loading = false
+            self.hasLoadedOnce = true
+            // タイムアウトしても列挙状態は解放する — 解放しないと、権限プロンプト保留などで
+            // 列挙タスクが返らない間は「更新」を押しても二度と一覧を取り直せない。
+            // 遅れて返ってきた古い結果は世代で捨てるので、取り違えは起きない
+            self.enumerationInFlight = false
+            if self.needsReload {
+                self.needsReload = false
+                self.reload()
             }
         }
     }
 
-    private func apply(_ result: Result<(displays: [DisplayInfo], windows: [WindowInfo]), Error>?) {
+    private func apply(_ result: Result<(displays: [DisplayInfo], windows: [WindowInfo]), Error>?,
+                       generation: Int) {
         guard let result else {
+            // 古い一覧を残したままタイムアウトのエラーを出すと、表示とエラーが食い違う
+            displays = []
+            windows = []
             loadError = "画面/ウィンドウの列挙がタイムアウトしました。画面収録の権限確認が保留になっていないか確認し、再度更新してください"
             return
         }
@@ -152,7 +175,7 @@ final class RecordingSetup: ObservableObject {
             default:
                 break
             }
-            loadThumbnails()
+            loadThumbnails(generation: generation)
         case .failure(let error):
             // 画面収録の権限が無いとここに来る (オンボーディングは issue #19)
             displays = []
@@ -161,13 +184,16 @@ final class RecordingSetup: ObservableObject {
         }
     }
 
-    private func loadThumbnails() {
+    private func loadThumbnails(generation: Int) {
         let ids = windows.prefix(Self.thumbnailLimit).map(\.windowID)
         Task.detached {
             let images = await DisplayCatalog.windowThumbnails(windowIDs: ids)
             let converted = images.mapValues { NSImage(cgImage: $0, size: .zero) }
             await MainActor.run { [weak self] in
-                self?.thumbnails = converted
+                // 短い間隔で更新すると古い取得が後から終わることがある。今の一覧に
+                // 古い画像を貼ると、見た目で別のウィンドウを選んでしまうので捨てる
+                guard let self, generation == self.generation else { return }
+                self.thumbnails = converted
             }
         }
     }

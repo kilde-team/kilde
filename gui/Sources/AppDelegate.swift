@@ -64,8 +64,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.reply(toApplicationShouldTerminate: true)
         }
         recording.stop()
+        // 準備中 (マイク権限のダイアログ待ち、SCK のデバイス列挙待ち) は stop() では中断できず、
+        // セッション終了イベントが来ないまま終了できなくなることがある。まだ 1 フレームも
+        // 書いていない段階なので、猶予を過ぎたら終了を許す — 録画中・ファイナライズ中は
+        // この分岐に入らないので、書きかけのファイルを放置することはない。
+        // (準備フェーズ自体をキャンセル可能にするのは Recorder 側の課題 — issue #56)
+        if case .starting = recording.phase {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.startingTerminateGrace) { [weak self] in
+                guard let self, case .starting = self.recording.phase else { return }
+                NSApp.reply(toApplicationShouldTerminate: true)
+            }
+        }
         return .terminateLater
     }
+
+    /// 準備中に終了要求が来たときに待つ上限 (これを過ぎたら終了を許す)
+    private static let startingTerminateGrace: TimeInterval = 5
 
     @objc private func togglePopover() {
         guard let popover else { return }

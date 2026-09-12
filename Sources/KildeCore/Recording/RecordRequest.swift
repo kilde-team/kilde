@@ -88,11 +88,26 @@ public struct RecordRequest: Equatable {
         var overrides = RecordOverrides()
         overrides.audio = audioSourceStrings
         overrides.audioTracks = trackPolicy.name
-        overrides.outputPath = outputDirectory
-            .appendingPathComponent(defaultOutputName(ext: wantsVideo ? "mov" : "m4a")).path
+        overrides.outputPath = Self.availableOutputURL(
+            in: outputDirectory, ext: wantsVideo ? "mov" : "m4a").path
         // GUI を起動元の環境変数に依存させない (KILDE_OUTPUT_DIR は CLI 用)
         try RecordSettings.apply(overrides, config: config, environment: [:], to: &options)
         return options
+    }
+
+    /// 空いている出力名を選ぶ。既定名は秒までしか持たないので、短い録画を止めてすぐ録り直すと
+    /// 同じ名前になり、`MovieWriter` が既存ファイルを消してしまう (直前の録画が失われる)。
+    /// 衝突したら `kilde-….mov` → `kilde-…-2.mov` のように連番を付ける
+    static func availableOutputURL(in directory: URL, ext: String) -> URL {
+        let base = defaultOutputName(ext: ext)
+        let first = directory.appendingPathComponent(base)
+        guard FileManager.default.fileExists(atPath: first.path) else { return first }
+        let stem = (base as NSString).deletingPathExtension
+        for suffix in 2...999 {
+            let candidate = directory.appendingPathComponent("\(stem)-\(suffix).\(ext)")
+            if !FileManager.default.fileExists(atPath: candidate.path) { return candidate }
+        }
+        return first
     }
 
     /// 現在の選択 (音声ソース・トラック方針・保存先) を既定値として書き込んだ設定を返す。
@@ -102,6 +117,11 @@ public struct RecordRequest: Equatable {
         updated.defaultAudioSources = audioSourceStrings
         updated.audioTracks = trackPolicy.name
         updated.outputDirectory = outputDirectory.path
+        // 存在しないディレクトリを既定に書くと、`KildeConfig.validate()` は形式しか見ないので保存でき、
+        // 次回の `initial()` が黙って fallback に戻す (「保存したのに効かない」)。書く前に弾く
+        guard Self.isDirectory(outputDirectory) else {
+            throw KilError.failed("保存先ディレクトリが存在しません: \(outputDirectory.path)")
+        }
         try updated.validate()
         return updated
     }

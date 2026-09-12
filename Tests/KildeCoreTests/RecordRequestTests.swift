@@ -77,6 +77,26 @@ final class RecordRequestTests: XCTestCase {
         XCTAssertFalse(options.showsCursor)
     }
 
+    /// 既定名は秒までしか持たないので、止めてすぐ録り直すと同じ名前になる。
+    /// そのまま渡すと MovieWriter が既存ファイルを消すため、空いている名前を選ぶ
+    func testDoesNotReuseAnExistingOutputPath() throws {
+        let request = RecordRequest(outputDirectory: dir)
+        let first = try XCTUnwrap(try request.makeOptions(config: KildeConfig()).outputURL)
+        FileManager.default.createFile(atPath: first.path, contents: Data("x".utf8))
+
+        let second = try XCTUnwrap(try request.makeOptions(config: KildeConfig()).outputURL)
+        XCTAssertNotEqual(second.path, first.path)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: second.path))
+        XCTAssertEqual(second.deletingLastPathComponent().path, dir.path)
+        XCTAssertEqual(second.pathExtension, "mov")
+    }
+
+    /// 存在しない保存先を既定に書くと、次回起動時に initial() が黙って fallback に戻してしまう
+    func testSavingDefaultsRejectsMissingDirectory() {
+        let request = RecordRequest(outputDirectory: dir.appendingPathComponent("gone"))
+        XCTAssertThrowsError(try request.savingDefaults(into: KildeConfig()))
+    }
+
     func testMissingDirectoryFails() {
         let request = RecordRequest(outputDirectory: dir.appendingPathComponent("no-such-dir"))
         XCTAssertThrowsError(try request.makeOptions(config: KildeConfig()))

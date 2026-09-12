@@ -81,8 +81,9 @@ enum SelfTest {
         recording.whenSessionEnds {
             switch recording.phase {
             case .finished(let url):
-                let bytes = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
-                print("selftest: finished \(url.path) bytes=\(bytes ?? 0) popoverShown=\(popover.isShown())")
+                let bytes = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int)
+                    .flatMap { $0 } ?? 0
+                print("selftest: finished \(url.path) bytes=\(bytes) popoverShown=\(popover.isShown())")
                 fflush(stdout)
                 exit(0)
             case .failed(let message):

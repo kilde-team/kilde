@@ -44,7 +44,8 @@ struct ContentView: View {
         }
         .padding(12)
         .frame(width: 380)
-        .onAppear { setup.reload() }
+        // 録画中は選択肢を出さないので列挙しない (止められない SCK の列挙を録画と並走させない)
+        .onAppear { if !recording.isActive { setup.reload() } }
         .onReceive(NotificationCenter.default.publisher(for: .kildePopoverDidShow)) { _ in
             // 録画中は選択肢を出さないので列挙しない (SCK の列挙を録画と並走させない)
             if !recording.isActive { setup.reload() }
@@ -88,7 +89,8 @@ struct ContentView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                if let error = setup.loadError {
+                // 読み込み中は前回のエラーを隠す (再試行中に古い権限エラーが今の結果に見えてしまう)
+                if !setup.loading, let error = setup.loadError {
                     Label(error, systemImage: "exclamationmark.triangle")
                         .font(.caption)
                         .foregroundStyle(.orange)
@@ -274,7 +276,9 @@ struct ContentView: View {
         .tint(.red)
         .controlSize(.large)
         .keyboardShortcut(.defaultAction)
-        .disabled(mode == .audioOnly && setup.request.audioSourceCount == 0)
+        // 列挙中の開始は、進行中の SCShareableContent 列挙と Recorder の対象解決が
+        // 同時に SCK へ行くことになるので受け付けない
+        .disabled(setup.loading || (mode == .audioOnly && setup.request.audioSourceCount == 0))
     }
 
     private func start() {
