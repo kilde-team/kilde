@@ -83,17 +83,27 @@ struct RecCommand: ParsableCommand {
             throw ValidationError("--codec は h264 / hevc / prores を指定してください")
         }
         if let format {
-            guard let container = ContainerKind(rawValue: format.lowercased()) else {
+            guard ContainerKind(rawValue: format.lowercased()) != nil else {
                 throw ValidationError("--format は mov か mp4 を指定してください")
             }
             // 音声のみの出力は M4A で固定なので、指定しても効かない
             if noVideo {
                 throw ValidationError("--format と --no-video は併用できません (音声のみの出力は M4A です)")
             }
-            // 設定ファイル由来の codec との組合せは KildeCore 側 (終了コード 1) で弾く
-            if let codec, let kind = VideoCodecKind(rawValue: codec), !container.supports(kind) {
-                throw ValidationError("MP4 コンテナに \(codec) は入れられません (--codec h264 / hevc か --format mov)")
-            }
+        }
+        // コンテナは --format だけでなく出力パスの拡張子でも決まる (kilde rec demo.mp4)。
+        // CLI で分かる組合せは終了コード 64 で弾く契約なので、実効コンテナで検証する
+        // (設定ファイル由来の codec との組合せだけは KildeCore 側で 1 になる)
+        let effectiveContainer: ContainerKind? = {
+            if let format { return ContainerKind(rawValue: format.lowercased()) }
+            guard let path = output ?? outputPositional else { return nil }
+            return ContainerKind(rawValue: URL(fileURLWithPath: path).pathExtension.lowercased())
+        }()
+        if !noVideo, let codec, let kind = VideoCodecKind(rawValue: codec),
+           let container = effectiveContainer, !container.supports(kind) {
+            throw ValidationError(
+                "\(container.rawValue.uppercased()) コンテナに \(codec) は入れられません "
+                + "(--codec h264 / hevc か --format mov)")
         }
         for a in audio where a != "none" && AudioSourceSpec.parse(a) == nil {
             throw ValidationError("--audio の値が不正: \(a) (system / mic / device:<名前> / none)")

@@ -79,14 +79,27 @@ final class ContainerFormatTests: XCTestCase {
 
     func testAudioOnlyKeepsM4ARegardlessOfContainer() throws {
         // 音声のみは従来どおり M4A。--format は CLI で拒否されるが、
-        // GUI などが container を立てても拡張子は m4a のままであること
+        // GUI などが呼び出し前に container を立てていても拡張子は m4a のままであること
         var o = RecordOverrides()
+        o.audio = ["system"]
         var options = RecordOptions()
         options.wantsVideo = false
-        o.audio = ["system"]
+        options.container = .mp4   // 呼び出し元が立てた値。音声のみでは使われない
         try RecordSettings.apply(o, config: KildeConfig(outputDirectory: temporaryDirectory.path),
                                  environment: [:], to: &options)
         XCTAssertEqual(options.outputURL?.pathExtension, "m4a")
+    }
+
+    /// 拡張子からの推定でも ProRes との組合せは弾く (CLI は 64、KildeCore は 1)
+    func testInferredMP4AlsoRejectsProRes() throws {
+        var o = RecordOverrides()
+        o.codec = "prores"
+        o.outputPath = temporaryDirectory.appendingPathComponent("a.mp4").path
+        XCTAssertThrowsError(try resolve(o)) { error in
+            guard case KilError.failed = error else {
+                return XCTFail("KilError.failed であるべき: \(error)")
+            }
+        }
     }
 
     // MARK: - コーデックとの組合せ

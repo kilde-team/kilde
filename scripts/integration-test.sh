@@ -438,42 +438,86 @@ fi
 # ---- T16: 出力コンテナ (issue #12) ---------------------------------------------
 # MP4 で録れること、拡張子からの自動判定、入れられない組合せが録画前に弾かれること
 
+# 拡張子を変えただけの回帰 (中身が MOV のまま) を捕まえるため、コンテナを直接見る
+is_iso_mp4() { file -b "$1" 2>/dev/null | grep -qi 'ISO Media'; }
+
 log "T16: rec --format mp4 — MP4 コンテナで録れる"
 F="$WORK/t16-format.mp4"
-if "$KILDE" rec --format mp4 --duration 3s --output "$F" > "$WORK/t16.log" 2>&1 \
-    && grep -q "video: present" <(inspect "$F"); then
-    ok "T16 format mp4: 再生可能な MP4 ($(video_duration_of "$F")s)"
+if "$KILDE" rec --format mp4 --duration 3s --output "$F" > "$WORK/t16.log" 2>&1; then
+    VD=$(video_duration_of "$F")
+    if grep -q "video: present" <(inspect "$F") && num_between "${VD:-0}" 2 5 && is_iso_mp4 "$F"; then
+        ok "T16 format mp4: ISO Media コンテナ・映像あり (${VD}s)"
+    else
+        bad "T16 format mp4: duration=${VD:-N/A}s container=$(file -b "$F" 2>/dev/null | head -c 40) — $WORK/t16.log"
+    fi
 else
-    bad "T16 format mp4: 失敗 — $WORK/t16.log"
+    bad "T16 format mp4: コマンド失敗 — $WORK/t16.log"
 fi
 
 log "T16b: rec <出力>.mp4 — 拡張子から自動で MP4 になる"
 F="$WORK/t16b-auto.mp4"
-if "$KILDE" rec --duration 3s --output "$F" > "$WORK/t16b.log" 2>&1 \
-    && grep -q "video: present" <(inspect "$F"); then
-    ok "T16b format 自動判定: .mp4 の指定で再生可能なファイル"
+if "$KILDE" rec --duration 3s --output "$F" > "$WORK/t16b.log" 2>&1; then
+    VD=$(video_duration_of "$F")
+    if grep -q "video: present" <(inspect "$F") && num_between "${VD:-0}" 2 5 && is_iso_mp4 "$F"; then
+        ok "T16b format 自動判定: .mp4 の指定で ISO Media コンテナ (${VD}s)"
+    else
+        bad "T16b format 自動判定: duration=${VD:-N/A}s container=$(file -b "$F" 2>/dev/null | head -c 40) — $WORK/t16b.log"
+    fi
 else
-    bad "T16b format 自動判定: 失敗 — $WORK/t16b.log"
+    bad "T16b format 自動判定: コマンド失敗 — $WORK/t16b.log"
+fi
+
+log "T16b2: rec <出力>.mov — 既定は MOV のまま (回帰確認)"
+F="$WORK/t16b2-mov.mov"
+if "$KILDE" rec --duration 3s --output "$F" > "$WORK/t16b2.log" 2>&1 \
+    && file -b "$F" 2>/dev/null | grep -qi 'QuickTime'; then
+    ok "T16b2 既定 mov: QuickTime コンテナのまま"
+else
+    bad "T16b2 既定 mov: container=$(file -b "$F" 2>/dev/null | head -c 40) — $WORK/t16b2.log"
 fi
 
 log "T16c: rec --format — 入れられない組合せは録画前に exit 64"
 T16C_FAIL=0
-check_format_rejected() {  # check_format_rejected <ログ名> <説明> <引数...>
-    local logname="$1" desc="$2"; shift 2
-    "$KILDE" rec "$@" --duration 3s --output "$WORK/$logname.out" > "$WORK/$logname.log" 2>&1
-    local code=$?
-    if [ "$code" != "64" ] || [ -f "$WORK/$logname.out" ]; then
-        echo "  $desc: exit=$code (64 が必要)"
+check_format_rejected() {  # check_format_rejected <ログ名> <出力パス> <説明> <引数...>
+    local logname="$1" out="$2" desc="$3"; shift 3
+    local start=$(date +%s)
+    # --duration 30s にしておくと、録画が始まってしまった実装では 30 秒かかる。
+    # 5 秒未満で返ったことをもって「録画前に弾いた」と判定する (T12b と同じ考え方)。
+    # 出力パスは呼び出し側から受け取る — ここで --output を足すと、拡張子で
+    # コンテナを推定するケースの指定を後勝ちで上書きしてしまう
+    "$KILDE" rec "$@" --duration 30s --output "$out" > "$WORK/$logname.log" 2>&1
+    local code=$? elapsed=$(( $(date +%s) - start ))
+    if [ "$code" != "64" ] || [ -f "$out" ] || [ "$elapsed" -ge 5 ]; then
+        echo "  $desc: exit=$code (64 が必要) elapsed=${elapsed}s file=$([ -f "$out" ] && echo あり || echo なし)"
         T16C_FAIL=1
     fi
 }
-check_format_rejected t16c "MP4 + ProRes" --format mp4 --codec prores
-check_format_rejected t16c2 "--no-video との併用" --format mp4 --no-video
-check_format_rejected t16c3 "不正な値" --format mkv
+check_format_rejected t16c "$WORK/t16c.mov" "MP4 + ProRes (--format 明示)" --format mp4 --codec prores
+check_format_rejected t16c2 "$WORK/t16c2.m4a" "--no-video との併用" --format mp4 --no-video
+check_format_rejected t16c3 "$WORK/t16c3.mov" "不正な値" --format mkv
+# 拡張子からの推定でも同じ契約 (CLI 由来は 64)
+check_format_rejected t16c4 "$WORK/t16c4.mp4" "MP4 + ProRes (拡張子で推定)" --codec prores
 if [ "$T16C_FAIL" = "0" ]; then
-    ok "T16c format 引数検証: 3 パターンすべて exit=64・ファイルなし"
+    ok "T16c format 引数検証: 4 パターンすべて録画前に exit=64・ファイルなし"
 else
     bad "T16c format 引数検証: 上記の組合せが想定どおりに弾かれていない"
+fi
+
+log "T16d: 設定ファイル由来の codec との組合せは録画前に exit 1"
+# CLI 引数由来は 64、設定ファイル由来は 1 という公開契約 (DESIGN.md §6) を守る
+if write_test_config '{"codec": "prores"}\n'; then
+    START=$(date +%s)
+    (cd "$WORK" && "$KILDE" rec --format mp4 --duration 30s --output "$WORK/t16d.mp4" > "$WORK/t16d.log" 2>&1)
+    EXIT_CODE=$?
+    ELAPSED=$(( $(date +%s) - START ))
+    if [ "$EXIT_CODE" = "1" ] && [ "$ELAPSED" -lt 5 ] && [ ! -f "$WORK/t16d.mp4" ]; then
+        ok "T16d 設定由来 codec: 録画前に exit=1 (${ELAPSED}s)"
+    else
+        bad "T16d 設定由来 codec: exit=$EXIT_CODE elapsed=${ELAPSED}s — $WORK/t16d.log"
+    fi
+    rm -f "$CONFIG"
+else
+    bad "T16d 設定由来 codec: テスト設定の書き込みに失敗"
 fi
 
 # ---- サマリ -------------------------------------------------------------------

@@ -190,7 +190,8 @@ scripts/integration-test.sh
 | T10 | SIGINT — Ctrl+C 相当で exit 0・再生可能なファイルが残る |
 | T11 | GUI — KildeGUI のビルド・起動・正常終了 (xcodegen 未導入 / kilde-dev 証明書なし / KildeGUI 起動中は SKIP。メニューバー表示は目視確認) |
 | T12 | 設定ファイル — `outputDirectory` が既定の保存先になる / 存在しない保存先は録画前に exit 1 |
-| T16 | `rec --format mp4` — MP4 で録れる / 出力パスの拡張子から自動判定 / ProRes・`--no-video`・不正値との組合せは録画前に exit 64 |
+| T13 | `rec --hotkey` — 待機中の SIGINT は録画を始めず exit 0・出力ファイルなし (ホットキーの押下自体は目視確認) |
+| T16 | `rec --format mp4` — ISO Media コンテナで録れる / 出力パスの拡張子から自動判定 / 既定は MOV のまま / ProRes・`--no-video`・不正値との組合せは録画前に exit 64 (設定ファイル由来の codec は exit 1) |
 
 作業ディレクトリ (録画物とログ) は失敗調査のため削除されず、最後に
 パスが表示されます。
