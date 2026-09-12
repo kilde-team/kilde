@@ -1095,6 +1095,41 @@ else
     fi
 fi
 
+# ---- T22: 準備中の SIGINT はセッションを中断して exit 0 (issue #56) --------------
+# 起動直後 (マイク初期化 ~370ms の途中) に SIGINT を送る。#67 の修正により起動直後の
+# シグナルは確実に届く。準備中に止まれば出力ファイルは作られず、録画開始後に間に合った
+# 場合は T10 と同じ安全停止 (ファイルあり) — どちらも正しい挙動なので exit 0 を検証し、
+# ファイルの有無はどちらに解けたかの記録として出力する
+
+log "T22: rec --audio mic — 起動直後の SIGINT でも exit 0 でファイナライズ"
+T22_DIR="$WORK/t22"
+mkdir -p "$T22_DIR"
+(cd "$T22_DIR" && exec "$KILDE" rec --no-video --audio mic --duration 30s \
+    > "$WORK/t22.log" 2>&1) &
+T22_PID=$!
+sleep 0.15
+kill -INT $T22_PID 2>/dev/null
+# 固まって残ってもスイートを止めないよう期限つきで待つ (T13 と同じ段階的強制)
+T22_DEADLINE=$(( $(date +%s) + 10 ))
+while [ "$(date +%s)" -lt "$T22_DEADLINE" ] && kill -0 $T22_PID 2>/dev/null; do
+    sleep 0.5
+done
+if kill -0 $T22_PID 2>/dev/null; then
+    kill -TERM $T22_PID 2>/dev/null; sleep 1
+    kill -0 $T22_PID 2>/dev/null && kill -KILL $T22_PID 2>/dev/null
+fi
+wait $T22_PID 2>/dev/null; T22_EXIT=$?
+T22_FILES=$(ls "$T22_DIR" 2>/dev/null | wc -l | tr -d ' ')
+if [ "$T22_EXIT" = "0" ]; then
+    if [ "$T22_FILES" = "0" ]; then
+        ok "T22 準備中 SIGINT: exit=0・出力ファイルなし (準備フェーズを中断)"
+    else
+        ok "T22 準備中 SIGINT: exit=0・ファイルあり (開始後の安全停止に解けた)"
+    fi
+else
+    bad "T22 準備中 SIGINT: exit=$T22_EXIT — $WORK/t22.log"
+fi
+
 # ---- サマリ -------------------------------------------------------------------
 
 echo ""
