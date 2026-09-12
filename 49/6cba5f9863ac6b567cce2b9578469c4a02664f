@@ -1,0 +1,28 @@
+Tests/KildeCoreTests/RecorderEventTests.swift
+  s_6e1b71b77323e6::t_809f2c0ec8f8cb 247-255
+  s_6e1b71b77323e6::t_6db42621572575 265-268
+  s_6e1b71b77323e6::t_1d8af1c09c6b9b 288-296,298,302-303
+Sources/KildeCore/Recording/Recorder.swift
+  s_6e1b71b77323e6::t_fabb1d7652c166 266-268,270
+  s_6e1b71b77323e6::t_f38c19e8c1eb9c 202-218
+  s_6e1b71b77323e6::t_41341a3ec2418c 590-595,603-605
+Sources/kilde/RecCommand.swift
+  s_6e1b71b77323e6::t_16cab13305da5e 308,310
+  s_6e1b71b77323e6::t_b82e315e94b57d 302,304-307,309,311-312
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "496cba5f9863ac6b567cce2b9578469c4a02664f",
+  "prompts": {},
+  "sessions": {
+    "s_6e1b71b77323e6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0f56a8e5-68cd-4330-8471-cbfa3a206358",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
