@@ -249,7 +249,8 @@ enum SelfTest {
         //
         // 解決の経路 (設定ファイル → `HotkeySettings.resolve`) も `AppDelegate` が
         // 通っているので、登録できていること自体がその経路の検証になる
-        let resolved = (try? HotkeySettings.resolve(explicit: nil, config: setup.config)) ?? nil
+        // try? の結果は Swift がフラット化するので String? になる (String?? ではない)
+        let resolved = try? HotkeySettings.resolve(explicit: nil, config: setup.config)
         print("selftest: hotkeyResolved=\(resolved ?? "none")")
         print("selftest: configPath=\(ConfigStore.fileURL.path)")
         print("selftest: configHotkey=\(setup.config.hotkey ?? "(なし)")")

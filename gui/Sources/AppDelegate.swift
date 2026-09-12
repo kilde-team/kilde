@@ -160,6 +160,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 新旧のホットキーが両方効いたまま、旧モニターを再解除する機会も失われる
         guard releaseHotkeyMonitor() else {
             replacement?.stop()
+            // 旧モニターが動いたままなので、設定も旧値へ戻す。戻さないと
+            // **実際に効くキーと設定ファイルの値が食い違い**、次回起動で
+            // 設定側のキーが登録されて挙動が変わる
+            if revert != nil { setup.restoreHotkey(previous) }
             return
         }
         hotkeyMonitor = replacement

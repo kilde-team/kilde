@@ -42,8 +42,14 @@ final class RecordingNotifier: NSObject {
     /// 取得が非同期である以上「短い録画が旗の立つ前に終わって通知が捨てられる」
     /// という別の消え方を作るだけだった。未許可のときは `add` が黙って捨てるので、
     /// **判定せずに投げるのが最も確実で、状態も競合も持たずに済む**
+    /// `bytes` は進捗由来の値 (フォールバック)。**実ファイルが読めればそちらを優先する** —
+    /// 進捗は 0.5 秒周期なので、短い録画では 1 度も届かず `0 bytes` と表示されてしまう。
+    /// ここでの stat は**完了時の 1 回だけ**なので、MainActor を塞ぐ心配はない
+    /// (通知のたびに読む形は避けた、という元の判断はそのまま)
     func notifyCompleted(url: URL, elapsed: TimeInterval, bytes: Int64,
                          completion: @escaping () -> Void = {}) {
+        let finalBytes = (try? FileManager.default
+            .attributesOfItem(atPath: url.path)[.size] as? Int64).flatMap { $0 } ?? bytes
         let identifier = UUID().uuidString
         let content = UNMutableNotificationContent()
         content.title = "録画を保存しました"
@@ -53,7 +59,7 @@ final class RecordingNotifier: NSObject {
         // ボリュームだと通知の組み立てで UI が止まる。呼び出し元が持っている
         // 進捗由来の値を使う
         content.body = "\(url.lastPathComponent)\n\(Self.formatDuration(elapsed))"
-            + " · \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))"
+            + " · \(ByteCountFormatter.string(fromByteCount: finalBytes, countStyle: .file))"
         content.sound = .default
         // 通知は macOS 側に残るので、**アプリを終了して起動し直した後にクリックされうる**。
         // メモリ上の対応表だけだと復元できないので、パスを通知自身に持たせる
