@@ -31,6 +31,8 @@ cleanup() {
         "$KILDE" audio monitor teardown >/dev/null 2>&1 && echo "[cleanup] 既定出力を復元しました"
     fi
     [ -n "$SOUNDAPP_PID" ] && kill "$SOUNDAPP_PID" 2>/dev/null
+    # T17 の .app 版 soundapp も同じくどの分岐で失敗しても残さない
+    [ -n "${EXCL_PID:-}" ] && kill "$EXCL_PID" 2>/dev/null
     if [ -n "${CONFIG:-}" ]; then
         rm -f "$CONFIG"
     fi
@@ -664,6 +666,148 @@ if "$KILDE" rec --codec hevc --duration 3s --output "$F" > "$WORK/t19b.log" 2>&1
     fi
 else
     bad "T19b codec hevc: コマンド失敗 — $WORK/t19b.log"
+fi
+
+# ---- T17: アプリ除外と複数ウィンドウ (issue #13) ---------------------------------
+# 除外したアプリの音が出力に入らないこと、--window の複数指定でまとめて録れること、
+# 指定ミスが録画前に弾かれること
+
+# soundapp は swiftc の直コンパイルなので bundleID を持たず、--exclude-app の対象にできない
+# (kilde devices でも「bundleID なし」に入る)。最小の .app に包んで CFBundleIdentifier を与える
+# — 実測でこれだけで SCRunningApplication に載ることを確認している
+EXCL_ID="com.kilde.spikesound"
+EXCL_APP="$WORK/SpikeSound.app"
+mkdir -p "$EXCL_APP/Contents/MacOS"
+cp "$SOUNDAPP" "$EXCL_APP/Contents/MacOS/SpikeSound"
+cat > "$EXCL_APP/Contents/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleExecutable</key><string>SpikeSound</string>
+  <key>CFBundleIdentifier</key><string>$EXCL_ID</string>
+  <key>CFBundleName</key><string>SpikeSound</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+</dict>
+</plist>
+PLIST
+
+start_excl_app() {
+    "$EXCL_APP/Contents/MacOS/SpikeSound" "$VOICE" >/dev/null 2>&1 &
+    EXCL_PID=$!
+    sleep 2
+}
+stop_excl_app() {
+    [ -n "$EXCL_PID" ] && kill "$EXCL_PID" 2>/dev/null
+    wait "$EXCL_PID" 2>/dev/null
+    EXCL_PID=""
+}
+
+log "T17: rec --exclude-app — 除外したアプリの音が出力に入らない (${DUR}s)"
+start_excl_app
+F="$WORK/t17-exclude.mov"
+if "$KILDE" rec --exclude-app "$EXCL_ID" --duration "$DUR" --output "$F" > "$WORK/t17.log" 2>&1; then
+    RMS=$(rms_of "$F")
+    # T7 (ウィンドウ収録の陰性確認) と同じしきい値
+    if awk -v v="${RMS:-1}" 'BEGIN{exit !(v < 0.00005)}'; then
+        ok "T17 exclude-app: 除外アプリの音が完全除外 (rms=$RMS)"
+    else
+        bad "T17 exclude-app: 除外したアプリの音が混入 (rms=$RMS) — SCK の除外が映像だけになった可能性。docs/SPIKE-NOTES.md F-F を参照"
+    fi
+else
+    bad "T17 exclude-app: コマンド失敗 — $WORK/t17.log"
+fi
+stop_excl_app
+
+log "T17b: rec --window 複数指定 — ウィンドウ群をまとめて 1 本に録れる"
+start_excl_app
+SECOND=""
+if "$KILDE" devices 2>/dev/null | grep -q "Wallpaper"; then
+    SECOND="Wallpaper"
+elif "$KILDE" devices 2>/dev/null | grep -q "ゴミ箱"; then
+    SECOND="ゴミ箱"
+fi
+# 複数ディスプレイ環境では 2 つ目のウィンドウが別ディスプレイにある可能性がある。
+# その場合 Recorder が録画前に拒否するのは正しい挙動なので、テストとしては SKIP にする
+DISP_COUNT=$("$KILDE" devices --no-windows 2>/dev/null | grep -c 'display\[')
+F="$WORK/t17b-multi.mov"
+if [ -n "$SECOND" ] && [ "$DISP_COUNT" = "1" ]; then
+    if "$KILDE" rec --window SpikeSoundWindow --window "$SECOND" --duration 3s --output "$F" > "$WORK/t17b.log" 2>&1; then
+        SIZE=$(inspect "$F" | grep '^video:' | grep -oE '[0-9]+x[0-9]+' | head -1)
+        # 複数ウィンドウはディスプレイ座標系のまま合成されるので、出力はディスプレイ全体の大きさ
+        DISP=$("$KILDE" devices --no-windows 2>/dev/null | grep -oE '[0-9]+x[0-9]+' | head -1)
+        # 音声スコープが複数指定でも効くこと (含めた音源アプリの音が入る)
+        RMS=$(rms_of "$F")
+        if [ -n "$SIZE" ] && [ "$SIZE" = "$DISP" ] && rms_above "$F" 0.005; then
+            ok "T17b window 複数: ディスプレイ全体の大きさで録れ、対象アプリの音も入る ($SIZE rms=$RMS)"
+        else
+            bad "T17b window 複数: 解像度=$SIZE (ディスプレイの $DISP が必要) rms=$RMS — $WORK/t17b.log"
+        fi
+    else
+        bad "T17b window 複数: コマンド失敗 — $WORK/t17b.log"
+    fi
+else
+    skip "T17b window 複数: 2 つ目に使える無関係ウィンドウが無い / ディスプレイが複数 (同一ディスプレイを保証できない)"
+fi
+
+# 陽性だけだと「常に音が入る」実装でも通ってしまうので、音源を外した指定で無音を確かめる
+log "T17b2: rec --window 複数指定 — 含めなかったアプリの音は入らない (陰性確認)"
+F="$WORK/t17b2-multi-negative.mov"
+# 2 つ目も存在を確かめる — resolveWindows はどれか 1 つでも解決できないと exit 3 になるので、
+# 決め打ちのままだと「見つからない環境」で SKIP ではなく FAIL になってしまう
+THIRD=""
+"$KILDE" devices 2>/dev/null | grep -q "Menubar" && THIRD="Menubar"
+if [ -n "$SECOND" ] && [ -n "$THIRD" ] && [ "$DISP_COUNT" = "1" ]; then
+    if "$KILDE" rec --window "$SECOND" --window "$THIRD" --duration 3s --output "$F" > "$WORK/t17b2.log" 2>&1; then
+        RMS=$(rms_of "$F")
+        if awk -v v="${RMS:-1}" 'BEGIN{exit !(v < 0.00005)}'; then
+            ok "T17b2 window 複数 陰性: 含めなかったアプリの音は入らない (rms=$RMS)"
+        else
+            bad "T17b2 window 複数 陰性: 音が混入した (rms=$RMS) — 音声スコープが複数指定で効いていない"
+        fi
+    else
+        bad "T17b2 window 複数 陰性: コマンド失敗 — $WORK/t17b2.log"
+    fi
+else
+    skip "T17b2 window 複数 陰性: 2 つ目に使える無関係ウィンドウが見つからない"
+fi
+stop_excl_app
+
+log "T17c: rec --exclude-app — 実行中でない bundleID は録画前に exit 3"
+# --duration 30s にしておくと、録画が始まってしまった実装では 30 秒かかる。
+# 5 秒未満で返ったことをもって「録画前に弾いた」と判定する (T12b / T16c と同じ考え方)
+START=$(date +%s)
+"$KILDE" rec --exclude-app com.kilde.definitely-not-running --duration 30s \
+    --output "$WORK/t17c.mov" > "$WORK/t17c.log" 2>&1
+EXIT_CODE=$?
+ELAPSED=$(( $(date +%s) - START ))
+if [ "$EXIT_CODE" = "3" ] && [ "$ELAPSED" -lt 5 ] && [ ! -f "$WORK/t17c.mov" ]; then
+    ok "T17c exclude-app 不明 bundleID: 録画前に exit=3 (${ELAPSED}s)・ファイルを作らない"
+else
+    bad "T17c exclude-app 不明 bundleID: exit=$EXIT_CODE elapsed=${ELAPSED}s (3 が必要) — $WORK/t17c.log"
+fi
+
+log "T17d: rec --exclude-app — 併用不可の組合せは録画前に exit 64"
+# 除外が黙って無視されると「隠したはずのアプリが写っている」ことになり、
+# 録画を見返すまで気づけない。排他が消えたら必ずここで落ちるようにする
+T17D_FAIL=0
+check_excl_rejected() {  # check_excl_rejected <ログ名> <説明> <kilde rec の引数...>
+    local logname="$1" desc="$2"; shift 2
+    "$KILDE" rec "$@" --duration 3s --output "$WORK/$logname.mov" > "$WORK/$logname.log" 2>&1
+    local code=$?
+    if [ "$code" != "64" ] || [ -f "$WORK/$logname.mov" ]; then
+        echo "  $desc: exit=$code (64 が必要) file=$([ -f "$WORK/$logname.mov" ] && echo あり || echo なし)"
+        T17D_FAIL=1
+    fi
+}
+check_excl_rejected t17d "--window との併用" --exclude-app com.apple.finder --window Finder
+check_excl_rejected t17d2 "--no-video との併用" --exclude-app com.apple.finder --no-video
+check_excl_rejected t17d3 "--preset meeting との併用" --exclude-app com.apple.finder --preset meeting
+check_excl_rejected t17d4 "空の bundleID" --exclude-app ""
+if [ "$T17D_FAIL" = "0" ]; then
+    ok "T17d exclude-app 引数検証: 4 パターンすべて exit=64・ファイルなし"
+else
+    bad "T17d exclude-app 引数検証: 上記の組合せが想定どおりに弾かれていない"
 fi
 
 # ---- サマリ -------------------------------------------------------------------

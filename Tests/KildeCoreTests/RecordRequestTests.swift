@@ -21,7 +21,7 @@ final class RecordRequestTests: XCTestCase {
         request.target = .display(index: 1)
         let options = try request.makeOptions(config: KildeConfig())
         XCTAssertEqual(options.displayIndex, 1)
-        XCTAssertNil(options.windowMatch)
+        XCTAssertTrue(options.windowMatches.isEmpty)
         XCTAssertTrue(options.wantsVideo)
         XCTAssertEqual(options.audioSources, [.system])
         XCTAssertEqual(options.trackPolicy, .mixed)
@@ -34,7 +34,7 @@ final class RecordRequestTests: XCTestCase {
         var request = RecordRequest(outputDirectory: dir)
         request.target = .window(id: 4242)
         let options = try request.makeOptions(config: KildeConfig())
-        XCTAssertEqual(options.windowMatch, "4242")
+        XCTAssertEqual(options.windowMatches, ["4242"])
         XCTAssertTrue(options.wantsVideo)
     }
 

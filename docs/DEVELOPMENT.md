@@ -291,6 +291,7 @@ scripts/integration-test.sh
 | T14 | `rec --region` — 指定した矩形の解像度で録れる / 奇数は偶数へ切り捨て / 範囲外は録画前に exit 1 / 形式不正は exit 64 |
 | T15 | `rec` 一時停止 / 再開 — SIGUSR1 で挟んだ区間が映像・音声のどちらの長さにも含まれず、A/V の差が 1 秒未満 (`p` キーは端末が要るので目視確認) |
 | T16 | `rec --format mp4` — ISO Media コンテナで録れる / 出力パスの拡張子から自動判定 / 既定は MOV のまま / ProRes・`--no-video`・不正値との組合せは録画前に exit 64 (設定ファイル由来の codec は exit 1) |
+| T17 | `rec --exclude-app` — 除外したアプリの音が出力に入らない / `--window` 複数指定でディスプレイ全体の大きさで録れ、音声スコープも効く (含めたアプリの音は入り、含めなかったアプリの音は入らない) / 実行中でない bundleID は exit 3 / 併用不可の組合せは録画前に exit 64 |
 | T19 | `rec --codec prores` — ProRes (BGRA 経路) で録れる |
 | T19b | `rec --codec hevc` — HEVC (420v 経路) で録れる。`SCStreamConfiguration` は単体テストから触れないため、両経路をここで通す |
 
