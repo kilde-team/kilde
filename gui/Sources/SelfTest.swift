@@ -85,15 +85,13 @@ enum SelfTest {
             case .finished(let url):
                 let bytes = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int)
                     .flatMap { $0 } ?? 0
-                if closesPopover {
+                // close に失敗した場合は既に fail() が原因を出して停止させている。
+                // ここで重ねて報告すると、強制停止を「録画が終了した」と誤って説明することになる
+                if closesPopover, !closed.closeFailed {
                     // 「閉じた後も録画が進んだ」ことを成功条件にする。outputBytes は
                     // フレームの来ない環境では増えないので、経過時間 (progress 由来) で見る
                     guard let closedAt = closed.elapsed else {
-                        // closed.elapsed は「閉じられた」ときにだけ入る。閉じられないまま
-                        // 録画が正常終了した場合と区別して報告する (原因の取り違えを防ぐ)
-                        fail(closed.closeFailed
-                            ? "ポップオーバーを閉じられないまま録画が終了しました"
-                            : "ポップオーバーを閉じる前に録画が終わりました")
+                        fail("ポップオーバーを閉じる前に録画が終わりました")
                     }
                     guard recording.elapsed > closedAt else {
                         fail("ポップオーバーを閉じた後に録画が進んでいません (elapsed \(closedAt)s のまま)")

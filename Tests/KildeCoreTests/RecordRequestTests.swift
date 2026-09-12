@@ -93,19 +93,22 @@ final class RecordRequestTests: XCTestCase {
 
     /// 連番も埋まっていたら、既存名を返さずに失敗する (返すと MovieWriter が既存録画を消す)
     func testFailsWhenEveryCandidateNameIsTaken() throws {
-        // 候補の上限を 3 に絞って、base と -2 / -3 を埋める
-        let base = try RecordRequest.availableOutputURL(in: dir, ext: "mov", maxSuffix: 3)
-        let stem = (base.lastPathComponent as NSString).deletingPathExtension
-        for name in [base.lastPathComponent, "\(stem)-2.mov", "\(stem)-3.mov"] {
+        // 既定名は実時刻 (秒) なので、呼び出しの合間に秒が繰り上がるとテストが不安定になる。
+        // base 名を固定して決定的にする
+        let base = "kilde-20260101-000000.mov"
+        let stem = (base as NSString).deletingPathExtension
+        for name in [base, "\(stem)-2.mov", "\(stem)-3.mov"] {
             FileManager.default.createFile(atPath: dir.appendingPathComponent(name).path,
                                            contents: Data("x".utf8))
         }
-        XCTAssertThrowsError(try RecordRequest.availableOutputURL(in: dir, ext: "mov", maxSuffix: 3)) { error in
+        XCTAssertThrowsError(
+            try RecordRequest.availableOutputURL(in: dir, ext: "mov", maxSuffix: 3, baseName: base)
+        ) { error in
             XCTAssertEqual((error as? KilError)?.exitCode, 1)
         }
-        // 空きがある間は連番を返す (上の 3 つのうち -3 を消せば -3 が選ばれる)
+        // 空きがある間は連番を返す (-3 を消せば -3 が選ばれる)
         try FileManager.default.removeItem(at: dir.appendingPathComponent("\(stem)-3.mov"))
-        let reused = try RecordRequest.availableOutputURL(in: dir, ext: "mov", maxSuffix: 3)
+        let reused = try RecordRequest.availableOutputURL(in: dir, ext: "mov", maxSuffix: 3, baseName: base)
         XCTAssertEqual(reused.lastPathComponent, "\(stem)-3.mov")
     }
 

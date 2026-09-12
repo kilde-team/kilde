@@ -98,8 +98,10 @@ public struct RecordRequest: Equatable {
     /// 空いている出力名を選ぶ。既定名は秒までしか持たないので、短い録画を止めてすぐ録り直すと
     /// 同じ名前になり、`MovieWriter` が既存ファイルを消してしまう (直前の録画が失われる)。
     /// 衝突したら `kilde-….mov` → `kilde-…-2.mov` のように連番を付ける
-    static func availableOutputURL(in directory: URL, ext: String, maxSuffix: Int = 999) throws -> URL {
-        let base = defaultOutputName(ext: ext)
+    /// `baseName` はテスト用 (既定名は実時刻の秒なので、テストから決定的に埋められるようにする)
+    static func availableOutputURL(in directory: URL, ext: String, maxSuffix: Int = 999,
+                                   baseName: String? = nil) throws -> URL {
+        let base = baseName ?? defaultOutputName(ext: ext)
         let first = directory.appendingPathComponent(base)
         guard FileManager.default.fileExists(atPath: first.path) else { return first }
         let stem = (base as NSString).deletingPathExtension

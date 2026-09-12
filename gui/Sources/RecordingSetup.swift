@@ -131,14 +131,17 @@ final class RecordingSetup: ObservableObject {
         // ブロックすることがある。メニューバーの UI を止めないよう detached で回し、結果だけ反映する
         if !audioEnumerationInFlight {
             audioEnumerationInFlight = true
-            Task.detached {
-                let devices = AudioDeviceCatalog.devices.filter { $0.inputChannels > 0 }
-                await MainActor.run { [weak self] in
-                    guard let self else { return }
-                    self.audioEnumerationInFlight = false
-                    guard generation == self.generation else { return }
-                    self.inputDevices = devices
-                }
+            let audioTask = Task.detached { () -> [AudioDeviceInfo] in
+                AudioDeviceCatalog.devices.filter { $0.inputChannels > 0 }
+            }
+            Task { [weak self] in
+                let devices = await Self.value(of: audioTask, timeout: Self.enumerationTimeout)
+                guard let self else { return }
+                // タイムアウトでもフラグは解放する — 解放しないと、CoreAudio が返らない環境で
+                // 入力デバイス一覧がアプリ再起動まで二度と更新されなくなる
+                self.audioEnumerationInFlight = false
+                // 入力デバイスの一覧は画面の列挙とは独立なので、世代が進んでいても最新として反映する
+                if let devices { self.inputDevices = devices }
             }
         }
 

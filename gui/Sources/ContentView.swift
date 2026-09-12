@@ -125,6 +125,12 @@ struct ContentView: View {
         }
     }
 
+    /// この構成が SCK を使うか (映像あり、またはシステム音声あり)。
+    /// Recorder の `wantsSCK = wantsVideo || audioSources.contains(.system)` と同じ条件
+    private var usesScreenCapture: Bool {
+        mode != .audioOnly || setup.request.captureSystemAudio
+    }
+
     private var mode: Mode {
         switch setup.request.target {
         case .display: return .display
@@ -278,8 +284,10 @@ struct ContentView: View {
         .keyboardShortcut(.defaultAction)
         // 列挙中の開始は、進行中の SCShareableContent 列挙と Recorder の対象解決が
         // 同時に SCK へ行くことになるので受け付けない。タイムアウト後も返らない列挙が
-        // 残っている間 (enumerationsRunning > 0) も同じ理由で止める
-        .disabled(setup.loading || setup.enumerationsRunning > 0
+        // 残っている間 (enumerationsRunning > 0) も同じ理由で止める —
+        // ただし SCK を使わない構成 (音声のみ + システム音声オフ) は競合しないので止めない
+        .disabled(setup.loading
+            || (usesScreenCapture && setup.enumerationsRunning > 0)
             || (mode == .audioOnly && setup.request.audioSourceCount == 0))
     }
 
