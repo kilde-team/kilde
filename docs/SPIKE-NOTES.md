@@ -168,6 +168,44 @@ mic 側は音響経路のあるマイクか、BlackHole ループバックで行
   ただしこの傾きはマーカーごとの変動幅 (23〜31 ms) に埋もれる水準なので、外挿の確度は高くない。
   判定の基準は 15 分の計測 (issue #3) であり、1 時間級の会議録画で補正が要るかは実測で確かめること
 
+### F-H: HDR 収録 (issue #16) — 実装済み、ただし**当機では検証できていない**
+
+**この検証機に繋がっているディスプレイ (LG Ultra HD) は HDR 非対応**のため、
+issue #16 の受け入れ条件「HDR ディスプレイで `--hdr` 録画が HDR として再生される」は
+**未達のまま**である。実装とフォールバックは入れたが、HDR として再生されることの確認は
+HDR ディスプレイを持つ環境で行う必要がある (#2 / #4 / #55 と同じ「ハード待ち」)。
+
+判定に使った値 (録画なしで取得):
+
+```
+screen[0] LG Ultra HD
+  EDR: current=1.0 potential=1.0 reference=0.0  → HDR対応=false
+```
+
+`maximumPotentialExtendedDynamicRangeColorComponentValue` が「その画面が到達しうる
+EDR の上限」で、SDR ディスプレイでは 1.0 のままになる。**現在値 (`maximum...Value`) の方は
+明るさ設定や表示中の内容で変動するので、対応可否の判定には使えない。**
+
+`SCStreamConfiguration` の HDR プリセットが実際に設定する値 (macOS 26 で実測):
+
+| プリセット | pixelFormat | colorSpace | captureDynamicRange |
+|-----------|-------------|------------|---------------------|
+| `captureHDRStreamLocalDisplay` | `xf44` | `DisplayP3_PQ` | 1 (HDRLocalDisplay) |
+| `captureHDRStreamCanonicalDisplay` | `xf44` | `DisplayP3_PQ` | 2 (HDRCanonicalDisplay) |
+| `captureHDRRecordingPreservedSDRHDR10` | `x420` | `ITUR_2100_PQ` | 2 |
+
+実装は録画向けの `captureHDRRecordingPreservedSDRHDR10` (macOS 26+、HDR10 メタデータ付き)
+を優先し、macOS 15 では `captureHDRStreamLocalDisplay` を使う。プリセットを使うのは、
+`captureDynamicRange` / `pixelFormat` / `colorSpace` / `colorMatrix` を自分で
+整合させるのが間違えやすいため。書き出し側は HEVC **Main10** + BT.2020 / PQ を明示する
+(色情報を書かないと再生側が SDR と解釈する)。
+
+**フォールバックは終了コードを汚さない。** 条件を満たさない環境では SDR で録るが、
+これは失敗ではないので `cleanupWarnings` (CLI が終了コード 1 に変換する) には載せず、
+`Summary.hdrFallback` に理由を載せて結果表示に出す。終了コードは 0 のまま。
+黙って SDR にすると「HDR で録れたつもりのファイル」ができてしまうため、
+理由 (OS が古い / ディスプレイが非対応 / 映像を録っていない) は必ず出し分ける。
+
 ## M1 への反映
 
 1. 録音 (audio-only) モードは SCK ネイティブ (`--audio system` + `.audio` 出力のみ)

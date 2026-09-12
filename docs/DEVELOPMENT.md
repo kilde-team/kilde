@@ -253,6 +253,39 @@ scripts/integration-test.sh
 `scripts/soundapp.swift` を同梱しており、スクリプトが自動でコンパイルして使います
 (T6–T8 のウィンドウ音声スコープ検証用)。
 
+### HDR 収録の確認 (要 HDR ディスプレイ — issue #16)
+
+`--hdr` は統合テストに入れていません。**HDR として録れたことの確認には HDR ディスプレイが
+必要で、現在の検証機 (LG Ultra HD) は HDR 非対応**のためです (SPIKE-NOTES F-H)。
+HDR ディスプレイのある環境では、次を手動で確認してください:
+
+```sh
+kilde rec --hdr --codec hevc --duration 10s hdr.mov
+```
+
+- 結果に `⚠ HDR:` の行が**出ない**こと (出ていれば SDR に落ちています)
+- QuickTime Player でファイルを開き、インスペクタ (⌘I) で色空間が PQ
+  (HLG ではない) になっていること
+- `ffprobe -show_streams hdr.mov` で確認する場合、**期待値は OS で違います** —
+  使うプリセットが違うためです (SPIKE-NOTES F-H):
+
+  | | macOS 26 (`captureHDRRecordingPreservedSDRHDR10`) | macOS 15 (`captureHDRStreamLocalDisplay`) |
+  |---|---|---|
+  | `color_primaries` | `bt2020` | `smpte432` (Display P3) |
+  | `color_transfer` | `smpte2084` | `smpte2084` |
+  | `color_space` | `bt2020nc` | `bt2020nc` |
+  | `profile` | `Main 10` | `Main 10` |
+
+  色域 (primaries) だけが違い、伝達関数とマトリクスは共通です。**PQ と組み合わせる
+  YCbCr マトリクスは、色域が P3 でも BT.2020 を使います** (709 を使うと広色域が
+  範囲外に出てクランプされる)。
+
+SDR ディスプレイでは逆に、**SDR へのフォールバックが働くこと**を確認できます
+(`⚠ HDR: 収録対象のディスプレイが HDR に対応していないため SDR で録画します
+(HDR には HDR 対応ディスプレイが必要です)` が出て、録画自体は成功し**終了コードは 0**)。
+`--codec` を省略した場合や設定ファイルの codec が hevc でない場合は、代わりに
+`⚠ HDR: HDR は HEVC でのみ書き出せます (現在のコーデック: h264)。…` が出ます。
+
 ### A/V ドリフト計測 (長時間録画)
 
 ```sh

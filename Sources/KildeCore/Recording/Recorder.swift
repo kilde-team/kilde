@@ -37,6 +37,21 @@ public struct RecordOptions {
     public var codec: VideoCodecKind = .h264
     public var fps: Int?
     public var showsCursor = true
+    /// HDR で収録する (issue #16)。macOS 15+ かつ HDR ディスプレイのときだけ有効で、
+    /// 満たさない環境では警告を出して SDR に落とす (黙って SDR にすると
+    /// 「HDR で録れたつもりのファイル」ができてしまう)。コーデックは HEVC のみ
+    public var hdr = false
+    /// HDR を出せるディスプレイの ID (issue #16)。**呼び出し側が埋める。**
+    /// 判定には `NSScreen` = メインスレッドが要るが、`Recorder` は CLI の同期経路
+    /// (`run()` がメインスレッドを塞ぐ) からも呼ばれるため、セッションの中で
+    /// MainActor へディスパッチするとデッドロックする。`DisplayHDR.capableDisplayIDs()` を
+    /// CLI の起動時 / GUI の MainActor 上で呼んで、その結果をここに載せること。
+    ///
+    /// **nil は「まだ判定していない」で、空集合 (「判定した結果 HDR 対応が無い」) とは別。**
+    /// 同じ値で表すと、呼び出し側の載せ忘れが「黙って SDR で録る」に化ける —
+    /// しかも HDR ディスプレイを持つ人にしか再現しないので、まず気づけない。
+    /// そのため `--hdr` を指定して nil のときは握り潰さず失敗させる
+    public var hdrCapableDisplayIDs: Set<CGDirectDisplayID>?
     /// 録音セッションに BlackHole マルチ出力デバイスの setup/teardown を紐付ける
     public var autoMonitor = false
 
@@ -87,6 +102,13 @@ public final class Recorder {
     /// NSCondition 経由でその後に行われるため、ロック無しで読める。
     /// 完了後に追記する経路を足す場合はロックかイベント経由に寄せること
     public private(set) var cleanupWarnings: [String] = []
+    /// `--hdr` を指定したが SDR で録ることになった理由 (issue #16)。
+    /// 失敗ではないので cleanupWarnings とは別に持ち、Summary に載せて伝える
+    private var hdrFallback: String?
+    /// HDR で書き出すときの色空間 (issue #16)。**セッション開始時に 1 回だけ決めて持ち回す** —
+    /// 都度判定するとストリーム側と書き出し側で答えが割れ、8-bit のバッファに
+    /// Main10 + PQ のタグが付いた「HDR のつもりのファイル」ができる
+    private var hdrColorSpace: HDRColorSpace?
 
     public struct Progress: Sendable {
         public let elapsed: TimeInterval
@@ -106,6 +128,9 @@ public final class Recorder {
         public let firstPTSOffsets: [String: Double]
         /// ミックスできず破棄したバッファ数 (0 以外なら非対応フォーマットの疑い)
         public let mixedDecodeFailures: Int
+        /// `--hdr` を指定したが SDR で録った場合の理由 (issue #16)。nil なら該当なし。
+        /// 失敗ではないので cleanupWarnings ではなくここに載せる (終了コードは 0 のまま)
+        public let hdrFallback: String?
     }
 
     private let options: RecordOptions
@@ -342,7 +367,36 @@ public final class Recorder {
         var videoSize: CGSize?
         let captureAudio = options.audioSources.contains(.system)
         if options.wantsVideo || captureAudio {
-            let cfg = SCStreamConfiguration()
+            // 収録対象を先に解決する — HDR 可否は「実際にどの画面に写るか」で決まるので、
+            // ウィンドウ収録では --display ではなくそのウィンドウが載っている画面を見る
+            let resolvedWindow: SCWindow?
+            let resolvedDisplay: SCDisplay?
+            if let match = options.windowMatch {
+                resolvedWindow = try await DisplayCatalog.resolveWindow(matching: match)
+                resolvedDisplay = nil
+            } else {
+                resolvedWindow = nil
+                resolvedDisplay = try await DisplayCatalog.display(at: options.displayIndex)
+            }
+            // HDR 可否はここで 1 回だけ決めて持ち回す。都度評価すると SCShareableContent を
+            // 引き直すことになり、ストリーム側と書き出し側で答えが割れうる (issue #16)
+            let targetDisplayID: CGDirectDisplayID?
+            if let resolvedWindow {
+                targetDisplayID = displayID(containing: resolvedWindow.frame)
+            } else {
+                targetDisplayID = resolvedDisplay?.displayID
+            }
+            let hdr = try hdrDecision(targetDisplayID: targetDisplayID)
+            hdrColorSpace = hdr.colorSpace
+            // HDR を指定したのに SDR へ落ちたときは、必ず理由を伝える。黙って落とすと
+            // 「HDR で録れたつもりのファイル」ができ、再生して初めて気づくことになる。
+            // ただし cleanupWarnings には載せない — あれは「録画は成立したが後始末に失敗した」
+            // 印で、CLI が終了コード 1 に変換する (DESIGN.md §6)。SDR へのフォールバックは
+            // 録画自体は完全に成功しているので、Summary に載せて 0 のまま伝える
+            hdrFallback = hdr.fallbackReason
+            // HDR のときはプリセットが作った configuration をそのまま土台にする
+            // (pixelFormat / colorSpace / colorMatrix が整合した組で入っている)
+            let cfg = hdr.configuration ?? SCStreamConfiguration()
             cfg.capturesAudio = captureAudio
             cfg.sampleRate = 48000
             cfg.channelCount = 2
@@ -351,8 +405,7 @@ public final class Recorder {
                 cfg.minimumFrameInterval = CMTime(seconds: 1.0 / Double(fps), preferredTimescale: 600)
             }
             let filter: SCContentFilter
-            if let match = options.windowMatch {
-                let win = try await DisplayCatalog.resolveWindow(matching: match)
+            if let win = resolvedWindow {
                 if options.wantsVideo {
                     cfg.width = Int(win.frame.width)
                     cfg.height = Int(win.frame.height)
@@ -360,7 +413,7 @@ public final class Recorder {
                 }
                 filter = SCContentFilter(desktopIndependentWindow: win)
             } else {
-                let display = try await DisplayCatalog.display(at: options.displayIndex)
+                let display = resolvedDisplay!
                 if options.wantsVideo {
                     if let region = options.region {
                         // region はポイント座標なので、比較もポイントで行う。
@@ -399,14 +452,26 @@ public final class Recorder {
                 }
                 filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
             }
-            if options.wantsVideo {
-                // AVAssetWriter で再圧縮するため非圧縮 BGRA を要求 (SPIKE-NOTES F-D.1)
+            if options.wantsVideo && hdr.colorSpace == nil {
+                // AVAssetWriter で再圧縮するため非圧縮 BGRA を要求 (SPIKE-NOTES F-D.1)。
+                // HDR のときは上書きしない — プリセットが pixelFormat / colorSpace /
+                // colorMatrix を整合した組み合わせで設定済みで、ここで BGRA に戻すと
+                // 10-bit と PQ の情報が落ちて HDR にならない
                 cfg.pixelFormat = kCVPixelFormatType_32BGRA
             }
             let mode: ScreenAudioStream.Mode = options.wantsVideo ? .screenAndAudio : .audioOnly
             sck = try ScreenAudioStream(filter: filter, configuration: cfg, mode: mode) { [weak self] sb, type in
                 self?.handleSCK(sb, type)
             }
+        } else {
+            // SCK を使わない構成 (マイクや入力デバイスだけの録音) でも HDR 要求は来うる —
+            // GUI や HotkeyRecordingController は CLI の validate() を通らず直接
+            // RecordOptions を組むため。ここで処理しないと「HDR を指定したのに理由も出ずに
+            // SDR になる」ことになり、この機能の「黙って SDR にしない」契約を破る。
+            // 収録対象のディスプレイは無いので nil を渡す (映像なしの時点で SDR に落ちる)
+            let hdr = try hdrDecision(targetDisplayID: nil)
+            hdrColorSpace = hdr.colorSpace
+            hdrFallback = hdr.fallbackReason
         }
 
         let w = try MovieWriter(
@@ -415,6 +480,7 @@ public final class Recorder {
             video: options.wantsVideo,
             videoSize: videoSize,
             codec: options.codec,
+            hdr: hdrColorSpace,
             audioLabels: useMixer ? ["mixed"] : audioLabels,
             anchor: options.wantsVideo ? .firstVideo : .firstAudio
         )
@@ -509,7 +575,8 @@ public final class Recorder {
             audioAppended: w.audioAppended,
             audioDropped: w.audioDropped,
             firstPTSOffsets: w.firstPTSOffsets,
-            mixedDecodeFailures: mixer?.decodeFailures ?? 0
+            mixedDecodeFailures: mixer?.decodeFailures ?? 0,
+            hdrFallback: hdrFallback
         )
     }
 
@@ -531,7 +598,111 @@ public final class Recorder {
         }
     }
 
-    /// recording 中 0.5 秒周期で progress イベントを流ぶ (GUI 向け)。
+    /// HDR 収録の可否を 1 回だけ決めた結果 (issue #16)。
+    /// `colorSpace` が nil なら SDR で録る。`fallbackReason` が入っていれば、
+    /// 「HDR を求められたが応えられなかった」ので必ず利用者に伝える
+    private struct HDRDecision {
+        let configuration: SCStreamConfiguration?
+        let colorSpace: HDRColorSpace?
+        let fallbackReason: String?
+
+        static let sdr = HDRDecision(configuration: nil, colorSpace: nil, fallbackReason: nil)
+    }
+
+    /// HDR で録れるかを判定し、必要なら configuration ごと作る (issue #16)。
+    ///
+    /// **セッション開始時に 1 回だけ呼ぶこと。** 判定のたびに `SCShareableContent` を引くと
+    /// 結果が食い違いうる。ストリーム側と書き出し側で答えが割れると、たとえば
+    /// 「8-bit のバッファに Main10 + PQ のタグを付けたファイル」ができてしまい、
+    /// まさにこの機能が防ごうとしている「HDR で録れたつもりのファイル」になる。
+    ///
+    /// 判定材料は 4 つ: 映像を録るか / macOS 15 以上か / **解決後の**コーデックが HEVC か /
+    /// 収録対象が写るディスプレイが HDR を出せるか。コーデックを CLI 引数ではなく
+    /// 解決後の値で見るのは、`--codec` 省略時や設定ファイル由来でも同じ契約を守るため
+    /// (`performSession()` 冒頭の region チェックと同じ理由)
+    private func hdrDecision(targetDisplayID: CGDirectDisplayID?) throws -> HDRDecision {
+        // --hdr を指定していなければ判定自体が不要。hdrCapableDisplayIDs が未設定でも
+        // ここで抜けるので、HDR を使わない呼び出し側 (GUI・単体テスト) は載せなくてよい
+        guard options.hdr else { return .sdr }
+        guard options.wantsVideo else {
+            return HDRDecision(configuration: nil, colorSpace: nil,
+                               fallbackReason: "HDR の指定は音声のみのモードでは効きません。SDR で録画します")
+        }
+        // 未判定 (nil) を空集合と同じ「対応ディスプレイが無い」に倒すと、呼び出し側の
+        // 載せ忘れが「黙って SDR で録る」に化ける。しかも HDR ディスプレイを持つ人しか
+        // 遭遇せず、警告文は「ディスプレイが非対応」と嘘ではないが原因を指さない。
+        // プログラミングエラーなので握り潰さず失敗させる
+        guard let capableDisplays = options.hdrCapableDisplayIDs else {
+            throw KilError.failed(
+                "HDR 可否が判定されていません (RecordOptions.hdrCapableDisplayIDs が未設定)。"
+                + "DisplayHDR.capableDisplayIDs() をメインスレッドで呼び、その結果を設定してください")
+        }
+        guard options.codec == .hevc else {
+            return HDRDecision(
+                configuration: nil, colorSpace: nil,
+                fallbackReason: "HDR は HEVC でのみ書き出せます (現在のコーデック: \(options.codec.rawValue))。"
+                    + "SDR で録画します — --codec hevc を指定するか、設定ファイルの codec を hevc にしてください")
+        }
+        guard #available(macOS 15.0, *) else {
+            return HDRDecision(configuration: nil, colorSpace: nil,
+                               fallbackReason: "HDR 収録は macOS 15 以降でのみ使えます。SDR で録画します")
+        }
+        guard displaySupportsHDR(targetDisplayID, capableDisplays: capableDisplays) else {
+            return HDRDecision(
+                configuration: nil, colorSpace: nil,
+                fallbackReason: "収録対象のディスプレイが HDR に対応していないため SDR で録画します"
+                    + " (HDR には HDR 対応ディスプレイが必要です)")
+        }
+        // captureDynamicRange / pixelFormat / colorSpace / colorMatrix を自分で組み合わせるのは
+        // 間違えやすいので、Apple が「これなら HDR になる」と保証している組を使う。
+        // 書き出し側の色タグも、プリセットが実際に渡してくる色空間に合わせる
+        if #available(macOS 26.0, *) {
+            // 録画向けのプリセット。HDR10 メタデータが付き、SDR 範囲の見え方も保たれる
+            return HDRDecision(
+                configuration: SCStreamConfiguration(preset: .captureHDRRecordingPreservedSDRHDR10),
+                colorSpace: .bt2020PQ, fallbackReason: nil)
+        }
+        return HDRDecision(
+            configuration: SCStreamConfiguration(preset: .captureHDRStreamLocalDisplay),
+            colorSpace: .displayP3PQ, fallbackReason: nil)
+    }
+
+    /// 指定したディスプレイが HDR を出せるか。
+    ///
+    /// **判定そのものは呼び出し側が済ませている** (`DisplayHDR.capableDisplayIDs()`)。
+    /// ここで `NSScreen` を読まないのは、それがメインスレッドを要求する一方、
+    /// `Recorder` は CLI の同期経路 (`run()` がメインスレッドを塞ぐ) からも呼ばれるためで、
+    /// セッションの中で MainActor へディスパッチするとデッドロックする。
+    /// **`KildeCore.Recorder` は MainActor を要求しない** (CLAUDE.md §6)。
+    ///
+    /// **ID が分からないときは false を返す** — 「最初の画面」で代用すると、
+    /// マルチディスプレイで収録対象と違う画面を見て判定してしまう
+    private func displaySupportsHDR(_ displayID: CGDirectDisplayID?,
+                                    capableDisplays: Set<CGDirectDisplayID>) -> Bool {
+        guard let displayID else { return false }
+        return capableDisplays.contains(displayID)
+    }
+
+    /// ウィンドウが最も大きく重なっているディスプレイ (issue #16)。
+    /// ウィンドウ収録では `--display` ではなく「実際に写っている画面」で HDR を判定する。
+    /// `CGGetDisplaysWithRect` は CoreGraphics なのでスレッドの制約がない
+    /// (`NSScreen` だとメインスレッドが要り、セッションから呼べない)
+    private func displayID(containing frame: CGRect) -> CGDirectDisplayID? {
+        var count: UInt32 = 0
+        guard CGGetDisplaysWithRect(frame, 0, nil, &count) == .success, count > 0 else { return nil }
+        var ids = [CGDirectDisplayID](repeating: 0, count: Int(count))
+        guard CGGetDisplaysWithRect(frame, count, &ids, &count) == .success else { return nil }
+        // 重なりが最も大きいものを選ぶ (CGGetDisplaysWithRect は交差する全部を返す)
+        return ids.max { a, b in
+            let oa = CGDisplayBounds(a).intersection(frame)
+            let ob = CGDisplayBounds(b).intersection(frame)
+            let areaA = oa.isNull ? 0 : oa.width * oa.height
+            let areaB = ob.isNull ? 0 : ob.width * ob.height
+            return areaA < areaB
+        }
+    }
+
+    /// recording 中 0.5 秒周期で progress イベントを流す (GUI 向け)。
     /// 経過時間・出力サイズ・レベルは progress() と同じ計算経路を使う。
     /// チェックから yield までのわずかな競合窓は残るが、sleep 起き直し後の
     /// isCancelled と recording 状態の二重チェックで実質的に finalizing 以降には流さない

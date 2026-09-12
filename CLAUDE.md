@@ -122,7 +122,11 @@ swift build                       # ビルド (バイナリは .build/debug/kild
 
 1. **`cfg.pixelFormat = kCVPixelFormatType_32BGRA` を外さない。**
    SCK は既定で圧縮済みフレームを返すため、AVAssetWriter で再圧縮する現構成では
-   非圧縮を明示的に要求する必要がある
+   非圧縮を明示的に要求する必要がある。
+   **例外: HDR 収録時 (issue #16) はここを設定しないこと。** HDR では
+   `SCStreamConfiguration` の HDR プリセットが pixelFormat / colorSpace / colorMatrix を
+   整合した組で設定済みで、そこへ BGRA を上書きすると 10-bit と PQ の情報が落ちて
+   **黙って SDR になる**。`Recorder` は `hdr.colorSpace == nil` のときだけ BGRA を設定する
 2. **映像の `outputSettings` に `AVVideoWidthKey` / `AVVideoHeightKey` は必須。**
    欠けると `NSInvalidArgumentException` でクラッシュする
 3. **`RecCommand.run()` 冒頭の `NSApplication.shared` +
@@ -163,6 +167,17 @@ swift build                       # ビルド (バイナリは .build/debug/kild
   `FileInspection.report(url:)` / `Permissions.requestMic()` は同期版と async 版を同名で持ち、
   同期版と `awaitSync` は `@available(*, noasync)` にしてある — async から呼ぶとビルド警告になるので、
   **警告を増やさない = この規約を守れている**。同期版は CLI のサブコマンドと GUI の onAppear 用
+- **`KildeCore.Recorder` は呼び出し元の実行文脈に依存しない — 特に MainActor を要求しない**
+  (issue #16)。`Recorder` は CLI の同期経路 (`run()` が呼び出しスレッド = メインスレッドを
+  完了までブロックする) と GUI の async 経路の両方から呼ばれる。セッションの中で
+  `await MainActor.run { }` すると、CLI ではそのメインスレッドが `run()` で塞がっているため
+  **永久に実行されずデッドロックする** (上の `awaitSync` 禁止と同じ根で、向きが逆)。
+  `NSScreen` / `NSWorkspace` など UI フレームワークに触る判定は**呼び出し側**
+  (CLI の起動時 / GUI の MainActor 上) で済ませ、結果だけを `RecordOptions` に載せて渡す
+  (例: `DisplayHDR.capableDisplayIDs()` → `RecordOptions.hdrCapableDisplayIDs`)。
+  **「まだ判定していない」と「判定した結果 該当なし」は別の値で表す** — 同じ値に倒すと
+  呼び出し側の載せ忘れが正常系 (黙ってフォールバック) に化け、対象ハードを持つ人にしか
+  再現しない。この種の欠陥は特定のオプションの組合せでしか到達せず単体テストをすり抜ける
 - 失敗時は `fatalError` を使わない。`KilError` を投げて `Recorder.run()` の catch に
   後始末 (monitor の teardown、writer の cancel) をさせる
 

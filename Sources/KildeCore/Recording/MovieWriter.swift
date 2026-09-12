@@ -2,11 +2,42 @@ import Foundation
 import AVFoundation
 import CoreMedia
 import CoreGraphics
+// HEVC Main10 のプロファイル定数 (kVTProfileLevel_HEVC_Main10_AutoLevel) は
+// AVFoundation ではなく VideoToolbox 側にある (issue #16)
+import VideoToolbox
 
 /// AVAssetWriter ラッパ。
 /// - 映像あり: 最初の映像サンプル PTS をセッション開始 (アンカー) にする
 /// - 音声のみ: 最初の音声サンプル PTS をアンカーにする
 /// - macOS 26 の AVFoundation は outputSettings に幅・高さが必須 (SPIKE-NOTES F-D.2)
+/// HDR 書き出しの色空間 (issue #16)。**SCK のプリセットが実際に渡してくるバッファに
+/// 合わせる**ためにあり、一律 BT.2020 で書くと macOS 15 の P3 バッファを BT.2020 と
+/// 称することになって再生時に彩度が落ちる (SPIKE-NOTES F-H)
+enum HDRColorSpace {
+    /// macOS 26 の `captureHDRRecordingPreservedSDRHDR10` (ITU-R 2100 PQ)
+    case bt2020PQ
+    /// macOS 15 の `captureHDRStreamLocalDisplay` (Display P3 PQ)
+    case displayP3PQ
+
+    var colorPrimaries: String {
+        switch self {
+        case .bt2020PQ: return AVVideoColorPrimaries_ITU_R_2020
+        case .displayP3PQ: return AVVideoColorPrimaries_P3_D65
+        }
+    }
+
+    /// **PQ と組み合わせる YCbCr マトリクスは、色域が P3 でも BT.2020 を使う。**
+    /// P3-D65 に BT.709 マトリクスを合わせるのは SDR (709 伝達関数) と HLG の話で、
+    /// PQ では標準の組み合わせに無い。709 マトリクスで変換すると、BT.2020 の部分集合である
+    /// P3 の彩度の高い色が範囲外の Cb/Cr になってクランプされ、色相と彩度がずれる。
+    /// Apple の HDR10 のサンプルも P3-D65 + PQ に BT.2020 マトリクスを組み合わせている
+    var ycbcrMatrix: String {
+        switch self {
+        case .bt2020PQ, .displayP3PQ: return AVVideoYCbCrMatrix_ITU_R_2020
+        }
+    }
+}
+
 final class MovieWriter {
 
     enum Anchor { case firstVideo, firstAudio }
@@ -30,7 +61,8 @@ final class MovieWriter {
     private(set) var lastAudioPTS: [String: CMTime] = [:]
 
     init(url: URL, fileType: AVFileType, video: Bool, videoSize: CGSize?,
-         codec: VideoCodecKind, audioLabels: [String], anchor: Anchor) throws {
+         codec: VideoCodecKind, hdr: HDRColorSpace? = nil,
+         audioLabels: [String], anchor: Anchor) throws {
         self.url = url
         self.anchor = anchor
         // AVAssetWriter は出力先ディレクトリが無くても init / startWriting を失敗させず
@@ -59,9 +91,26 @@ final class MovieWriter {
                 ]
             case .hevc:
                 settings[AVVideoCodecKey] = AVVideoCodecType.hevc
-                settings[AVVideoCompressionPropertiesKey] = [
-                    AVVideoAverageBitRateKey: 10_000_000,
-                ]
+                if let hdr {
+                    // HDR は 10-bit が要るので Main10 を明示する (既定の Main は 8-bit)。
+                    // 色情報も書かないと、再生側が SDR として解釈して眠い絵になる
+                    settings[AVVideoCompressionPropertiesKey] = [
+                        AVVideoAverageBitRateKey: 20_000_000,
+                        AVVideoProfileLevelKey: kVTProfileLevel_HEVC_Main10_AutoLevel,
+                    ]
+                    // 色域は SCK のプリセットが渡してくる実際の色空間に合わせる。
+                    // 一律 BT.2020 にすると、P3 のバッファを BT.2020 と称することになり
+                    // 再生時に彩度が落ちる (issue #16 / SPIKE-NOTES F-H)
+                    settings[AVVideoColorPropertiesKey] = [
+                        AVVideoColorPrimariesKey: hdr.colorPrimaries,
+                        AVVideoTransferFunctionKey: AVVideoTransferFunction_SMPTE_ST_2084_PQ,
+                        AVVideoYCbCrMatrixKey: hdr.ycbcrMatrix,
+                    ]
+                } else {
+                    settings[AVVideoCompressionPropertiesKey] = [
+                        AVVideoAverageBitRateKey: 10_000_000,
+                    ]
+                }
             case .prores:
                 settings[AVVideoCodecKey] = AVVideoCodecType.proRes422
             }

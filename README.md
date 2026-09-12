@@ -64,6 +64,10 @@ kilde rec --no-video --audio "device:BlackHole 2ch" --monitor 会議.m4a
 # 待機中の Ctrl+C はファイルを作らず終了 (--countdown との併用は不可)
 kilde rec --hotkey cmd+shift+r 会議.mov
 
+# HDR で収録 (macOS 15 以降 + HDR ディスプレイが必要。HEVC Main10 + BT.2020/PQ)
+#   条件を満たさない環境では SDR で録り、理由を結果に表示する (終了コードは 0 のまま)
+kilde rec --hdr --codec hevc demo.mov
+
 # 既定値を設定ファイル (~/.kilde/config.json) で変更
 #   KILDE_CONFIG_DIR で config.json と monitor-state.json の保存先を差し替え可能
 #   (絶対パスか ~ 始まりのみ。相対パスはエラー)
