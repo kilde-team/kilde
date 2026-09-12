@@ -23,6 +23,24 @@ public enum VideoCodecKind: String, CaseIterable {
     case prores
 }
 
+/// 出力コンテナ (issue #12)。音声のみのモードは従来どおり M4A 固定で、ここには関与しない
+public enum ContainerKind: String, CaseIterable {
+    case mov
+    case mp4
+
+    public var fileType: AVFileType {
+        switch self {
+        case .mov: return .mov
+        case .mp4: return .mp4
+        }
+    }
+
+    /// MP4 は ProRes を入れられない (QuickTime コンテナ専用のコーデックのため)
+    public func supports(_ codec: VideoCodecKind) -> Bool {
+        self == .mov || codec != .prores
+    }
+}
+
 public struct RecordOptions {
     public var displayIndex = 0
     public var windowMatch: String?
@@ -32,6 +50,8 @@ public struct RecordOptions {
     public var outputURL: URL?
     public var duration: TimeInterval?
     public var codec: VideoCodecKind = .h264
+    /// 映像ありのときの出力コンテナ (issue #12)。音声のみは M4A 固定
+    public var container: ContainerKind = .mov
     public var fps: Int?
     public var showsCursor = true
     /// 録音セッションに BlackHole マルチ出力デバイスの setup/teardown を紐付ける
@@ -270,7 +290,7 @@ public final class Recorder {
 
     private func performSession() async throws -> Summary {
         cleanupWarnings.removeAll()
-        let ext = options.wantsVideo ? "mov" : "m4a"
+        let ext = options.wantsVideo ? options.container.rawValue : "m4a"
         let url = options.outputURL ?? URL(fileURLWithPath: defaultOutputName(ext: ext))
         outputURL = url
 
@@ -366,7 +386,7 @@ public final class Recorder {
 
         let w = try MovieWriter(
             url: url,
-            fileType: options.wantsVideo ? .mov : .m4a,
+            fileType: options.wantsVideo ? options.container.fileType : .m4a,
             video: options.wantsVideo,
             videoSize: videoSize,
             codec: options.codec,

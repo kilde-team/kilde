@@ -435,6 +435,47 @@ else
     bad "T13 hotkey 待機中止: ready=$T13_READY exit=$T13_EXIT files=$T13_FILES — $WORK/t13.log"
 fi
 
+# ---- T16: 出力コンテナ (issue #12) ---------------------------------------------
+# MP4 で録れること、拡張子からの自動判定、入れられない組合せが録画前に弾かれること
+
+log "T16: rec --format mp4 — MP4 コンテナで録れる"
+F="$WORK/t16-format.mp4"
+if "$KILDE" rec --format mp4 --duration 3s --output "$F" > "$WORK/t16.log" 2>&1 \
+    && grep -q "video: present" <(inspect "$F"); then
+    ok "T16 format mp4: 再生可能な MP4 ($(video_duration_of "$F")s)"
+else
+    bad "T16 format mp4: 失敗 — $WORK/t16.log"
+fi
+
+log "T16b: rec <出力>.mp4 — 拡張子から自動で MP4 になる"
+F="$WORK/t16b-auto.mp4"
+if "$KILDE" rec --duration 3s --output "$F" > "$WORK/t16b.log" 2>&1 \
+    && grep -q "video: present" <(inspect "$F"); then
+    ok "T16b format 自動判定: .mp4 の指定で再生可能なファイル"
+else
+    bad "T16b format 自動判定: 失敗 — $WORK/t16b.log"
+fi
+
+log "T16c: rec --format — 入れられない組合せは録画前に exit 64"
+T16C_FAIL=0
+check_format_rejected() {  # check_format_rejected <ログ名> <説明> <引数...>
+    local logname="$1" desc="$2"; shift 2
+    "$KILDE" rec "$@" --duration 3s --output "$WORK/$logname.out" > "$WORK/$logname.log" 2>&1
+    local code=$?
+    if [ "$code" != "64" ] || [ -f "$WORK/$logname.out" ]; then
+        echo "  $desc: exit=$code (64 が必要)"
+        T16C_FAIL=1
+    fi
+}
+check_format_rejected t16c "MP4 + ProRes" --format mp4 --codec prores
+check_format_rejected t16c2 "--no-video との併用" --format mp4 --no-video
+check_format_rejected t16c3 "不正な値" --format mkv
+if [ "$T16C_FAIL" = "0" ]; then
+    ok "T16c format 引数検証: 3 パターンすべて exit=64・ファイルなし"
+else
+    bad "T16c format 引数検証: 上記の組合せが想定どおりに弾かれていない"
+fi
+
 # ---- サマリ -------------------------------------------------------------------
 
 echo ""

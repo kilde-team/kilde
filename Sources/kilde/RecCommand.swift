@@ -41,6 +41,9 @@ struct RecCommand: ParsableCommand {
     @Option(help: "映像コーデック: h264 (既定) / hevc / prores (設定 codec で変更可)")
     var codec: String?
 
+    @Option(help: "出力コンテナ: mov (既定) / mp4。出力パスの拡張子が .mp4 なら自動で mp4 になる。MP4 に ProRes は入れられない")
+    var format: String?
+
     @Option(help: "上限フレームレート (1 以上。0 以下は終了コード 64。未指定は設定 fps、どちらも無ければ SCK 既定)")
     var fps: Int?
 
@@ -78,6 +81,19 @@ struct RecCommand: ParsableCommand {
         }
         if let codec, VideoCodecKind(rawValue: codec) == nil {
             throw ValidationError("--codec は h264 / hevc / prores を指定してください")
+        }
+        if let format {
+            guard let container = ContainerKind(rawValue: format.lowercased()) else {
+                throw ValidationError("--format は mov か mp4 を指定してください")
+            }
+            // 音声のみの出力は M4A で固定なので、指定しても効かない
+            if noVideo {
+                throw ValidationError("--format と --no-video は併用できません (音声のみの出力は M4A です)")
+            }
+            // 設定ファイル由来の codec との組合せは KildeCore 側 (終了コード 1) で弾く
+            if let codec, let kind = VideoCodecKind(rawValue: codec), !container.supports(kind) {
+                throw ValidationError("MP4 コンテナに \(codec) は入れられません (--codec h264 / hevc か --format mov)")
+            }
         }
         for a in audio where a != "none" && AudioSourceSpec.parse(a) == nil {
             throw ValidationError("--audio の値が不正: \(a) (system / mic / device:<名前> / none)")
@@ -139,6 +155,7 @@ struct RecCommand: ParsableCommand {
         overrides.audio = audio
         overrides.audioTracks = audioTracks
         overrides.codec = codec
+        overrides.format = format
         overrides.fps = fps
         overrides.showsCursor = cursor
         overrides.meetingPreset = preset == "meeting"
