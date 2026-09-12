@@ -339,7 +339,8 @@ public final class Recorder {
     /// (テストから直接叩けるよう internal にしている — セッション経由では
     /// マイク権限の状態に左右されて、この経路を確実に通せないため)
     func awaitOrStop<T: Sendable>(
-        _ body: @escaping @Sendable () async -> T
+        _ body: @escaping @Sendable () async -> T,
+        onWatcherWaiting: (@Sendable () -> Void)? = nil
     ) async -> T? {
         // **structured (withTaskGroup) では実現できない**: タスクグループはスコープを抜けるときに
         // 未完了の子を暗黙に待つため、`cancelAll()` しても TCC ダイアログの応答まで戻れず、
@@ -356,6 +357,9 @@ public final class Recorder {
             // 回り続ける (`try?` が sleep のキャンセル例外を握り潰すため)。
             // 回り続けると待ち側が永久に解放されず、準備フェーズがそこで止まる
             while let self, !self.isStopRequested, !Task.isCancelled {
+                // 初回の待機に入ったことをテストに知らせる — 停止と本体完了の順序を
+                // 決定的に作るための同期フック (本番コードからは使わない)
+                onWatcherWaiting?()
                 try? await Task.sleep(nanoseconds: 100_000_000)
             }
             continuation.yield(nil)

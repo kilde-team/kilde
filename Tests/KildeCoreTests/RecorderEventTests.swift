@@ -277,21 +277,28 @@ final class RecorderEventTests: XCTestCase {
     /// ここでは呼び出した**後**に停止し、その直後に本体を完了させる
     func testAwaitOrStopPrefersStopWhenBodyFinishesAlmostSimultaneously() async throws {
         let recorder = Recorder(options: emptySessionOptions(url: tempURL()))
-        let bodyFinished = DispatchSemaphore(value: 0)
+        let watcherWaiting = DispatchSemaphore(value: 0)
 
-        let value: Int? = await recorder.awaitOrStop {
+        // watcher が待機に入ったことを同期してから停止と本体完了を行う。
+        // 同期しないと、watcher の初回チェックが stop() より**後**に走る経路が残り、
+        // その場合は修正前の実装でも watcher が即座に nil を yield して停止が勝つ —
+        // つまりテストが通ってしまう (回帰を検出できない)。フックで「watcher が
+        // 確実に 100ms の待機中」を作ってから work を先に届かせる
+        let value: Int? = await recorder.awaitOrStop({
             await withCheckedContinuation { (continuation: CheckedContinuation<Int, Never>) in
-                // 停止要求を立ててから、ポーリング周期 (100ms) より十分早く本体を終わらせる。
-                // キャンセルを見ない待ちにするのは上のテストと同じ理由
                 DispatchQueue.global().async {
+                    // フックは watcher の各ポーリング周期の冒頭で呼ばれる。2 回目を待てば
+                    // watcher は確実に待機の途中 (次のチェックは最長 100ms 先)
+                    watcherWaiting.wait()
+                    watcherWaiting.wait()
                     recorder.stop()
                     // stop() 直後に完了させ、work が先に yield する状況を作る
                     continuation.resume(returning: 7)
-                    bodyFinished.signal()
                 }
             }
-        }
-        _ = bodyFinished.wait(timeout: .now() + 5)
+        }, onWatcherWaiting: {
+            watcherWaiting.signal()
+        })
 
         XCTAssertNil(value,
                      "停止を要求した後なのに本体の値 (\(String(describing: value))) を採用しています"
