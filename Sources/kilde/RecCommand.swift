@@ -436,11 +436,16 @@ struct RecCommand: ParsableCommand {
             if recorder.cancelledBeforeRecording {
                 print(Recorder.cancelledDuringPreparationMessage)
                 guard recorder.cleanupWarnings.isEmpty else {
-                    // 非 0 で終わる原因は停止ではなく後始末の失敗 (既定出力が
-                    // `kilde Monitor` のまま残っている)。停止そのものを失敗扱いする
-                    // ERROR 行を出すと原因を取り違えさせるので、後始末の方を理由として出す
-                    let message = "ERROR: 停止しましたが、既定の出力デバイスを復元できませんでした "
-                        + "(上の WARNING を参照。`kilde audio monitor teardown` で復元できます)\n"
+                    // 非 0 で終わる原因は停止ではなく後始末の失敗。停止そのものを失敗扱いする
+                    // ERROR 行を出すと原因を取り違えさせるので、後始末の方を理由として出す。
+                    //
+                    // **原因を決め打ちしない** — cleanupWarnings には予約した出力ファイルの
+                    // 削除失敗も monitor の復元失敗も入る。monitor 固定の文言にすると、
+                    // 予約ファイルを消せなかっただけでも `audio monitor teardown` を
+                    // 勧めることになり、無関係な操作へ誘導してしまう。
+                    // 個別の原因と復旧手順は直前に出した WARNING 行が持っている
+                    let message = "ERROR: 停止しましたが、後始末に失敗しました "
+                        + "(原因と対処は上の WARNING を参照してください)\n"
                     FileHandle.standardError.write(message.data(using: .utf8)!)
                     Darwin.exit(1)
                 }

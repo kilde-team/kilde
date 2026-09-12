@@ -264,6 +264,40 @@ final class RecorderEventTests: XCTestCase {
         XCTAssertLessThan(elapsed, 3.0, "本体 (5 秒) の完了を待ってしまっています: \(elapsed)s")
     }
 
+    /// 停止要求と本体の完了が**近接した**ときも、停止が勝つこと (issue #56)。
+    ///
+    /// `watcher` は `isStopRequested` を 100ms 周期でポーリングするので、`stop()` が
+    /// フラグを立ててから `nil` を yield するまでに最大 100ms の窓がある。その間に
+    /// 本体が完了すると `work` が先に yield し、`bufferingOldest(1)` は「先に届いた方」を
+    /// 保持するので**停止要求が負ける**。準備中キャンセルのはずがマイク権限エラーになり、
+    /// CLI の終了コードが 0 ではなく 2 になる。
+    ///
+    /// **上の 2 本ではこの窓を通れない** — どちらも `stop()` を `awaitOrStop` の呼び出し
+    /// **前**に呼ぶため、ポーリングの初回で即座に `nil` が拾われてしまう。
+    /// ここでは呼び出した**後**に停止し、その直後に本体を完了させる
+    func testAwaitOrStopPrefersStopWhenBodyFinishesAlmostSimultaneously() async throws {
+        let recorder = Recorder(options: emptySessionOptions(url: tempURL()))
+        let bodyFinished = DispatchSemaphore(value: 0)
+
+        let value: Int? = await recorder.awaitOrStop {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Int, Never>) in
+                // 停止要求を立ててから、ポーリング周期 (100ms) より十分早く本体を終わらせる。
+                // キャンセルを見ない待ちにするのは上のテストと同じ理由
+                DispatchQueue.global().async {
+                    recorder.stop()
+                    // stop() 直後に完了させ、work が先に yield する状況を作る
+                    continuation.resume(returning: 7)
+                    bodyFinished.signal()
+                }
+            }
+        }
+        _ = bodyFinished.wait(timeout: .now() + 5)
+
+        XCTAssertNil(value,
+                     "停止を要求した後なのに本体の値 (\(String(describing: value))) を採用しています"
+                     + " — ストリームへの到着順で停止要求が負けています")
+    }
+
     /// マイクを要求する構成でもセッションが**終端する**こと (issue #56)。
     ///
     /// **このテストは `awaitOrStop` の中までは到達しない。** `stop()` を `start()` より前に

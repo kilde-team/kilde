@@ -366,6 +366,13 @@ public final class Recorder {
             continuation.finish()
         }
         for await value in stream {
+            // **採用の直前に停止要求を見直す。** `watcher` は 100ms 周期のポーリングなので、
+            // `stop()` がフラグを立ててから yield するまでに最大 100ms の窓がある。
+            // その間に `body()` が終わると `work` が先に yield し、`bufferingOldest(1)` は
+            // 「先に届いた方」を保持するので**停止要求が負ける** — 準備中キャンセルのはずが
+            // 権限エラーになり、終了コードが 0 ではなく 2 になる。
+            // ストリームへの到着順ではなく、**停止を要求した事実**で決める
+            if isStopRequested { return nil }
             return value
         }
         return nil
