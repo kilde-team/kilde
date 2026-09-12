@@ -32,6 +32,16 @@ enum SelfTest {
             reportPermissions(setup: setup, permissions: permissions)
             exit(0)
         }
+        // KILDE_GUI_SELFTEST_NOTIFY=1: issue #20 の «通知・Finder 表示・最近の録画・ホットキー» を
+        // UI 操作なしで確かめる。通知の配信自体は Notification Center の状態に依存して自動化
+        // できないが、**kilde 側の責任範囲 (Finder に渡す URL が正しいか、一覧の走査が
+        // 正しいか、ホットキーを登録できるか) は機械的に確かめられる**
+        // 終了は reportNotifyTargets の中 (走査結果を待つ Task の末尾) で行う。
+        // ここで exit(0) すると、走査の完了を待たずにプロセスが落ちる
+        if env["KILDE_GUI_SELFTEST_NOTIFY"] == "1" {
+            reportNotifyTargets(setup: setup)
+            return
+        }
         guard let text = env["KILDE_GUI_SELFTEST_RECORD"] else { return }
         guard let seconds = Double(text), seconds > 0 else {
             fail("KILDE_GUI_SELFTEST_RECORD は正の秒数で指定してください: \(text)")
@@ -209,6 +219,67 @@ enum SelfTest {
                 + " needsMic=\(PermissionsModel.needsMic(request)) missing=\(missingText)")
         }
         fflush(stdout)
+    }
+
+    /// issue #20 の検証 (KILDE_GUI_SELFTEST_NOTIFY=1)。
+    ///
+    /// 自動で確かめられるのはここまで、という線引きを明示しておく:
+    /// - **確かめられる**: 最近の録画の走査結果、Finder に渡す URL、存在しないファイルの
+    ///   フォールバック先、ホットキーを Carbon に登録できるか
+    /// - **確かめられない**: 通知バナーが実際に出るか (Notification Center の状態と TCC 次第)、
+    ///   バナーのクリックで Finder が前面に出るか、他アプリ前面でのキー押下が届くか。
+    ///   これらは人の目と手が要る — PR に手順として書き、ここで «通った» ことにしない
+    @MainActor
+    private static func reportNotifyTargets(setup: RecordingSetup) {
+        if let dir = ProcessInfo.processInfo.environment["KILDE_GUI_SELFTEST_OUTPUT"] {
+            setup.request.outputDirectory = URL(fileURLWithPath: dir, isDirectory: true)
+        }
+        print("selftest: outputDirectory=\(setup.request.outputDirectory.path)")
+
+        // ホットキーの登録可否。実際の押下は届かないので «登録できるか» だけを見る。
+        // 先に済ませる — Carbon の登録はメインスレッド同期で、Task の完了を待たない
+        let source = ProcessInfo.processInfo.environment["KILDE_GUI_SELFTEST_HOTKEY"]
+            ?? "cmd+opt+ctrl+shift+f10"
+        do {
+            let monitor = try HotkeyMonitor(source) {}
+            try monitor.start()
+            monitor.stop()
+            print("selftest: hotkeyRegistered=true source=\(source)")
+        } catch {
+            print("selftest: hotkeyRegistered=false source=\(source) error=\(error)")
+        }
+
+        // 最近の録画の走査。結果は Task 経由で MainActor に届くので、**RunLoop を回しても
+        // 届かない** — RunLoop.main.run(until:) は Swift Concurrency の main executor に
+        // 積まれたタスクを実行しない。既存の待機 (popover.isShown / recording.isActive) が
+        // RunLoop で成立しているのは、そちらが同期的に更新される状態を見ているため。
+        // ここは await で待ってから出力し、終了もその中で行う
+        setup.reloadRecentRecordings()
+        Task { @MainActor in
+            // 走査の «完了» を待つ。結果が空かどうかで判定すると、本当に 0 件の
+            // ディレクトリでも 5 秒待たされ、しかも «未完了» と区別できない
+            let deadline = Date().addingTimeInterval(5)
+            while !setup.recentScanFinished, Date() < deadline {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+            print("selftest: scanFinished=\(setup.recentScanFinished)")
+            print("selftest: recentCount=\(setup.recentRecordings.count)")
+            for url in setup.recentRecordings {
+                print("selftest: recent=\(url.lastPathComponent)")
+            }
+
+            // Finder に渡す URL。実在するファイルはそれ自身、消えていれば親ディレクトリ
+            if let first = setup.recentRecordings.first {
+                print("selftest: revealTarget=\(first.path) exists=true")
+            }
+            let missing = setup.request.outputDirectory
+                .appendingPathComponent("kilde-does-not-exist.mov")
+            let fallback = FileManager.default.fileExists(atPath: missing.path)
+                ? missing : missing.deletingLastPathComponent()
+            print("selftest: revealFallback=\(fallback.path)")
+            fflush(stdout)
+            exit(0)
+        }
     }
 
     /// ポップオーバーを閉じた時点の経過時間 (閉じる側と終了側のクロージャで共有する)

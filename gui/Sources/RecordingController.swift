@@ -30,6 +30,22 @@ final class RecordingController: ObservableObject {
     private var recorder: Recorder?
     private var sessionEndHandlers: [() -> Void] = []
 
+    /// 録画完了の通知先 (issue #20)。AppDelegate が生成して渡す。
+    /// GUI 専用の機能なので Recorder / KildeCore には持たせない
+    var notifier: RecordingNotifier?
+
+    /// 実際に収録が始まった時刻 (.recording に入った瞬間) と、
+    /// 停止して finalizing に入った時刻。
+    ///
+    /// 通知に出す長さを **progress の最終値から取らない**ために持つ — progress は
+    /// 0.5 秒周期なので、短い録画では 1 度も届かず `00:00` になってしまう。
+    /// 起点を `start()` の呼び出しではなく `.recording` への遷移にしているのは、
+    /// **準備フェーズ (権限確認・デバイス解決・ストリーム構築) を長さに混ぜないため** —
+    /// 準備は数秒かかることがあり (issue #70)、そのぶん «実収録時間» が水増しされる。
+    /// 終点を `.finalizing` にしているのも同じ理由で、writer の finish は収録ではない
+    private var recordingStartedAt: Date?
+    private var stoppedAt: Date?
+
     var isActive: Bool {
         switch phase {
         case .starting, .recording, .finalizing: return true
@@ -50,6 +66,8 @@ final class RecordingController: ObservableObject {
             }
             return
         }
+        recordingStartedAt = nil
+        stoppedAt = nil
         let recorder = Recorder(options: options)
         self.recorder = recorder
         phase = .starting
@@ -96,8 +114,14 @@ final class RecordingController: ObservableObject {
             // 一時停止中も「録画中」として扱う — GUI にはまだ一時停止を始める操作がなく
             // (issue #11 は CLI のみ)、この状態には入らない。GUI に操作を足すときは
             // Phase に .paused を足して、メニューバーとポップオーバーの表示を分ける
-            case .recording, .paused: phase = .recording
-            case .finalizing: phase = .finalizing
+            case .recording, .paused:
+                // 収録が実際に始まった瞬間。準備フェーズを長さに含めない
+                if recordingStartedAt == nil { recordingStartedAt = Date() }
+                phase = .recording
+            case .finalizing:
+                // 収録が止まった時刻。ここから先 (writer の finish) は録画時間ではない
+                if stoppedAt == nil { stoppedAt = Date() }
+                phase = .finalizing
             // 結果は .completed / .failed で確定させる (done / error の遷移は必ずその直前に来る)
             case .idle, .done, .error: break
             }
@@ -110,6 +134,15 @@ final class RecordingController: ObservableObject {
             warnings.append(warning)
         case .completed(let summary):
             phase = .finished(summary.outputURL)
+            // 通知は endSession の前に出す — endSession はハンドラ経由でアプリを
+            // 終了させることがあり (applicationShouldTerminate の待ち)、
+            // 後に置くと «終了時に録画を止めた» 場合に通知が出ないまま消える
+            // .recording に到達しないまま完了することはないはずだが、到達していなければ
+            // 収録時間 0 として扱う (準備中に止めた場合など)
+            let recorded = recordingStartedAt.map { started in
+                max(0, (stoppedAt ?? Date()).timeIntervalSince(started) - summary.pausedDuration)
+            } ?? 0
+            notifier?.notifyCompleted(url: summary.outputURL, elapsed: recorded)
             endSession()
         case .failed(let error, let partialFileExists):
             var message = "\(error)"
@@ -117,6 +150,9 @@ final class RecordingController: ObservableObject {
                 message += "\n不完全なファイルが残っています: \(outputURL.path)"
             }
             phase = .failed(message)
+            // ホットキーで他アプリの前面から始めた録画は、失敗しても画面上に何も出ない。
+            // 失敗こそ気づかせる必要があるので通知する (issue #20)
+            notifier?.notifyFailed(message: message)
             endSession()
         }
     }

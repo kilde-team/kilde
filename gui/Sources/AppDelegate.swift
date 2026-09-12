@@ -17,9 +17,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let recording = RecordingController()
     private let setup = RecordingSetup()
     private let permissions = PermissionsModel()
+    /// 録画完了通知 (issue #20)。UNUserNotificationCenter はデリゲートを弱参照するので、
+    /// ここで生存期間を持つ
+    private let notifier = RecordingNotifier()
     private var cancellables: Set<AnyCancellable> = []
+    /// グローバルホットキー (issue #20)。CLI と同じ `HotkeyMonitor` / `HotkeySettings` を使い、
+    /// 設定 (~/.kilde/config.json の `hotkey`) も CLI と共有する。
+    /// nil は «設定されていない» (待機しない)
+    private var hotkeyMonitor: HotkeyMonitor?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // 通知の許可要求はここで 1 回だけ。拒否されても録画は完全に動くので、
+        // 失敗として扱わない (通知が出ないだけ)
+        notifier.start()
+        recording.notifier = notifier
+
         // 録画中は経過時間を横に出すので可変幅にする
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.button?.imagePosition = .imageLeading
@@ -43,6 +55,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.updateStatusItem(phase: phase, elapsed: elapsed)
             }
             .store(in: &cancellables)
+
+        applyHotkeyFromConfig()
 
         // セルフテストは 1 回ランループを回してから始める — applicationDidFinishLaunching の
         // 中ではステータス項目のボタンがまだウィンドウに載っておらず、NSPopover を出せないため
@@ -72,6 +86,60 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // なのに preparing のまま猶予が切れ、ファイナライズされないファイルを残しうる。
         // 準備中に stop() が効かず終了できない問題は Recorder 側で直す (issue #56)
         return .terminateLater
+    }
+
+    /// 設定のホットキーを登録し直す (issue #20)。設定画面からの変更でも呼ぶ。
+    /// 登録失敗 (他アプリとの競合) は録画機能を止める理由にならないので、
+    /// notice に出して待機なしで続ける — 黙って無効にすると «押しても効かない» になる
+    func applyHotkeyFromConfig() {
+        // stop() が false を返したら解除しきれていない — HotkeyMonitor はその場合
+        // «参照を保持したままリークさせ、再 stop() で再試行できる» 契約になっている。
+        // ここで参照を捨てると再試行できず、古いホットキーが登録されたまま生き続けて
+        // (リークしたハンドラが録画をトグルする) 新しい登録と二重になる
+        if let monitor = hotkeyMonitor, monitor.stop() {
+            hotkeyMonitor = nil
+        } else if hotkeyMonitor != nil {
+            setup.notice = "前のホットキーを解除できませんでした (もう一度「適用」を押すと再試行します)"
+            return
+        }
+        do {
+            guard let source = try HotkeySettings.resolve(explicit: nil, config: setup.config) else { return }
+            let monitor = try HotkeyMonitor(source) { [weak self] in
+                self?.toggleRecordingByHotkey()
+            }
+            try monitor.start()
+            hotkeyMonitor = monitor
+        } catch {
+            setup.notice = "ホットキーを登録できません: \(error)"
+        }
+    }
+
+    /// ホットキーでの開始/停止。録画中なら止め、そうでなければ今の選択で始める。
+    /// Carbon のハンドラはメインスレッドで呼ばれるので、そのまま MainActor の状態を触れる
+    private func toggleRecordingByHotkey() {
+        if recording.isActive {
+            recording.stop()
+            return
+        }
+        permissions.refresh()
+        // 開始ボタンと同じ判定を通す — ここを «権限だけ» にしていたために、
+        // 列挙中でもホットキーで録画を始められる経路ができていた (cubic P2)。
+        // issue #70 で実測したとおり、列挙と録画開始の競合は両方を無期限に止める
+        if let reason = setup.startBlockReason(permissions: permissions) {
+            // ポップオーバーを開いていないと notice は見えないので、開いて理由を見せる。
+            // 他アプリの前面で押されている前提なので «黙って何も起きない» を避ける
+            setup.notice = reason
+            showPopover()
+            return
+        }
+        do {
+            let options = try setup.makeOptions()
+            setup.notice = nil
+            recording.start(options)
+        } catch {
+            setup.notice = "開始できません: \(error)"
+            showPopover()
+        }
     }
 
     @objc private func togglePopover() {

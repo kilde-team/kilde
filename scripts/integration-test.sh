@@ -963,10 +963,84 @@ else
     bad "T20b hdr 引数検証: 上記の組合せが想定どおりに弾かれていない"
 fi
 
+# ---- T21: GUI 通知・Finder 表示・最近の録画・ホットキー (issue #20) --------------
+# 通知バナーの表示とクリック、他アプリ前面でのキー押下は自動化できない (Notification
+# Center と TCC の状態に依存する)。ここで確かめるのは **kilde 側の責任範囲** —
+# 一覧の走査が正しいか、Finder に渡す URL が正しいか、ホットキーを登録できるか。
+# 残りは PR の手順で人が確認する
+if ! command -v xcodegen >/dev/null 2>&1; then
+    skip "T21 GUI 通知/一覧: xcodegen 未導入 (brew install xcodegen で実行可)"
+elif ! security find-certificate -c "kilde-dev" >/dev/null 2>&1; then
+    skip "T21 GUI 通知/一覧: 署名用証明書 kilde-dev なし (docs/DEVELOPMENT.md §3)"
+elif pgrep -x KildeGUI >/dev/null 2>&1; then
+    skip "T21 GUI 通知/一覧: KildeGUI が既に起動中のためスキップ"
+else
+    T21_DIR="$WORK/t21-out"
+    mkdir -p "$T21_DIR"
+    # 拾うべき 7 件 (上限 5 で切られる)。更新時刻を変えて「新しい順」も確かめる。
+    # 名前の日付順とは **わざと逆** にした 1 件を最新にしておく — 名前でソートして
+    # いたら先頭が変わるので、更新時刻で並べていることを検出できる
+    # touch の失敗は検出する。以前ここに分 99 (不正値) を書いていて touch が失敗し、
+    # set -e が無いためファイルは作成時刻のまま残り、**「更新時刻順に並ぶ」ことを
+    # 検証できていなかった**。値を直すだけでは同じ穴が残るので、失敗したら落とす
+    T21_FIXTURE_OK=1
+    for i in 1 2 3 4 5 6; do
+        : > "$T21_DIR/kilde-2026091$i-120000.m4a"
+        touch -t "20260912120$i" "$T21_DIR/kilde-2026091$i-120000.m4a" || T21_FIXTURE_OK=0
+    done
+    : > "$T21_DIR/kilde-20260912-999999.mov"
+    # 分は 00-59。ここが一覧の先頭に来ることを期待している
+    touch -t "202609121259" "$T21_DIR/kilde-20260912-999999.mov" || T21_FIXTURE_OK=0
+    # 除外すべきもの: 接頭辞違い / 拡張子違い / 同名のディレクトリ / 隠しファイル
+    : > "$T21_DIR/other-20260912-120000.m4a"
+    : > "$T21_DIR/kilde-20260912-120000.txt"
+    : > "$T21_DIR/.kilde-20260912-120000.m4a"
+    mkdir -p "$T21_DIR/kilde-20260912-120000.mov"
+
+    if [ "$T21_FIXTURE_OK" != "1" ]; then
+        bad "T21 GUI 通知/一覧: フィクスチャの更新時刻を設定できません (touch が失敗)"
+    elif (cd "$ROOT/gui" && xcodegen -q > "$WORK/t21-build.log" 2>&1 \
+        && xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI -configuration Debug build \
+           >> "$WORK/t21-build.log" 2>&1); then
+        T21_APP=$(cd "$ROOT/gui" && xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI \
+            -configuration Debug -showBuildSettings 2>/dev/null \
+            | grep -m1 "BUILT_PRODUCTS_DIR" | awk '{print $3}')/KildeGUI.app
+        # 実行ファイルを直接起動する (open ではない) — T11 のコメントと同じ理由で、
+        # TCC はターミナル側の権限が使われる。この経路は録画しないので権限も不要
+        KILDE_CONFIG_DIR="$KILDE_CONFIG_DIR" KILDE_GUI_SELFTEST_NOTIFY=1 \
+            KILDE_GUI_SELFTEST_OUTPUT="$T21_DIR" \
+            "$T21_APP/Contents/MacOS/KildeGUI" > "$WORK/t21.log" 2>&1
+        T21_EXIT=$?
+        T21_SCAN=$(grep -m1 "^selftest: scanFinished=" "$WORK/t21.log" | sed 's/.*=//')
+        T21_COUNT=$(grep -m1 "^selftest: recentCount=" "$WORK/t21.log" | sed 's/.*=//')
+        T21_FIRST=$(grep -m1 "^selftest: recent=" "$WORK/t21.log" | sed 's/.*=//')
+        T21_FALLBACK=$(grep -m1 "^selftest: revealFallback=" "$WORK/t21.log" | sed 's/.*=//')
+        T21_HOTKEY=$(grep -m1 "^selftest: hotkeyRegistered=" "$WORK/t21.log" | sed 's/.*hotkeyRegistered=\([a-z]*\).*/\1/')
+        T21_EXCLUDED=$(grep -c "^selftest: recent=\(other-\|\.kilde\)" "$WORK/t21.log")
+        T21_TXT=$(grep -c "^selftest: recent=.*\.txt" "$WORK/t21.log")
+        # scanFinished を見るのは «0 件だから空» と «走査が終わっていないから空» を
+        # 取り違えないため。件数だけ見ていると、走査が固まっても 0 件として通りうる
+        if [ "$T21_EXIT" = "0" ] \
+            && [ "$T21_SCAN" = "true" ] \
+            && [ "$T21_COUNT" = "5" ] \
+            && [ "$T21_FIRST" = "kilde-20260912-999999.mov" ] \
+            && [ "$T21_FALLBACK" = "$T21_DIR" ] \
+            && [ "$T21_HOTKEY" = "true" ] \
+            && [ "$T21_EXCLUDED" = "0" ] && [ "$T21_TXT" = "0" ]; then
+            ok "T21 GUI 通知/一覧: 上限 5 件・更新時刻の新しい順・混ぜ物 4 件を除外・Finder の退避先は親ディレクトリ・ホットキー登録可"
+        else
+            bad "T21 GUI 通知/一覧: exit=$T21_EXIT scan=$T21_SCAN count=$T21_COUNT first=$T21_FIRST hotkey=$T21_HOTKEY excluded=$T21_EXCLUDED txt=$T21_TXT — $WORK/t21.log"
+        fi
+    else
+        bad "T21 GUI 通知/一覧: ビルドに失敗 — $WORK/t21-build.log"
+    fi
+fi
+
 # ---- サマリ -------------------------------------------------------------------
 
 echo ""
 echo "======================================"
+
 echo " 統合テスト結果:  PASS=$PASS  FAIL=$FAIL  SKIP=$SKIP"
 echo "======================================"
 [ "$FAIL" = "0" ]
