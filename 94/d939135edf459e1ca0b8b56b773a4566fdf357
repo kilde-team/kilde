@@ -1,0 +1,31 @@
+Sources/KildeCore/Input/HotkeyMonitor.swift
+  s_35faeec28b4c4b::t_7cd8110eefa92d 317-328,335-340,342,346-350,352
+Sources/kilde/RecCommand.swift
+  s_35faeec28b4c4b::t_9d1499653512b2 321-324,332-341
+docs/DESIGN.md
+  s_35faeec28b4c4b::t_93188368d66177 280
+  s_35faeec28b4c4b::t_37119d575b99ed 317,320-323,326-328
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_d870ae04126325 57-85
+  s_35faeec28b4c4b::t_df99ee48267c89 503-505
+  s_35faeec28b4c4b::t_e5fb7e1b8f0b5d 30
+  s_35faeec28b4c4b::t_e98de858e526a6 604-611,614-615
+  s_35faeec28b4c4b::t_f0f87ab9187f24 537-539,541,544,547-548,550,552-554,558,560-562
+  s_35faeec28b4c4b::t_5fe6d674789132 623
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "94d939135edf459e1ca0b8b56b773a4566fdf357",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
