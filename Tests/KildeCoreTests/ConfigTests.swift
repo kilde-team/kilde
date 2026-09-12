@@ -69,12 +69,14 @@ final class ConfigTests: XCTestCase {
         try config.set(.codec, "hevc")
         try config.set(.fps, "30")
         try config.set(.showsCursor, "false")
+        try config.set(.hotkey, "cmd+shift+r")
         try ConfigStore.save(config)
 
         let loaded = try ConfigStore.load()
         XCTAssertEqual(loaded, config)
         XCTAssertEqual(loaded.defaultAudioSources, ["system", "mic"])
         XCTAssertEqual(loaded.showsCursor, false)
+        XCTAssertEqual(loaded.hotkey, "cmd+shift+r")
     }
 
     func testUnsetRemovesKey() throws {
@@ -97,6 +99,7 @@ final class ConfigTests: XCTestCase {
         XCTAssertThrowsError(try config.set(.defaultAudioSources, "speaker"))
         XCTAssertThrowsError(try config.set(.defaultAudioSources, "device:"))
         XCTAssertThrowsError(try config.set(.outputDirectory, "relative/dir"))
+        XCTAssertThrowsError(try config.set(.hotkey, "not-a-hotkey"))
         XCTAssertEqual(config, KildeConfig(), "失敗した set で値が変わってはいけない")
     }
 
@@ -126,6 +129,15 @@ final class ConfigTests: XCTestCase {
     }
 
     // MARK: - 優先順位
+
+    func testHotkeyPriorityAndValidation() throws {
+        let config = KildeConfig(hotkey: "cmd+shift+r")
+        XCTAssertEqual(try HotkeySettings.resolve(explicit: "ctrl+f12", config: config), "ctrl+f12")
+        XCTAssertEqual(try HotkeySettings.resolve(explicit: nil, config: config), "cmd+shift+r")
+        XCTAssertNil(try HotkeySettings.resolve(explicit: nil, config: KildeConfig()))
+        XCTAssertThrowsError(try HotkeySettings.resolve(
+            explicit: "invalid", config: KildeConfig(hotkey: "cmd+r")))
+    }
 
     private func resolve(_ o: RecordOverrides = RecordOverrides(), config: KildeConfig = KildeConfig(),
                          env: [String: String] = [:], wantsVideo: Bool = true) throws -> RecordOptions {

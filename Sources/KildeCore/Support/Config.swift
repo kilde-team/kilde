@@ -20,7 +20,7 @@ public struct KildeConfig: Codable, Equatable, Sendable {
     public var fps: Int?
     /// カーソルを写し込むか (`--cursor` / `--no-cursor` 省略時)
     public var showsCursor: Bool?
-    /// グローバルホットキー。issue #10 で使う予定の予約項目で、現時点では保存するだけ
+    /// グローバルホットキー (`cmd+shift+r` 形式)。未設定なら通常どおり即時録画する
     public var hotkey: String?
 
     public init(outputDirectory: String? = nil, defaultAudioSources: [String]? = nil,
@@ -55,7 +55,7 @@ public enum ConfigKey: String, CaseIterable, Sendable {
         case .codec: return "h264"
         case .fps: return "ディスプレイのリフレッシュレートに追従"
         case .showsCursor: return "true"
-        case .hotkey: return "なし (issue #10 で対応予定)"
+        case .hotkey: return "なし (指定時はホットキー待機)"
         }
     }
 }
@@ -95,7 +95,7 @@ extension KildeConfig {
             default: throw KilError.failed("showsCursor は true か false を指定してください: \(value)")
             }
         case .hotkey:
-            guard !value.isEmpty else { throw KilError.failed("hotkey が空です") }
+            _ = try HotkeyParser.parse(value)
             hotkey = value
         }
     }
