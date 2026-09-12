@@ -76,7 +76,7 @@ public struct RecordRequest: Equatable {
         case .window(let id):
             // DisplayCatalog.resolveWindow は windowID の完全一致を最優先するので、
             // タイトルに同じ数字を含む別ウィンドウに取り違えられない
-            options.windowMatch = String(id)
+            options.windowMatches = [String(id)]
         case .audioOnly:
             break
         }
@@ -88,29 +88,21 @@ public struct RecordRequest: Equatable {
         var overrides = RecordOverrides()
         overrides.audio = audioSourceStrings
         overrides.audioTracks = trackPolicy.name
-        overrides.outputPath = try Self.availableOutputURL(
-            in: outputDirectory, ext: wantsVideo ? "mov" : "m4a").path
+        // GUI の保存先で既定名を決める。apply の保存先チェックを GUI の選んだ場所で
+        // 通すため一旦明示パスとして渡す
+        let preferred = outputDirectory.appendingPathComponent(
+            defaultOutputName(ext: wantsVideo ? "mov" : "m4a"))
+        overrides.outputPath = preferred.path
         // GUI を起動元の環境変数に依存させない (KILDE_OUTPUT_DIR は CLI 用)
         try RecordSettings.apply(overrides, config: config, environment: [:], to: &options)
+        // 明示パスのままでは「既存ファイルを消さない」保護が効かないため、原子的な
+        // 予約に差し替える (issue #59)。以前の availableOutputURL は fileExists の
+        // 確認と作成の間に隙間があり、GUI×CLI の同秒開始で後の録画が先のファイルを
+        // 消しえた。予約は Recorder が開始に失敗した時点で自分で片付ける
+        options.outputPathIsExplicit = false
+        options.outputURL = preferred
+        try OutputFileReservation.resolveDefaultOutput(on: &options)
         return options
-    }
-
-    /// 空いている出力名を選ぶ。既定名は秒までしか持たないので、短い録画を止めてすぐ録り直すと
-    /// 同じ名前になり、`MovieWriter` が既存ファイルを消してしまう (直前の録画が失われる)。
-    /// 衝突したら `kilde-….mov` → `kilde-…-2.mov` のように連番を付ける
-    /// `baseName` はテスト用 (既定名は実時刻の秒なので、テストから決定的に埋められるようにする)
-    static func availableOutputURL(in directory: URL, ext: String, maxSuffix: Int = 999,
-                                   baseName: String? = nil) throws -> URL {
-        let base = baseName ?? defaultOutputName(ext: ext)
-        let first = directory.appendingPathComponent(base)
-        guard FileManager.default.fileExists(atPath: first.path) else { return first }
-        let stem = (base as NSString).deletingPathExtension
-        for suffix in 2...max(2, maxSuffix) {
-            let candidate = directory.appendingPathComponent("\(stem)-\(suffix).\(ext)")
-            if !FileManager.default.fileExists(atPath: candidate.path) { return candidate }
-        }
-        // 空きが無いのに既存の名前を返すと、MovieWriter がそれを消してから録り始めてしまう
-        throw KilError.failed("空いている出力ファイル名が見つかりません: \(directory.path)")
     }
 
     /// 現在の選択 (音声ソース・トラック方針・保存先) を既定値として書き込んだ設定を返す。

@@ -65,9 +65,12 @@ let desc: [String: Any] = [
 
 ### F-D: macOS 26 の API/挙動メモ (実装上の注意)
 
-1. **SCK は既定で圧縮済みフレームを渡す**。AVAssetWriter で再圧縮するなら
-   `configuration.pixelFormat = kCVPixelFormatType_32BGRA` で非圧縮を要求する。
-   (逆に SCK 圧縮フレームを passthrough すれば無再エンコード録画の可能性 — M1 で検討)
+1. ~~**SCK は既定で圧縮済みフレームを渡す**~~ — **この記述は誤り (issue #15 で訂正)。**
+   SCK は圧縮フレームを渡さない。`pixelFormat` を指定しない既定でも
+   `420v` (非圧縮 8-bit 4:2:0 YUV) の **pixel buffer** が届き、block buffer は空である。
+   したがって「圧縮フレームの passthrough による無再エンコード録画」は成立しない。
+   ピクセル形式は既定に頼らず明示する方針は変えず、値は BGRA ではなく
+   `kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange` を使う (根拠は F-G)。
 2. **AVAssetWriterInput の video outputSettings に幅・高さが必須**
    (`AVVideoWidthKey/AVVideoHeightKey` がないと NSInvalidArgumentException でクラッシュ)。
 3. **CLI でも NSApplication の初期化が必要**: `NSApplication.shared` +
@@ -168,17 +171,168 @@ mic 側は音響経路のあるマイクか、BlackHole ループバックで行
   ただしこの傾きはマーカーごとの変動幅 (23〜31 ms) に埋もれる水準なので、外挿の確度は高くない。
   判定の基準は 15 分の計測 (issue #3) であり、1 時間級の会議録画で補正が要るかは実測で確かめること
 
+### F-H: HDR 収録 (issue #16) — 実装済み、ただし**当機では検証できていない**
+
+**この検証機に繋がっているディスプレイ (LG Ultra HD) は HDR 非対応**のため、
+issue #16 の受け入れ条件「HDR ディスプレイで `--hdr` 録画が HDR として再生される」は
+**未達のまま**である。実装とフォールバックは入れたが、HDR として再生されることの確認は
+HDR ディスプレイを持つ環境で行う必要がある (#2 / #4 / #55 と同じ「ハード待ち」)。
+
+判定に使った値 (録画なしで取得):
+
+```
+screen[0] LG Ultra HD
+  EDR: current=1.0 potential=1.0 reference=0.0  → HDR対応=false
+```
+
+`maximumPotentialExtendedDynamicRangeColorComponentValue` が「その画面が到達しうる
+EDR の上限」で、SDR ディスプレイでは 1.0 のままになる。**現在値 (`maximum...Value`) の方は
+明るさ設定や表示中の内容で変動するので、対応可否の判定には使えない。**
+
+`SCStreamConfiguration` の HDR プリセットが実際に設定する値 (macOS 26 で実測):
+
+| プリセット | pixelFormat | colorSpace | captureDynamicRange |
+|-----------|-------------|------------|---------------------|
+| `captureHDRStreamLocalDisplay` | `xf44` | `DisplayP3_PQ` | 1 (HDRLocalDisplay) |
+| `captureHDRStreamCanonicalDisplay` | `xf44` | `DisplayP3_PQ` | 2 (HDRCanonicalDisplay) |
+| `captureHDRRecordingPreservedSDRHDR10` | `x420` | `ITUR_2100_PQ` | 2 |
+
+実装が使うのは **`captureHDRStreamLocalDisplay` (macOS 15+) のみ**。プリセットを使うのは、
+`captureDynamicRange` / `pixelFormat` / `colorSpace` / `colorMatrix` を自分で
+整合させるのが間違えやすいため。書き出し側は HEVC **Main10** + Display P3 / PQ を明示する
+(色情報を書かないと再生側が SDR と解釈する)。
+
+**`captureHDRRecordingPreservedSDRHDR10` (macOS 26、HDR10 メタデータ付き) は使っていない。**
+CI が `macos-15` ランナーで動いており、**その SDK にシンボルが存在しないためコンパイルできない**:
+
+```
+error: type 'SCStreamConfiguration.Preset' has no member 'captureHDRRecordingPreservedSDRHDR10'
+```
+
+**`#available` では回避できない。** `if #available(macOS 26, *)` は「実行時にその OS か」を
+見るものであって、**コンパイル時に SDK へ存在しないシンボルは、可用性チェックの中に
+書いてあっても参照できない**。`@available` を付けても同じ。新しい SDK の API を使うときは
+「実行時の OS」と「ビルド時の SDK」を分けて考える必要がある。対応は issue #76 に切り出した
+(CI の最小 SDK をどうするかという、#16 より広い判断を含むため)。
+
+**書き出す色域は使うプリセットで決まる。** 上表のとおり `captureHDRStreamLocalDisplay` は
+Display P3 のバッファを渡すので、書き出しも P3-D65 とタグ付けする。一律 BT.2020 にすると
+P3 のバッファを BT.2020 と称することになり、再生時に彩度が落ちる。
+**ただし PQ と組み合わせる YCbCr マトリクスは、色域が P3 でも BT.2020 を使う** —
+P3 に BT.709 を合わせるのは SDR (709 伝達関数) と HLG の話で、PQ では標準の組み合わせに無い。
+709 で変換すると、BT.2020 の部分集合である P3 の彩度の高い色が範囲外の Cb/Cr になって
+クランプされ、色相と彩度がずれる。
+
+**フォールバックは終了コードを汚さない。** 条件を満たさない環境では SDR で録るが、
+これは失敗ではないので `cleanupWarnings` (CLI が終了コード 1 に変換する) には載せず、
+`Summary.hdrFallback` に理由を載せて結果表示に出す。終了コードは 0 のまま。
+黙って SDR にすると「HDR で録れたつもりのファイル」ができてしまうため、
+理由 (OS が古い / ディスプレイが非対応 / 映像を録っていない) は必ず出し分ける。
+### F-F: アプリ除外 (`--exclude-app`) はシステム音声にも効く (issue #13)
+
+`SCContentFilter(display:excludingApplications:exceptingWindows:)` で除外したアプリは、
+**映像だけでなくシステム音声からも除外される**。F-B (ウィンドウ収録で音声がそのアプリへ
+スコープされる) と対になる挙動で、SCK のフィルタは映像と音声の両方に適用される。
+
+計測 (macOS 26 / Apple Silicon。同じ音源アプリを鳴らしたまま 6 秒ずつ録り比べ):
+
+| 条件 | audio rms | peak |
+|------|-----------|------|
+| 除外なし (対照) | 0.0671 | 0.3884 |
+| `--exclude-app com.kilde.spikesound` | 0.0000 | 0.0000 |
+
+実装上の注意:
+
+- **bundleID を持たないプロセスは除外できない。** `swiftc` で直接コンパイルした実行ファイルは
+  アプリバンドルを持たないため `SCRunningApplication` に載らず、`kilde devices` でも
+  「bundleID なし」に入る。統合テスト (T17) は soundapp を最小の `.app` に包んで
+  `CFBundleIdentifier` を与えることでこれを回避している
+- 除外の指定は bundleID の**完全一致**にした。`--window` と揃えて部分一致にすると、
+  取り違えても「写っていないはず」という期待が静かに破られ、録画を見返すまで気づけない
+- 複数ウィンドウ収録 (`--window` の複数指定) で使う
+  `SCContentFilter(display:including:)` は、ウィンドウごとに切り出すのではなく
+  **ディスプレイ座標系のまま合成する**。出力はディスプレイ全体の大きさになり、
+  対象外の領域は黒で埋まる
+- **音声スコープは複数ウィンドウでも効く。** 単一ウィンドウ (F-B) と同じく、
+  含めたウィンドウのアプリの音だけが入る:
+
+  | 指定 | audio rms | peak |
+  |------|-----------|------|
+  | 音源アプリを含む 2 ウィンドウ | 0.0662 | 0.3751 |
+  | 音源アプリを含まない 2 ウィンドウ (陰性) | 0.0000 | 0.0000 |
+- 別のディスプレイにあるウィンドウを混ぜると合成先の座標系の外に出るため、
+  そのウィンドウは黙って黒くなる。`Recorder` は `CGDisplayBounds` との交差で
+  録画前に弾いている (この分岐はディスプレイ 1 台の検証機では未実測)
+### F-G: SCK の圧縮フレーム passthrough は不成立、代わりに 420v で CPU −24% (issue #15)
+
+**結論: 「SCK の圧縮フレームをそのまま書く」構想は成立しない。** F-D.1 の前提が誤りだった。
+実測すると、`pixelFormat` を指定しない既定でも SCK が渡すのは `420v`
+(非圧縮 8-bit 4:2:0 YUV) の **pixel buffer** で、block buffer は空である:
+
+| `pixelFormat` の指定 | 届いた形式 | pixelBuffer | blockBuffer |
+|---------------------|-----------|-------------|-------------|
+| 未指定 (既定) | `420v` | あり | 空 |
+| `kCVPixelFormatType_32BGRA` | `BGRA` | あり | 空 |
+| `kCVPixelFormatType_ARGB2101010LEPacked` | `l10r` | あり | 空 |
+
+代わりに**ピクセル形式を BGRA から 420v へ変えると CPU が下がる**。H.264 / HEVC の
+エンコーダ入力はどのみち 4:2:0 YUV なので、BGRA を渡すと色変換が 1 回余計に入るため。
+
+計測 (2560x1440・30fps 固定・10 秒・5 巡・順序バイアスを避けて交互に実行):
+
+| 条件 | user | sys | user+sys (中央値) |
+|------|------|-----|-------------------|
+| BGRA (旧) | 0.25–0.29 | 0.23–0.28 | **0.50 s** |
+| 420v (現行) | 0.22–0.25 | 0.12–0.13 | **0.38 s** |
+
+**CPU 合計 −24%、`sys` はほぼ半減。5 巡すべてで 420v が軽い。**
+
+画質は実用上同等。静止した単一ウィンドウ (白背景に細い有彩色の文字と 1px 罫線 —
+クロマ間引きの差が最も出る素材) を両経路の実バイナリで録り、同一地点のフレームを比較:
+
+| 比較 | PSNR | SSIM |
+|------|------|------|
+| BGRA vs BGRA (ベースライン) | 68.4 dB | — |
+| BGRA vs 420v | **47.6 dB** | **0.9998** |
+
+差はゼロではない (クロマの間引きを VideoToolbox がやるか SCK がやるかで、
+ダウンサンプルの方式が違う) が、47 dB は拡大しても判別が困難な水準である。
+**この 47.6 dB はクロマ間引きの差が最も出る素材での下限値**で、実使用 (会議画面・動画) では
+これより差は小さくなる。逆に言えば、これ以上悪くはならないという保証でもある。
+
+**ProRes だけは BGRA のままにする。** 上の根拠 (「エンコーダ入力はどのみち 4:2:0」) は
+H.264 / HEVC にしか当てはまらない。`--codec prores` がマップされる ProRes 422 は
+**4:2:2** なので、SCK 段階で 4:2:0 にするとクロマを半分捨てた状態からエンコーダが
+4:2:2 へ戻すだけになり、失った情報は復元できない。編集用の高品質な中間ファイルという
+用途に反するため、ProRes のときだけ `kCVPixelFormatType_32BGRA` を使う。
+上の PSNR / CPU の数値は H.264 経路のもので、ProRes には引き継がれない。
+
+**計測手順の注意 — ベースラインを必ず取ること。** 最初に画面全体を録って比べたときは
+PSNR 15 dB という「差がある」ように見える値が出たが、同条件どうし (BGRA vs BGRA) の
+ベースラインも 16 dB だった。原因は画面が静止していなかったこと (計測スクリプト自身の
+出力でターミナルが描画され続けていた)。ベースラインを取らずに条件間だけを見ると、
+ノイズを色変換の差と誤読する。単一の静止ウィンドウに切り替えて初めて 68 dB になった。
+
+**`SCRecordingOutput` (macOS 15+) は採用しない。** 対応コーデックは `avc1` / `hvc1`、
+コンテナは MP4 / MOV と十分だが、録る内容が SCStream の設定に縛られるため
+`AudioMixer` を挟めない。kilde の中核である「システム音声 + マイクを 1 トラックに合成」
+「`--audio-tracks separate`」が実現できないので、この経路は使わない。
+
 ## M1 への反映
 
 1. 録音 (audio-only) モードは SCK ネイティブ (`--audio system` + `.audio` 出力のみ)
    を既定に。BlackHole は `--audio device:...` + `--monitor` のオプション経路。
 2. `--preset meeting` = ウィンドウ単位 + システム (スコープ済み) 音声 + マイク + ミックス。
 3. `kilde audio monitor` は stacked フラグを使う。非公開キー依存の切り出し。
-4. 映像: pixelFormat BGRA 指定 + AVAssetWriter 幅/高さ明示。
+4. 映像: pixelFormat は**コーデックのクロマに合わせて出し分ける** — H.264 / HEVC は
+   420v、ProRes のみ BGRA (F-G。当初は一律 BGRA としていたが issue #15 で改めた)
+   + AVAssetWriter 幅/高さ明示。
 5. CLI 起動時に NSApplication accessory 初期化。
 6. マイクは SCK より先に開始。
 7. 残課題: (a) 旧 OS (13/14/15) での S8/S9 挙動、(b) 長時間ドリフト、
-   (c) S10 会議アプリ実地検証、(d) SCK 圧縮フレーム passthrough の検討。
+   (c) S10 会議アプリ実地検証。
+   ~~(d) SCK 圧縮フレーム passthrough の検討~~ → **issue #15 で不成立と判明** (F-G)。
+   SCK は圧縮フレームを渡さないため、この課題は消滅した。
 
 ## 生成物
 

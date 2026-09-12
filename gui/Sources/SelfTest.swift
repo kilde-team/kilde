@@ -23,8 +23,15 @@ enum SelfTest {
 
     @MainActor
     static func runIfRequested(setup: RecordingSetup, recording: RecordingController,
-                               popover: PopoverControl) {
+                               permissions: PermissionsModel, popover: PopoverControl) {
         let env = ProcessInfo.processInfo.environment
+        // KILDE_GUI_SELFTEST_PERMISSIONS=1: 構成ごとに「何の権限を要求するか」を出して終わる (issue #19)。
+        // 実際に TCC の許可を取り消さないと確かめられない部分 (案内の見た目) は人の目に頼るしかないが、
+        // 「音声のみの録音に画面収録権限を求めない」のような判定はこれで機械的に確認できる
+        if env["KILDE_GUI_SELFTEST_PERMISSIONS"] == "1" {
+            reportPermissions(setup: setup, permissions: permissions)
+            exit(0)
+        }
         guard let text = env["KILDE_GUI_SELFTEST_RECORD"] else { return }
         guard let seconds = Double(text), seconds > 0 else {
             fail("KILDE_GUI_SELFTEST_RECORD は正の秒数で指定してください: \(text)")
@@ -72,6 +79,13 @@ enum SelfTest {
                 popover.show()
             }
             guard popover.isShown() else {
+                // この時点ではまだ recording.start していないため、makeOptions が確保した
+                // 予約の清掃を Recorder に任せられない — 自分で片付けてから失敗する
+                if let r = options.outputReservation, !r.removeIfStillReserved() {
+                    FileHandle.standardError.write(
+                        "WARNING: 予約した出力ファイルを削除できませんでした: \(r.url.path)\n"
+                            .data(using: .utf8)!)
+                }
                 fail("ポップオーバーを開けませんでした (isShown=false)")
             }
             print("selftest: popover shown=true")
@@ -154,6 +168,47 @@ enum SelfTest {
             try? await Task.sleep(nanoseconds: UInt64(max(2.0, seconds / 2) * 1_000_000_000))
             recording.stop()
         }
+    }
+
+    /// 権限の判定結果を構成ごとに出す (KILDE_GUI_SELFTEST_PERMISSIONS=1)。
+    /// 判定は PermissionsModel が CLI の `kilde doctor` と同じ Permissions を使って行う
+    @MainActor
+    private static func reportPermissions(setup: RecordingSetup, permissions: PermissionsModel) {
+        permissions.refresh()
+        print("selftest: screen=\(permissions.screenGranted) mic=\(permissions.micStatus)")
+        let cases: [(String, (inout RecordRequest) -> Void)] = [
+            ("画面 + システム音声", {
+                $0.target = .display(index: 0); $0.captureSystemAudio = true
+                $0.captureMic = false; $0.inputDevices = []
+            }),
+            ("画面 + マイク", {
+                $0.target = .display(index: 0); $0.captureSystemAudio = false
+                $0.captureMic = true; $0.inputDevices = []
+            }),
+            ("音声のみ + システム音声", {
+                $0.target = .audioOnly; $0.captureSystemAudio = true
+                $0.captureMic = false; $0.inputDevices = []
+            }),
+            ("音声のみ + マイクのみ", {
+                $0.target = .audioOnly; $0.captureSystemAudio = false
+                $0.captureMic = true; $0.inputDevices = []
+            }),
+            ("音声のみ + 入力デバイス指定", {
+                $0.target = .audioOnly; $0.captureSystemAudio = false
+                $0.captureMic = false; $0.inputDevices = ["BlackHole 2ch"]
+            }),
+        ]
+        for (name, mutate) in cases {
+            var request = setup.request
+            mutate(&request)
+            let missing = permissions.missing(for: request)
+            let missingText = missing.isEmpty
+                ? "なし"
+                : missing.map { String(describing: $0) }.joined(separator: ",")
+            print("selftest: [\(name)] needsScreen=\(PermissionsModel.needsScreen(request))"
+                + " needsMic=\(PermissionsModel.needsMic(request)) missing=\(missingText)")
+        }
+        fflush(stdout)
     }
 
     /// ポップオーバーを閉じた時点の経過時間 (閉じる側と終了側のクロージャで共有する)

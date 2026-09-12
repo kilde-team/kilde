@@ -33,6 +33,12 @@ final class RecordingSetup: ObservableObject {
     private static let maxConcurrentEnumerations = 3
     /// 入力デバイスの列挙も、返らないことがある (デバイス構成の変更中)。1 本だけ走らせる
     private var audioEnumerationInFlight = false
+    /// 入力デバイス列挙の世代。タイムアウト後に始めた新しい列挙の結果を、古い列挙が
+    /// 上書きしないようにする (画面の列挙とは独立した世代で数える)
+    private var audioGeneration = 0
+    /// 実際に走っている入力デバイス列挙の数。タイムアウトでフラグを解放する以上、
+    /// 上限を設けないと返らない環境でタスクが積み上がる (画面側と同じ扱い)
+    private var audioEnumerationsRunning = 0
 
     private static let enumerationTimeout: TimeInterval = 10
     /// サムネイルを撮るウィンドウ数の上限 (1 枚ごとに SCScreenshotManager の撮影が走るため)
@@ -129,18 +135,26 @@ final class RecordingSetup: ObservableObject {
         let generation = self.generation
         // 入力デバイスの列挙 (CoreAudio) は権限不要で普通は速いが、デバイス構成の変更中などに
         // ブロックすることがある。メニューバーの UI を止めないよう detached で回し、結果だけ反映する
-        if !audioEnumerationInFlight {
+        if !audioEnumerationInFlight, audioEnumerationsRunning < Self.maxConcurrentEnumerations {
             audioEnumerationInFlight = true
+            audioEnumerationsRunning += 1
+            audioGeneration += 1
+            let audioGeneration = self.audioGeneration
             let audioTask = Task.detached { () -> [AudioDeviceInfo] in
                 AudioDeviceCatalog.devices.filter { $0.inputChannels > 0 }
             }
+            // 画面側と同じく、止められない列挙が実際に終わった時点で本数を戻す
+            Task { [weak self] in
+                _ = await audioTask.value
+                self?.audioEnumerationsRunning -= 1
+            }
             Task { [weak self] in
                 let devices = await Self.value(of: audioTask, timeout: Self.enumerationTimeout)
-                guard let self else { return }
+                guard let self, audioGeneration == self.audioGeneration else { return }
                 // タイムアウトでもフラグは解放する — 解放しないと、CoreAudio が返らない環境で
-                // 入力デバイス一覧がアプリ再起動まで二度と更新されなくなる
+                // 入力デバイス一覧がアプリ再起動まで二度と更新されなくなる。
+                // 世代で判定しているので、古い列挙が新しい結果を上書きすることはない
                 self.audioEnumerationInFlight = false
-                // 入力デバイスの一覧は画面の列挙とは独立なので、世代が進んでいても最新として反映する
                 if let devices { self.inputDevices = devices }
             }
         }

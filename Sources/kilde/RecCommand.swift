@@ -4,6 +4,15 @@ import ArgumentParser
 import KildeCore
 import Darwin
 
+/// 'p' キー監視で raw mode にする前の端末設定 (復元用)。
+/// ParsableCommand の struct にプロパティを増やすと引数の解析対象と紛れるため、
+/// 既存の signalSources と同じくファイルスコープに置く
+private var pauseKeyOriginalTermios: termios?
+
+/// 待機モード (--hotkey) で使う 'p' キー監視。onStarted の中からは触れないため
+/// ファイルスコープに置く (signalSources と同じ理由)
+private var pauseKeyWatcher: DispatchSourceRead?
+
 struct RecCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "rec",
@@ -13,8 +22,11 @@ struct RecCommand: ParsableCommand {
     @Option(help: "収録ディスプレイの番号 (kilde devices で確認。既定 0)")
     var display: Int?
 
-    @Option(help: "ウィンドウ単位で収録 (title / bundleID / windowID の部分一致)。音声もそのアプリにスコープされる")
-    var window: String?
+    @Option(help: "ウィンドウ単位で収録 (title / bundleID / windowID の部分一致)。音声もそのアプリにスコープされる。複数回指定するとそのウィンドウ群をまとめて収録 (出力はディスプレイ全体の大きさになり、対象外は黒で埋まる)")
+    var window: [String] = []
+
+    @Option(help: "ディスプレイ収録から除外するアプリの bundleID (完全一致、複数回指定可。kilde devices で確認)。映像だけでなくそのアプリのシステム音声も出力に入らない。--window / --no-video / --preset meeting とは併用不可")
+    var excludeApp: [String] = []
 
     @Option(help: "ディスプレイの一部だけを収録 x,y,w,h (ポイント座標、左上が原点)。幅・高さは 2 以上で偶数に切り捨て、ディスプレイの範囲外は録画前に失敗 (終了コード 1)。--window / --no-video / --preset meeting とは併用不可")
     var region: String?
@@ -44,12 +56,18 @@ struct RecCommand: ParsableCommand {
     @Option(help: "映像コーデック: h264 (既定) / hevc / prores (設定 codec で変更可)")
     var codec: String?
 
+    @Option(help: "出力コンテナ: mov (既定) / mp4。出力パスの拡張子が .mp4 なら自動で mp4 になる。MP4 に ProRes は入れられない")
+    var format: String?
+
     @Option(help: "上限フレームレート (1 以上。0 以下は終了コード 64。未指定は設定 fps、どちらも無ければ SCK 既定)")
     var fps: Int?
 
     // --no-cursor は M1 からの互換。設定 showsCursor=false を 1 回だけ打ち消せるよう --cursor も受ける
     @Flag(inversion: .prefixedNo, help: "カーソルを写り込む / 写り込まない (既定: 写り込む。設定 showsCursor で変更可、--cursor は false をその回だけ打ち消す)")
     var cursor: Bool?
+
+    @Flag(help: "HDR で収録する (macOS 15 以降 + HDR ディスプレイ + --codec hevc。条件を満たさない環境では警告して SDR で録る)")
+    var hdr: Bool = false
 
     @Option(help: "開始前カウントダウン (秒)")
     var countdown: Int = 0
@@ -92,7 +110,7 @@ struct RecCommand: ParsableCommand {
             }
             // ウィンドウ収録には領域の概念がなく、音声のみでは映像自体が無い。
             // 黙って無視すると「指定したのに効かない」ので、ここで弾く
-            if window != nil {
+            if !window.isEmpty {
                 throw ValidationError("--region と --window は併用できません (ウィンドウ収録に領域指定はありません)")
             }
             if noVideo {
@@ -105,8 +123,59 @@ struct RecCommand: ParsableCommand {
                 throw ValidationError("--region と --preset meeting は併用できません (meeting はウィンドウを選んで収録するため)")
             }
         }
+        if !excludeApp.isEmpty {
+            // 除外はディスプレイ収録の絞り込みなので、収録対象を選ぶ指定とは両立しない。
+            // 黙って無視すると「除外したのに写っている」ことになり、画面を見るまで気づけない
+            if !window.isEmpty {
+                throw ValidationError("--exclude-app と --window は併用できません (ウィンドウ収録では対象を選ぶため除外は使いません)")
+            }
+            if noVideo {
+                throw ValidationError("--exclude-app と --no-video は併用できません (映像を録らないため除外が効きません)")
+            }
+            // --region と同じ理由: meeting は validate() の後にウィンドウを選ぶので、
+            // ここで弾かないと選択結果次第で除外が効いたり効かなかったりする
+            if preset == "meeting" {
+                throw ValidationError("--exclude-app と --preset meeting は併用できません (meeting はウィンドウを選んで収録するため)")
+            }
+            if excludeApp.contains(where: { $0.trimmingCharacters(in: .whitespaces).isEmpty }) {
+                throw ValidationError("--exclude-app には bundleID を指定してください (例: com.apple.Safari)")
+            }
+        }
         if let codec, VideoCodecKind(rawValue: codec) == nil {
             throw ValidationError("--codec は h264 / hevc / prores を指定してください")
+        }
+        if hdr {
+            // HDR は 10-bit の HEVC (Main10) で書くので、他のコーデックでは成立しない。
+            // 黙って HEVC に変えると「指定した codec と違うもので録れる」ことになるので弾く
+            if let codec, codec != "hevc" {
+                throw ValidationError("--hdr は --codec hevc と組み合わせてください (指定: \(codec))")
+            }
+            if noVideo {
+                throw ValidationError("--hdr と --no-video は併用できません (映像を録らないため HDR が効きません)")
+            }
+        }
+        if let format {
+            guard ContainerKind(rawValue: format.lowercased()) != nil else {
+                throw ValidationError("--format は mov か mp4 を指定してください")
+            }
+            // 音声のみの出力は M4A で固定なので、指定しても効かない
+            if noVideo {
+                throw ValidationError("--format と --no-video は併用できません (音声のみの出力は M4A です)")
+            }
+        }
+        // コンテナは --format だけでなく出力パスの拡張子でも決まる (kilde rec demo.mp4)。
+        // CLI で分かる組合せは終了コード 64 で弾く契約なので、実効コンテナで検証する
+        // (設定ファイル由来の codec との組合せだけは KildeCore 側で 1 になる)
+        let effectiveContainer: ContainerKind? = {
+            if let format { return ContainerKind(rawValue: format.lowercased()) }
+            guard let path = output ?? outputPositional else { return nil }
+            return ContainerKind(rawValue: URL(fileURLWithPath: path).pathExtension.lowercased())
+        }()
+        if !noVideo, let codec, let kind = VideoCodecKind(rawValue: codec),
+           let container = effectiveContainer, !container.supports(kind) {
+            throw ValidationError(
+                "\(container.rawValue.uppercased()) コンテナに \(codec) は入れられません "
+                + "(--codec h264 / hevc か --format mov)")
         }
         for a in audio where a != "none" && AudioSourceSpec.parse(a) == nil {
             throw ValidationError("--audio の値が不正: \(a) (system / mic / device:<名前> / none)")
@@ -135,6 +204,17 @@ struct RecCommand: ParsableCommand {
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
 
+        // HDR 対応ディスプレイの判定は NSScreen = メインスレッドが要る。
+        // Recorder のセッションから呼ぶと、run() が塞いでいるメインスレッドへ
+        // ディスパッチすることになってデッドロックするので、ここで先に済ませる
+        // (KildeCore.Recorder は MainActor を要求しない — CLAUDE.md §6)。
+        //
+        // ArgumentParser の main() はメインスレッドで走るのでこの関数もメインスレッド上だが、
+        // 型の上では nonisolated なので assumeIsolated で表明する。await にしないのは、
+        // ここが同期関数でありメインスレッドを手放せないため。前提が崩れれば
+        // assumeIsolated がその場で落ちるので、黙って間違った値を使うことはない
+        let hdrCapableDisplays = MainActor.assumeIsolated { DisplayHDR.capableDisplayIDs() }
+
         // 設定ファイルの不正は対話 (meeting のウィンドウ選択) より前に失敗させる
         let config: KildeConfig
         do {
@@ -161,6 +241,8 @@ struct RecCommand: ParsableCommand {
         options.wantsVideo = !noVideo
         options.duration = parseDuration(duration)
         options.autoMonitor = monitor
+        options.hdr = hdr
+        options.hdrCapableDisplayIDs = hdrCapableDisplays
 
         // CLI 引数 > プリセット > 環境変数 > 設定ファイル > 既定値 の解決は KildeCore 側
         // (GUI も同じ規則で設定を読むため)。出力 URL もここで一度だけ決まる
@@ -169,6 +251,7 @@ struct RecCommand: ParsableCommand {
         overrides.audio = audio
         overrides.audioTracks = audioTracks
         overrides.codec = codec
+        overrides.format = format
         overrides.fps = fps
         overrides.showsCursor = cursor
         overrides.meetingPreset = preset == "meeting"
@@ -181,16 +264,17 @@ struct RecCommand: ParsableCommand {
         }
 
         // meeting のウィンドウ選択は設定・保存先の検証を通ってから (不正な設定で対話後に失敗させない)
-        if preset == "meeting" && window == nil {
+        if preset == "meeting" && window.isEmpty {
             do {
                 if let picked = try promptWindowSelection() {
-                    window = picked
+                    window = [picked]
                 }
             } catch {
                 cliError(error)
             }
         }
-        options.windowMatch = window
+        options.windowMatches = window
+        options.excludedBundleIDs = excludeApp
 
         if countdown > 0 {
             for i in stride(from: countdown, through: 1, by: -1) {
@@ -215,11 +299,24 @@ struct RecCommand: ParsableCommand {
         if let resolvedHotkey {
             waitForHotkey(resolvedHotkey, options: options, overrides: overrides, config: config)
         } else {
+            var options = options
+            reserveDefaultOutputIfNeeded(&options)
             runImmediately(options: options)
         }
     }
 
     // MARK: - 実行モード
+
+    /// 既定名 (出力先の明示なし) のとき、表示の前に予約を確定させる。
+    /// 予約は Recorder 内でも行えるが、後から -2 に退避すると「● 録画 → path」の表示が
+    /// 実際の出力先と食い違うため、CLI は先に確定して正しいパスを表示する
+    private func reserveDefaultOutputIfNeeded(_ options: inout RecordOptions) {
+        do {
+            try OutputFileReservation.resolveDefaultOutput(on: &options)
+        } catch {
+            cliError(error)
+        }
+    }
 
     /// 従来の即時録画経路。--hotkey 未指定かつ設定もない場合の挙動を変えない。
     private func runImmediately(options: RecordOptions) {
@@ -227,9 +324,20 @@ struct RecCommand: ParsableCommand {
         installStopSignalHandler { [weak recorder] in
             recorder?.stop()
         }
+        // 一時停止 / 再開 (issue #11)。SIGUSR1 と 'p' キーのどちらもトグル
+        installPauseSignalHandler { [weak recorder] in
+            guard let recorder else { return }
+            if recorder.isPaused { recorder.resume() } else { recorder.pause() }
+        }
+        let pauseKey = startPauseKeyWatcher { [weak recorder] in
+            guard let recorder else { return }
+            if recorder.isPaused { recorder.resume() } else { recorder.pause() }
+        }
+        defer { stopPauseKeyWatcher(pauseKey) }
 
         let result: Result<Recorder.Summary, Error>
-        print("● 録画\(!options.wantsVideo ? " (音声のみ)" : "") → \(options.outputURL!.path)  (Ctrl+C で停止)")
+        let pauseHint = pauseKey != nil ? " / p で一時停止・再開" : " / SIGUSR1 で一時停止・再開"
+        print("● 録画\(!options.wantsVideo ? " (音声のみ)" : "") → \(options.outputURL!.path)  (Ctrl+C で停止\(pauseHint))")
         let ticker = startStatusTicker(recorder, wantsVideo: options.wantsVideo)
         result = Result { try recorder.run() }
         ticker.cancel()
@@ -242,13 +350,17 @@ struct RecCommand: ParsableCommand {
                                overrides: RecordOverrides, config: KildeConfig) {
         var ticker: DispatchSourceTimer?
         var outcome: HotkeyRecordingController.Outcome?
+        // 待機モードでも SIGUSR1 を掴む。既定の動作 (即時終了) のままだと
+        // kill -USR1 でファイナライズされずに死に、壊れたファイルが残る
+        var activeRecorder: Recorder?
 
         do {
             let controller = try HotkeyRecordingController(
                 hotkey: source, options: options, overrides: overrides, config: config,
                 environment: ProcessInfo.processInfo.environment,
                 onStarted: { recorder, startedOptions, normalized in
-                    print("● 録画\(!startedOptions.wantsVideo ? " (音声のみ)" : "") → \(startedOptions.outputURL!.path)  (Ctrl+C / \(normalized) で停止)")
+                    activeRecorder = recorder
+                    print("● 録画\(!startedOptions.wantsVideo ? " (音声のみ)" : "") → \(startedOptions.outputURL!.path)  (Ctrl+C / \(normalized) で停止 / SIGUSR1 で一時停止・再開)")
                     ticker = startStatusTicker(recorder, wantsVideo: startedOptions.wantsVideo)
                 },
                 onFinished: { result in
@@ -257,10 +369,28 @@ struct RecCommand: ParsableCommand {
                     CFRunLoopStop(CFRunLoopGetMain())
                 }
             )
-            try controller.start()
+            // controller.start() より前にシグナルの設置を済ませる — pthread_sigmask は
+            // 呼び出しスレッド (メイン) しかブロックしないため、ホットキー監視等の
+            // スレッドが生まれる前に窓を閉じておかないと、プロセス宛シグナルが
+            // ブロックされていない別スレッドへ配送されて SIG_IGN 破棄されうる (issue #67)
             installStopSignalHandler {
                 controller.requestStop()
             }
+            // 録画が始まっていなければ何もしない (待機中の SIGUSR1 と 'p' は無視)
+            // activeRecorder は onStarted (メインキュー) で書かれ、シグナルと 'p' キーは
+            // それぞれ別のキューから読む。メインキューへ直列化しないとデータ競合になり、
+            // 両方が同時に来たときに同じ isPaused を見て一方のトグルが失われる
+            let toggle = {
+                DispatchQueue.main.async {
+                    guard let recorder = activeRecorder else { return }
+                    if recorder.isPaused { recorder.resume() } else { recorder.pause() }
+                }
+            }
+            installPauseSignalHandler(toggle)
+            // 待機経路でも 'p' キーを使えるようにする (即時録画と操作を揃える)
+            pauseKeyWatcher = startPauseKeyWatcher(toggle)
+            defer { stopPauseKeyWatcher(pauseKeyWatcher); pauseKeyWatcher = nil }
+            try controller.start()
             print("⏳ 待機中 — \(controller.normalizedHotkey) で開始 / Ctrl+C で終了")
             // stdout がファイルにリダイレクトされていると C stdio はフルバッファになり、
             // この後 RunLoop で無期限にブロックするため「待機中」が exit まで出ない。
@@ -284,6 +414,10 @@ struct RecCommand: ParsableCommand {
     }
 
     private func finish(recorder: Recorder, result: Result<Recorder.Summary, Error>) {
+        // この関数は Darwin.exit / cliError で戻らずに終わる経路があり、呼び出し元の
+        // defer が走らない。端末を raw mode のままにするとユーザーのシェルで
+        // エコーが効かなくなるため、ここで必ず戻す (二重復元は無害)
+        restorePauseKeyTerminal()
         print("")
         for warning in recorder.cleanupWarnings {
             FileHandle.standardError.write("WARNING: \(warning)\n".data(using: .utf8)!)
@@ -343,6 +477,43 @@ struct RecCommand: ParsableCommand {
         throw KilError.failed("有効なウィンドウ番号が入力されませんでした (--window で直接指定もできます)")
     }
 
+    /// 録画中に stdin の 'p' で一時停止 / 再開する (issue #11)。
+    /// stdin が端末でないとき (パイプ・リダイレクト・統合テスト) は何もしない —
+    /// 端末以外を raw mode にしても入力は来ず、呼び出し元のシェルの端末設定を壊しかねないため
+    private func startPauseKeyWatcher(_ toggle: @escaping () -> Void) -> DispatchSourceRead? {
+        guard isatty(STDIN_FILENO) == 1 else { return nil }
+        var original = termios()
+        guard tcgetattr(STDIN_FILENO, &original) == 0 else { return nil }
+        var raw = original
+        // 1 文字ずつ即座に受け取り、画面にエコーしない (ステータス行が乱れる)
+        raw.c_lflag &= ~(UInt(ICANON) | UInt(ECHO))
+        guard tcsetattr(STDIN_FILENO, TCSANOW, &raw) == 0 else { return nil }
+        pauseKeyOriginalTermios = original
+        let src = DispatchSource.makeReadSource(fileDescriptor: STDIN_FILENO,
+                                                queue: DispatchQueue(label: "kilde.pausekey"))
+        src.setEventHandler {
+            var ch: UInt8 = 0
+            guard read(STDIN_FILENO, &ch, 1) == 1 else { return }
+            guard ch == UInt8(ascii: "p") || ch == UInt8(ascii: "P") else { return }
+            toggle()
+        }
+        src.resume()
+        return src
+    }
+
+    /// 端末の設定を必ず戻す (戻さないとシェルのエコーが効かないままになる)
+    private func stopPauseKeyWatcher(_ source: DispatchSourceRead?) {
+        source?.cancel()
+        restorePauseKeyTerminal()
+    }
+
+    /// raw mode にした端末を元に戻す。戻す設定が無ければ何もしない (冪等)
+    private func restorePauseKeyTerminal() {
+        guard var original = pauseKeyOriginalTermios else { return }
+        tcsetattr(STDIN_FILENO, TCSANOW, &original)
+        pauseKeyOriginalTermios = nil
+    }
+
     private func startStatusTicker(_ recorder: Recorder, wantsVideo: Bool) -> DispatchSourceTimer {
         let q = DispatchQueue(label: "kilde.status")
         let timer = DispatchSource.makeTimerSource(queue: q)
@@ -365,7 +536,9 @@ struct RecCommand: ParsableCommand {
             let levels = p.peaks.sorted(by: { $0.key < $1.key })
                 .map { String(format: "%@:%.2f", $0.key, $0.value) }
                 .joined(separator: " ")
-            print(String(format: "\rREC %02d:%02d | %@ | %@   ", m, s, size, levels), terminator: "")
+            // 一時停止中は PAUSED を出す。経過時間は一時停止ぶんを引いた値なので止まって見える
+            let label = p.isPaused ? "PAUSED" : "REC"
+            print(String(format: "\r%@ %02d:%02d | %@ | %@   ", label, m, s, size, levels), terminator: "")
             fflush(stdout)
         }
         timer.resume()
@@ -385,9 +558,17 @@ struct RecCommand: ParsableCommand {
             }
             print("audio[\(label)]: appended=\(n) dropped=\(dropped)\(extra)")
         }
+        if s.pausedDuration > 0 {
+            print(String(format: "一時停止: 合計 %.1fs (出力ファイルの長さには含まれません)", s.pausedDuration))
+        }
         print("file: \(s.outputURL.path) (\(fileSizeString(s.outputURL)))")
         if s.mixedDecodeFailures > 0 {
             print("⚠ ミックスできなかった音声バッファ: \(s.mixedDecodeFailures) 件 (非対応フォーマットの可能性)")
+        }
+        if let reason = s.hdrFallback {
+            // 録画は成功しているので終了コードは 0 のまま。ただし黙って SDR にすると
+            // 「HDR で録れたつもりのファイル」ができるので、結果に必ず出す (issue #16)
+            print("⚠ HDR: \(reason)")
         }
         if let report = try? FileInspection.report(url: s.outputURL) {
             if let size = report.videoSize {

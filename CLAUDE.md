@@ -118,11 +118,23 @@ swift build                       # ビルド (バイナリは .build/debug/kild
 ## 5. 踏んではいけない地雷 (macOS 26 実測)
 
 1〜5 の出典は SPIKE-NOTES.md F-C / F-D。6 は `FileInspection.swift` のコメント、
-7 は `Package.swift` の `linkerSettings` とコミット `11768a9` が出典。
+7 は `Package.swift` の `linkerSettings` とコミット `11768a9`、
+8 は issue #16 (PR #74) の CI 失敗が出典。
 
-1. **`cfg.pixelFormat = kCVPixelFormatType_32BGRA` を外さない。**
-   SCK は既定で圧縮済みフレームを返すため、AVAssetWriter で再圧縮する現構成では
-   非圧縮を明示的に要求する必要がある
+1. **`cfg.pixelFormat` を明示し、コーデックのクロマに合わせる。** 既定に頼らない。
+   - **H.264 / HEVC は `kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange`。BGRA に戻さないこと** —
+     エンコーダ入力はどのみち 4:2:0 YUV なので、BGRA を渡すと色変換が 1 回余計に入り、
+     実測で CPU が +24% (うち sys はほぼ倍) になる。画質は PSNR 47.6 dB / SSIM 0.9998 (F-G)
+   - **ProRes は `kCVPixelFormatType_32BGRA` のまま。420v にしないこと** —
+     ProRes 422 は 4:2:2 なので、4:2:0 で渡すとクロマを半分捨てたまま復元できない。
+     編集用の中間ファイルという `--codec prores` の用途が損なわれる
+   - **例外: HDR 収録時 (issue #16) はここを設定しないこと。** HDR では
+     `SCStreamConfiguration` の HDR プリセットが pixelFormat / colorSpace / colorMatrix を
+     整合した組で設定済みで、そこへ上書きすると 10-bit と PQ の情報が落ちて
+     **黙って SDR になる**。`Recorder` は HDR で録らないときだけ pixelFormat を設定する
+
+   なお「SCK は既定で圧縮済みフレームを渡す」という旧 F-D.1 の記述は**誤り**で、
+   SCK が渡すのは常に非圧縮の pixel buffer である (issue #15 で訂正)
 2. **映像の `outputSettings` に `AVVideoWidthKey` / `AVVideoHeightKey` は必須。**
    欠けると `NSInvalidArgumentException` でクラッシュする
 3. **`RecCommand.run()` 冒頭の `NSApplication.shared` +
@@ -141,6 +153,14 @@ swift build                       # ビルド (バイナリは .build/debug/kild
    (`Package.swift` の `unsafeFlags`)。バンドルを持たない CLI に
    `NSMicrophoneUsageDescription` を持たせるため。`unsafeFlags` はルートパッケージでのみ
    許可されるので、**kilde をライブラリとして他パッケージから参照できない**点に注意
+8. **新しい OS の API を使うときは、CI の SDK にシンボルがあるかを先に確認する。**
+   CI は `macos-15` ランナー (`.github/workflows/ci.yml`) で、ローカルの Xcode 26.5 より
+   古い SDK を使う。**`#available` はコンパイル時の不在を救わない** — `if #available(macOS 26, *)`
+   は「実行時にその OS か」を見るだけで、可用性ブロックの中身も型チェックされるため、
+   **SDK に無いシンボルはそこでコンパイルエラーになる** (`@available` も同じ)。
+   ローカルで通っても CI で落ちる。実例: issue #16 で
+   `SCStreamConfiguration.Preset.captureHDRRecordingPreservedSDRHDR10` (macOS 26) を
+   `#available` で囲んで使い、CI が `has no member` で失敗した (対応は issue #76)
 
 ## 6. 並行性の規約
 
@@ -163,6 +183,17 @@ swift build                       # ビルド (バイナリは .build/debug/kild
   `FileInspection.report(url:)` / `Permissions.requestMic()` は同期版と async 版を同名で持ち、
   同期版と `awaitSync` は `@available(*, noasync)` にしてある — async から呼ぶとビルド警告になるので、
   **警告を増やさない = この規約を守れている**。同期版は CLI のサブコマンドと GUI の onAppear 用
+- **`KildeCore.Recorder` は呼び出し元の実行文脈に依存しない — 特に MainActor を要求しない**
+  (issue #16)。`Recorder` は CLI の同期経路 (`run()` が呼び出しスレッド = メインスレッドを
+  完了までブロックする) と GUI の async 経路の両方から呼ばれる。セッションの中で
+  `await MainActor.run { }` すると、CLI ではそのメインスレッドが `run()` で塞がっているため
+  **永久に実行されずデッドロックする** (上の `awaitSync` 禁止と同じ根で、向きが逆)。
+  `NSScreen` / `NSWorkspace` など UI フレームワークに触る判定は**呼び出し側**
+  (CLI の起動時 / GUI の MainActor 上) で済ませ、結果だけを `RecordOptions` に載せて渡す
+  (例: `DisplayHDR.capableDisplayIDs()` → `RecordOptions.hdrCapableDisplayIDs`)。
+  **「まだ判定していない」と「判定した結果 該当なし」は別の値で表す** — 同じ値に倒すと
+  呼び出し側の載せ忘れが正常系 (黙ってフォールバック) に化け、対象ハードを持つ人にしか
+  再現しない。この種の欠陥は特定のオプションの組合せでしか到達せず単体テストをすり抜ける
 - 失敗時は `fatalError` を使わない。`KilError` を投げて `Recorder.run()` の catch に
   後始末 (monitor の teardown、writer の cancel) をさせる
 
