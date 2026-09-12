@@ -4,7 +4,7 @@ import Darwin
 /// 既定の出力名を、別プロセスの録画と衝突しないよう原子的に予約した結果。
 /// URL だけでなく作成時のファイル識別子を保持し、別のファイルへすり替わった場合に
 /// MovieWriter が誤って削除しないためのトークンとして使う。
-public struct OutputFileReservation {
+public struct OutputFileReservation: Sendable {
     public let url: URL
 
     private let device: dev_t

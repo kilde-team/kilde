@@ -524,6 +524,29 @@ else
     bad "T18 既定名予約: コマンド失敗 — $WORK/t18.log"
 fi
 
+# ---- T18b: 同じ秒に 2 本起動しても互いのファイルを消さない (issue #59 の主シナリオ)
+# 秒境界の直後に 2 つの kilde rec を同時起動し、両方が (片方は -2 に退避して) 生存することを検証
+
+log "T18b: 既定名 — 同秒の 2 本同時起動で両ファイルが生存"
+T18B_DIR="$WORK/t18b"
+mkdir -p "$T18B_DIR"
+# 次の秒の先頭まで待ってから同時に出す (date +%N は BSD date に無いため python3 で)
+T18B_WAIT=$(python3 -c 'import time; print(max(0.05, 1.02 - (time.time() % 1.0)))')
+sleep "$T18B_WAIT"
+(cd "$T18B_DIR" && "$KILDE" rec --no-video --duration 3s > "$WORK/t18b-1.log" 2>&1) &
+T18B_PID1=$!
+(cd "$T18B_DIR" && "$KILDE" rec --no-video --duration 3s > "$WORK/t18b-2.log" 2>&1) &
+T18B_PID2=$!
+# bare の wait は caffeinate 保持プロセスも待ってしまうので必ず PID 指定
+wait $T18B_PID1; T18B_EXIT1=$?
+wait $T18B_PID2; T18B_EXIT2=$?
+T18B_FILES=$(find "$T18B_DIR" -type f -size +0c | wc -l | tr -d ' ')
+if [ "$T18B_EXIT1" = "0" ] && [ "$T18B_EXIT2" = "0" ] && [ "$T18B_FILES" = "2" ]; then
+    ok "T18b 同時起動: 2 本とも exit=0・2 ファイル生存 (ls: $(cd "$T18B_DIR" && ls | tr '\n' ' '))"
+else
+    bad "T18b 同時起動: exit=$T18B_EXIT1/$T18B_EXIT2 files=$T18B_FILES — $WORK/t18b-1.log $WORK/t18b-2.log"
+fi
+
 # ---- サマリ -------------------------------------------------------------------
 
 echo ""

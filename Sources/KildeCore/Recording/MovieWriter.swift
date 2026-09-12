@@ -54,12 +54,15 @@ final class MovieWriter {
         }
         switch outputFilePolicy {
         case .overwrite:
-            if FileManager.default.fileExists(atPath: url.path) {
-                do {
-                    try FileManager.default.removeItem(at: url)
-                } catch {
-                    throw KilError.failed("既存の出力ファイルを上書きできません: \(url.path) (\(error))")
-                }
+            // fileExists はパスを解決するため dangling シンボリックリンクで false を返し、
+            // リンク自体が残って AVAssetWriter がリンク先に書いてしまう。存在チェックを
+            // せず常に削除を試み、「元から無い」以外の失敗だけをエラーにする
+            do {
+                try FileManager.default.removeItem(at: url)
+            } catch let error as NSError where error.code == NSFileNoSuchFileError {
+                // 元から無いのは問題ない
+            } catch {
+                throw KilError.failed("既存の出力ファイルを上書きできません: \(url.path) (\(error))")
             }
         case .reserved(let reservation):
             guard reservation.url == url else {

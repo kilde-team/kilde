@@ -34,8 +34,12 @@ public struct RecordOptions {
     public var wantsVideo = true
     public var outputURL: URL?
     /// CLI の位置引数 / --output で指定されたパスだけは従来どおり上書きを許可する。
-    /// false の既定名は Recorder が原子的に予約し、既存の録画を保護する。
+    /// false の既定名は原子的に予約され、既存の録画を保護する。
     public var outputPathIsExplicit = false
+    /// 呼び出し側が事前に予約済みの出力 (CLI は表示のために開始前に確定させ、GUI の
+    /// makeOptions もこれを渡す)。無い場合は Recorder が outputPathIsExplicit に従って
+    /// 予約する — 録画の挙動はどちらの経路でも同じになる
+    public var outputReservation: OutputFileReservation?
     public var duration: TimeInterval?
     public var codec: VideoCodecKind = .h264
     public var fps: Int?
@@ -289,9 +293,19 @@ public final class Recorder {
         }
         let ext = options.wantsVideo ? "mov" : "m4a"
         let preferredURL = options.outputURL ?? URL(fileURLWithPath: defaultOutputName(ext: ext))
-        let reservation = options.outputPathIsExplicit
-            ? nil
-            : try OutputFileReservation.reserve(preferredURL: preferredURL)
+        // 呼び出し側の予約を優先し、無ければ既定名 (非明示) のときここで予約する。
+        // 明示パスは従来どおり予約なしの上書き
+        let reservation: OutputFileReservation?
+        if let injected = options.outputReservation {
+            guard injected.url == preferredURL else {
+                throw KilError.failed("予約済みの出力と解決された出力が一致しません: \(preferredURL.path)")
+            }
+            reservation = injected
+        } else if options.outputPathIsExplicit {
+            reservation = nil
+        } else {
+            reservation = try OutputFileReservation.reserve(preferredURL: preferredURL)
+        }
         let url = reservation?.url ?? preferredURL
         outputURL = url
         // 権限・デバイス解決など writer 構築前のどの失敗経路でも予約ゴミを残さない。
