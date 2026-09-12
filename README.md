@@ -48,6 +48,9 @@ To build the latest `main` branch from source through Homebrew, add `--HEAD`:
 brew install --HEAD takezou621/kilde/kilde
 ```
 
+The HEAD build requires Xcode 15.3 or later (the manifest needs a Swift
+5.10 toolchain; Xcode 15.0–15.2 ship Swift 5.9 and cannot build it).
+
 ### Build from source
 
 Building from source requires Swift Package Manager.

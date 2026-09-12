@@ -10,8 +10,9 @@ class Kilde < Formula
 
   head do
     url "https://github.com/takezou621/kilde.git", branch: "main"
-    # swift-tools-version:5.10 は Xcode 15 以降のツールチェーンを要求する
-    depends_on xcode: ["15.0", :build]
+    # swift-tools-version:5.10 のマニフェストを解釈できるのは Swift 5.10 ツールチェーン
+    # (Xcode 15.3 以降)。15.0〜15.2 は Swift 5.9 で "not supported" になり失敗する
+    depends_on xcode: ["15.3", :build]
   end
 
   def install

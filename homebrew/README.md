@@ -21,7 +21,7 @@ brew install takezou621/kilde/kilde
 ## HEAD 版
 
 最新の `main` ブランチをソースからビルドする場合は `--HEAD` を指定します。
-Xcode 15.0 以降が必要です (swift-tools-version 5.10 の要件)。
+Xcode 15.3 以降が必要です (swift-tools-version 5.10 のマニフェストを解釈できるのは Swift 5.10 ツールチェーンを含む 15.3 以降のため)。
 
 ```sh
 brew install --HEAD takezou621/kilde/kilde
