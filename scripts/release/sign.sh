@@ -47,7 +47,9 @@ die() {
 }
 
 require_value() {
-    if [[ $# -lt 2 || -z "$2" ]]; then
+    # --identity --key XXX のように値の位置に別オプションが来た場合、空チェックだけ
+    # 通してしまうと引数が 1 つずれて誤解を招くエラーになるため先に弾く
+    if [[ $# -lt 2 || -z "$2" || "$2" == -* ]]; then
         echo "error: $1 には値が必要です" >&2
         usage >&2
         exit 64
@@ -183,12 +185,11 @@ xcodebuild -project "$GUI_PROJECT" -scheme KildeGUI -configuration Release \
 
 # 現在は埋め込みフレームワークを持たない。将来追加された dylib / framework は
 # 外側の .app より先に署名し、コード署名の内側から外側という順序を維持する。
+# find は親ディレクトリを子より先に列挙するため、sort -rz (パス逆順) で最深の
+# コードから署名する — 内側を後から署名すると外側の署名が無効になるため。
 while IFS= read -r -d '' nested_code; do
     codesign --force --sign "$SIGN_IDENTITY" --options runtime --timestamp "$nested_code"
-done < <(find "$GUI_APP/Contents" -type f -name '*.dylib' -print0)
-while IFS= read -r -d '' nested_bundle; do
-    codesign --force --sign "$SIGN_IDENTITY" --options runtime --timestamp "$nested_bundle"
-done < <(find "$GUI_APP/Contents" -type d \( -name '*.framework' -o -name '*.xpc' -o -name '*.appex' \) -print0)
+done < <(find "$GUI_APP/Contents" \( -type f -name '*.dylib' -o -type d \( -name '*.framework' -o -name '*.xpc' -o -name '*.appex' \) \) -print0 | sort -rz)
 
 echo "==> GUI を署名 (Hardened Runtime)"
 codesign --force --sign "$SIGN_IDENTITY" --options runtime --timestamp \
