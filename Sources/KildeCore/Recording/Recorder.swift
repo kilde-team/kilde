@@ -105,9 +105,11 @@ public final class Recorder {
     /// `--hdr` を指定したが SDR で録ることになった理由 (issue #16)。
     /// 失敗ではないので cleanupWarnings とは別に持ち、Summary に載せて伝える
     private var hdrFallback: String?
-    /// HDR で書き出すときの色空間 (issue #16)。**セッション開始時に 1 回だけ決めて持ち回す** —
+    /// HDR で書き出すか (issue #16)。**セッション開始時に 1 回だけ決めて持ち回す** —
     /// 都度判定するとストリーム側と書き出し側で答えが割れ、8-bit のバッファに
-    /// Main10 + PQ のタグが付いた「HDR のつもりのファイル」ができる
+    /// Main10 + PQ のタグが付いた「HDR のつもりのファイル」ができる。
+    /// 実際の色空間・マトリクス (P3 / PQ / BT.2020) は `MovieWriter` 側で固定しており、
+    /// ここが持つのは on/off だけ
     private var recordsHDR = false
 
     public struct Progress: Sendable {

@@ -503,18 +503,40 @@ fi
 # cleanupWarnings に載せてしまうと CLI がそれを exit 1 に変換する (DESIGN.md §6)。
 # 録画は成功しているので 0 でなければならない
 
-log "T20: rec --hdr — SDR 機では理由を出して SDR で録り、終了コードは 0"
+log "T20: rec --hdr --codec hevc — 録画は成功し終了コードは 0 (SDR 機ではフォールバックの理由つき)"
 F="$WORK/t20-hdr-fallback.mov"
 if "$KILDE" rec --hdr --codec hevc --duration 3s --output "$F" > "$WORK/t20.log" 2>&1; then
     VD=$(video_duration_of "$F")
-    # 理由の表示 (⚠ HDR:) と、映像が実際に録れていることの両方を見る
-    if grep -q "⚠ HDR:" "$WORK/t20.log" && num_between "${VD:-0}" 2 5; then
-        ok "T20 hdr フォールバック: 理由を表示して SDR で録れ、exit=0 (${VD}s)"
+    # HDR 対応ディスプレイでは警告が出ない (それが正しい挙動) ので、警告の有無では判定しない。
+    # 出た場合だけ「理由が書かれているか」を見る — SDR 機ではこちらを通る
+    if grep -q "⚠ HDR:" "$WORK/t20.log"; then
+        T20_MODE="SDR フォールバック ($(grep -o '⚠ HDR:.*' "$WORK/t20.log" | head -1 | cut -c1-40)…)"
     else
-        bad "T20 hdr フォールバック: 警告=$(grep -c '⚠ HDR:' "$WORK/t20.log") duration=${VD:-N/A}s — $WORK/t20.log"
+        T20_MODE="HDR 経路 (このディスプレイは HDR 対応)"
+    fi
+    if num_between "${VD:-0}" 2 5; then
+        ok "T20 hdr: exit=0・映像あり (${VD}s) — $T20_MODE"
+    else
+        bad "T20 hdr: duration=${VD:-N/A}s — $WORK/t20.log"
     fi
 else
-    bad "T20 hdr フォールバック: exit=$? (0 が必要 — cleanupWarnings に載せると 1 になる) — $WORK/t20.log"
+    bad "T20 hdr: exit=$? (0 が必要 — フォールバックを cleanupWarnings に載せると 1 になる) — $WORK/t20.log"
+fi
+
+log "T20a: rec --hdr (--codec 省略) — 解決後 h264 なので警告つき SDR で録り、exit 0"
+# CLI の引数検証は明示指定しか見られないため、省略時は exit 64 ではなく Recorder 側の
+# フォールバックに落ちる。ここを通さないと「解決後の値で契約を強制する」実装の退行を
+# 統合テストが捕まえられない (T20b は明示指定しか叩いていない)
+F="$WORK/t20a-hdr-default-codec.mov"
+if "$KILDE" rec --hdr --duration 3s --output "$F" > "$WORK/t20a.log" 2>&1; then
+    VD=$(video_duration_of "$F")
+    if grep -q "⚠ HDR:.*HEVC" "$WORK/t20a.log" && num_between "${VD:-0}" 2 5; then
+        ok "T20a hdr 既定コーデック: HEVC でない旨を出して SDR で録れ、exit=0 (${VD}s)"
+    else
+        bad "T20a hdr 既定コーデック: 警告=$(grep -o '⚠ HDR:.*' "$WORK/t20a.log" | head -1) duration=${VD:-N/A}s — $WORK/t20a.log"
+    fi
+else
+    bad "T20a hdr 既定コーデック: exit=$? (0 が必要) — $WORK/t20a.log"
 fi
 
 log "T20b: rec --hdr — 併用できない組合せは録画前に exit 64"
