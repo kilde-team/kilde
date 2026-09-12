@@ -257,10 +257,15 @@ struct RecCommand: ParsableCommand {
                     CFRunLoopStop(CFRunLoopGetMain())
                 }
             )
-            try controller.start()
+            // controller.start() より前にシグナルの設置を済ませる — pthread_sigmask は
+            // 呼び出しスレッド (メイン) しかブロックしないため、ホットキー監視等の
+            // スレッドが生まれる前に窓を閉じておかないと、プロセス宛シグナルが
+            // ブロックされていない別スレッドへ配送されて SIG_IGN 破棄されうる
+            // (issue #67 の指摘)
             installStopSignalHandler {
                 controller.requestStop()
             }
+            try controller.start()
             print("⏳ 待機中 — \(controller.normalizedHotkey) で開始 / Ctrl+C で終了")
             // stdout がファイルにリダイレクトされていると C stdio はフルバッファになり、
             // この後 RunLoop で無期限にブロックするため「待機中」が exit まで出ない。
