@@ -16,6 +16,9 @@ struct RecCommand: ParsableCommand {
     @Option(help: "ウィンドウ単位で収録 (title / bundleID / windowID の部分一致)。音声もそのアプリにスコープされる")
     var window: String?
 
+    @Option(help: "ディスプレイの一部だけを収録 x,y,w,h (ポイント座標、左上が原点)。幅・高さは 2 以上で偶数に切り捨て、ディスプレイの範囲外は録画前に失敗 (終了コード 1)。--window / --no-video / --preset meeting とは併用不可")
+    var region: String?
+
     @Option(help: "音声ソース。system / mic / device:<名前orUID> / none。複数回指定可 (既定 system。設定 defaultAudioSources で変更可)")
     var audio: [String] = []
 
@@ -78,6 +81,32 @@ struct RecCommand: ParsableCommand {
         }
         if let fps, fps <= 0 {
             throw ValidationError("--fps は 1 以上の整数を指定してください")
+        }
+        if let region {
+            // 幅・高さの下限はディスプレイの情報が要らないので、ここで弾いて終了コードを
+            // 64 (引数エラー) に揃える。Recorder まで持ち越すと範囲外と同じ 1 になってしまう
+            if let r = parseRegion(region), r.width < 2 || r.height < 2 {
+                throw ValidationError("--region の幅と高さは 2 ポイント以上にしてください: \(region)")
+            }
+            guard parseRegion(region) != nil else {
+                throw ValidationError(
+                    "--region は x,y,w,h の形式で指定してください (例: 0,0,1280,720。"
+                    + "ポイント座標で左上が原点、幅と高さは正の数)")
+            }
+            // ウィンドウ収録には領域の概念がなく、音声のみでは映像自体が無い。
+            // 黙って無視すると「指定したのに効かない」ので、ここで弾く
+            if window != nil {
+                throw ValidationError("--region と --window は併用できません (ウィンドウ収録に領域指定はありません)")
+            }
+            if noVideo {
+                throw ValidationError("--region と --no-video は併用できません (映像を録らないため領域が効きません)")
+            }
+            // meeting プリセットは validate() の後、run() の対話でウィンドウを選ぶ。
+            // ここで弾かないと「ウィンドウを選んだら region が無視され、空欄 Enter なら効く」と
+            // 選択結果次第で挙動が変わってしまう
+            if preset == "meeting" {
+                throw ValidationError("--region と --preset meeting は併用できません (meeting はウィンドウを選んで収録するため)")
+            }
         }
         if let codec, VideoCodecKind(rawValue: codec) == nil {
             throw ValidationError("--codec は h264 / hevc / prores を指定してください")
@@ -154,6 +183,7 @@ struct RecCommand: ParsableCommand {
 
         var options = RecordOptions()
         options.displayIndex = display ?? 0
+        options.region = parseRegion(region)
         options.wantsVideo = !noVideo
         options.duration = parseDuration(duration)
         options.autoMonitor = monitor
@@ -227,7 +257,7 @@ struct RecCommand: ParsableCommand {
 
         let result: Result<Recorder.Summary, Error>
         print("● 録画\(!options.wantsVideo ? " (音声のみ)" : "") → \(options.outputURL!.path)  (Ctrl+C で停止)")
-        let ticker = startStatusTicker(recorder)
+        let ticker = startStatusTicker(recorder, wantsVideo: options.wantsVideo)
         result = Result { try recorder.run() }
         ticker.cancel()
         finish(recorder: recorder, result: result)
@@ -246,7 +276,7 @@ struct RecCommand: ParsableCommand {
                 environment: ProcessInfo.processInfo.environment,
                 onStarted: { recorder, startedOptions, normalized in
                     print("● 録画\(!startedOptions.wantsVideo ? " (音声のみ)" : "") → \(startedOptions.outputURL!.path)  (Ctrl+C / \(normalized) で停止)")
-                    ticker = startStatusTicker(recorder)
+                    ticker = startStatusTicker(recorder, wantsVideo: startedOptions.wantsVideo)
                 },
                 onFinished: { result in
                     ticker?.cancel()
@@ -323,12 +353,22 @@ struct RecCommand: ParsableCommand {
         throw KilError.failed("有効なウィンドウ番号が入力されませんでした (--window で直接指定もできます)")
     }
 
-    private func startStatusTicker(_ recorder: Recorder) -> DispatchSourceTimer {
+    private func startStatusTicker(_ recorder: Recorder, wantsVideo: Bool) -> DispatchSourceTimer {
         let q = DispatchQueue(label: "kilde.status")
         let timer = DispatchSource.makeTimerSource(queue: q)
+        var warnedNoVideoFrames = false
         timer.schedule(deadline: .now() + 0.5, repeating: 0.5)
         timer.setEventHandler {
             guard let p = recorder.progress() else { return }
+            // .recording のゲート: progress() はマイク権限ダイアログの待ちより前から
+            // 値を返すため、ゲートしないと権限応答に 10 秒以上かけたユーザーに
+            // 「映像が来ない」警告を誤爆する (実際には録画がまだ始まっていない)
+            if wantsVideo && !warnedNoVideoFrames && recorder.currentState == .recording
+                && p.elapsed >= 10 && p.videoAppended == 0 {
+                warnedNoVideoFrames = true
+                let warning = "WARNING: 開始から 10 秒間映像フレームが来ていません。ディスプレイの消灯/ロック中の可能性があります\n"
+                FileHandle.standardError.write(warning.data(using: .utf8)!)
+            }
             let m = Int(p.elapsed) / 60
             let s = Int(p.elapsed) % 60
             let size = ByteCountFormatter.string(fromByteCount: p.outputBytes, countStyle: .file)

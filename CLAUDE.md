@@ -29,7 +29,7 @@ QuickTime Player では録れない**システム音声を含む録画・録音*
 | 統合テスト | `scripts/integration-test.sh` (T1–T12)。ローカル実録画、全 PASS 実績あり。T11 (GUI) は xcodegen・kilde-dev 証明書が無い環境や KildeGUI 起動中は SKIP |
 | 単体テスト (`Tests/`) | ✅ KildeCoreTests (権限不要、CI で実行 — issue #5 完了) |
 | CI (`.github/`) | ✅ swift build / swift test (macos-15) — issue #6 完了 |
-| GUI (`gui/`) | 骨格 ✅ (issue #17: NSStatusItem + NSPopover + KildeCore 参照 — macOS 26 の MenuBarExtra 不具合を回避)。録画 UI・オンボーディングは #18〜#20 |
+| GUI (`gui/`) | 骨格 ✅ (issue #17: NSStatusItem + NSPopover + KildeCore 参照 — macOS 26 の MenuBarExtra 不具合を回避)。録画 UI ✅ (issue #18)。オンボーディング・通知は #19 / #20 |
 | ライセンス / OSS 整備 | ✅ `LICENSE` (MIT)、`CONTRIBUTING.md`、`.github/` の Issue・PR テンプレート (issue #21) |
 | 残タスク全体 | GitHub issue #2〜#25 (4 マイルストーン)。§8 の役割分担・依存順を参照 |
 
@@ -51,6 +51,7 @@ Sources/KildeCore/       UI 非依存のコア。将来 GUI と共用する
   Recording/Recorder.swift     セッションの指揮 (RecordOptions → 実行 → Summary)
   Recording/MovieWriter.swift  AVAssetWriter ラッパ。PTS アンカーとカウンタ
   Recording/AudioMixer.swift   複数ソース → 48kHz/2ch 1 トラック合成
+  Recording/RecordRequest.swift GUI の選択 → RecordOptions (RecordSettings.apply 経由で CLI と同じ解決)
   Capture/ScreenAudioStream.swift  SCStream ラッパ (.screen / .audio)
   Capture/MicStream.swift          AVCaptureSession ラッパ (マイク / 任意入力デバイス)
   Capture/AudioConversion.swift    CMSampleBuffer → interleaved Float32
@@ -65,9 +66,14 @@ scripts/integration-test.sh  T1–T12 の実録画テスト (T11 GUI / T12 設�
 scripts/soundapp.swift       テスト用「音を鳴らすウィンドウ」アプリ
 gui/                         M3 メニューバー GUI (XcodeGen: project.yml が正本)
   Sources/KildeGUIApp.swift    アプリのエントリポイント (AppDelegate 接続)
-  Sources/AppDelegate.swift     NSStatusItem + NSPopover の手動管理
-  Sources/ContentView.swift    ディスプレイ/ウィンドウ/オーディオ一覧の最小パネル
+  Sources/AppDelegate.swift     NSStatusItem + NSPopover の手動管理。録画モデルの持ち主 (閉じても録画継続)
+  Sources/RecordingController.swift  Recorder の start/stop と events 購読 → 状態・経過時間・レベル
+  Sources/RecordingSetup.swift  選択状態 (RecordRequest) と画面・ウィンドウ・入力デバイスの列挙
+  Sources/ContentView.swift    録画パネル (対象・音声・保存先の選択、Rec/Stop、レベルメーター)
+  Sources/LevelMeter.swift     ソース別レベルメーター (dB 表示)
+  Sources/SelfTest.swift       KILDE_GUI_SELFTEST_* による UI なし録画 (検証用)
   Resources/Info.plist         LSUIElement・権限説明文字列 (バンドル用)
+  Resources/KildeGUI.entitlements  audio-input (Hardened Runtime 下のマイクに必須)
 ```
 
 **レイヤ規約: CLI 層にロジックを足さない。** 録画の挙動に関わる変更は必ず

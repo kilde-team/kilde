@@ -44,6 +44,9 @@ public enum ContainerKind: String, CaseIterable {
 public struct RecordOptions {
     public var displayIndex = 0
     public var windowMatch: String?
+    /// 収録する矩形領域 (ポイント座標、ディスプレイ左上が原点)。nil ならディスプレイ全体。
+    /// ウィンドウ収録 (windowMatch) や音声のみ (wantsVideo = false) とは併用しない
+    public var region: CGRect?
     public var audioSources: [AudioSourceSpec] = [.system]
     public var trackPolicy: AudioTrackPolicy = .mixed
     public var wantsVideo = true
@@ -290,6 +293,17 @@ public final class Recorder {
 
     private func performSession() async throws -> Summary {
         cleanupWarnings.removeAll()
+        // 入力の矛盾は副作用 (権限ダイアログ・monitor の既定出力変更) より前に弾く。
+        // CLI でも弾いているが、GUI (M3) や HotkeyRecordingController も同じ RecordOptions を
+        // 組み立てるため、ここで止めないと「指定した領域と違う範囲を無警告で録る」ことになる
+        if options.region != nil {
+            guard options.wantsVideo else {
+                throw KilError.failed("領域指定 (region) は音声のみのモードでは使えません")
+            }
+            guard options.windowMatch == nil else {
+                throw KilError.failed("領域指定 (region) はウィンドウ収録とは併用できません")
+            }
+        }
         let ext = options.wantsVideo ? options.container.rawValue : "m4a"
         let url = options.outputURL ?? URL(fileURLWithPath: defaultOutputName(ext: ext))
         outputURL = url
@@ -368,9 +382,40 @@ public final class Recorder {
             } else {
                 let display = try await DisplayCatalog.display(at: options.displayIndex)
                 if options.wantsVideo {
-                    cfg.width = Int(display.width)
-                    cfg.height = Int(display.height)
-                    videoSize = CGSize(width: display.width, height: display.height)
+                    if let region = options.region {
+                        // region はポイント座標なので、比較もポイントで行う。
+                        // CGDisplayBounds はポイント寸法を返すのでこれを基準にする
+                        // (SCDisplay の width/height と取り違えると Retina で範囲判定がずれる)
+                        let pointSize = CGDisplayBounds(display.displayID).size
+                        let bounds = CGRect(origin: .zero,
+                                            size: pointSize.width > 0 && pointSize.height > 0
+                                                ? pointSize
+                                                : CGSize(width: CGFloat(display.width),
+                                                         height: CGFloat(display.height)))
+                        guard bounds.contains(region) else {
+                            throw KilError.failed(
+                                "--region がディスプレイの範囲外です: "
+                                + "\(Int(region.origin.x)),\(Int(region.origin.y)),"
+                                + "\(Int(region.width)),\(Int(region.height)) "
+                                + "(display[\(options.displayIndex)] は \(Int(bounds.width))x\(Int(bounds.height)) ポイント)")
+                        }
+                        // H.264 は偶数サイズしか扱えないので切り捨てる。sourceRect も同じ大きさに
+                        // 揃える — 揃えないと切り捨てたぶんだけ引き伸ばされ、指定と違う絵になる
+                        let w = Int(region.width) & ~1
+                        let h = Int(region.height) & ~1
+                        guard w >= 2, h >= 2 else {
+                            throw KilError.failed("--region の幅と高さは 2 ポイント以上にしてください")
+                        }
+                        cfg.sourceRect = CGRect(x: region.origin.x, y: region.origin.y,
+                                                width: CGFloat(w), height: CGFloat(h))
+                        cfg.width = w
+                        cfg.height = h
+                        videoSize = CGSize(width: w, height: h)
+                    } else {
+                        cfg.width = Int(display.width)
+                        cfg.height = Int(display.height)
+                        videoSize = CGSize(width: display.width, height: display.height)
+                    }
                 }
                 filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
             }
@@ -443,6 +488,10 @@ public final class Recorder {
         let progressTask = startProgressEmissionIfNeeded()
         // 停止要求と duration のどちらか早い方を待つ
         await waitForStopOrDuration()
+        // 録画経過はこの時点で確定させる — 以降のファイナライズ (SCK の drain、
+        // mixer の flush) に時間がかかると elapsed が伸び、短時間録画を誤って
+        // 消灯・ロック扱いの案内にしてしまうため
+        let recordedElapsed = Date().timeIntervalSince(startDate)
         // cancel だけでなく終了まで待つ — sleep 起き直し直後の yield と
         // finalizing 遷移の間にプリエンプション窓があると、progress が
         // .completed より後に届いてイベントの順序が崩れるため
@@ -459,6 +508,18 @@ public final class Recorder {
                 w.appendAudio(chunk, label: "mixed")
             }
         }
+        do {
+            try Self.validateVideoFrameCount(
+                wantsVideo: options.wantsVideo,
+                videoAppended: w.countersSnapshot().videoAppended,
+                elapsed: recordedElapsed
+            )
+        } catch {
+            // 映像アンカーが立たない空振りを成功扱いせず、空の出力も残さない。
+            // finishWriting ではなく cancel 経路にすることで未成立セッションを閉じる
+            w.cancel(removingOutput: true)
+            throw error
+        }
         try await w.finish()
 
         return Summary(
@@ -470,6 +531,24 @@ public final class Recorder {
             firstPTSOffsets: w.firstPTSOffsets,
             mixedDecodeFailures: mixer?.decodeFailures ?? 0
         )
+    }
+
+    /// 映像ありモードでは、停止までに 1 フレームも書けなければ録画不成立とする。
+    /// 純粋な判定として切り出し、権限や実ディスプレイなしでも回帰テストできるようにする。
+    /// 経過時間で案内を分ける — 初回フレーム到着前に止めた短時間録画 (`--duration 0.5s` や
+    /// 開始直後の Ctrl+C) は「消灯・ロック」と断定しない
+    static func validateVideoFrameCount(wantsVideo: Bool, videoAppended: Int,
+                                        elapsed: TimeInterval) throws {
+        guard !wantsVideo || videoAppended > 0 else {
+            if elapsed < 2 {
+                throw KilError.failed(
+                    "録画が短すぎて映像を 1 フレームも取得できませんでした (経過 \(String(format: "%.1f", elapsed)) 秒)。もう少し長い時間を指定してください"
+                )
+            }
+            throw KilError.failed(
+                "録画が 1 フレームも取得できませんでした — ディスプレイの消灯・ロック中に開始した可能性があります。画面を表示した状態で再実行してください"
+            )
+        }
     }
 
     /// recording 中 0.5 秒周期で progress イベントを流ぶ (GUI 向け)。

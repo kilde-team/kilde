@@ -84,6 +84,9 @@ macOS 標準の QuickTime Player による画面収録は**システム音声を
 ┌─────────────────────────────┐    ┌─────────────────────────────┐
 │  kilde (CLI)                 │    │  KildeGUI (M3, メニューバー) │
 │  swift-argument-parser       │    │  NSStatusItem + NSPopover     │
+│  run() で完了まで待つ         │    │  RecordingController (#18)    │
+│                              │    │   - AppDelegate が保持し、     │
+│                              │    │     events を購読して表示     │
 └──────────────┬──────────────┘    └──────────────┬──────────────┘
                │                                  │
                └────────────┬─────────────────────┘
@@ -91,8 +94,9 @@ macOS 標準の QuickTime Player による画面収録は**システム音声を
               ┌───────────────────────────────┐
               │  KildeCore (Swift library)     │
               ├───────────────────────────────┤
-              │ RecorderController (ファサード) │
+              │ Recorder (セッションの指揮)     │
               │  - 状態機械・ライフサイクル      │
+              │  - start()/stop()/run()/events │
               ├───────────────┬───────────────┤
               │ CaptureSession│ DeviceCatalog  │
               │  SCStream     │  ディスプレイ   │
@@ -216,6 +220,9 @@ SCStream(contentFilter, configuration)
   `finishWriting` を待ってから終了する。**プロセス異常終了時を除き、
   ファイルが壊れた状態で残らないこと**を最優先要件とする。
 - `--duration 30s` での自動停止も同じ経路を通る。
+- 映像ありモードで停止までに映像を 1 フレームも取得できなかった場合は、空の出力を
+  cancel・削除して終了コード 1 で失敗する。ディスプレイの消灯・ロック中に開始すると
+  SCK が映像を出さないことがあるため、ファイルのない空振りを成功扱いしない。
 
 ## 6. CLI 仕様
 
@@ -240,6 +247,7 @@ kilde config [show|set|unset|path]        設定ファイル ~/.kilde/config.jso
 | `[<出力パス>]` / `--output, -o <path>` | 自動生成 | 既定 `kilde-yyyyMMdd-HHmmss.mov` (音声のみは `.m4a`)。保存先は `KILDE_OUTPUT_DIR` > 設定 `outputDirectory` > カレントディレクトリ (前二者が存在しないディレクトリなら録画開始前に終了コード 1)。位置引数と `-o` は同時指定不可。`~` は展開する |
 | `--display <番号>` | `0` | 収録ディスプレイ (`kilde devices` の番号)。範囲外は終了コード 3。`--window` 指定時は無視される (`all` は M2 — #12) |
 | `--window <windowID\|文字列>` | なし | ウィンドウ単位で収録。windowID の完全一致、またはタイトル / bundleID の部分一致 (大文字小文字を区別しない)。複数ヒット時は面積が最大のもの。見つからなければ終了コード 3。音声もそのアプリにスコープされる |
+| `--region <x,y,w,h>` | なし (ディスプレイ全体) | ディスプレイの一部だけを収録 (ポイント座標、左上が原点 — M2 #9)。H.264 の制約で幅・高さは偶数へ切り捨てる (`sourceRect` も同じ大きさに揃えるので引き伸ばされない)。ディスプレイの範囲外は終了コード 1、形式不正と 2 ポイント未満は 64。`--window` / `--no-video` / `--preset meeting` とは併用不可 (meeting は対話でウィンドウを選ぶため) |
 | `--audio <source>` | `system` (設定 `defaultAudioSources`) | `system` / `mic` / `device:<名前 or UID>` / `none`。複数回指定可。`device:` は入力デバイスの UID 完全一致または名前の部分一致。`none` は他ソースと併用不可、`--no-video` とも併用不可 |
 | `--audio-tracks <mixed\|separate>` | `mixed` (設定 `audioTracks`) | 音声ソースが複数のとき 1 トラックに合成 (既定) か、ソースごとにトラック分離か |
 | `--no-video` | off | 録音 (音声のみ) モード。出力は M4A |
@@ -250,7 +258,7 @@ kilde config [show|set|unset|path]        設定ファイル ~/.kilde/config.jso
 | `--fps <n>` | 指定なし (SCK 既定。設定 `fps`) | 上限フレームレート。1 以上 (0 以下は終了コード 64 — 以前は黙って無視していた) |
 | `--cursor` / `--no-cursor` | 写り込む (設定 `showsCursor`) | カーソルを写し込むか。`--cursor` は設定 `showsCursor: false` をその回だけ打ち消す用 (M1 の `--no-cursor` はそのまま使える) |
 | `--countdown <sec>` | `0` | 開始前カウントダウン。hotkey (CLI 引数) との併用は引数検証エラー (終了コード 64)、設定 `hotkey` との組合せは終了コード 1 で拒否 — 待機モードではカウントダウンが待機開始前に消費され、録画の開始を守れなくなるため |
-| `--preset meeting` | なし | `--audio system --audio mic` + mixed。`--window` 未指定なら on-screen ウィンドウを面積順に列挙して対話選択 (空欄 Enter = ディスプレイ全体)。EOF (非対話実行) と 3 回連続の無効入力は終了コード 1 で中止。明示した `--audio` / `--audio-tracks` はプリセットより優先。プリセットは設定ファイルより優先 |
+| `--preset meeting` | なし | `--audio system --audio mic` + mixed。`--window` 未指定なら on-screen ウィンドウを面積順に列挙して対話選択 (空欄 Enter = ディスプレイ全体)。EOF (非対話実行) と 3 回連続の無効入力は終了コード 1 で中止。明示した `--audio` / `--audio-tracks` はプリセットより優先。プリセットは設定ファイルより優先。`--region` とは併用不可 |
 | `--hotkey <key>` | なし (設定 `hotkey`) | `cmd+shift+r` 形式のグローバルホットキーで開始 / 停止。指定時は録画ファイルを作らず待機し、待機中の Ctrl+C は成功 (0) で終了する。録画開始後のホットキーと Ctrl+C はどちらも `Recorder.stop()` で安全に停止する。`--countdown` との併用不可 (上記参照) |
 
 ### 設定ファイル (`~/.kilde/config.json`, M2 — #14)
@@ -327,6 +335,8 @@ kilde rec --hotkey cmd+shift+r out.mov
 ### コンソール出力
 
 - 録画中: `REC mm:ss | ファイルサイズ | ソース別ピーク` を 0.5 秒ごとに 1 行で更新する。
+  映像ありモードで開始から 10 秒間映像フレームが来なければ、消灯・ロックの可能性を
+  stderr に 1 回だけ警告する。
 - 停止後: 映像・音声トラックごとの appended / dropped 件数、映像との first-PTS 差
   (mixed ではトラックが `mixed` の 1 本なのでソース別には出ない)、
   ファイルパスとサイズ、解像度と長さ、音声トラックごとの RMS / peak を出力する。
@@ -338,7 +348,7 @@ kilde rec --hotkey cmd+shift+r out.mov
 | コード | 意味 |
 |-------|------|
 | `0` | 成功。**Ctrl+C / SIGTERM / SIGHUP / `--duration` による停止も、ファイナライズが完了すれば 0** |
-| `1` | その他の失敗 (`KilError.failed`: ファイナライズ失敗、monitor の復元失敗、meeting の選択中止など) |
+| `1` | その他の失敗 (`KilError.failed`: ファイナライズ失敗、映像ありモードの 0 フレーム、monitor の復元失敗、meeting の選択中止など) |
 | `2` | 権限不足 (画面収録 / マイク) |
 | `3` | デバイス・ウィンドウ・ディスプレイが見つからない (BlackHole 未導入を含む) |
 | `64` | 引数・オプションの検証エラー (swift-argument-parser の既定。`validate()` の `ValidationError` と未知のオプション) |
@@ -385,6 +395,24 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
   (待機/録画中 + 経過時間)。
 - ポップオーバー: ディスプレイ・音声ソース選択、Rec/Stop、出力先指定、
   レベルメーター、録音結果の通知 (Finder reveal)。
+
+> **実装 (issue #18):** 録画の状態は AppDelegate が持つ `RecordingController` にあり、
+> `Recorder.start()` + `events` を購読して状態・経過時間・ソース別ピークを出す。
+> ポップオーバー (`ContentView`) は表示と操作の受け渡しだけなので、閉じても録画は続く。
+> 選択 (収録対象・音声ソース・トラック方針・保存先) は KildeCore の `RecordRequest` が
+> `RecordSettings.apply()` を通して `RecordOptions` にする — CLI と同じ解決規則・同じ
+> `Recorder`。設定ファイルは初期値として読み、「既定にする」を押したときだけ書き戻す
+> (GUI の操作で CLI の既定を黙って変えないため)。保存先の既定は `~/Movies`
+> (GUI はカレントディレクトリが `/`)。録画中の終了は停止 → ファイナライズを待ってから
+> (待たずに終了する猶予は設けない — writer が作られる瞬間は状態イベントから判別できず、
+> 未ファイナライズのファイルを残しうるため。準備中に停止が効かない問題は issue #56)。
+> ウィンドウ一覧のサムネイルは `DisplayCatalog.windowThumbnails` (SCScreenshotManager)。
+>
+> **出力名の例外**: 既定名 `kilde-yyyyMMdd-HHmmss.*` は秒までしか持たないため、止めてすぐ
+> 録り直すと同じ名前になり、`MovieWriter` が既存ファイルを消してしまう。出力パスを省略した
+> 場合に限り、衝突時は `kilde-yyyyMMdd-HHmmss-2.mov` のように連番を付ける
+> (空きが無ければ録画を始めずに失敗する)。同じ秒に別プロセスが同じ名前を取る競合は
+> 残っており、予約と作成の原子化は issue #59 で追跡する。
 - グローバルホットキー (開始/停止)。CLI と設定 (出力先・既定ソース) を共有
   (`~/.kilde/config.json` と `KildeCore.ConfigStore` / `RecordSettings` — §6、#14 で実装済み)。
 - 権限の初回ガイドを GUI で丁寧に出す (CLI の `doctor` と同一ロジック)。
