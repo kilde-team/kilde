@@ -232,30 +232,41 @@ enum SelfTest {
     @MainActor
     private static func reportNotifyTargets(setup: RecordingSetup) {
         if let dir = ProcessInfo.processInfo.environment["KILDE_GUI_SELFTEST_OUTPUT"] {
+            // シンボリックリンクを解決しておく — /var は /private/var へのリンクなので、
+            // 解決しないと «列挙で得た URL (解決済み)» と «環境変数から作った URL» が
+            // 同じディレクトリを指しているのに別の文字列になり、検証側で比較できない
             setup.request.outputDirectory = URL(fileURLWithPath: dir, isDirectory: true)
+                .resolvingSymlinksInPath()
         }
         print("selftest: outputDirectory=\(setup.request.outputDirectory.path)")
 
-        // ホットキーの登録可否。実際の押下は届かないので «登録できるか» だけを見る。
-        // 先に済ませる — Carbon の登録はメインスレッド同期で、Task の完了を待たない。
+        // ホットキーは **AppDelegate が起動時に登録した結果**を報告する。
         //
-        // **解決は設定ファイル経由 (HotkeySettings.resolve) で行う** — 環境変数の値を
-        // 直接 HotkeyMonitor に渡すと、設定ファイルの読み込みも不正値の扱いも通らず、
-        // そこが壊れても登録だけ成功して «緑» になってしまう
-        let explicit = ProcessInfo.processInfo.environment["KILDE_GUI_SELFTEST_HOTKEY"]
-        do {
-            guard let source = try HotkeySettings.resolve(explicit: explicit, config: setup.config) else {
-                print("selftest: hotkeyResolved=none")
-                print("selftest: hotkeyRegistered=false source=(none)")
-                throw KilError.failed("ホットキーが設定されていません")
-            }
-            print("selftest: hotkeyResolved=\(source)")
-            let monitor = try HotkeyMonitor(source) {}
-            try monitor.start()
-            monitor.stop()
-            print("selftest: hotkeyRegistered=true source=\(source)")
-        } catch {
-            print("selftest: hotkeyRegistered=false error=\(error)")
+        // ここで自前の `HotkeyMonitor` を作ってはいけない — `AppDelegate` が
+        // `applicationDidFinishLaunching` で同じキーを登録済みで、Carbon の
+        // 排他登録 (`kEventHotKeyExclusive`) は**同一プロセス内でも二重登録を拒む**ため、
+        // 必ず失敗する。実際それで T21 が落ちた。
+        //
+        // 解決の経路 (設定ファイル → `HotkeySettings.resolve`) も `AppDelegate` が
+        // 通っているので、登録できていること自体がその経路の検証になる
+        let resolved = (try? HotkeySettings.resolve(explicit: nil, config: setup.config)) ?? nil
+        print("selftest: hotkeyResolved=\(resolved ?? "none")")
+        print("selftest: configPath=\(ConfigStore.fileURL.path)")
+        print("selftest: configHotkey=\(setup.config.hotkey ?? "(なし)")")
+        // registeredHotkey が nil のとき、原因は «登録失敗» とは限らない。
+        // AppDelegate に届いていない / setup が別インスタンス / 呼ばれる順序、の
+        // どれかを切り分けられるようにしておく
+        let delegate = AppDelegate.shared
+        print("selftest: delegate=\(delegate == nil ? "nil" : "ok")"
+            + " sameSetup=\(delegate.map { $0.debugUsesSameSetup(setup) } ?? false)")
+        let registered = delegate?.registeredHotkey
+        if let registered {
+            print("selftest: hotkeyRegistered=true source=\(registered)")
+        } else {
+            // 失敗の理由は AppDelegate が notice に入れている。出さないと
+            // «登録できなかった» としか分からず、原因の切り分けができない
+            print("selftest: hotkeyRegistered=false resolved=\(resolved ?? "none")"
+                + " notice=\(setup.notice ?? "(なし)")")
         }
 
         // 最近の録画の走査。結果は Task 経由で MainActor に届くので、**RunLoop を回しても
@@ -283,8 +294,13 @@ enum SelfTest {
                 let target = RecordingNotifier.revealTarget(for: first)
                 print("selftest: revealTarget=\(target.url.path) select=\(target == .select(first))")
             }
-            let missing = setup.request.outputDirectory
-                .appendingPathComponent("kilde-does-not-exist.mov")
+            // 欠損ファイルの URL は **列挙で得た URL から作る** — outputDirectory は
+            // 環境変数の文字列由来で /tmp のままだが、列挙結果は解決済みの
+            // /private/tmp を返す。同じディレクトリなのに文字列が違うので、
+            // 基準を揃えないと検証側で比較できない
+            let baseDirectory = setup.recentRecordings.first?.deletingLastPathComponent()
+                ?? setup.request.outputDirectory
+            let missing = baseDirectory.appendingPathComponent("kilde-does-not-exist.mov")
             let fallback = RecordingNotifier.revealTarget(for: missing)
             print("selftest: revealFallback=\(fallback.url.path)"
                 + " select=\(fallback == .select(missing))")

@@ -336,9 +336,11 @@ struct ContentView: View {
     private func applyHotkey() {
         let previous = setup.config.hotkey
         guard setup.saveHotkey() else { return }
-        // AppDelegate は NSApplication のデリゲート。ビューからモデルを介さず届ける手段が
-        // 無いのでここで取り出す (メニューバーアプリなので常に 1 つしか存在しない)
-        (NSApp.delegate as? AppDelegate)?.applyHotkeyFromConfig(revertingTo: previous)
+        // `NSApp.delegate` からは取れない — @NSApplicationDelegateAdaptor が
+        // 挟むプロキシのせいで `as? AppDelegate` が nil になる (AppDelegate.shared のコメント)。
+        // ここを NSApp.delegate にしていたため「適用」を押してもホットキーが
+        // 再登録されず、設定だけ書き換わって無反応になっていた
+        AppDelegate.shared?.applyHotkeyFromConfig(revertingTo: previous)
     }
 
     // MARK: - 開始・結果

@@ -1044,7 +1044,6 @@ else
         T21_PID=""
         T21_SCAN=$(grep -m1 "^selftest: scanFinished=" "$WORK/t21.log" | sed 's/.*=//')
         T21_COUNT=$(grep -m1 "^selftest: recentCount=" "$WORK/t21.log" | sed 's/.*=//')
-        T21_FIRST=$(grep -m1 "^selftest: recent=" "$WORK/t21.log" | sed 's/.*=//')
         # 先頭だけでなく 5 件すべての並びを確かめる。先頭しか見ないと、
         # 2 件目以降の順序が崩れる退行を見逃す
         T21_ORDER=$(grep "^selftest: recent=" "$WORK/t21.log" | sed 's/.*=//' | tr '\n' ',')
@@ -1056,6 +1055,10 @@ else
         T21_FALLBACK=$(grep -m1 "^selftest: revealFallback=" "$WORK/t21.log" | sed 's/^selftest: revealFallback=\(.*\) select=.*/\1/')
         T21_FALLBACK_SEL=$(grep -m1 "^selftest: revealFallback=" "$WORK/t21.log" | sed 's/.* select=//')
         T21_RESOLVED=$(grep -m1 "^selftest: hotkeyResolved=" "$WORK/t21.log" | sed 's/.*=//')
+        # Swift 側は /private/var/... を返し、シェルの $WORK は /var/... (シンボリック
+        # リンク) なので、**文字列のままでは同じディレクトリでも一致しない**。
+        # 比較する前に実体パスへ正規化する
+        T21_DIR_REAL=$(cd "$T21_DIR" && pwd -P)
         T21_HOTKEY=$(grep -m1 "^selftest: hotkeyRegistered=" "$WORK/t21.log" | sed 's/.*hotkeyRegistered=\([a-z]*\).*/\1/')
         T21_EXCLUDED=$(grep -c "^selftest: recent=\(other-\|\.kilde\)" "$WORK/t21.log")
         T21_TXT=$(grep -c "^selftest: recent=.*\.txt" "$WORK/t21.log")
@@ -1065,16 +1068,20 @@ else
             && [ "$T21_SCAN" = "true" ] \
             && [ "$T21_COUNT" = "5" ] \
             && [ "$T21_ORDER" = "$T21_ORDER_WANT" ] \
-            && [ "$T21_REVEAL" = "$T21_DIR/kilde-20260912-999999.mov" ] \
+            && [ "$T21_REVEAL" = "$T21_DIR_REAL/kilde-20260912-999999.mov" ] \
             && [ "$T21_REVEAL_SEL" = "true" ] \
-            && [ "$T21_FALLBACK" = "$T21_DIR" ] \
+            && [ "$T21_FALLBACK" = "$T21_DIR_REAL" ] \
             && [ "$T21_FALLBACK_SEL" = "false" ] \
             && [ "$T21_RESOLVED" = "cmd+opt+ctrl+shift+f9" ] \
             && [ "$T21_HOTKEY" = "true" ] \
             && [ "$T21_EXCLUDED" = "0" ] && [ "$T21_TXT" = "0" ]; then
             ok "T21 GUI 通知/一覧: 上限 5 件・更新時刻の新しい順・混ぜ物 4 件を除外・Finder の対象は実装本体が決定 (実在=選択/欠損=親ディレクトリ)・設定ファイル経由でホットキー登録"
         else
-            bad "T21 GUI 通知/一覧: exit=$T21_EXIT scan=$T21_SCAN count=$T21_COUNT hotkey=$T21_HOTKEY excluded=$T21_EXCLUDED txt=$T21_TXT reveal=$T21_REVEAL/$T21_REVEAL_SEL fallback=$T21_FALLBACK/$T21_FALLBACK_SEL resolved=$T21_RESOLVED
+            bad "T21 GUI 通知/一覧: exit=$T21_EXIT scan=$T21_SCAN count=$T21_COUNT hotkey=$T21_HOTKEY excluded=$T21_EXCLUDED txt=$T21_TXT resolved=$T21_RESOLVED
+  reveal   = [$T21_REVEAL] select=$T21_REVEAL_SEL
+  fallback = [$T21_FALLBACK] select=$T21_FALLBACK_SEL
+  dir      = [$T21_DIR_REAL]
+  hotkey err: $(grep -m1 '^selftest: hotkeyRegistered=false' "$WORK/t21.log" || echo '(なし)')
   order  = $T21_ORDER
   expect = $T21_ORDER_WANT
   — $WORK/t21.log"

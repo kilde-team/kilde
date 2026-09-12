@@ -12,6 +12,13 @@ import KildeCore
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
 
+    /// 生存中のインスタンス。**`NSApp.delegate` からは取れない** —
+    /// `@NSApplicationDelegateAdaptor` は SwiftUI が独自のプロキシを
+    /// `NSApp.delegate` に据え、この型はその内側に保持されるため、
+    /// `NSApp.delegate as? AppDelegate` は nil になる (実測)。
+    /// ビュー側からホットキーの再登録を頼む経路がそれで無反応になっていた
+    static private(set) weak var shared: AppDelegate?
+
     private var statusItem: NSStatusItem?
     private var popover: NSPopover?
     private let recording = RecordingController()
@@ -26,7 +33,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// nil は «設定されていない» (待機しない)
     private var hotkeyMonitor: HotkeyMonitor?
 
+    /// 現在登録できているホットキー (nil は未登録)。検証から参照する。
+    /// **self-test が自前で HotkeyMonitor を作ると、ここで登録済みのキーと
+    /// 排他登録 (kEventHotKeyExclusive) で衝突して必ず失敗する** — 同一プロセス内でも
+    /// 二重登録はできないため、登録できたかどうかはこの値で判断する
+    var registeredHotkey: String? { hotkeyMonitor?.source }
+
+    /// 検証用。self-test が見ている RecordingSetup が、この AppDelegate が
+    /// ホットキーの解決に使ったものと同一インスタンスかを確かめる
+    func debugUsesSameSetup(_ other: RecordingSetup) -> Bool { setup === other }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Self.shared = self
         // 通知の許可要求はここで 1 回だけ。拒否されても録画は完全に動くので、
         // 失敗として扱わない (通知が出ないだけ)
         notifier.start()
