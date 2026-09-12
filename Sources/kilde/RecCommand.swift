@@ -428,12 +428,11 @@ struct RecCommand: ParsableCommand {
                 _ = RunLoop.current.run(mode: .default, before: .distantFuture)
             }
         } catch {
-            // `cliError` は Darwin.exit で戻らないため、上の defer が走らない。
-            // 'p' キーの監視で端末を raw mode にしているので、ここで戻さないと
-            // ユーザーのシェルでエコーが効かなくなる (`finish()` 冒頭と同じ理由)。
-            // issue #80 でホットキー競合時の exit 1 が日常的に通る経路になったため、
-            // それまで滅多に踏まれなかったこの穴が表に出た
-            restorePauseKeyTerminal()
+            // ここで端末を戻す必要はない。`try controller.start()` が throw すると、
+            // catch に入る前にスコープ巻き戻しで上の defer (stopPauseKeyWatcher) が走り、
+            // raw mode は解除済みになる。`cliError` が Darwin.exit で戻らないのは
+            // `finish()` の冒頭で restorePauseKeyTerminal() を呼んでいる理由だが、
+            // あちらは defer を通らない経路のための備えで、この catch とは事情が違う
             cliError(error)
         }
 

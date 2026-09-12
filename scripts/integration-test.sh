@@ -485,8 +485,9 @@ for _ in $(seq 1 20); do
 done
 
 if [ "$T23_HELD" != "1" ]; then
-    # 占有できていないなら以降の判定は無意味 (握られていないキーは当然登録できる)
-    bad "T23 ホットキー排他: 占有役が待機に入れませんでした — $WORK/t23-holder.log"
+    # 占有できていないなら以降の判定は無意味 (握られていないキーは当然登録できる)。
+    # ここでは bad を呼ばず、下の最終判定に一本化する — 2 箇所で呼ぶと 1 つの失敗で
+    # FAIL が 2 増え、スイート末尾の PASS=…/FAIL=… の集計がずれる
     T23_CFG_EXIT=-1; T23_CFG_FILES=-1; T23_CFG_WARN=0; T23_EXP_EXIT=-1; T23_EXP_FILES=-1
 else
     # (1) 設定由来 — 縮退して録画できるはず
@@ -525,9 +526,13 @@ if kill -0 $T23_HOLDER_PID 2>/dev/null; then
 fi
 wait $T23_HOLDER_PID 2>/dev/null
 
-if [ "$T23_CFG_EXIT" = "0" ] && [ "$T23_CFG_FILES" = "1" ] && [ "$T23_CFG_WARN" -ge 1 ] \
+if [ "$T23_HELD" = "1" ] && [ "$T23_CFG_EXIT" = "0" ] && [ "$T23_CFG_FILES" = "1" ] \
+    && [ "$T23_CFG_WARN" -ge 1 ] \
     && [ "$T23_EXP_EXIT" = "1" ] && [ "$T23_EXP_FILES" = "0" ]; then
     ok "T23 ホットキー排他: 設定由来は縮退 (exit=0・警告あり)・明示は exit=1"
+elif [ "$T23_HELD" != "1" ]; then
+    # 占有役が待機に入れない = 残留プロセスが同じキーを握っている可能性が高い
+    bad "T23 ホットキー排他: 占有役が待機に入れませんでした (他のプロセスが $T23_KEY を握っていないか確認してください) — $WORK/t23-holder.log"
 else
     bad "T23 ホットキー排他: cfg_exit=$T23_CFG_EXIT cfg_files=$T23_CFG_FILES cfg_warn=$T23_CFG_WARN exp_exit=$T23_EXP_EXIT exp_files=$T23_EXP_FILES — $WORK/t23-config.log / $WORK/t23-explicit.log"
 fi
