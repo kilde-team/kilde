@@ -1,0 +1,23 @@
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_24409ddecb1435 505
+Sources/KildeCore/Recording/Recorder.swift
+  s_35faeec28b4c4b::t_03cfc561754d52 404-408
+  s_35faeec28b4c4b::t_fdcc91660e04c3 563-580
+  s_35faeec28b4c4b::t_ca768c35af1556 357-360
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7eef30e499168f0823c12b85fc304b63a372d9a6",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
