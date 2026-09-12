@@ -15,6 +15,9 @@ class Kilde < Formula
 
   def install
     if build.head?
+      # --disable-sandbox: Homebrew のビルド隔離内では SPM がキャッシュ書き込みに
+      # 失敗する (このリポジトリの CI/検証でも同じ回避を実測済み)。
+      # ソースは tap で固定された本家リポジトリのみ
       system "swift", "build", "-c", "release", "--disable-sandbox"
       bin.install ".build/release/kilde"
     else
