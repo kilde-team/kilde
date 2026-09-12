@@ -55,6 +55,9 @@ swift build -c release           # リリースビルド → .build/release/kild
 .build/debug/kilde rec --help
 ```
 
+公式配布物の Developer ID 署名、notarization、zip / DMG 作成は
+[RELEASE.md](RELEASE.md) と `scripts/release/sign.sh` を参照してください。
+
 PATH に置いて `kilde` として使う場合:
 
 ```sh
