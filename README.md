@@ -110,6 +110,17 @@ kilde rec --no-video memo.m4a
 
 # Only the audio from a matching Zoom window, excluding other apps
 kilde rec --no-video --window zoom meeting.m4a
+
+# Several windows in one file. Pass --window more than once; the output is the
+# size of the whole display, with everything outside those windows left black
+kilde rec --window zoom --window notes demo.mov
+
+# Hide specific apps from a full-screen recording, such as a password manager
+# or a chat client. Bundle IDs match exactly -- run `kilde devices` to find them
+#   Note: an excluded app's *audio* is dropped too. Excluding a meeting app or a
+#   browser loses its sound as well, so if you only want to hide what is on
+#   screen, consider recording the windows you want with --window instead
+kilde rec --exclude-app com.1password.1password --exclude-app com.tinyspeck.slackmacgap demo.mov
 ```
 
 To record through BlackHole while still hearing the audio, install BlackHole

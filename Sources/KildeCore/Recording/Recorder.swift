@@ -43,9 +43,14 @@ public enum ContainerKind: String, CaseIterable {
 
 public struct RecordOptions {
     public var displayIndex = 0
-    public var windowMatch: String?
+    /// 収録するウィンドウの指定 (title / bundleID / windowID)。空ならディスプレイ収録。
+    /// 2 つ以上指定すると、そのウィンドウ群だけを 1 本にまとめて収録する (issue #13)
+    public var windowMatches: [String] = []
+    /// ディスプレイ収録から除外するアプリの bundleID (issue #13)。
+    /// ウィンドウ収録とは併用しない (収録対象を選ぶ指定と除外する指定が矛盾するため)
+    public var excludedBundleIDs: [String] = []
     /// 収録する矩形領域 (ポイント座標、ディスプレイ左上が原点)。nil ならディスプレイ全体。
-    /// ウィンドウ収録 (windowMatch) や音声のみ (wantsVideo = false) とは併用しない
+    /// ウィンドウ収録 (windowMatches) や音声のみ (wantsVideo = false) とは併用しない
     public var region: CGRect?
     public var audioSources: [AudioSourceSpec] = [.system]
     public var trackPolicy: AudioTrackPolicy = .mixed
@@ -424,8 +429,18 @@ public final class Recorder {
             guard options.wantsVideo else {
                 throw KilError.failed("領域指定 (region) は音声のみのモードでは使えません")
             }
-            guard options.windowMatch == nil else {
+            guard options.windowMatches.isEmpty else {
                 throw KilError.failed("領域指定 (region) はウィンドウ収録とは併用できません")
+            }
+        }
+        // 除外 (excludedBundleIDs) はディスプレイ収録の絞り込みなので、収録対象を選ぶ
+        // ウィンドウ収録とは両立しない。region と同じく副作用より前に弾く
+        if !options.excludedBundleIDs.isEmpty {
+            guard options.wantsVideo else {
+                throw KilError.failed("アプリ除外 (exclude-app) は音声のみのモードでは使えません")
+            }
+            guard options.windowMatches.isEmpty else {
+                throw KilError.failed("アプリ除外 (exclude-app) はウィンドウ収録とは併用できません")
             }
         }
         // #12 (MP4 コンテナ) と #59 (出力名予約) の統合: 拡張子はコンテナ種別に従い、
@@ -515,23 +530,56 @@ public final class Recorder {
                 cfg.minimumFrameInterval = CMTime(seconds: 1.0 / Double(fps), preferredTimescale: 600)
             }
             let filter: SCContentFilter
-            if let match = options.windowMatch {
-                let win = try await DisplayCatalog.resolveWindow(matching: match)
-                if options.wantsVideo {
-                    // H.264 / HEVC では偶数へ丸める (420v の 4:2:0 制約。ProRes は丸めない —
-                    // captureSize を参照)。ウィンドウは 1 ポイント単位でリサイズできるので
-                    // 普通に奇数になる (issue #15)
-                    let (w, h) = Self.captureSize(win.frame.size, codec: options.codec)
-                    guard w >= 2, h >= 2 else {
-                        throw KilError.failed(
-                            "ウィンドウが小さすぎて収録できません "
-                            + "(\(Int(win.frame.width))x\(Int(win.frame.height))、2x2 以上が必要)")
+            if !options.windowMatches.isEmpty {
+                let windows = try await DisplayCatalog.resolveWindows(matching: options.windowMatches)
+                if let win = windows.first, windows.count == 1 {
+                    if options.wantsVideo {
+                        // H.264 / HEVC では偶数へ丸める (420v の 4:2:0 制約。ProRes は丸めない —
+                        // captureSize を参照)。ウィンドウは 1 ポイント単位でリサイズできるので
+                        // 普通に奇数になる (issue #15)
+                        let (w, h) = Self.captureSize(win.frame.size, codec: options.codec)
+                        guard w >= 2, h >= 2 else {
+                            throw KilError.failed(
+                                "ウィンドウが小さすぎて収録できません "
+                                + "(\(Int(win.frame.width))x\(Int(win.frame.height))、2x2 以上が必要)")
+                        }
+                        cfg.width = w
+                        cfg.height = h
+                        videoSize = CGSize(width: w, height: h)
                     }
-                    cfg.width = w
-                    cfg.height = h
-                    videoSize = CGSize(width: w, height: h)
+                    filter = SCContentFilter(desktopIndependentWindow: win)
+                } else {
+                    // 複数ウィンドウはディスプレイ座標系のまま合成される (ウィンドウごとに
+                    // 切り出されるわけではない) ので、出力はディスプレイ全体の大きさになる。
+                    // 対象外の領域は黒で埋まる
+                    let display = try await DisplayCatalog.display(at: options.displayIndex)
+                    // 別のディスプレイにあるウィンドウを混ぜると、合成先の座標系の外に出て
+                    // 黙って黒く消える。録画を見返すまで気づけないのでここで止める
+                    let bounds = CGDisplayBounds(display.displayID)
+                    let offDisplay = windows.filter { !bounds.intersects($0.frame) }
+                    if !offDisplay.isEmpty {
+                        let names = offDisplay.map { "\"\($0.title ?? "?")\"" }.joined(separator: ", ")
+                        throw KilError.failed(
+                            "複数ウィンドウの収録では同じディスプレイのウィンドウだけを指定してください "
+                            + "(ディスプレイ \(options.displayIndex) の外: \(names)。"
+                            + "--display で収録するディスプレイを選べます)")
+                    }
+                    if options.wantsVideo {
+                        // 複数ウィンドウでもディスプレイ全体の大きさになるので、
+                        // 単一ウィンドウと同じく偶数へ丸める (issue #15 の 4:2:0 制約)
+                        let (w, h) = Self.captureSize(
+                            CGSize(width: display.width, height: display.height),
+                            codec: options.codec)
+                        guard w >= 2, h >= 2 else {
+                            throw KilError.failed(
+                                "ディスプレイが小さすぎて収録できません (\(display.width)x\(display.height))")
+                        }
+                        cfg.width = w
+                        cfg.height = h
+                        videoSize = CGSize(width: w, height: h)
+                    }
+                    filter = SCContentFilter(display: display, including: windows)
                 }
-                filter = SCContentFilter(desktopIndependentWindow: win)
             } else {
                 let display = try await DisplayCatalog.display(at: options.displayIndex)
                 if options.wantsVideo {
@@ -579,7 +627,10 @@ public final class Recorder {
                         videoSize = CGSize(width: w, height: h)
                     }
                 }
-                filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
+                let excluded = try await DisplayCatalog.resolveApplications(bundleIDs: options.excludedBundleIDs)
+                filter = SCContentFilter(display: display,
+                                         excludingApplications: excluded,
+                                         exceptingWindows: [])
             }
             if options.wantsVideo {
                 // 非圧縮のピクセル形式を明示する (既定に任せない — SPIKE-NOTES F-D.1)。

@@ -76,7 +76,7 @@ public struct RecordRequest: Equatable {
         case .window(let id):
             // DisplayCatalog.resolveWindow は windowID の完全一致を最優先するので、
             // タイトルに同じ数字を含む別ウィンドウに取り違えられない
-            options.windowMatch = String(id)
+            options.windowMatches = [String(id)]
         case .audioOnly:
             break
         }
