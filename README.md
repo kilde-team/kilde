@@ -24,11 +24,36 @@ with a menu bar app in development.
 - 🛡️ Safely finalize the output file when you stop recording with Ctrl+C
 - ⌨️ Start and stop recording with a global hotkey while working in another app
 
-## Requirements and build
+## Installation and build
 
 - macOS 14 or later
-- Swift Package Manager
 - Runtime testing is currently performed on macOS 26 on Apple Silicon
+
+### Homebrew
+
+The Homebrew tap will become available after the v0.1.0 release. Once it is
+published, install kilde with either form:
+
+```sh
+brew tap takezou621/kilde
+brew install kilde
+
+# Or install directly from the tap
+brew install takezou621/kilde/kilde
+```
+
+To build the latest `main` branch from source through Homebrew, add `--HEAD`:
+
+```sh
+brew install --HEAD takezou621/kilde/kilde
+```
+
+The HEAD build requires Xcode 15.3 or later (the manifest needs a Swift
+5.10 toolchain; Xcode 15.0–15.2 ship Swift 5.9 and cannot build it).
+
+### Build from source
+
+Building from source requires Swift Package Manager.
 
 ```sh
 git clone https://github.com/takezou621/kilde.git
@@ -248,13 +273,23 @@ elapsed time and the panel shows per-source level meters. Closing the panel
 does not stop the recording. Initial values are read from the same
 `~/.kilde/config.json` as the CLI.
 
+When a recording finishes, a notification shows its name, length, and size;
+clicking it reveals the file in Finder. The panel also lists the five most
+recent recordings in the output directory — including ones made with the CLI —
+and clicking one reveals it in Finder. Set a global hotkey in the panel to
+start and stop recording from any app; it is stored as `hotkey` in the same
+configuration file, so `kilde rec` picks it up as well. A checkbox registers
+the app to launch at login through `SMAppService`, which macOS may ask you to
+approve in System Settings.
+
 ## Roadmap
 
 - **M0** ✅ Technical spike: validated ScreenCaptureKit audio capture
 - **M1** ✅ CLI MVP: `kilde rec / devices / doctor / audio monitor / inspect`
 - **M2** Global hotkey ✅; region capture ✅; pause/resume
-- **M3** Menu bar GUI app: skeleton ✅ / recording UI ✅; permission
-  onboarding and notifications are upcoming
+- **M3** Menu bar GUI app: skeleton ✅ / recording UI ✅ / permission
+  onboarding ✅ / completion notifications, recent recordings, global hotkey,
+  and launch at login ✅
 
 ## Contributing
 

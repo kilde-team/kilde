@@ -21,7 +21,35 @@ QuickTime Player の画面収録では録れない**システム音声を含め�
 - 🛡️ Ctrl+C でもファイルが必ずファイナライズされる安全な停止
 - ⌨️ グローバルホットキーで、他アプリの操作中でも録画を開始 / 停止
 
-## ビルドと実行
+## インストールとビルド
+
+- 要件: macOS 14+ (動作検証は macOS 26 / Apple Silicon)
+
+### Homebrew
+
+Homebrew tap は v0.1.0 のリリース後に利用可能になります。公開後は、次のどちらかで
+インストールできます。
+
+```sh
+brew tap takezou621/kilde
+brew install kilde
+
+# tap から直接インストールする場合
+brew install takezou621/kilde/kilde
+```
+
+Homebrew で最新の `main` ブランチをソースからビルドする場合は `--HEAD` を指定します。
+
+```sh
+brew install --HEAD takezou621/kilde/kilde
+```
+
+HEAD ビルドには Xcode 15.3 以降が必要です (マニフェストが Swift 5.10
+ツールチェーンを要求するため。Xcode 15.0〜15.2 は Swift 5.9 でビルドできません)。
+
+### ソースからビルド
+
+ソースからのビルドには Swift Package Manager が必要です。
 
 ```sh
 git clone https://github.com/takezou621/kilde.git
@@ -36,7 +64,6 @@ swift build
 ln -sf "$PWD/.build/debug/kilde" /usr/local/bin/kilde
 ```
 
-- 要件: macOS 14+ (動作検証は macOS 26 / Apple Silicon)
 - 依存: [swift-argument-parser](https://github.com/apple/swift-argument-parser)
 - BlackHole 利用時: `brew install --cask blackhole-2ch`
 
@@ -125,12 +152,21 @@ open KildeGUI.xcodeproj # Xcode で KildeGUI スキームを Run
 経過時間、パネルにソース別のレベルメーターが出る。パネルを閉じても録画は続く。
 初期値は CLI と同じ `~/.kilde/config.json` から読む。
 
+録画が終わると、ファイル名・長さ・サイズを通知で知らせる。通知をクリックすると
+Finder で該当ファイルを選択表示する。パネルには保存先の直近 5 件が並び (**CLI で
+録ったファイルも出る**)、クリックで同じく Finder に表示する。パネルでグローバル
+ホットキーを設定すると、他のアプリを使っている間でも開始・停止できる。設定値は
+同じ設定ファイルの `hotkey` に入るので、`kilde rec` もそれを見て待機モードで起動する。
+ログイン時起動のチェックボックスは `SMAppService` で登録する (macOS がシステム設定での
+承認を求めることがある)。
+
 ## ロードマップ
 
 - **M0** ✅ 技術スパイク (ScreenCaptureKit の音声経路の検証)
 - **M1** ✅ CLI MVP (`kilde rec / devices / doctor / audio monitor / inspect`)
 - **M2** グローバルホットキー ✅、領域指定の収録 ✅、一時停止/再開
-- **M3** メニューバー GUI アプリ (骨格 ✅ / 録画 UI ✅ / 権限オンボーディング・通知は今後)
+- **M3** メニューバー GUI アプリ (骨格 ✅ / 録画 UI ✅ / 権限オンボーディング ✅ /
+  完了通知・最近の録画・グローバルホットキー・ログイン時起動 ✅)
 
 ## コントリビューション
 

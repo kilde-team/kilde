@@ -442,6 +442,40 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
   (`~/.kilde/config.json` と `KildeCore.ConfigStore` / `RecordSettings` — §6、#14 で実装済み)。
 - 権限の初回ガイドを GUI で丁寧に出す (CLI の `doctor` と同一ロジック)。
 
+> **実装 (issue #20):** 録画完了は `UNUserNotificationCenter` で通知し、クリックすると
+> `NSWorkspace.activateFileViewerSelecting` で Finder に該当ファイルを選択表示する
+> (`RecordingNotifier`)。移動・削除されていたら親ディレクトリを開く。
+> 通知は macOS 側に残り**アプリを終了して起動し直した後にクリックされうる**ので、
+> 対応表 (メモリ) だけに頼らずファイルパスを通知自身の `userInfo` に持たせる。
+>
+> **許可状態は自前で持たない。** 起動時に 1 回 `requestAuthorization` するだけで、
+> 通知を出すときは判定せずに投げる — 未許可なら `add` が黙って捨てるので実害が無く、
+> 状態も競合も持たずに済む。一度はキャッシュする実装にしたが、`getNotificationSettings`
+> が非同期である以上「短い録画が旗の立つ前に終わって通知が捨てられる」という
+> **別の消え方を作るだけ**だった。なお `add` 自体も非同期 (XPC) なので、
+> 「録画中にアプリを終了」経路ではプロセスが先に落ちて通知が届かないことがある。
+>
+> 通知に出す長さは **progress の最終値から取らない** — progress は 0.5 秒周期なので
+> 短い録画では 1 度も届かず `00:00` になる。**`.recording` に入った時刻から
+> `.finalizing` に入った時刻まで**を測り、`Summary.pausedDuration` を差し引く。
+> 起点を `start()` ではなく `.recording` にするのは準備フェーズ (権限確認・デバイス解決・
+> ストリーム構築。issue #70 のとおり数秒かかることがある) を長さに混ぜないため、
+> 終点を `.finalizing` にするのは writer の finish が収録ではないため。
+> 「最近の録画」は保存先を `kilde-` 接頭辞 + `mov`/`mp4`/`m4a` で走査し、更新時刻順に
+> 5 件出す。セッション履歴を持たないので **CLI で録ったファイルも同じ一覧に出る**。
+> `-o` で別名を付けた録画は拾えないが、補助表示なので取り違えるより取りこぼす方を選ぶ。
+>
+> ホットキーは CLI と同じ `HotkeyMonitor` / `HotkeySettings.resolve` を使い、設定も同じ
+> `hotkey` キーに書く (GUI で設定すると `kilde rec` も待機モードで起動する)。保存前に
+> `HotkeyParser` で検証する — 不正な値を書くと CLI が起動時にエラーになり、GUI からも
+> 直せなくなるため。**開始可否の判定は `RecordingSetup.startBlockReason` に集約し、
+> 開始ボタンとホットキーの両方がそこを通る。** 判定を UI の `disabled` に置くと、
+> ボタンを経由しないホットキーが素通りし、**列挙中でも録画を始められる経路ができる** —
+> issue #70 で実測したとおり `SCShareableContent` の列挙と録画開始が競合すると両方が
+> 無期限にブロックするので、これは実害のある穴になる。
+> ログイン時起動は `SMAppService.mainApp`。`.requiresApproval` のときは承認が要る旨を
+> 案内する (登録できたのに起動しない、と見えないため)。
+
 > **実装 (issue #19):** 権限の状態は `PermissionsModel` が持ち、判定は CLI の `doctor` と
 > 同じ `KildeCore.Permissions` を使う (GUI 側で独自に判定すると、`doctor` が「あり」と言うのに
 > GUI が止まる — あるいはその逆 — が起きるため)。**その構成に要る権限だけ**を求める:
