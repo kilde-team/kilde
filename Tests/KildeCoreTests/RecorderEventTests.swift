@@ -187,4 +187,37 @@ final class RecorderEventTests: XCTestCase {
         // 二重起動していても遷移列が二重になることはない
         XCTAssertEqual(events.compactMap(\.state), [.preparing, .armed, .recording, .finalizing, .done])
     }
+
+    /// 実ストリームを必要としない純粋判定で、映像ありの 0 フレームだけを失敗にする。
+    /// 音声のみは映像アンカーを使わないため、同じ 0 件でも成功対象のままにする
+    func testVideoFrameValidationRejectsOnlyVideoSessionWithNoFrames() throws {
+        XCTAssertNoThrow(
+            try Recorder.validateVideoFrameCount(wantsVideo: false, videoAppended: 0, elapsed: 15)
+        )
+        XCTAssertNoThrow(
+            try Recorder.validateVideoFrameCount(wantsVideo: true, videoAppended: 1, elapsed: 15)
+        )
+        XCTAssertThrowsError(
+            try Recorder.validateVideoFrameCount(wantsVideo: true, videoAppended: 0, elapsed: 15)
+        ) { error in
+            guard case KilError.failed(let message) = error else {
+                return XCTFail("KilError.failed ではありません: \(error)")
+            }
+            // 長時間 0 フレームなら消灯・ロックを疑う案内にする
+            XCTAssertTrue(message.contains("消灯・ロック"))
+        }
+    }
+
+    /// 初回フレーム到着前に停止した短時間録画は、消灯・ロックと断定しない別の案内にする
+    func testVideoFrameValidationDistinguishesShortRecording() throws {
+        XCTAssertThrowsError(
+            try Recorder.validateVideoFrameCount(wantsVideo: true, videoAppended: 0, elapsed: 0.5)
+        ) { error in
+            guard case KilError.failed(let message) = error else {
+                return XCTFail("KilError.failed ではありません: \(error)")
+            }
+            XCTAssertTrue(message.contains("短すぎ"))
+            XCTAssertFalse(message.contains("消灯"))
+        }
+    }
 }
