@@ -1,0 +1,51 @@
+Sources/KildeCore/Devices/AudioDeviceCatalog.swift
+  s_b31be53f67f5bb::t_8f14f94a0726f3 249-256
+  s_34d31eef171f3f::t_c235b4809a7604 263-264
+  s_34d31eef171f3f::t_17068e6a380420 265,191,271-274,280-281
+  s_34d31eef171f3f::t_aa18745fe57f57 143
+  s_34d31eef171f3f::t_b8791b7e45b02d 187-188,190,192,198
+README.md
+  s_34d31eef171f3f::t_7f76266f2871e4 62-63
+Sources/kilde/AudioCommand.swift
+  s_34d31eef171f3f::t_9c19e9659a4e9e 45-52
+Sources/KildeCore/Recording/Recorder.swift
+  s_34d31eef171f3f::t_f46de29f4e57e9 520-527
+Sources/kilde/ConfigCommand.swift
+  s_34d31eef171f3f::t_1d3a223cd15253 101-107,116-117
+Tests/KildeCoreTests/MonitorDeviceStateTests.swift
+  s_b31be53f67f5bb::t_8f14f94a0726f3 23-30
+  s_34d31eef171f3f::t_d4975abceba702 34,46,49,51
+docs/DESIGN.md
+  s_b31be53f67f5bb::t_8f14f94a0726f3 270
+  s_34d31eef171f3f::t_e62592d7378d35 255-257
+  s_34d31eef171f3f::t_0b6c6d43b3018b 271-272
+Sources/KildeCore/Support/Config.swift
+  s_b31be53f67f5bb::t_8f14f94a0726f3 232-243,263,265
+  s_34d31eef171f3f::t_787604e70b0a8e 244-254,258-262
+  s_34d31eef171f3f::t_7b4485b984db91 272,314
+  s_34d31eef171f3f::t_548f53c6c28a76 255-257
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "a198f08ce1055230a0f54ef8e82638181651f3f1",
+  "prompts": {},
+  "sessions": {
+    "s_34d31eef171f3f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2fe81784-1008-4b9f-8671-2ec2cf21a534",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    },
+    "s_b31be53f67f5bb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09120-915a-7252-bb6e-56df07dc7a3b",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
