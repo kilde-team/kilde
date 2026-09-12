@@ -1,0 +1,44 @@
+docs/DESIGN.md
+  s_6e1b71b77323e6::t_bd40fbaf6c1d78 399-400,402-407
+  s_6e1b71b77323e6::t_40fa3a205cdc96 87-89,97,99
+gui/Sources/RecordingController.swift
+  s_6e1b71b77323e6::t_1c039eb21cd267 89-93
+  s_6e1b71b77323e6::t_ac81d8703d28b8 120
+  s_6e1b71b77323e6::t_f69ab9dd6b6236 49
+  s_6e1b71b77323e6::t_7cb89d4fba9309 29-32
+gui/Sources/AppDelegate.swift
+  s_6e1b71b77323e6::t_898ae4ea4902eb 54-56
+  s_6e1b71b77323e6::t_de9a143e4ed17b 69-72,74,76
+Sources/KildeCore/Recording/RecordRequest.swift
+  s_6e1b71b77323e6::t_66cc619358a1d6 101,110-111
+  s_6e1b71b77323e6::t_f2bb70738a7ca2 91
+gui/Sources/SelfTest.swift
+  s_6e1b71b77323e6::t_2245720175d50c 109-110
+  s_6e1b71b77323e6::t_fc4ddee87b776e 128-136
+  s_6e1b71b77323e6::t_669879152938bd 160-167,170
+  s_6e1b71b77323e6::t_98b75c60596e79 147-152
+  s_6e1b71b77323e6::t_7329899f207f54 153-157,168-169,171-173
+  s_6e1b71b77323e6::t_47ba947bb6d733 112-114,116,118-127,137-142
+  s_6e1b71b77323e6::t_56108f6063f052 81-82,88-99
+gui/Sources/RecordingSetup.swift
+  s_6e1b71b77323e6::t_ba4ce05aabeb6f 30-33
+  s_6e1b71b77323e6::t_9fad8bc8cc24e3 193-195
+  s_6e1b71b77323e6::t_816a95642d6dc0 117-121,123
+  s_6e1b71b77323e6::t_cbd6771f203482 141-145
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "82953f1d2e62a96b8a74725a193eb88149206425",
+  "prompts": {},
+  "sessions": {
+    "s_6e1b71b77323e6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0f56a8e5-68cd-4330-8471-cbfa3a206358",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
