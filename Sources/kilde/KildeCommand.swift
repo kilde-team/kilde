@@ -40,10 +40,11 @@ private var signalSources: [DispatchSourceSignal] = []
 /// 以前は先に SIG_IGN を設定してから DispatchSource を resume していたが、SIG_IGN 中に
 /// 届いたシグナルは pending にならずその場で破棄されるため、起動直後の Ctrl+C が
 /// 取りこぼされて録画が止まらなかった (issue #67)。正しい順序は:
-///   1. pthread_sigmask でブロック (この間のシグナルは pending に溜まる)
-///   2. DispatchSource を作成して resume (kevent 登録)
-///   3. SIG_IGN を設定 (アンブロック後の配信でデフォルト動作により死なないように)
-///   4. アンブロック (pending があれば kevent 経由で handler に届く)
+///   1. pthread_sigmask でブロック (以後のシグナルは pending に溜まる)
+///   2. SIG_IGN を設定 — ブロック直後なら pending はほぼ確実に空で、POSIX の
+///      「SIG_IGN 設定時に pending が破棄される」に引っかからない
+///   3. DispatchSource を作成して resume (kevent 登録。SIG_IGN でも発火する)
+///   4. アンブロック — pending したシグナルが kevent 経由で handler に届く
 func installStopSignalHandler(_ handler: @escaping () -> Void) {
     var block = sigset_t()
     sigemptyset(&block)
@@ -51,6 +52,10 @@ func installStopSignalHandler(_ handler: @escaping () -> Void) {
     sigaddset(&block, SIGTERM)
     sigaddset(&block, SIGHUP)
     pthread_sigmask(SIG_BLOCK, &block, nil)
+
+    signal(SIGINT, SIG_IGN)
+    signal(SIGTERM, SIG_IGN)
+    signal(SIGHUP, SIG_IGN)
 
     let q = DispatchQueue(label: "kilde.signal")
     for sig in [SIGINT, SIGTERM, SIGHUP] {
@@ -60,8 +65,5 @@ func installStopSignalHandler(_ handler: @escaping () -> Void) {
         signalSources.append(src)
     }
 
-    signal(SIGINT, SIG_IGN)
-    signal(SIGTERM, SIG_IGN)
-    signal(SIGHUP, SIG_IGN)
     pthread_sigmask(SIG_UNBLOCK, &block, nil)
 }
