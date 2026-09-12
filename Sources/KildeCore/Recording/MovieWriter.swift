@@ -44,8 +44,17 @@ final class MovieWriter {
     /// 出力ファイルのタイムラインから一時停止区間を詰める
     private var pauseOffset = CMTime.zero
 
+    /// HDR の書き出し方式。バッファの色域がプリセットで変わるためタグも切り替える
+    /// (Stream Local Display = Display P3、HDR10 = BT.2020 プライマリ)
+    enum HDRMode {
+        /// macOS 15 の captureHDRStreamLocalDisplay — バッファは Display P3
+        case streamLocalDisplay
+        /// macOS 26 の captureHDRRecordingPreservedSDRHDR10 — バッファは BT.2020 プライマリ
+        case hdr10
+    }
+
     init(url: URL, fileType: AVFileType, video: Bool, videoSize: CGSize?,
-         codec: VideoCodecKind, hdr: Bool = false,
+         codec: VideoCodecKind, hdrMode: HDRMode? = nil,
          audioLabels: [String], anchor: Anchor,
          outputFilePolicy: OutputFilePolicy = .rejectExisting) throws {
         self.url = url
@@ -97,20 +106,25 @@ final class MovieWriter {
                 ]
             case .hevc:
                 settings[AVVideoCodecKey] = AVVideoCodecType.hevc
-                if hdr {
+                if let hdrMode = hdrMode {
                     // HDR は 10-bit が要るので Main10 を明示する (既定の Main は 8-bit)。
                     // 色情報も書かないと、再生側が SDR として解釈して眠い絵になる
                     settings[AVVideoCompressionPropertiesKey] = [
                         AVVideoAverageBitRateKey: 20_000_000,
                         AVVideoProfileLevelKey: kVTProfileLevel_HEVC_Main10_AutoLevel,
                     ]
-                    // 色域は SCK のプリセット (captureHDRStreamLocalDisplay) が実際に渡してくる
-                    // バッファに合わせて Display P3。**PQ と組み合わせる YCbCr マトリクスは、
-                    // 色域が P3 でも BT.2020 を使う** — P3 に BT.709 を合わせるのは SDR と HLG の
+                    // 色域は SCK のプリセットが実際に渡してくるバッファに合わせる:
+                    // Stream Local Display は Display P3、HDR10 プリセット (macOS 26) は
+                    // BT.2020 プライマリ。**PQ と組み合わせる YCbCr マトリクスは色域が
+                    // P3 でも BT.2020 を使う** — P3 に BT.709 を合わせるのは SDR と HLG の
                     // 話で、709 で変換すると BT.2020 の部分集合である P3 の彩度の高い色が
-                    // 範囲外の Cb/Cr になってクランプされ、色相と彩度がずれる (SPIKE-NOTES F-H)
+                    // 範囲外の Cb/Cr になってクランプされ、色相と彩度がずれる
+                    // (SPIKE-NOTES F-H)
+                    let primaries: String = hdrMode == .hdr10
+                        ? AVVideoColorPrimaries_ITU_R_2020
+                        : AVVideoColorPrimaries_P3_D65
                     settings[AVVideoColorPropertiesKey] = [
-                        AVVideoColorPrimariesKey: AVVideoColorPrimaries_P3_D65,
+                        AVVideoColorPrimariesKey: primaries,
                         AVVideoTransferFunctionKey: AVVideoTransferFunction_SMPTE_ST_2084_PQ,
                         AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_2020,
                     ]

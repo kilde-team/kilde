@@ -154,13 +154,14 @@ swift build                       # ビルド (バイナリは .build/debug/kild
    `NSMicrophoneUsageDescription` を持たせるため。`unsafeFlags` はルートパッケージでのみ
    許可されるので、**kilde をライブラリとして他パッケージから参照できない**点に注意
 8. **新しい OS の API を使うときは、CI の SDK にシンボルがあるかを先に確認する。**
-   CI は `macos-15` ランナー (`.github/workflows/ci.yml`) で、ローカルの Xcode 26.5 より
-   古い SDK を使う。**`#available` はコンパイル時の不在を救わない** — `if #available(macOS 26, *)`
-   は「実行時にその OS か」を見るだけで、可用性ブロックの中身も型チェックされるため、
-   **SDK に無いシンボルはそこでコンパイルエラーになる** (`@available` も同じ)。
-   ローカルで通っても CI で落ちる。実例: issue #16 で
+   CI は `macos-26` ランナー (`.github/workflows/ci.yml`、PR #81 で移行) で、ローカルの
+   Xcode 26.5 と同じ世代の SDK を使う。**`#available` はコンパイル時の不在を救わない** —
+   `if #available(macOS 26, *)` は「実行時にその OS か」を見るだけで、可用性ブロックの
+   中身も型チェックされるため、**SDK に無いシンボルはそこでコンパイルエラーになる**
+   (`@available` も同じ)。ローカルで通っても CI で落ちる。実例: issue #16 で
    `SCStreamConfiguration.Preset.captureHDRRecordingPreservedSDRHDR10` (macOS 26) を
-   `#available` で囲んで使い、CI が `has no member` で失敗した (対応は issue #76)
+   `#available` で囲んで使い、当時の macos-15 ランナーの CI が `has no member` で失敗した
+   (→ CI を macos-26 に上げて解消、HDR10 プリセットは issue #76 で使用開始)
 
 ## 6. 並行性の規約
 
