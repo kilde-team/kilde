@@ -326,6 +326,12 @@ kilde rec --hdr --codec hevc --duration 10s hdr.mov
   プリセットで変わります**: macOS 26 の HDR10 プリセット
   (`captureHDRRecordingPreservedSDRHDR10`) は `bt2020`、15 の
   `captureHDRStreamLocalDisplay` は `smpte432` (Display P3)。
+- macOS 26 では HDR10 の静的メタデータも確認: `ffprobe -show_streams` で
+  `mastering_display` (ST 2086) と `max_content` / `max_average` (MaxCLL/MaxFALL) が
+  出力されること。**これらは SCK のプリセットがバッファとともに渡すもの**で、
+  kilde 側では追加の設定をしていない — 付与はプリセットの責務 (Apple の API 文書に
+  基づく主張であり、HDR 実機での確認が必須)。無ければプリセットの挙動が文書と
+  異なるため、issue を起票してください。
   **PQ と組み合わせる YCbCr マトリクスは、色域が P3 でも BT.2020 を使います**
   (709 を使うと広色域が範囲外に出てクランプされる)。
 

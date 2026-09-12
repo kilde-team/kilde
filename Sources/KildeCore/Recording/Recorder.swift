@@ -1049,8 +1049,8 @@ public final class Recorder {
         }
     }
 
-    /// HDR 収録の可否を 1 回だけ決めた結果 (issue #16)。
-    /// `colorSpace` が nil なら SDR で録る。`fallbackReason` が入っていれば、
+    /// HDR 収録の可否を 1 回だけ決めた結果 (issue #16 / #76)。
+    /// `mode` が nil なら SDR で録る。`fallbackReason` が入っていれば、
     /// 「HDR を求められたが応えられなかった」ので必ず利用者に伝える
     private struct HDRDecision {
         /// HDR の方式。nil なら SDR (要求なしまたはフォールバック)。
