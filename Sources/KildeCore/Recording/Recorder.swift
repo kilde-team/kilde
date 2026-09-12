@@ -733,7 +733,16 @@ public final class Recorder {
             // availability の外でも素の SCStreamConfiguration() を使う
             let cfg: SCStreamConfiguration
             if #available(macOS 15.0, *) {
-                cfg = hdr.configuration ?? SCStreamConfiguration()
+                if let prepared = hdr.configuration {
+                    cfg = prepared
+                } else if hdr.isHDR {
+                    // mode が HDR なのに configuration が作れない = hdrDecision の OS 分岐と
+                    // ここで食い違った (プログラミングエラー)。黙って SDR 化すると
+                    // 「HDR と表示された SDR ファイル」ができるので失敗させる
+                    throw KilError.failed("HDR 方式 (\(hdr.presetDescription ?? "?"))の構築に失敗しました")
+                } else {
+                    cfg = SCStreamConfiguration()
+                }
             } else {
                 cfg = SCStreamConfiguration()
             }
