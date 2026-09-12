@@ -63,6 +63,8 @@ kilde rec --window zoom --window "メモ" demo.mov
 
 # 画面全体から特定アプリだけを隠して収録 (パスワードマネージャ・チャットなど)
 #   bundleID は完全一致。kilde devices で確認できる
+#   注意: 除外したアプリの「音」も出力に入らない。会議アプリやブラウザを除外すると
+#   その音声まで失われるので、隠したいのが画面だけなら --window での収録を検討する
 kilde rec --exclude-app com.1password.1password --exclude-app com.tinyspeck.slackmacgap demo.mov
 
 # BlackHole 経由で「聞きながら録音」

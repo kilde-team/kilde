@@ -30,7 +30,11 @@ struct DevicesCommand: ParsableCommand {
                     let id = w.bundleIdentifier ?? ""
                     return id.isEmpty ? noBundleID : id
                 }
-                for bundleID in grouped.keys.sorted() {
+                // 素直に sorted() すると "(" が英数より前に来て見出しが先頭に来てしまうので、
+                // bundleID を持つグループを並べたあとに付ける
+                let named = grouped.keys.filter { $0 != noBundleID }.sorted()
+                let order = grouped[noBundleID] == nil ? named : named + [noBundleID]
+                for bundleID in order {
                     print("  \(bundleID)")
                     for w in grouped[bundleID] ?? [] {
                         print("      [\(w.windowID)] \"\(w.title ?? "")\" \(Int(w.frame.width))x\(Int(w.frame.height))")

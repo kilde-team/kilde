@@ -380,6 +380,17 @@ public final class Recorder {
                     // 切り出されるわけではない) ので、出力はディスプレイ全体の大きさになる。
                     // 対象外の領域は黒で埋まる
                     let display = try await DisplayCatalog.display(at: options.displayIndex)
+                    // 別のディスプレイにあるウィンドウを混ぜると、合成先の座標系の外に出て
+                    // 黙って黒く消える。録画を見返すまで気づけないのでここで止める
+                    let bounds = CGDisplayBounds(display.displayID)
+                    let offDisplay = windows.filter { !bounds.intersects($0.frame) }
+                    if !offDisplay.isEmpty {
+                        let names = offDisplay.map { "\"\($0.title ?? "?")\"" }.joined(separator: ", ")
+                        throw KilError.failed(
+                            "複数ウィンドウの収録では同じディスプレイのウィンドウだけを指定してください "
+                            + "(ディスプレイ \(options.displayIndex) の外: \(names)。"
+                            + "--display で収録するディスプレイを選べます)")
+                    }
                     if options.wantsVideo {
                         cfg.width = Int(display.width)
                         cfg.height = Int(display.height)
