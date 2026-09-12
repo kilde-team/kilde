@@ -496,6 +496,48 @@ else
     bad "T14d region 引数検証: 上記の組合せが想定どおりに弾かれていない"
 fi
 
+# ---- T20: HDR の SDR フォールバックと引数検証 (issue #16) ------------------------
+# HDR として録れることは HDR ディスプレイが要るので確かめられない (SPIKE-NOTES F-H)。
+# だが **SDR 機でこそ通る経路** = 「HDR を求められたが応えられなかったときの振る舞い」は
+# ここで検証できる。とくに重要なのは終了コードで、フォールバックの理由を
+# cleanupWarnings に載せてしまうと CLI がそれを exit 1 に変換する (DESIGN.md §6)。
+# 録画は成功しているので 0 でなければならない
+
+log "T20: rec --hdr — SDR 機では理由を出して SDR で録り、終了コードは 0"
+F="$WORK/t20-hdr-fallback.mov"
+if "$KILDE" rec --hdr --codec hevc --duration 3s --output "$F" > "$WORK/t20.log" 2>&1; then
+    VD=$(video_duration_of "$F")
+    # 理由の表示 (⚠ HDR:) と、映像が実際に録れていることの両方を見る
+    if grep -q "⚠ HDR:" "$WORK/t20.log" && num_between "${VD:-0}" 2 5; then
+        ok "T20 hdr フォールバック: 理由を表示して SDR で録れ、exit=0 (${VD}s)"
+    else
+        bad "T20 hdr フォールバック: 警告=$(grep -c '⚠ HDR:' "$WORK/t20.log") duration=${VD:-N/A}s — $WORK/t20.log"
+    fi
+else
+    bad "T20 hdr フォールバック: exit=$? (0 が必要 — cleanupWarnings に載せると 1 になる) — $WORK/t20.log"
+fi
+
+log "T20b: rec --hdr — 併用できない組合せは録画前に exit 64"
+T20B_FAIL=0
+check_hdr_rejected() {  # check_hdr_rejected <ログ名> <説明> <kilde rec の引数...>
+    local logname="$1" desc="$2"; shift 2
+    local start=$(date +%s)
+    "$KILDE" rec "$@" --duration 30s --output "$WORK/$logname.mov" > "$WORK/$logname.log" 2>&1
+    local code=$? elapsed=$(( $(date +%s) - start ))
+    if [ "$code" != "64" ] || [ -f "$WORK/$logname.mov" ] || [ "$elapsed" -ge 5 ]; then
+        echo "  $desc: exit=$code (64 が必要) elapsed=${elapsed}s file=$([ -f "$WORK/$logname.mov" ] && echo あり || echo なし)"
+        T20B_FAIL=1
+    fi
+}
+check_hdr_rejected t20b "--codec prores との併用" --hdr --codec prores
+check_hdr_rejected t20b2 "--codec h264 との併用" --hdr --codec h264
+check_hdr_rejected t20b3 "--no-video との併用" --hdr --no-video
+if [ "$T20B_FAIL" = "0" ]; then
+    ok "T20b hdr 引数検証: 3 パターンすべて録画前に exit=64・ファイルなし"
+else
+    bad "T20b hdr 引数検証: 上記の組合せが想定どおりに弾かれていない"
+fi
+
 # ---- サマリ -------------------------------------------------------------------
 
 echo ""

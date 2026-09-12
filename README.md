@@ -64,7 +64,8 @@ kilde rec --no-video --audio "device:BlackHole 2ch" --monitor 会議.m4a
 # 待機中の Ctrl+C はファイルを作らず終了 (--countdown との併用は不可)
 kilde rec --hotkey cmd+shift+r 会議.mov
 
-# HDR で収録 (macOS 15 以降 + HDR ディスプレイが必要。HEVC Main10 + BT.2020/PQ)
+# HDR で収録 (macOS 15 以降 + HDR ディスプレイが必要。HEVC Main10 + PQ)
+#   色域は OS で変わる: macOS 26 は BT.2020、macOS 15 は Display P3 (使うプリセットが違う)
 #   条件を満たさない環境では SDR で録り、理由を結果に表示する (終了コードは 0 のまま)
 kilde rec --hdr --codec hevc demo.mov
 
