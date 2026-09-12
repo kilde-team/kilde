@@ -1,0 +1,29 @@
+Sources/kilde/RecCommand.swift
+  s_34d31eef171f3f::t_bdfe030d408e58 218-219,226-238
+Sources/KildeCore/Input/HotkeyRecordingController.swift
+  s_34d31eef171f3f::t_8d4f651c350af8 105-111
+scripts/integration-test.sh
+  s_34d31eef171f3f::t_554222445ff503 527-549
+Sources/KildeCore/Recording/MovieWriter.swift
+  s_34d31eef171f3f::t_46c1cab4591894 57-65
+Tests/KildeCoreTests/RecorderEventTests.swift
+  s_34d31eef171f3f::t_6e50d6941b34d3 89-93
+docs/DEVELOPMENT.md
+  s_34d31eef171f3f::t_feb56c9ef2ec8d 248-251
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "6de8610533a3490358477a15cfdf2985e3456111",
+  "prompts": {},
+  "sessions": {
+    "s_34d31eef171f3f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2fe81784-1008-4b9f-8671-2ec2cf21a534",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
