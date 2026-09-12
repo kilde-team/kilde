@@ -1,125 +1,249 @@
+[English](README.md) | [日本語](README.ja.md)
+
 # kilde
 
 [![CI](https://github.com/takezou621/kilde/actions/workflows/ci.yml/badge.svg)](https://github.com/takezou621/kilde/actions/workflows/ci.yml)
 
-macOS 向けの OSS 画面 + 音声 録画ツール。
+An open-source command-line screen and audio recorder for macOS.
 
-QuickTime Player の画面収録では録れない**システム音声を含めた録画・録音**を、
-ワンコマンドで実現します。CLI ファーストで、その後メニューバーアプリ (GUI)
-へ発展させます。
+kilde records your screen together with **system audio that QuickTime Player's
+screen recorder cannot capture**, all with a single command. It is CLI-first,
+with a menu bar app in development.
 
-## 特徴
+## Features
 
-- 🖥️ 画面 + システム音声をゼロセットアップで録画 (ScreenCaptureKit ネイティブ)
-- 🎤 マイク・任意の入力デバイス (BlackHole 等) を同時録音
-  - 複数ソースを **1 トラックにミックス** (既定) / トラック分離 (`--audio-tracks separate`)
-- 🪟 **ウィンドウ単位の収録** — 音声もそのアプリにスコープされ、通知音など
-  他アプリの音が入らない
-- 🎙️ 録音 (音声のみ) モード (`--no-video`) — ドライバ追加不要
-- 🛡️ Ctrl+C でもファイルが必ずファイナライズされる安全な停止
-- ⌨️ グローバルホットキーで、他アプリの操作中でも録画を開始 / 停止
+- 🖥️ Record the screen and system audio with zero setup using native
+  ScreenCaptureKit capture
+- 🎤 Record a microphone or another input device such as BlackHole at the same
+  time
+  - Mix multiple sources into **one track** by default, or keep separate tracks
+    with `--audio-tracks separate`
+- 🪟 **Capture a single window** and scope system audio to its app, excluding
+  notification sounds and audio from other apps
+- 🎙️ Record audio only with `--no-video`, with no additional driver required
+- 🛡️ Safely finalize the output file when you stop recording with Ctrl+C
+- ⌨️ Start and stop recording with a global hotkey while working in another app
 
-## ビルドと実行
+## Requirements and build
+
+- macOS 14 or later
+- Swift Package Manager
+- Runtime testing is currently performed on macOS 26 on Apple Silicon
 
 ```sh
 git clone https://github.com/takezou621/kilde.git
 cd kilde
 swift build
-.build/debug/kilde doctor   # 初回は権限を確認・要求します
+.build/debug/kilde doctor   # Check and request permissions on first run
 ```
 
-- 要件: macOS 14+ (動作検証は macOS 26 / Apple Silicon)
-- 依存: [swift-argument-parser](https://github.com/apple/swift-argument-parser)
-- BlackHole 利用時: `brew install --cask blackhole-2ch`
-
-## 使い方
+Optionally put the binary on your PATH so the examples below work as written:
 
 ```sh
-# 画面 + システム音声 (既定)
+ln -sf "$PWD/.build/debug/kilde" /usr/local/bin/kilde
+```
+
+The only package dependency is
+[swift-argument-parser](https://github.com/apple/swift-argument-parser).
+
+## Getting started
+
+Start with `doctor`. Screen recording and microphone capture require macOS
+permissions, and this command checks the environment and prompts for any
+permissions you still need:
+
+```sh
+kilde doctor
+```
+
+Then record your screen and system audio. Press Ctrl+C to stop and safely
+finalize the file:
+
+```sh
+kilde rec demo.mov
+```
+
+Use the other commands to discover capture targets, inspect a recording, and
+manage persistent recording defaults:
+
+```sh
+kilde devices      # List displays, windows, and audio devices
+kilde inspect FILE # Show tracks and audio levels in a recording
+kilde config show  # Show configured values and effective defaults
+```
+
+## Recording examples
+
+Record the whole screen (the default), or part of it. `--region` takes
+`x,y,w,h` in points with the origin at the top-left. Width and height are
+rounded down to even values for H.264; a region outside the display fails
+before recording starts (exit 1), and malformed or sub-2-point values are
+argument errors (exit 64). It cannot be combined with `--window`,
+`--no-video`, or `--preset meeting`:
+
+```sh
+# Whole screen + system audio (default)
 kilde rec demo.mov
 
-# 画面の一部だけを収録 (x,y,w,h のポイント座標、左上が原点)
-#   幅・高さは H.264 の制約で偶数に切り捨て。ディスプレイの範囲外は終了コード 1、
-#   形式不正や 2 ポイント未満はオプション検証エラー (64)
-#   --window / --no-video / --preset meeting とは併用不可
+# Part of the screen
 kilde rec --region 0,0,1280,720 demo.mov
-
-# 会議 (Zoom / Google Meet / Teams) を録画 — ウィンドウを選択し、
-# 相手の声 + 自分の声を 1 トラックにミックス
-kilde rec --preset meeting 会議.mov
-
-# マイクも同時録音
-kilde rec --audio system --audio mic out.mov
-
-# 音声のみ (M4A)
-kilde rec --no-video memo.m4a
-
-# 特定アプリの音声のみ (他アプリの音・通知音を除外)
-kilde rec --no-video --window zoom 会議.m4a
-
-# BlackHole 経由で「聞きながら録音」
-kilde rec --no-video --audio "device:BlackHole 2ch" --monitor 会議.m4a
-
-# ターミナルにフォーカスがなくても cmd+shift+r で開始 / 停止
-# 待機中の Ctrl+C はファイルを作らず終了 (--countdown との併用は不可)
-kilde rec --hotkey cmd+shift+r 会議.mov
-
-# 既定値を設定ファイル (~/.kilde/config.json) で変更
-#   KILDE_CONFIG_DIR で config.json と monitor-state.json の保存先を差し替え可能
-#   (絶対パスか ~ 始まりのみ。相対パスはエラー)
-#   優先順位: CLI 引数 > --preset > KILDE_OUTPUT_DIR > 設定ファイル > 既定値
-#   hotkey は --hotkey > 設定 hotkey > 待機モードなし
-#   不正な設定や存在しない保存先は、録画を始める前にエラー (終了コード 1)
-#   rec --fps 0 のような値の誤りはオプション検証エラー (終了コード 64)
-kilde config set outputDirectory ~/Movies/kilde
-kilde config set defaultAudioSources system,mic
-kilde config set showsCursor false   # その回だけ写したいときは kilde rec --cursor
-kilde config set hotkey cmd+shift+r  # rec を常にホットキー待機で起動
-kilde config show                    # 現在値と既定値 (unset <key> で既定に戻す / path でファイルの場所)
-
-kilde devices      # ディスプレイ / ウィンドウ / オーディオ機器の一覧
-kilde doctor       # 権限と環境の診断
-kilde inspect FILE # 録画ファイルのトラック構成と音声レベル
 ```
 
-## 開発
-
-- 開発手順 (ビルド・権限・テスト・トラブルシュート): [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
-- 公式リリースの Developer ID 署名・notarization: [docs/RELEASE.md](docs/RELEASE.md)
-- 設計: [docs/DESIGN.md](docs/DESIGN.md) / M0 検証結果: [docs/SPIKE-NOTES.md](docs/SPIKE-NOTES.md)
-- 統合テスト (ローカル・実録画): `scripts/integration-test.sh`
-  — 権限と音量が必要、所要 ~2 分
-
-## GUI (M3 開発中)
-
-メニューバーアプリ (`NSStatusItem` + `NSPopover` — macOS 26 で SwiftUI
-`MenuBarExtra` の `.window` パネルが開かないため AppKit で手動管理)。
-録画エンジンは CLI と同じ
-`KildeCore` をローカルパッケージ依存で共有する。`.xcodeproj` はコミットせず
-[XcodeGen](https://github.com/yonaskolb/XcodeGen) の `project.yml` から生成する:
+Record a Zoom, Google Meet, or Teams meeting. The meeting preset prompts you to
+choose a window, then mixes the other participants' system audio and your
+microphone into one track:
 
 ```sh
-brew install xcodegen   # 初回のみ
-cd gui && xcodegen
-open KildeGUI.xcodeproj # Xcode で KildeGUI スキームを Run
+kilde rec --preset meeting meeting.mov
 ```
 
-ビルドするとメニューバーに ● アイコンが出る。クリックして収録対象 (画面 /
-ウィンドウ / 音声のみ)・音声ソース・保存先を選び「録画開始」。録画中はメニューバーに
-経過時間、パネルにソース別のレベルメーターが出る。パネルを閉じても録画は続く。
-初期値は CLI と同じ `~/.kilde/config.json` から読む。
+Add a microphone explicitly, record audio only as M4A, or scope capture to a
+specific app window. `--window` accepts a partial title, bundle ID, or window ID
+match; use `kilde devices` to find available windows.
 
-## ロードマップ
+```sh
+# Screen + system audio + microphone
+kilde rec --audio system --audio mic out.mov
 
-- **M0** ✅ 技術スパイク (ScreenCaptureKit の音声経路の検証)
-- **M1** ✅ CLI MVP (`kilde rec / devices / doctor / audio monitor / inspect`)
-- **M2** グローバルホットキー ✅、領域指定の収録、一時停止/再開
-- **M3** メニューバー GUI アプリ (骨格 ✅ / 録画 UI ✅ / 権限オンボーディング・通知は今後)
+# Audio only
+kilde rec --no-video memo.m4a
 
-## コントリビューション
+# Only the audio from a matching Zoom window, excluding other apps
+kilde rec --no-video --window zoom meeting.m4a
+```
 
-バグ報告・機能要望・PR を歓迎します。[CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。
+To record through BlackHole while still hearing the audio, install BlackHole
+and use monitor mode. Monitor mode temporarily sets up and tears down the
+required multi-output device for the recording session.
 
-## ライセンス
+```sh
+brew install --cask blackhole-2ch
+kilde rec --no-video --audio "device:BlackHole 2ch" --monitor meeting.m4a
+```
+
+Start kilde in hotkey-waiting mode and use Cmd+Shift+R globally to start and
+stop recording. Pressing Ctrl+C while waiting exits without creating a file.
+`--hotkey` cannot be combined with `--countdown`.
+
+```sh
+kilde rec --hotkey cmd+shift+r meeting.mov
+```
+
+### Why is BlackHole not required?
+
+kilde uses ScreenCaptureKit's native system-audio capture, so ordinary screen
+and audio recording works without a virtual audio driver. BlackHole is only
+needed for specialized routing, such as monitor mode, where you want to listen
+to audio while recording it through another path.
+
+## Recording options and defaults
+
+By default, kilde captures display `0`, records `system` audio into a `mixed`
+audio track, uses the H.264 video codec, and includes the cursor. If no output
+path is supplied, it creates `kilde-yyyyMMdd-HHmmss.mov`, or an `.m4a` file in
+audio-only mode. Run `kilde rec --help` for the complete option list.
+
+Common options include:
+
+- `--display NUMBER` or `--window MATCH` to select the capture target
+- repeatable `--audio system|mic|device:NAME_OR_UID|none` to select audio sources
+- `--audio-tracks mixed|separate` to mix sources or preserve separate tracks
+- `--no-video`, `--monitor`, `--duration 30s`, `--codec h264|hevc|prores`, and
+  `--fps NUMBER`
+- `--cursor` or `--no-cursor`, `--countdown SECONDS`, `--preset meeting`, and
+  `--hotkey SHORTCUT`
+- `-o PATH` or `--output PATH` as an alternative to the positional output path
+
+## Configuration
+
+Persistent `rec` defaults are stored in `~/.kilde/config.json`. Manage them
+with `kilde config show|set|unset|path` rather than editing the file by hand.
+
+```sh
+kilde config set outputDirectory ~/Movies/kilde
+kilde config set defaultAudioSources system,mic
+kilde config set showsCursor false   # Use kilde rec --cursor to override it once
+kilde config set hotkey cmd+shift+r  # Always start rec in hotkey-waiting mode
+kilde config show
+kilde config unset hotkey
+kilde config path
+```
+
+The supported keys are `outputDirectory`, `defaultAudioSources`, `audioTracks`,
+`codec`, `fps`, `showsCursor`, and `hotkey`.
+
+Recording settings are resolved in this order, from highest to lowest priority:
+
+1. CLI arguments
+2. `--preset`
+3. Environment variables such as `KILDE_OUTPUT_DIR`
+4. The configuration file
+5. Built-in defaults
+
+The hotkey has its own equivalent order: `--hotkey`, then the configured
+`hotkey`, then no waiting mode.
+
+Set `KILDE_CONFIG_DIR` to relocate both `config.json` and
+`monitor-state.json`, which is useful for isolated environments and testing.
+Its value must be an absolute path or start with `~`; relative paths are
+rejected. Invalid configuration or a missing output directory fails before
+recording with exit status `1`.
+
+## Exit statuses
+
+| Status | Meaning |
+|---:|---|
+| `0` | Success, including a recording safely stopped by SIGINT, SIGTERM, or SIGHUP |
+| `1` | Other runtime failure, including invalid configuration |
+| `2` | Missing permission |
+| `3` | Display, window, or audio device not found |
+| `64` | Command-line parsing or option validation error, such as `rec --fps 0` |
+
+## Development
+
+- Official releases (Developer ID signing and notarization): [docs/RELEASE.md](docs/RELEASE.md)
+
+- Build, permissions, testing, and troubleshooting:
+  [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
+- Architecture and behavior: [docs/DESIGN.md](docs/DESIGN.md)
+- M0 spike results: [docs/SPIKE-NOTES.md](docs/SPIKE-NOTES.md)
+- Local integration tests with real recording: `scripts/integration-test.sh`
+  (requires permissions and audible speaker output; takes about two minutes)
+
+## GUI (M3 in progress)
+
+The menu bar app skeleton uses `NSStatusItem` and `NSPopover`. It is managed
+manually with AppKit because SwiftUI `MenuBarExtra` with a `.window` panel does
+not open on macOS 26. The app shares the same `KildeCore` recording engine as
+the CLI through a local package dependency. Generate the uncommitted Xcode
+project from `project.yml` with [XcodeGen](https://github.com/yonaskolb/XcodeGen):
+
+```sh
+brew install xcodegen   # First time only
+cd gui && xcodegen
+open KildeGUI.xcodeproj # Run the KildeGUI scheme in Xcode
+```
+
+After building, a ● icon appears in the menu bar. Click it to choose the
+capture target (screen / window / audio only), audio sources, and the output
+directory, then start recording. While recording, the menu bar shows the
+elapsed time and the panel shows per-source level meters. Closing the panel
+does not stop the recording. Initial values are read from the same
+`~/.kilde/config.json` as the CLI.
+
+## Roadmap
+
+- **M0** ✅ Technical spike: validated ScreenCaptureKit audio capture
+- **M1** ✅ CLI MVP: `kilde rec / devices / doctor / audio monitor / inspect`
+- **M2** Global hotkey ✅; region capture ✅; pause/resume
+- **M3** Menu bar GUI app: skeleton ✅ / recording UI ✅; permission
+  onboarding and notifications are upcoming
+
+## Contributing
+
+Bug reports, feature requests, and pull requests are welcome. See
+[CONTRIBUTING.md](CONTRIBUTING.md) to get started.
+
+## License
 
 [MIT License](LICENSE)
