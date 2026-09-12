@@ -1,0 +1,27 @@
+README.ja.md
+  s_35faeec28b4c4b::t_e7070df817b18c 120
+  s_35faeec28b4c4b::t_4cd87df582a909 162-164
+  s_35faeec28b4c4b::t_835a06b9d965f7 113-114
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_4b6e08fd9722a6 53-57
+  s_35faeec28b4c4b::t_103222951c099e 29
+README.md
+  s_35faeec28b4c4b::t_9cc190faff7e8e 208
+  s_35faeec28b4c4b::t_2564e25437d4b4 228-235
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "5db147f82038aa019532c48f3083f3126db8398f",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
