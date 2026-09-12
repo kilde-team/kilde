@@ -284,14 +284,6 @@ struct RecCommand: ParsableCommand {
             // controller.start() より前にシグナルの設置を済ませる — pthread_sigmask は
             // 呼び出しスレッド (メイン) しかブロックしないため、ホットキー監視等の
             // スレッドが生まれる前に窓を閉じておかないと、プロセス宛シグナルが
-            // ブロックされていない別スレッドへ配送されて SIG_IGN 破棄されうる
-            // (issue #67 の指摘)
-            installStopSignalHandler {
-                controller.requestStop()
-            }
-            // controller.start() より前にシグナルの設置を済ませる — pthread_sigmask は
-            // 呼び出しスレッド (メイン) しかブロックしないため、ホットキー監視等の
-            // スレッドが生まれる前に窓を閉じておかないと、プロセス宛シグナルが
             // ブロックされていない別スレッドへ配送されて SIG_IGN 破棄されうる (issue #67)
             installStopSignalHandler {
                 controller.requestStop()
