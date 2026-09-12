@@ -1,0 +1,71 @@
+gui/Sources/PermissionsModel.swift
+  s_6e1b71b77323e6::t_9e6bd97ffd58fc 18-19,23-43
+  s_6e1b71b77323e6::t_241390dd4cef64 48-49
+  s_6e1b71b77323e6::t_99d24a10a3c192 1-17,20-22,44-47,50-103
+gui/Sources/AppDelegate.swift
+  s_6e1b71b77323e6::t_e2c742040711c6 34
+  s_6e1b71b77323e6::t_6a26e30237c67b 52
+  s_6e1b71b77323e6::t_11aff6a021b742 19
+scripts/release/entitlements.plist
+  s_bfc5f143ffdc24::t_06a04b3dc1add3 1-8
+docs/DESIGN.md
+  s_6e1b71b77323e6::t_2362a9a4d3fbd6 419-427
+scripts/release/sign.sh
+  s_bfc5f143ffdc24::t_ac3d5158d5366c 154,165-168
+  s_bfc5f143ffdc24::t_06a04b3dc1add3 1-49,53-112,115-153,155-164,169-203,206-223
+  s_bfc5f143ffdc24::t_fb1a1494787ff5 113-114
+  s_34d31eef171f3f::t_669832b5a468a6 50-52
+  s_bfc5f143ffdc24::t_9c494cfe9a0348 204-205
+gui/Sources/SelfTest.swift
+  s_6e1b71b77323e6::t_7ac0663a693fd7 26,28-34
+  s_6e1b71b77323e6::t_5a4753b102fb91 166-206
+gui/Sources/ContentView.swift
+  s_6e1b71b77323e6::t_18eed10ace06bd 304,307-308
+  s_6e1b71b77323e6::t_706d2962703faa 312-319
+  s_6e1b71b77323e6::t_5ffef5080b894f 423-494
+  s_6e1b71b77323e6::t_6d53f5b74d9b90 56-60,62-64
+  s_6e1b71b77323e6::t_2a70ab91ad263d 12
+  s_6e1b71b77323e6::t_21a11f7c4c49a9 25-32
+.gitignore
+  s_bfc5f143ffdc24::t_9c494cfe9a0348 22
+docs/DEVELOPMENT.md
+  s_bfc5f143ffdc24::t_06a04b3dc1add3 58-60
+  s_6e1b71b77323e6::t_53bf0aa7f920f0 142-148
+  s_6e1b71b77323e6::t_82f1523641323e 176-183,186,188-189,208
+  s_6e1b71b77323e6::t_3831d21cbaf63a 184-185,187
+  s_6e1b71b77323e6::t_ffe0f5493fbfe5 190-195,200,202-203,207
+  s_6e1b71b77323e6::t_8ea12e968ae0d7 230-231
+  s_6e1b71b77323e6::t_cc2b42defe6e0c 196-199,201,204-205
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "b71a21524f27fc95793ccb2bbb3b6c66a66a7559",
+  "prompts": {},
+  "sessions": {
+    "s_34d31eef171f3f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2fe81784-1008-4b9f-8671-2ec2cf21a534",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    },
+    "s_6e1b71b77323e6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0f56a8e5-68cd-4330-8471-cbfa3a206358",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    },
+    "s_bfc5f143ffdc24": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09350-9942-7903-a80f-cf0d8a69a3ab",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
