@@ -76,8 +76,9 @@ public enum DisplayCatalog {
     /// SCWindow を解決する。windowID の完全一致を最優先し、無ければタイトル / bundleID の
     /// 部分一致 (複数ヒット時は面積が最大のもの)。
     /// Recorder のセッション (async) からのみ使うので async 版だけを持つ
-    /// 指定をまとめて解決する (issue #13)。指定ごとに resolveWindow と同じ規則で 1 つ選び、
-    /// 同じウィンドウが二重に入らないよう windowID で重複を除く。
+    /// 指定をまとめて解決する (issue #13)。指定ごとに 1 つのウィンドウを選び
+    /// (windowID の完全一致を最優先し、無ければタイトル / bundleID の部分一致で面積が最大のもの
+    /// — `resolve(_:in:)` の規則)、同じウィンドウが二重に入らないよう windowID で重複を除く。
     /// 列挙は 1 回にまとめる — 指定ごとに SCShareableContent.current を呼ぶと、その間の
     /// ウィンドウの開閉で指定どうしが食い違った一覧を見ることになる
     static func resolveWindows(matching matches: [String]) async throws -> [SCWindow] {
