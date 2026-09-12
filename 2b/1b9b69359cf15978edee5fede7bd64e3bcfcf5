@@ -1,0 +1,30 @@
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_428e4c58fc7de1 454-458,460
+  s_35faeec28b4c4b::t_32ab13c095d18a 462-481,483
+docs/DESIGN.md
+  s_35faeec28b4c4b::t_fab852262fc1b4 253
+  s_35faeec28b4c4b::t_5c399056038c7e 243
+Sources/kilde/RecCommand.swift
+  s_35faeec28b4c4b::t_acfb3e8ad9c2ff 19
+  s_35faeec28b4c4b::t_411f6811bd681e 83-87
+Sources/KildeCore/Recording/Recorder.swift
+  s_35faeec28b4c4b::t_ae8b5734e4fdd1 380
+  s_35faeec28b4c4b::t_6b619ac39fd7d5 366-374
+  s_35faeec28b4c4b::t_19112ddf4ed058 276-286
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "2b1b9b69359cf15978edee5fede7bd64e3bcfcf5",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
