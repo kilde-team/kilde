@@ -9,6 +9,10 @@ import Darwin
 /// 既存の signalSources と同じくファイルスコープに置く
 private var pauseKeyOriginalTermios: termios?
 
+/// 待機モード (--hotkey) で使う 'p' キー監視。onStarted の中からは触れないため
+/// ファイルスコープに置く (signalSources と同じ理由)
+private var pauseKeyWatcher: DispatchSourceRead?
+
 struct RecCommand: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "rec",
@@ -207,7 +211,10 @@ struct RecCommand: ParsableCommand {
             guard let recorder else { return }
             if recorder.isPaused { recorder.resume() } else { recorder.pause() }
         }
-        let pauseKey = startPauseKeyWatcher(recorder)
+        let pauseKey = startPauseKeyWatcher { [weak recorder] in
+            guard let recorder else { return }
+            if recorder.isPaused { recorder.resume() } else { recorder.pause() }
+        }
         defer { stopPauseKeyWatcher(pauseKey) }
 
         let result: Result<Recorder.Summary, Error>
@@ -248,11 +255,15 @@ struct RecCommand: ParsableCommand {
             installStopSignalHandler {
                 controller.requestStop()
             }
-            // 録画が始まっていなければ何もしない (待機中の SIGUSR1 は無視)
-            installPauseSignalHandler {
+            // 録画が始まっていなければ何もしない (待機中の SIGUSR1 と 'p' は無視)
+            let toggle = {
                 guard let recorder = activeRecorder else { return }
                 if recorder.isPaused { recorder.resume() } else { recorder.pause() }
             }
+            installPauseSignalHandler(toggle)
+            // 待機経路でも 'p' キーを使えるようにする (即時録画と操作を揃える)
+            pauseKeyWatcher = startPauseKeyWatcher(toggle)
+            defer { stopPauseKeyWatcher(pauseKeyWatcher); pauseKeyWatcher = nil }
             print("⏳ 待機中 — \(controller.normalizedHotkey) で開始 / Ctrl+C で終了")
             // stdout がファイルにリダイレクトされていると C stdio はフルバッファになり、
             // この後 RunLoop で無期限にブロックするため「待機中」が exit まで出ない。
@@ -276,6 +287,10 @@ struct RecCommand: ParsableCommand {
     }
 
     private func finish(recorder: Recorder, result: Result<Recorder.Summary, Error>) {
+        // この関数は Darwin.exit / cliError で戻らずに終わる経路があり、呼び出し元の
+        // defer が走らない。端末を raw mode のままにするとユーザーのシェルで
+        // エコーが効かなくなるため、ここで必ず戻す (二重復元は無害)
+        restorePauseKeyTerminal()
         print("")
         for warning in recorder.cleanupWarnings {
             FileHandle.standardError.write("WARNING: \(warning)\n".data(using: .utf8)!)
@@ -321,7 +336,7 @@ struct RecCommand: ParsableCommand {
     /// 録画中に stdin の 'p' で一時停止 / 再開する (issue #11)。
     /// stdin が端末でないとき (パイプ・リダイレクト・統合テスト) は何もしない —
     /// 端末以外を raw mode にしても入力は来ず、呼び出し元のシェルの端末設定を壊しかねないため
-    private func startPauseKeyWatcher(_ recorder: Recorder) -> DispatchSourceRead? {
+    private func startPauseKeyWatcher(_ toggle: @escaping () -> Void) -> DispatchSourceRead? {
         guard isatty(STDIN_FILENO) == 1 else { return nil }
         var original = termios()
         guard tcgetattr(STDIN_FILENO, &original) == 0 else { return nil }
@@ -332,11 +347,11 @@ struct RecCommand: ParsableCommand {
         pauseKeyOriginalTermios = original
         let src = DispatchSource.makeReadSource(fileDescriptor: STDIN_FILENO,
                                                 queue: DispatchQueue(label: "kilde.pausekey"))
-        src.setEventHandler { [weak recorder] in
+        src.setEventHandler {
             var ch: UInt8 = 0
-            guard read(STDIN_FILENO, &ch, 1) == 1, let recorder else { return }
+            guard read(STDIN_FILENO, &ch, 1) == 1 else { return }
             guard ch == UInt8(ascii: "p") || ch == UInt8(ascii: "P") else { return }
-            if recorder.isPaused { recorder.resume() } else { recorder.pause() }
+            toggle()
         }
         src.resume()
         return src
@@ -345,10 +360,14 @@ struct RecCommand: ParsableCommand {
     /// 端末の設定を必ず戻す (戻さないとシェルのエコーが効かないままになる)
     private func stopPauseKeyWatcher(_ source: DispatchSourceRead?) {
         source?.cancel()
-        if var original = pauseKeyOriginalTermios {
-            tcsetattr(STDIN_FILENO, TCSANOW, &original)
-            pauseKeyOriginalTermios = nil
-        }
+        restorePauseKeyTerminal()
+    }
+
+    /// raw mode にした端末を元に戻す。戻す設定が無ければ何もしない (冪等)
+    private func restorePauseKeyTerminal() {
+        guard var original = pauseKeyOriginalTermios else { return }
+        tcsetattr(STDIN_FILENO, TCSANOW, &original)
+        pauseKeyOriginalTermios = nil
     }
 
     private func startStatusTicker(_ recorder: Recorder, wantsVideo: Bool) -> DispatchSourceTimer {

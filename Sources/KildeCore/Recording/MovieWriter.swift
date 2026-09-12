@@ -187,7 +187,11 @@ final class MovieWriter {
     func addPauseGap(seconds: TimeInterval) {
         guard seconds > 0 else { return }
         lock.lock(); defer { lock.unlock() }
-        pauseOffset = CMTimeAdd(pauseOffset, CMTime(seconds: seconds, preferredTimescale: 600))
+        // AudioMixer.advanceAnchor と同じ 48kHz の刻みで積む。600 で量子化すると
+        // writer と mixer の補正量が食い違い、小数ミリ秒の一時停止を繰り返すたびに
+        // A/V のずれが蓄積する
+        pauseOffset = CMTimeAdd(pauseOffset, CMTime(seconds: seconds,
+                                                    preferredTimescale: CMTimeScale(AudioMixer.sampleRate)))
     }
 
     /// サンプルの PTS / DTS を offset だけ手前にずらしたコピーを返す (lock 保持中に呼ぶ)。
