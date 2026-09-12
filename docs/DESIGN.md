@@ -220,6 +220,9 @@ SCStream(contentFilter, configuration)
   `finishWriting` を待ってから終了する。**プロセス異常終了時を除き、
   ファイルが壊れた状態で残らないこと**を最優先要件とする。
 - `--duration 30s` での自動停止も同じ経路を通る。
+- 映像ありモードで停止までに映像を 1 フレームも取得できなかった場合は、空の出力を
+  cancel・削除して終了コード 1 で失敗する。ディスプレイの消灯・ロック中に開始すると
+  SCK が映像を出さないことがあるため、ファイルのない空振りを成功扱いしない。
 
 ## 6. CLI 仕様
 
@@ -330,6 +333,8 @@ kilde rec --hotkey cmd+shift+r out.mov
 ### コンソール出力
 
 - 録画中: `REC mm:ss | ファイルサイズ | ソース別ピーク` を 0.5 秒ごとに 1 行で更新する。
+  映像ありモードで開始から 10 秒間映像フレームが来なければ、消灯・ロックの可能性を
+  stderr に 1 回だけ警告する。
 - 停止後: 映像・音声トラックごとの appended / dropped 件数、映像との first-PTS 差
   (mixed ではトラックが `mixed` の 1 本なのでソース別には出ない)、
   ファイルパスとサイズ、解像度と長さ、音声トラックごとの RMS / peak を出力する。
@@ -341,7 +346,7 @@ kilde rec --hotkey cmd+shift+r out.mov
 | コード | 意味 |
 |-------|------|
 | `0` | 成功。**Ctrl+C / SIGTERM / SIGHUP / `--duration` による停止も、ファイナライズが完了すれば 0** |
-| `1` | その他の失敗 (`KilError.failed`: ファイナライズ失敗、monitor の復元失敗、meeting の選択中止など) |
+| `1` | その他の失敗 (`KilError.failed`: ファイナライズ失敗、映像ありモードの 0 フレーム、monitor の復元失敗、meeting の選択中止など) |
 | `2` | 権限不足 (画面収録 / マイク) |
 | `3` | デバイス・ウィンドウ・ディスプレイが見つからない (BlackHole 未導入を含む) |
 | `64` | 引数・オプションの検証エラー (swift-argument-parser の既定。`validate()` の `ValidationError` と未知のオプション) |
