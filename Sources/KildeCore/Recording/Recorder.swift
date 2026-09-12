@@ -354,9 +354,18 @@ public final class Recorder {
             if let match = options.windowMatch {
                 let win = try await DisplayCatalog.resolveWindow(matching: match)
                 if options.wantsVideo {
-                    cfg.width = Int(win.frame.width)
-                    cfg.height = Int(win.frame.height)
-                    videoSize = CGSize(width: win.frame.width, height: win.frame.height)
+                    // 4:2:0 のクロマ面は w/2 × h/2 なので、幅・高さとも偶数でないと作れない。
+                    // ウィンドウは 1 ポイント単位でリサイズできるので普通に奇数になる —
+                    // BGRA は任意サイズに耐えていたので、420v にして初めて効く制約 (issue #15)
+                    let (w, h) = Self.evenSize(win.frame.size)
+                    guard w >= 2, h >= 2 else {
+                        throw KilError.failed(
+                            "ウィンドウが小さすぎて収録できません "
+                            + "(\(Int(win.frame.width))x\(Int(win.frame.height))、2x2 以上が必要)")
+                    }
+                    cfg.width = w
+                    cfg.height = h
+                    videoSize = CGSize(width: w, height: h)
                 }
                 filter = SCContentFilter(desktopIndependentWindow: win)
             } else {
@@ -392,9 +401,17 @@ public final class Recorder {
                         cfg.height = h
                         videoSize = CGSize(width: w, height: h)
                     } else {
-                        cfg.width = Int(display.width)
-                        cfg.height = Int(display.height)
-                        videoSize = CGSize(width: display.width, height: display.height)
+                        // ディスプレイ全体も偶数へ丸める — Retina の非整数スケーリングでは
+                        // 奇数ピクセルになりうるため (4:2:0 の制約。上の evenSize を参照)
+                        let (w, h) = Self.evenSize(
+                            CGSize(width: display.width, height: display.height))
+                        guard w >= 2, h >= 2 else {
+                            throw KilError.failed(
+                                "ディスプレイが小さすぎて収録できません (\(display.width)x\(display.height))")
+                        }
+                        cfg.width = w
+                        cfg.height = h
+                        videoSize = CGSize(width: w, height: h)
                     }
                 }
                 filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
@@ -546,6 +563,14 @@ public final class Recorder {
     /// 経過時間・出力サイズ・レベルは progress() と同じ計算経路を使う。
     /// チェックから yield までのわずかな競合窓は残るが、sleep 起き直し後の
     /// isCancelled と recording 状態の二重チェックで実質的に finalizing 以降には流さない
+    /// 4:2:0 のクロマ面は w/2 × h/2 なので、幅・高さとも偶数でなければ作れない (issue #15)。
+    /// BGRA は任意サイズに耐えていたため、H.264 / HEVC を 420v で受けるようにして
+    /// 初めて効くようになった制約。ウィンドウは 1 ポイント単位でリサイズでき、
+    /// ディスプレイも Retina の非整数スケーリングで奇数になりうるので、両方で丸める
+    private static func evenSize(_ size: CGSize) -> (width: Int, height: Int) {
+        (Int(size.width) & ~1, Int(size.height) & ~1)
+    }
+
     private func startProgressEmissionIfNeeded() -> Task<Void, Never> {
         lock.lock()
         let emits = emitsProgressEvents

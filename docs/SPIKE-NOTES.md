@@ -232,11 +232,15 @@ PSNR 15 dB という「差がある」ように見える値が出たが、同条
    を既定に。BlackHole は `--audio device:...` + `--monitor` のオプション経路。
 2. `--preset meeting` = ウィンドウ単位 + システム (スコープ済み) 音声 + マイク + ミックス。
 3. `kilde audio monitor` は stacked フラグを使う。非公開キー依存の切り出し。
-4. 映像: pixelFormat BGRA 指定 + AVAssetWriter 幅/高さ明示。
+4. 映像: pixelFormat は**コーデックのクロマに合わせて出し分ける** — H.264 / HEVC は
+   420v、ProRes のみ BGRA (F-G。当初は一律 BGRA としていたが issue #15 で改めた)
+   + AVAssetWriter 幅/高さ明示。
 5. CLI 起動時に NSApplication accessory 初期化。
 6. マイクは SCK より先に開始。
 7. 残課題: (a) 旧 OS (13/14/15) での S8/S9 挙動、(b) 長時間ドリフト、
-   (c) S10 会議アプリ実地検証、(d) SCK 圧縮フレーム passthrough の検討。
+   (c) S10 会議アプリ実地検証。
+   ~~(d) SCK 圧縮フレーム passthrough の検討~~ → **issue #15 で不成立と判明** (F-G)。
+   SCK は圧縮フレームを渡さないため、この課題は消滅した。
 
 ## 生成物
 

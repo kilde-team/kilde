@@ -245,7 +245,8 @@ scripts/integration-test.sh
 | T12 | 設定ファイル — `outputDirectory` が既定の保存先になる / 存在しない保存先は録画前に exit 1 |
 | T13 | `rec --hotkey` — 待機中の SIGINT は録画を始めず exit 0 (ホットキーの押下自体は目視確認) |
 | T14 | `rec --region` — 指定した矩形の解像度で録れる / 奇数は偶数へ切り捨て / 範囲外は録画前に exit 1 / 形式不正は exit 64 |
-| T19 | `rec --codec prores` / `--codec hevc` — コーデック別のピクセル形式 (prores は BGRA、hevc は 420v) の両経路で録れる。`SCStreamConfiguration` は単体テストから触れないため、ここで担保する |
+| T19 | `rec --codec prores` — ProRes (BGRA 経路) で録れる |
+| T19b | `rec --codec hevc` — HEVC (420v 経路) で録れる。`SCStreamConfiguration` は単体テストから触れないため、両経路をここで通す |
 
 作業ディレクトリ (録画物とログ) は失敗調査のため削除されず、最後に
 パスが表示されます。
