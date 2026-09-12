@@ -400,8 +400,11 @@ public final class Recorder {
                 filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
             }
             if options.wantsVideo {
-                // AVAssetWriter で再圧縮するため非圧縮 BGRA を要求 (SPIKE-NOTES F-D.1)
-                cfg.pixelFormat = kCVPixelFormatType_32BGRA
+                // 非圧縮のピクセル形式を明示する (既定に任せない — SPIKE-NOTES F-D.1)。
+                // BGRA ではなく 4:2:0 YUV にしているのは、H.264 / HEVC のエンコーダ入力が
+                // どのみち 4:2:0 だから。BGRA を渡すと色変換が 1 回余計に入り、実測で
+                // CPU が -24%、うち sys はほぼ半減する (SPIKE-NOTES F-G)
+                cfg.pixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
             }
             let mode: ScreenAudioStream.Mode = options.wantsVideo ? .screenAndAudio : .audioOnly
             sck = try ScreenAudioStream(filter: filter, configuration: cfg, mode: mode) { [weak self] sb, type in

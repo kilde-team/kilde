@@ -65,9 +65,12 @@ let desc: [String: Any] = [
 
 ### F-D: macOS 26 の API/挙動メモ (実装上の注意)
 
-1. **SCK は既定で圧縮済みフレームを渡す**。AVAssetWriter で再圧縮するなら
-   `configuration.pixelFormat = kCVPixelFormatType_32BGRA` で非圧縮を要求する。
-   (逆に SCK 圧縮フレームを passthrough すれば無再エンコード録画の可能性 — M1 で検討)
+1. ~~**SCK は既定で圧縮済みフレームを渡す**~~ — **この記述は誤り (issue #15 で訂正)。**
+   SCK は圧縮フレームを渡さない。`pixelFormat` を指定しない既定でも
+   `420v` (非圧縮 8-bit 4:2:0 YUV) の **pixel buffer** が届き、block buffer は空である。
+   したがって「圧縮フレームの passthrough による無再エンコード録画」は成立しない。
+   ピクセル形式は既定に頼らず明示する方針は変えず、値は BGRA ではなく
+   `kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange` を使う (根拠は F-G)。
 2. **AVAssetWriterInput の video outputSettings に幅・高さが必須**
    (`AVVideoWidthKey/AVVideoHeightKey` がないと NSInvalidArgumentException でクラッシュ)。
 3. **CLI でも NSApplication の初期化が必要**: `NSApplication.shared` +
@@ -167,6 +170,52 @@ mic 側は音響経路のあるマイクか、BlackHole ループバックで行
 - 傾きをそのまま線形外挿すると 30 分で約 −25 ms、**1 時間では約 −49 ms となり許容 ±40 ms を超えうる**。
   ただしこの傾きはマーカーごとの変動幅 (23〜31 ms) に埋もれる水準なので、外挿の確度は高くない。
   判定の基準は 15 分の計測 (issue #3) であり、1 時間級の会議録画で補正が要るかは実測で確かめること
+
+### F-G: SCK の圧縮フレーム passthrough は不成立、代わりに 420v で CPU −24% (issue #15)
+
+**結論: 「SCK の圧縮フレームをそのまま書く」構想は成立しない。** F-D.1 の前提が誤りだった。
+実測すると、`pixelFormat` を指定しない既定でも SCK が渡すのは `420v`
+(非圧縮 8-bit 4:2:0 YUV) の **pixel buffer** で、block buffer は空である:
+
+| `pixelFormat` の指定 | 届いた形式 | pixelBuffer | blockBuffer |
+|---------------------|-----------|-------------|-------------|
+| 未指定 (既定) | `420v` | あり | 空 |
+| `kCVPixelFormatType_32BGRA` | `BGRA` | あり | 空 |
+| `kCVPixelFormatType_ARGB2101010LEPacked` | `l10r` | あり | 空 |
+
+代わりに**ピクセル形式を BGRA から 420v へ変えると CPU が下がる**。H.264 / HEVC の
+エンコーダ入力はどのみち 4:2:0 YUV なので、BGRA を渡すと色変換が 1 回余計に入るため。
+
+計測 (2560x1440・30fps 固定・10 秒・5 巡・順序バイアスを避けて交互に実行):
+
+| 条件 | user | sys | user+sys (中央値) |
+|------|------|-----|-------------------|
+| BGRA (旧) | 0.25–0.29 | 0.23–0.28 | **0.50 s** |
+| 420v (現行) | 0.22–0.25 | 0.12–0.13 | **0.38 s** |
+
+**CPU 合計 −24%、`sys` はほぼ半減。5 巡すべてで 420v が軽い。**
+
+画質は実用上同等。静止した単一ウィンドウ (白背景に細い有彩色の文字と 1px 罫線 —
+クロマ間引きの差が最も出る素材) を両経路の実バイナリで録り、同一地点のフレームを比較:
+
+| 比較 | PSNR | SSIM |
+|------|------|------|
+| BGRA vs BGRA (ベースライン) | 68.4 dB | — |
+| BGRA vs 420v | **47.6 dB** | **0.9998** |
+
+差はゼロではない (クロマの間引きを VideoToolbox がやるか SCK がやるかで、
+ダウンサンプルの方式が違う) が、47 dB は拡大しても判別が困難な水準である。
+
+**計測手順の注意 — ベースラインを必ず取ること。** 最初に画面全体を録って比べたときは
+PSNR 15 dB という「差がある」ように見える値が出たが、同条件どうし (BGRA vs BGRA) の
+ベースラインも 16 dB だった。原因は画面が静止していなかったこと (計測スクリプト自身の
+出力でターミナルが描画され続けていた)。ベースラインを取らずに条件間だけを見ると、
+ノイズを色変換の差と誤読する。単一の静止ウィンドウに切り替えて初めて 68 dB になった。
+
+**`SCRecordingOutput` (macOS 15+) は採用しない。** 対応コーデックは `avc1` / `hvc1`、
+コンテナは MP4 / MOV と十分だが、録る内容が SCStream の設定に縛られるため
+`AudioMixer` を挟めない。kilde の中核である「システム音声 + マイクを 1 トラックに合成」
+「`--audio-tracks separate`」が実現できないので、この経路は使わない。
 
 ## M1 への反映
 
