@@ -1,0 +1,75 @@
+docs/DESIGN.md
+  s_35faeec28b4c4b::t_94abdc59b945e3 255
+  s_35faeec28b4c4b::t_34c861db7afd82 257
+  s_35faeec28b4c4b::t_6249e131bca4e9 256
+Sources/kilde/RecCommand.swift
+  s_35faeec28b4c4b::t_0b8ba8864c0b66 250-251
+  s_35faeec28b4c4b::t_942bdb50db91e0 241,244
+  s_35faeec28b4c4b::t_40623bd6d15298 25-27,29
+  s_35faeec28b4c4b::t_309bb53d54156c 110
+  s_35faeec28b4c4b::t_f829962d0cc170 28
+  s_35faeec28b4c4b::t_98bc633d1c47ea 123-140
+docs/DEVELOPMENT.md
+  s_35faeec28b4c4b::t_2a4c6e6975bcf1 294
+Sources/KildeCore/Recording/Recorder.swift
+  s_35faeec28b4c4b::t_cfd4524b01ad43 432,436-443
+  s_35faeec28b4c4b::t_7ba401f426bcc7 46-51,53
+  s_35faeec28b4c4b::t_ca768c35af1556 537-539
+  s_35faeec28b4c4b::t_78454346f79818 541
+  s_35faeec28b4c4b::t_9c22678260e34d 556-561,563-566
+  s_35faeec28b4c4b::t_803d4dd9635951 630-633
+  s_35faeec28b4c4b::t_9743da6bc74897 533-536,540,544-555,567-579,581
+Sources/kilde/DevicesCommand.swift
+  s_35faeec28b4c4b::t_e5df967f54869e 23-25,38-41
+  s_35faeec28b4c4b::t_7072a21b6818f8 26-32
+  s_35faeec28b4c4b::t_f9f7144772ec63 33-37
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_4c70ff48ebe89c 34-35
+  s_35faeec28b4c4b::t_82804e64e9c006 760-803,805-818,822,824-827,832,834-838,840,863-865,869-871,875,877-900
+  s_35faeec28b4c4b::t_e932009ccc1206 804
+  s_35faeec28b4c4b::t_ae49a1dd8313ab 828-831,833
+  s_35faeec28b4c4b::t_34941da7182ab5 841-844,851-862
+  s_35faeec28b4c4b::t_d05840cb62c022 819-821,823
+  s_35faeec28b4c4b::t_92db8be05f8883 866-868,872-874,876
+  s_35faeec28b4c4b::t_8b16e71714e410 839
+  s_34d31eef171f3f::t_554222445ff503 901
+  s_35faeec28b4c4b::t_1e1a7c10f0aeb9 845-850
+Tests/KildeCoreTests/RecordRequestTests.swift
+  s_35faeec28b4c4b::t_e7b102dd441201 24
+  s_35faeec28b4c4b::t_813292861c58ab 37
+Sources/KildeCore/Recording/RecordRequest.swift
+  s_35faeec28b4c4b::t_a5186122daecd9 79
+Sources/KildeCore/Devices/DisplayCatalog.swift
+  s_35faeec28b4c4b::t_f1932825057cce 82-85,87-102,108,111-113,115-118
+  s_35faeec28b4c4b::t_c0ae446eddf8e5 79-81
+  s_35faeec28b4c4b::t_c4648ac6b85431 103-107,109-110,114
+README.md
+  s_35faeec28b4c4b::t_4d57e6382e5fbe 117-123
+docs/SPIKE-NOTES.md
+  s_35faeec28b4c4b::t_0bde298b30d269 174-198
+  s_35faeec28b4c4b::t_8251380201228f 199-208
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "9dad227dded691531e55526011f13d57c32071b1",
+  "prompts": {},
+  "sessions": {
+    "s_34d31eef171f3f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2fe81784-1008-4b9f-8671-2ec2cf21a534",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    },
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
