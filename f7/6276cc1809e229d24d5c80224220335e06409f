@@ -1,0 +1,71 @@
+CLAUDE.md
+  s_35faeec28b4c4b::t_51a2475855cd8d 125-129
+  s_35faeec28b4c4b::t_631ccceb1afedf 170-180
+Tests/KildeCoreTests/HDRDecisionTests.swift
+  s_35faeec28b4c4b::t_fcba91af526887 1-76
+Sources/kilde/RecCommand.swift
+  s_35faeec28b4c4b::t_7f3aa633b6b814 154-160
+  s_35faeec28b4c4b::t_cd241bc2067e07 401-405
+  s_35faeec28b4c4b::t_28cbe898689d2a 151-153,161
+  s_35faeec28b4c4b::t_f724611448b0c0 188
+  s_35faeec28b4c4b::t_f7b8668ddf8eac 114-123
+  s_35faeec28b4c4b::t_7cb053810b96ec 54-56
+  s_35faeec28b4c4b::t_260c8be1b48166 189
+docs/SPIKE-NOTES.md
+  s_35faeec28b4c4b::t_41bfbeb11e1092 171-208
+Sources/KildeCore/Recording/Recorder.swift
+  s_35faeec28b4c4b::t_9dd153f45dfef4 44-47
+  s_35faeec28b4c4b::t_531aa9c7ed73c6 105-107
+  s_35faeec28b4c4b::t_66a6e2798d4ee1 40-43
+  s_35faeec28b4c4b::t_6eb035f34ec162 391
+  s_35faeec28b4c4b::t_7ee1e3442f85bc 131-133
+  s_35faeec28b4c4b::t_8f7cdd7338bee1 48-54
+  s_35faeec28b4c4b::t_c20bec812e4077 370-384,386-388,390,396-399,408,416
+  s_35faeec28b4c4b::t_6fa6cb50a930c9 385,389
+  s_35faeec28b4c4b::t_91c577c56a59f2 392-395
+  s_35faeec28b4c4b::t_4365d9b7c277c9 455
+  s_35faeec28b4c4b::t_b1a2bfff44d760 456-459
+  s_35faeec28b4c4b::t_7d74668a537a55 483
+  s_35faeec28b4c4b::t_62b18fb22e3490 623-625,630-638
+  s_35faeec28b4c4b::t_ea2cd334c72d3c 680-681,683
+  s_35faeec28b4c4b::t_2ffa39413668f7 672-679,687-701
+  s_35faeec28b4c4b::t_981e0cd1ab9f60 639,645
+  s_35faeec28b4c4b::t_aea543ba306ff8 608,610-611,659-660,702-704
+  s_35faeec28b4c4b::t_4f246410a7aae9 108-111
+  s_35faeec28b4c4b::t_c06f05ea9a2ea3 650
+  s_35faeec28b4c4b::t_751fd3b77d3769 466-474
+  s_35faeec28b4c4b::t_0346a53c4152fd 578-579
+  s_35faeec28b4c4b::t_9404f1e479f80d 601-607,609,612-622,626-629,640-644,646-649,651-658,661-671,682,684-686,705
+docs/DESIGN.md
+  s_35faeec28b4c4b::t_533744b6ffc35a 257
+Sources/KildeCore/Recording/MovieWriter.swift
+  s_35faeec28b4c4b::t_67a7a0b343bf9b 64-65
+  s_35faeec28b4c4b::t_ada765c793aca1 13-28,34-35,37-40
+  s_35faeec28b4c4b::t_8f29e830d4f30c 5-7
+  s_35faeec28b4c4b::t_0eda4c7d26c6ee 29-33,36
+  s_35faeec28b4c4b::t_ac4aceee64c129 94,101-103,105,107
+  s_35faeec28b4c4b::t_4af482231c62ad 95-100,104,106,108-113
+docs/DEVELOPMENT.md
+  s_35faeec28b4c4b::t_e36362a3ab553d 256-266,271,283,288
+  s_35faeec28b4c4b::t_1a65d48438645b 267-270,272-282,284-287
+README.md
+  s_35faeec28b4c4b::t_76489b4a6dac66 67-70
+Sources/KildeCore/Devices/DisplayHDR.swift
+  s_35faeec28b4c4b::t_f2a0f3ff2febdd 1-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "f76276cc1809e229d24d5c80224220335e06409f",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
