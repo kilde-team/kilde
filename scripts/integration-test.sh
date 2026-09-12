@@ -563,16 +563,36 @@ if [ -n "$SECOND" ]; then
         SIZE=$(inspect "$F" | grep '^video:' | grep -oE '[0-9]+x[0-9]+' | head -1)
         # 複数ウィンドウはディスプレイ座標系のまま合成されるので、出力はディスプレイ全体の大きさ
         DISP=$("$KILDE" devices --no-windows 2>/dev/null | grep -oE '[0-9]+x[0-9]+' | head -1)
-        if [ -n "$SIZE" ] && [ "$SIZE" = "$DISP" ]; then
-            ok "T17b window 複数: ディスプレイ全体の大きさで録れる ($SIZE)"
+        # 音声スコープが複数指定でも効くこと (含めた音源アプリの音が入る)
+        RMS=$(rms_of "$F")
+        if [ -n "$SIZE" ] && [ "$SIZE" = "$DISP" ] && rms_above "$F" 0.005; then
+            ok "T17b window 複数: ディスプレイ全体の大きさで録れ、対象アプリの音も入る ($SIZE rms=$RMS)"
         else
-            bad "T17b window 複数: 解像度=$SIZE (ディスプレイの $DISP が必要) — $WORK/t17b.log"
+            bad "T17b window 複数: 解像度=$SIZE (ディスプレイの $DISP が必要) rms=$RMS — $WORK/t17b.log"
         fi
     else
         bad "T17b window 複数: コマンド失敗 — $WORK/t17b.log"
     fi
 else
     skip "T17b window 複数: 2 つ目に使える無関係ウィンドウが見つからない"
+fi
+
+# 陽性だけだと「常に音が入る」実装でも通ってしまうので、音源を外した指定で無音を確かめる
+log "T17b2: rec --window 複数指定 — 含めなかったアプリの音は入らない (陰性確認)"
+F="$WORK/t17b2-multi-negative.mov"
+if [ -n "$SECOND" ]; then
+    if "$KILDE" rec --window "$SECOND" --window Menubar --duration 3s --output "$F" > "$WORK/t17b2.log" 2>&1; then
+        RMS=$(rms_of "$F")
+        if awk -v v="${RMS:-1}" 'BEGIN{exit !(v < 0.00005)}'; then
+            ok "T17b2 window 複数 陰性: 含めなかったアプリの音は入らない (rms=$RMS)"
+        else
+            bad "T17b2 window 複数 陰性: 音が混入した (rms=$RMS) — 音声スコープが複数指定で効いていない"
+        fi
+    else
+        bad "T17b2 window 複数 陰性: コマンド失敗 — $WORK/t17b2.log"
+    fi
+else
+    skip "T17b2 window 複数 陰性: 2 つ目に使える無関係ウィンドウが見つからない"
 fi
 stop_excl_app
 
