@@ -200,7 +200,7 @@ struct RecCommand: ParsableCommand {
 
         let result: Result<Recorder.Summary, Error>
         print("● 録画\(!options.wantsVideo ? " (音声のみ)" : "") → \(options.outputURL!.path)  (Ctrl+C で停止)")
-        let ticker = startStatusTicker(recorder)
+        let ticker = startStatusTicker(recorder, wantsVideo: options.wantsVideo)
         result = Result { try recorder.run() }
         ticker.cancel()
         finish(recorder: recorder, result: result)
@@ -219,7 +219,7 @@ struct RecCommand: ParsableCommand {
                 environment: ProcessInfo.processInfo.environment,
                 onStarted: { recorder, startedOptions, normalized in
                     print("● 録画\(!startedOptions.wantsVideo ? " (音声のみ)" : "") → \(startedOptions.outputURL!.path)  (Ctrl+C / \(normalized) で停止)")
-                    ticker = startStatusTicker(recorder)
+                    ticker = startStatusTicker(recorder, wantsVideo: startedOptions.wantsVideo)
                 },
                 onFinished: { result in
                     ticker?.cancel()
@@ -296,12 +296,18 @@ struct RecCommand: ParsableCommand {
         throw KilError.failed("有効なウィンドウ番号が入力されませんでした (--window で直接指定もできます)")
     }
 
-    private func startStatusTicker(_ recorder: Recorder) -> DispatchSourceTimer {
+    private func startStatusTicker(_ recorder: Recorder, wantsVideo: Bool) -> DispatchSourceTimer {
         let q = DispatchQueue(label: "kilde.status")
         let timer = DispatchSource.makeTimerSource(queue: q)
+        var warnedNoVideoFrames = false
         timer.schedule(deadline: .now() + 0.5, repeating: 0.5)
         timer.setEventHandler {
             guard let p = recorder.progress() else { return }
+            if wantsVideo && !warnedNoVideoFrames && p.elapsed >= 10 && p.videoAppended == 0 {
+                warnedNoVideoFrames = true
+                let warning = "WARNING: 開始から 10 秒間映像フレームが来ていません。ディスプレイの消灯/ロック中の可能性があります\n"
+                FileHandle.standardError.write(warning.data(using: .utf8)!)
+            }
             let m = Int(p.elapsed) / 60
             let s = Int(p.elapsed) % 60
             let size = ByteCountFormatter.string(fromByteCount: p.outputBytes, countStyle: .file)

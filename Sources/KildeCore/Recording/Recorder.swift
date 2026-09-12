@@ -439,6 +439,17 @@ public final class Recorder {
                 w.appendAudio(chunk, label: "mixed")
             }
         }
+        do {
+            try Self.validateVideoFrameCount(
+                wantsVideo: options.wantsVideo,
+                videoAppended: w.videoAppended
+            )
+        } catch {
+            // 映像アンカーが立たない空振りを成功扱いせず、空の出力も残さない。
+            // finishWriting ではなく cancel 経路にすることで未成立セッションを閉じる
+            w.cancel(removingOutput: true)
+            throw error
+        }
         try await w.finish()
 
         return Summary(
@@ -450,6 +461,16 @@ public final class Recorder {
             firstPTSOffsets: w.firstPTSOffsets,
             mixedDecodeFailures: mixer?.decodeFailures ?? 0
         )
+    }
+
+    /// 映像ありモードでは、停止までに 1 フレームも書けなければ録画不成立とする。
+    /// 純粋な判定として切り出し、権限や実ディスプレイなしでも回帰テストできるようにする
+    static func validateVideoFrameCount(wantsVideo: Bool, videoAppended: Int) throws {
+        guard !wantsVideo || videoAppended > 0 else {
+            throw KilError.failed(
+                "録画が 1 フレームも取得できませんでした — ディスプレイの消灯・ロック中に開始した可能性があります。画面を表示した状態で再実行してください"
+            )
+        }
     }
 
     /// recording 中 0.5 秒周期で progress イベントを流ぶ (GUI 向け)。

@@ -187,4 +187,23 @@ final class RecorderEventTests: XCTestCase {
         // 二重起動していても遷移列が二重になることはない
         XCTAssertEqual(events.compactMap(\.state), [.preparing, .armed, .recording, .finalizing, .done])
     }
+
+    /// 実ストリームを必要としない純粋判定で、映像ありの 0 フレームだけを失敗にする。
+    /// 音声のみは映像アンカーを使わないため、同じ 0 件でも成功対象のままにする
+    func testVideoFrameValidationRejectsOnlyVideoSessionWithNoFrames() throws {
+        XCTAssertNoThrow(
+            try Recorder.validateVideoFrameCount(wantsVideo: false, videoAppended: 0)
+        )
+        XCTAssertNoThrow(
+            try Recorder.validateVideoFrameCount(wantsVideo: true, videoAppended: 1)
+        )
+        XCTAssertThrowsError(
+            try Recorder.validateVideoFrameCount(wantsVideo: true, videoAppended: 0)
+        ) { error in
+            guard case KilError.failed(let message) = error else {
+                return XCTFail("KilError.failed ではありません: \(error)")
+            }
+            XCTAssertTrue(message.contains("1 フレームも取得できませんでした"))
+        }
+    }
 }

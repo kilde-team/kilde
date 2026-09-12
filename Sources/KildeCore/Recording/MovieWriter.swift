@@ -163,9 +163,13 @@ final class MovieWriter {
         writer.startSession(atSourceTime: t)
     }
 
-    /// セッション開始前に中断するときの後始末
-    func cancel() {
+    /// セッション開始前に中断するときの後始末。
+    /// 映像が 1 フレームも来なかった場合は成功と誤認できる空ファイルを残さない。
+    func cancel(removingOutput: Bool = false) {
         writer.cancelWriting()
+        if removingOutput {
+            try? FileManager.default.removeItem(at: url)
+        }
     }
 
     /// SCK の映像バッファは duration が無効のことがあるため 1/600s を与え直す
