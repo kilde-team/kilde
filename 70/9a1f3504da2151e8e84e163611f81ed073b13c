@@ -1,0 +1,21 @@
+Sources/kilde/RecCommand.swift
+  s_35faeec28b4c4b::t_6936d94c1f4f34 96-101
+Sources/KildeCore/Recording/Recorder.swift
+  s_35faeec28b4c4b::t_c78528dc7aa9ff 326-336
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "709a1f3504da2151e8e84e163611f81ed073b13c",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
