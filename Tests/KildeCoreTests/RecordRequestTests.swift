@@ -78,15 +78,18 @@ final class RecordRequestTests: XCTestCase {
     }
 
     /// 既定名は秒までしか持たないので、止めてすぐ録り直すと同じ名前になる。
-    /// そのまま渡すと MovieWriter が既存ファイルを消すため、空いている名前を選ぶ
+    /// そのまま渡すと MovieWriter が既存ファイルを消すため、原子的な予約で別名を取る
     func testDoesNotReuseAnExistingOutputPath() throws {
         let request = RecordRequest(outputDirectory: dir)
         let first = try XCTUnwrap(try request.makeOptions(config: KildeConfig()).outputURL)
+        // 1 回目の予約済みファイルを実データで置き換える (前の録画の残骸の代わり)
         FileManager.default.createFile(atPath: first.path, contents: Data("x".utf8))
 
         let second = try XCTUnwrap(try request.makeOptions(config: KildeConfig()).outputURL)
         XCTAssertNotEqual(second.path, first.path)
-        XCTAssertFalse(FileManager.default.fileExists(atPath: second.path))
+        // 予約は 0 バイトのファイルを作る — 存在そのものは正常 (waiting なトークン)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: second.path))
+        XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: second.path)[.size] as? Int, 0)
         XCTAssertEqual(second.deletingLastPathComponent().path, dir.path)
         XCTAssertEqual(second.pathExtension, "mov")
     }
@@ -94,22 +97,24 @@ final class RecordRequestTests: XCTestCase {
     /// 連番も埋まっていたら、既存名を返さずに失敗する (返すと MovieWriter が既存録画を消す)
     func testFailsWhenEveryCandidateNameIsTaken() throws {
         // 既定名は実時刻 (秒) なので、呼び出しの合間に秒が繰り上がるとテストが不安定になる。
-        // base 名を固定して決定的にする
-        let base = "kilde-20260101-000000.mov"
-        let stem = (base as NSString).deletingPathExtension
-        for name in [base, "\(stem)-2.mov", "\(stem)-3.mov"] {
+        // 候補名を固定して決定的にする
+        let base = dir.appendingPathComponent("kilde-20260101-000000.mov")
+        let stem = "kilde-20260101-000000"
+        for name in ["\(stem).mov", "\(stem)-2.mov", "\(stem)-3.mov"] {
             FileManager.default.createFile(atPath: dir.appendingPathComponent(name).path,
                                            contents: Data("x".utf8))
         }
         XCTAssertThrowsError(
-            try RecordRequest.availableOutputURL(in: dir, ext: "mov", maxSuffix: 3, baseName: base)
+            try OutputFileReservation.reserve(preferredURL: base, maximumCandidateNumber: 3)
         ) { error in
             XCTAssertEqual((error as? KilError)?.exitCode, 1)
         }
-        // 空きがある間は連番を返す (-3 を消せば -3 が選ばれる)
+        // 空きがある間は連番を予約する (-3 を消せば -3 が取られる)
         try FileManager.default.removeItem(at: dir.appendingPathComponent("\(stem)-3.mov"))
-        let reused = try RecordRequest.availableOutputURL(in: dir, ext: "mov", maxSuffix: 3, baseName: base)
-        XCTAssertEqual(reused.lastPathComponent, "\(stem)-3.mov")
+        let reused = try OutputFileReservation.reserve(preferredURL: base, maximumCandidateNumber: 3)
+        XCTAssertEqual(reused.url.lastPathComponent, "\(stem)-3.mov")
+        // 予約済みのファイルが 0 バイトで作られている
+        XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: reused.url.path)[.size] as? Int, 0)
     }
 
     /// 存在しない保存先を既定に書くと、次回起動時に initial() が黙って fallback に戻してしまう
