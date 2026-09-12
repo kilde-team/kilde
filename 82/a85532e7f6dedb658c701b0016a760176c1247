@@ -1,0 +1,24 @@
+gui/Sources/SelfTest.swift
+  s_35faeec28b4c4b::t_7d3d1b5701bade 274-282
+gui/Sources/RecordingController.swift
+  s_35faeec28b4c4b::t_9ff6f4ba0e4418 31-33
+  s_35faeec28b4c4b::t_f3572a25fd3f72 124-129,131
+  s_35faeec28b4c4b::t_286b0d07db4def 230-234
+  s_35faeec28b4c4b::t_bc44d3dd629c05 247-253,257,260
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "82a85532e7f6dedb658c701b0016a760176c1247",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
