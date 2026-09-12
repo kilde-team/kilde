@@ -10,7 +10,8 @@ class Kilde < Formula
 
   head do
     url "https://github.com/takezou621/kilde.git", branch: "main"
-    depends_on xcode: ["14.0", :build]
+    # swift-tools-version:5.10 は Xcode 15 以降のツールチェーンを要求する
+    depends_on xcode: ["15.0", :build]
   end
 
   def install
@@ -36,7 +37,10 @@ class Kilde < Formula
   end
 
   test do
-    assert_match version.to_s, shell_output("#{bin}/kilde --version")
+    # --version は "kilde 0.1.0" の形式。HEAD ビルドでは Homebrew の version が
+    # ブランチのハッシュになるため version.to_s と一致しない — バージョン番号の
+    # 存在だけを確認する
+    assert_match(/\d+\.\d+/, shell_output("#{bin}/kilde --version"))
     # doctor は画面収録・マイクの権限状態で結果が変わるため、終了コードを検証しない。
   end
 end
