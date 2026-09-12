@@ -152,21 +152,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let monitor = try HotkeyMonitor(source) { [weak self] in
                     self?.toggleRecordingByHotkey()
                 }
-                // 旧モニターが同じキーを握っている間は排他登録が必ず失敗するので、
-                // 同じキーへの再適用に限っては先に解除してから登録する
-                if hotkeyMonitor?.source == source { releaseHotkeyMonitor() }
+                // **既に同じキーが登録済みなら何もしない。** 解除して登録し直すと、
+                // その隙に Carbon の登録が失敗したとき旧キーも新キーも失われる
+                // (共有設定で previous が nil だと復旧分岐にも入れない)
+                if hotkeyMonitor?.source == source { return }
                 try monitor.start()
                 replacement = monitor
             } catch {
                 setup.notice = "ホットキーを登録できません (旧設定のままにします): \(error)"
                 if revert != nil { setup.restoreHotkey(previous) }
-                // 同じキーの再適用で解除だけ済んでいた場合は、旧設定で登録し直す
-                if hotkeyMonitor == nil, let previous,
-                   let monitor = try? HotkeyMonitor(previous, handler: { [weak self] in
-                       self?.toggleRecordingByHotkey()
-                   }), (try? monitor.start()) != nil {
-                    hotkeyMonitor = monitor
-                }
                 return
             }
         }

@@ -28,8 +28,9 @@ final class RecordingController: ObservableObject {
     @Published private(set) var outputURL: URL?
 
     private var recorder: Recorder?
-    /// 終了ハンドラと、登録された時点のセッション。
-    /// セッションを持たないと、別のセッションのハンドラまで発火させてしまう
+    /// 終了ハンドラと、紐付くセッション。
+    /// セッションを持たないと、別のセッションのハンドラまで発火させてしまう。
+    /// `nil` は「まだ始まっていない次のセッション」を意味し、`start()` が引き受ける
     private var sessionEndHandlers: [(session: Recorder?, handler: () -> Void)] = []
 
     /// 録画完了の通知先 (issue #20)。AppDelegate が生成して渡す。
@@ -65,9 +66,16 @@ final class RecordingController: ObservableObject {
         }
     }
 
-    /// 通知の登録完了 (またはタイムアウト) を待っている最中か。
-    /// アプリ終了の保留判定にだけ使う (`isActive` とは別物)
-    @Published private(set) var awaitingNotification = false
+    /// 通知の登録完了 (またはタイムアウト) を待っているセッション。
+    /// アプリ終了の保留判定にだけ使う (`isActive` とは別物)。
+    ///
+    /// **単一の Bool にしない** — 旧セッションの通知が完了したときに新セッションの
+    /// 待ちまで解除してしまい、A の通知待ち中に B を始めて終了すると
+    /// B の完了通知が失われる
+    private var notificationWaiters: Set<ObjectIdentifier> = []
+
+    /// 通知の登録を待っているセッションがあるか
+    var awaitingNotification: Bool { !notificationWaiters.isEmpty }
 
     func start(_ options: RecordOptions) {
         guard !isActive else {
@@ -87,6 +95,13 @@ final class RecordingController: ObservableObject {
         stopRequestedDuringPreparation = false
         let recorder = Recorder(options: options)
         self.recorder = recorder
+        // **開始前に登録されたハンドラをこのセッションへ移す。** SelfTest は
+        // start() の前に whenSessionEnds を呼ぶので、登録時点の recorder は nil。
+        // 移さないと endSession が渡す非 nil の session と一致せず、
+        // **セルフテストの完了ハンドラが永久に発火しない** (T11 の録画経路が終わらない)
+        for index in sessionEndHandlers.indices where sessionEndHandlers[index].session == nil {
+            sessionEndHandlers[index].session = recorder
+        }
         phase = .starting
         elapsed = 0
         outputBytes = 0
@@ -214,15 +229,18 @@ final class RecordingController: ObservableObject {
         // (停止できない録画が残り、sessionEndHandlers も失われる)
         let session = recorder
         var finished = false
-        // 通知の登録を待っている間は awaitingNotification を立てる。
+        // 通知の登録を待っている間だけ、このセッションを待ち行列に入れる。
         // applicationShouldTerminate がこれを見て終了を保留する (isActive には
         // 含めない — 含めると «録画が終わっているのに進行中» の 2 秒ができる)
-        awaitingNotification = true
+        let waiterKey = session.map(ObjectIdentifier.init)
+        if let waiterKey { notificationWaiters.insert(waiterKey) }
         let finish = { [weak self] in
             guard !finished else { return }
             finished = true
             guard let self else { return }
-            self.awaitingNotification = false
+            // **自分のセッションの待ちだけ解除する。** 一括で下ろすと、
+            // このセッションの通知完了が新しいセッションの待ちまで消してしまう
+            if let waiterKey { self.notificationWaiters.remove(waiterKey) }
             if self.recorder === session {
                 self.endSession()
             } else {
