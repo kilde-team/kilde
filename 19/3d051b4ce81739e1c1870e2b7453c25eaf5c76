@@ -1,0 +1,158 @@
+docs/RELEASE.md
+  s_bfc5f143ffdc24::t_06a04b3dc1add3 1-67,69-128
+  s_bfc5f143ffdc24::t_fb1a1494787ff5 68
+Sources/KildeCore/Recording/AudioMixer.swift
+  s_35faeec28b4c4b::t_9726339d6dbdf0 80-89
+gui/Sources/RecordingController.swift
+  s_35faeec28b4c4b::t_3403f3b9d862f0 85-88
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_93349cffb894eb 515-516,518-519
+  s_35faeec28b4c4b::t_dca92e5a91d195 39-44
+  s_35faeec28b4c4b::t_bcb24944df66fb 505-513,523,530-533,535,542,544,546-547
+  s_35faeec28b4c4b::t_32ca6c76b0ec5d 514,517,520-522,524-529,534,536-541,543,545
+Sources/kilde/KildeCommand.swift
+  s_35faeec28b4c4b::t_0e860906584b3c 38-49
+docs/DESIGN.md
+  s_35faeec28b4c4b::t_101676e1026066 345-347
+  s_35faeec28b4c4b::t_9be3f614fe3adf 348-349
+  s_35faeec28b4c4b::t_6e52edfea94efb 126,134-139
+  s_6e1b71b77323e6::t_2362a9a4d3fbd6 429-437
+gui/Sources/PermissionsModel.swift
+  s_6e1b71b77323e6::t_9e6bd97ffd58fc 18-19,23-43
+  s_6e1b71b77323e6::t_99d24a10a3c192 1-17,20-22,44-47,50-103
+  s_6e1b71b77323e6::t_241390dd4cef64 48-49
+gui/Sources/ContentView.swift
+  s_6e1b71b77323e6::t_2a70ab91ad263d 12
+  s_6e1b71b77323e6::t_5ffef5080b894f 423-494
+  s_6e1b71b77323e6::t_6d53f5b74d9b90 56-60,62-64
+  s_6e1b71b77323e6::t_18eed10ace06bd 304,307-308
+  s_6e1b71b77323e6::t_21a11f7c4c49a9 25-32
+  s_6e1b71b77323e6::t_706d2962703faa 312-319
+.gitignore
+  s_bfc5f143ffdc24::t_9c494cfe9a0348 22
+scripts/release/sign.sh
+  s_bfc5f143ffdc24::t_9c494cfe9a0348 204-205
+  s_bfc5f143ffdc24::t_ac3d5158d5366c 154,165-168
+  s_bfc5f143ffdc24::t_fb1a1494787ff5 113-114
+  s_bfc5f143ffdc24::t_06a04b3dc1add3 1-49,53-112,115-153,155-164,169-203,206-223
+  s_34d31eef171f3f::t_669832b5a468a6 50-52
+scripts/release/entitlements.plist
+  s_bfc5f143ffdc24::t_06a04b3dc1add3 1-8
+README.ja.md
+  s_711a2d0ed42662::t_8eb9a819ffbd20 2-141
+gui/Sources/SelfTest.swift
+  s_6e1b71b77323e6::t_5a4753b102fb91 166-206
+  s_6e1b71b77323e6::t_7ac0663a693fd7 26,28-34
+Tests/KildeCoreTests/MovieWriterShiftTests.swift
+  s_35faeec28b4c4b::t_b8a9150244f8a2 1-53
+Sources/KildeCore/Recording/Recorder.swift
+  s_35faeec28b4c4b::t_4bb775cbb4f211 746-750,762-763
+  s_35faeec28b4c4b::t_ccc6dc1b49ea52 282-288
+  s_35faeec28b4c4b::t_31aee8b0d8010f 242-244,262-265,269-273
+  s_35faeec28b4c4b::t_68a3e610f8dbe9 237-240,245,250-252,258
+  s_35faeec28b4c4b::t_dfd600a3855e26 97,104-105
+  s_35faeec28b4c4b::t_18784c9763a7b8 624-625
+  s_35faeec28b4c4b::t_7a20c93e3d2fab 663-665
+  s_35faeec28b4c4b::t_c1f6d80fea555c 117-118
+  s_35faeec28b4c4b::t_06a6100f2cbcb9 614-616
+  s_35faeec28b4c4b::t_fd8f698c1e0721 227-228,230
+  s_35faeec28b4c4b::t_3f06aa76944e3c 317-324
+  s_35faeec28b4c4b::t_85c0665181e338 214-217,221,223-224,226,231-236,241,246-249,253-256,260-261,276-281
+  s_35faeec28b4c4b::t_be275c9ee438f4 48,56-59
+  s_35faeec28b4c4b::t_79f41fd7471cac 257,259
+  s_35faeec28b4c4b::t_16c59686872323 266-268
+  s_35faeec28b4c4b::t_05be7bcc8e5229 133-137
+  s_35faeec28b4c4b::t_dc8911c99e4e27 588-590,593
+  s_35faeec28b4c4b::t_decce76018e8e2 764
+  s_35faeec28b4c4b::t_48cf1a8b1c6b37 138-145
+  s_35faeec28b4c4b::t_740d4ce8614e7f 340-341
+  s_35faeec28b4c4b::t_5024b50d73dd41 218-220,222,225,229
+Sources/KildeCore/Recording/MovieWriter.swift
+  s_35faeec28b4c4b::t_1ec7e2a28795d1 190-194
+  s_35faeec28b4c4b::t_ba72a155ee431d 31-33
+  s_35faeec28b4c4b::t_683a4f7bc7d096 110,112-114
+  s_35faeec28b4c4b::t_82066ceb225b54 134,136-137
+  s_35faeec28b4c4b::t_e6fe8e81162a8f 185-189,195-224
+Sources/kilde/RecCommand.swift
+  s_35faeec28b4c4b::t_5407f1c832f9ba 12-15
+  s_35faeec28b4c4b::t_e53d9987a86c7f 244-247
+  s_35faeec28b4c4b::t_a1865e449685ba 299,303,309-312
+  s_35faeec28b4c4b::t_441537b1d821e3 300-302,304-307
+  s_35faeec28b4c4b::t_6b085653623b82 239-243,248,251-252
+  s_35faeec28b4c4b::t_a08fb421fc73ef 265-267
+  s_35faeec28b4c4b::t_bc55e7471d1f88 308
+  s_35faeec28b4c4b::t_bbd6ee6a672b1c 337-340
+  s_35faeec28b4c4b::t_fc11e24c0ede43 397,399,401
+  s_35faeec28b4c4b::t_fb208fc3e2c628 442-444
+  s_35faeec28b4c4b::t_26a02bf418d392 274-275
+  s_35faeec28b4c4b::t_1d77bccc2a4bb0 383-385,387-396,398,400,402-409,418-419
+  s_35faeec28b4c4b::t_2540bdf56dda54 464-466
+  s_35faeec28b4c4b::t_9360229046b1e1 386
+  s_35faeec28b4c4b::t_1cf9a4b9e264b0 7-11
+  s_35faeec28b4c4b::t_3ee57ce3524af1 410-417
+docs/DEVELOPMENT.md
+  s_6e1b71b77323e6::t_ffe0f5493fbfe5 190-195,200,202-203,207
+  s_35faeec28b4c4b::t_e3cc1bb6b20a26 292
+  s_6e1b71b77323e6::t_53bf0aa7f920f0 142-148
+  s_6e1b71b77323e6::t_3831d21cbaf63a 184-185,187
+  s_6e1b71b77323e6::t_82f1523641323e 176-183,186,188-189,208
+  s_bfc5f143ffdc24::t_06a04b3dc1add3 58-60
+  s_6e1b71b77323e6::t_cc2b42defe6e0c 196-199,201,204-205
+  s_6e1b71b77323e6::t_8ea12e968ae0d7 230-231
+Tests/KildeCoreTests/AudioMixerPauseTests.swift
+  s_35faeec28b4c4b::t_612bfe7537b6b5 1-10,12-13,15-24,32-34,36,39,50-56,58,61,65-66,88-89,96-97
+  s_35faeec28b4c4b::t_baad262299e8fb 11,14,25-31,35,37-38,42-43,47-48,57,59-60,62-64,67-87,90-95
+  s_35faeec28b4c4b::t_40f1d5f65fc347 40-41,44-46,49
+gui/Sources/AppDelegate.swift
+  s_6e1b71b77323e6::t_6a26e30237c67b 52
+  s_6e1b71b77323e6::t_11aff6a021b742 19
+  s_6e1b71b77323e6::t_e2c742040711c6 34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "193d051b4ce81739e1c1870e2b7453c25eaf5c76",
+  "prompts": {},
+  "sessions": {
+    "s_34d31eef171f3f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2fe81784-1008-4b9f-8671-2ec2cf21a534",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    },
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    },
+    "s_6e1b71b77323e6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0f56a8e5-68cd-4330-8471-cbfa3a206358",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    },
+    "s_711a2d0ed42662": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0935f-e8c1-77e1-b697-52307128b2dd",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": null
+    },
+    "s_bfc5f143ffdc24": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09350-9942-7903-a80f-cf0d8a69a3ab",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
