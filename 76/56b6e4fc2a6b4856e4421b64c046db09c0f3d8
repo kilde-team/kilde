@@ -1,0 +1,24 @@
+gui/Sources/SelfTest.swift
+  s_35faeec28b4c4b::t_22bc79a022274e 252-253
+gui/Sources/AppDelegate.swift
+  s_35faeec28b4c4b::t_0c824f32cf0abe 163-166
+gui/Sources/RecordingNotifier.swift
+  s_35faeec28b4c4b::t_f3ea6a67ebed88 45-48,51-52
+  s_35faeec28b4c4b::t_fcd4d1da2f43d6 62
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7656b6e4fc2a6b4856e4421b64c046db09c0f3d8",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
