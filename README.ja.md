@@ -62,6 +62,12 @@ kilde rec --no-video --window zoom 会議.m4a
 # BlackHole 経由で「聞きながら録音」
 kilde rec --no-video --audio "device:BlackHole 2ch" --monitor 会議.m4a
 
+### なぜ BlackHole は必須でないのか
+
+kilde は ScreenCaptureKit のネイティブなシステム音声キャプチャを使うため、
+通常の画面・音声録画に仮想オーディオドライバは不要です。BlackHole が必要になるのは、
+録音しながら同じ音を聞きたい (monitor モード) といった特殊な経路だけです。
+
 # ターミナルにフォーカスがなくても cmd+shift+r で開始 / 停止
 # 待機中の Ctrl+C はファイルを作らず終了 (--countdown との併用は不可)
 kilde rec --hotkey cmd+shift+r 会議.mov
@@ -114,7 +120,7 @@ open KildeGUI.xcodeproj # Xcode で KildeGUI スキームを Run
 
 - **M0** ✅ 技術スパイク (ScreenCaptureKit の音声経路の検証)
 - **M1** ✅ CLI MVP (`kilde rec / devices / doctor / audio monitor / inspect`)
-- **M2** グローバルホットキー ✅、領域指定の収録、一時停止/再開
+- **M2** グローバルホットキー ✅、領域指定の収録 ✅、一時停止/再開
 - **M3** メニューバー GUI アプリ (骨格 ✅ / 録画 UI ✅ / 権限オンボーディング・通知は今後)
 
 ## コントリビューション

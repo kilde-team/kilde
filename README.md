@@ -227,7 +227,7 @@ does not stop the recording. Initial values are read from the same
 
 - **M0** ✅ Technical spike: validated ScreenCaptureKit audio capture
 - **M1** ✅ CLI MVP: `kilde rec / devices / doctor / audio monitor / inspect`
-- **M2** Global hotkey ✅; region capture, pause/resume
+- **M2** Global hotkey ✅; region capture ✅; pause/resume
 - **M3** Menu bar GUI app: skeleton ✅ / recording UI ✅; permission
   onboarding and notifications are upcoming
 
