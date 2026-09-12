@@ -318,7 +318,6 @@ struct RecCommand: ParsableCommand {
         throw KilError.failed("有効なウィンドウ番号が入力されませんでした (--window で直接指定もできます)")
     }
 
-<<<<<<< HEAD
     /// 録画中に stdin の 'p' で一時停止 / 再開する (issue #11)。
     /// stdin が端末でないとき (パイプ・リダイレクト・統合テスト) は何もしない —
     /// 端末以外を raw mode にしても入力は来ず、呼び出し元のシェルの端末設定を壊しかねないため
@@ -352,10 +351,7 @@ struct RecCommand: ParsableCommand {
         }
     }
 
-    private func startStatusTicker(_ recorder: Recorder) -> DispatchSourceTimer {
-=======
     private func startStatusTicker(_ recorder: Recorder, wantsVideo: Bool) -> DispatchSourceTimer {
->>>>>>> origin/main
         let q = DispatchQueue(label: "kilde.status")
         let timer = DispatchSource.makeTimerSource(queue: q)
         var warnedNoVideoFrames = false
