@@ -168,6 +168,32 @@ mic 側は音響経路のあるマイクか、BlackHole ループバックで行
   ただしこの傾きはマーカーごとの変動幅 (23〜31 ms) に埋もれる水準なので、外挿の確度は高くない。
   判定の基準は 15 分の計測 (issue #3) であり、1 時間級の会議録画で補正が要るかは実測で確かめること
 
+### F-F: アプリ除外 (`--exclude-app`) はシステム音声にも効く (issue #13)
+
+`SCContentFilter(display:excludingApplications:exceptingWindows:)` で除外したアプリは、
+**映像だけでなくシステム音声からも除外される**。F-B (ウィンドウ収録で音声がそのアプリへ
+スコープされる) と対になる挙動で、SCK のフィルタは映像と音声の両方に適用される。
+
+計測 (macOS 26 / Apple Silicon。同じ音源アプリを鳴らしたまま 6 秒ずつ録り比べ):
+
+| 条件 | audio rms | peak |
+|------|-----------|------|
+| 除外なし (対照) | 0.0671 | 0.3884 |
+| `--exclude-app com.kilde.spikesound` | 0.0000 | 0.0000 |
+
+実装上の注意:
+
+- **bundleID を持たないプロセスは除外できない。** `swiftc` で直接コンパイルした実行ファイルは
+  アプリバンドルを持たないため `SCRunningApplication` に載らず、`kilde devices` でも
+  「bundleID なし」に入る。統合テスト (T17) は soundapp を最小の `.app` に包んで
+  `CFBundleIdentifier` を与えることでこれを回避している
+- 除外の指定は bundleID の**完全一致**にした。`--window` と揃えて部分一致にすると、
+  取り違えても「写っていないはず」という期待が静かに破られ、録画を見返すまで気づけない
+- 複数ウィンドウ収録 (`--window` の複数指定) で使う
+  `SCContentFilter(display:including:)` は、ウィンドウごとに切り出すのではなく
+  **ディスプレイ座標系のまま合成する**。出力はディスプレイ全体の大きさになり、
+  対象外の領域は黒で埋まる
+
 ## M1 への反映
 
 1. 録音 (audio-only) モードは SCK ネイティブ (`--audio system` + `.audio` 出力のみ)

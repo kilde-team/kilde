@@ -13,8 +13,11 @@ struct RecCommand: ParsableCommand {
     @Option(help: "収録ディスプレイの番号 (kilde devices で確認。既定 0)")
     var display: Int?
 
-    @Option(help: "ウィンドウ単位で収録 (title / bundleID / windowID の部分一致)。音声もそのアプリにスコープされる")
-    var window: String?
+    @Option(help: "ウィンドウ単位で収録 (title / bundleID / windowID の部分一致)。音声もそのアプリにスコープされる。複数回指定するとそのウィンドウ群をまとめて収録 (出力はディスプレイ全体の大きさになり、対象外は黒で埋まる)")
+    var window: [String] = []
+
+    @Option(help: "ディスプレイ収録から除外するアプリの bundleID (完全一致、複数回指定可。kilde devices で確認)。--window / --no-video / --preset meeting とは併用不可")
+    var excludeApp: [String] = []
 
     @Option(help: "ディスプレイの一部だけを収録 x,y,w,h (ポイント座標、左上が原点)。幅・高さは 2 以上で偶数に切り捨て、ディスプレイの範囲外は録画前に失敗 (終了コード 1)。--window / --no-video / --preset meeting とは併用不可")
     var region: String?
@@ -92,7 +95,7 @@ struct RecCommand: ParsableCommand {
             }
             // ウィンドウ収録には領域の概念がなく、音声のみでは映像自体が無い。
             // 黙って無視すると「指定したのに効かない」ので、ここで弾く
-            if window != nil {
+            if !window.isEmpty {
                 throw ValidationError("--region と --window は併用できません (ウィンドウ収録に領域指定はありません)")
             }
             if noVideo {
@@ -103,6 +106,24 @@ struct RecCommand: ParsableCommand {
             // 選択結果次第で挙動が変わってしまう
             if preset == "meeting" {
                 throw ValidationError("--region と --preset meeting は併用できません (meeting はウィンドウを選んで収録するため)")
+            }
+        }
+        if !excludeApp.isEmpty {
+            // 除外はディスプレイ収録の絞り込みなので、収録対象を選ぶ指定とは両立しない。
+            // 黙って無視すると「除外したのに写っている」ことになり、画面を見るまで気づけない
+            if !window.isEmpty {
+                throw ValidationError("--exclude-app と --window は併用できません (ウィンドウ収録では対象を選ぶため除外は使いません)")
+            }
+            if noVideo {
+                throw ValidationError("--exclude-app と --no-video は併用できません (映像を録らないため除外が効きません)")
+            }
+            // --region と同じ理由: meeting は validate() の後にウィンドウを選ぶので、
+            // ここで弾かないと選択結果次第で除外が効いたり効かなかったりする
+            if preset == "meeting" {
+                throw ValidationError("--exclude-app と --preset meeting は併用できません (meeting はウィンドウを選んで収録するため)")
+            }
+            if excludeApp.contains(where: { $0.trimmingCharacters(in: .whitespaces).isEmpty }) {
+                throw ValidationError("--exclude-app には bundleID を指定してください (例: com.apple.Safari)")
             }
         }
         if let codec, VideoCodecKind(rawValue: codec) == nil {
@@ -181,16 +202,17 @@ struct RecCommand: ParsableCommand {
         }
 
         // meeting のウィンドウ選択は設定・保存先の検証を通ってから (不正な設定で対話後に失敗させない)
-        if preset == "meeting" && window == nil {
+        if preset == "meeting" && window.isEmpty {
             do {
                 if let picked = try promptWindowSelection() {
-                    window = picked
+                    window = [picked]
                 }
             } catch {
                 cliError(error)
             }
         }
-        options.windowMatch = window
+        options.windowMatches = window
+        options.excludedBundleIDs = excludeApp
 
         if countdown > 0 {
             for i in stride(from: countdown, through: 1, by: -1) {

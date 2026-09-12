@@ -20,8 +20,21 @@ struct DevicesCommand: ParsableCommand {
             }
             if !noWindows {
                 print("== windows (on-screen) ==")
-                for w in snapshot.windows.filter({ $0.isOnScreen && $0.bundleIdentifier != nil }) {
-                    print("  \(w)")
+                // bundleID ごとにまとめて見出しに出す。--exclude-app は bundleID の完全一致で
+                // 引くので、ウィンドウ行に混ぜるよりそのままコピーできる形の方が使いやすい
+                let windows = snapshot.windows.filter { $0.isOnScreen && $0.bundleIdentifier != nil }
+                // bundleID を持たないシステム UI (メニューバー等) は見出しが空になってしまうので
+                // まとめて末尾に寄せる。--exclude-app では指定できないことも明示する
+                let noBundleID = "(bundleID なし — --exclude-app では指定できません)"
+                let grouped = Dictionary(grouping: windows) { w -> String in
+                    let id = w.bundleIdentifier ?? ""
+                    return id.isEmpty ? noBundleID : id
+                }
+                for bundleID in grouped.keys.sorted() {
+                    print("  \(bundleID)")
+                    for w in grouped[bundleID] ?? [] {
+                        print("      [\(w.windowID)] \"\(w.title ?? "")\" \(Int(w.frame.width))x\(Int(w.frame.height))")
+                    }
                 }
             }
             print("== audio devices ==")

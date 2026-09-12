@@ -25,9 +25,14 @@ public enum VideoCodecKind: String, CaseIterable {
 
 public struct RecordOptions {
     public var displayIndex = 0
-    public var windowMatch: String?
+    /// 収録するウィンドウの指定 (title / bundleID / windowID)。空ならディスプレイ収録。
+    /// 2 つ以上指定すると、そのウィンドウ群だけを 1 本にまとめて収録する (issue #13)
+    public var windowMatches: [String] = []
+    /// ディスプレイ収録から除外するアプリの bundleID (issue #13)。
+    /// ウィンドウ収録とは併用しない (収録対象を選ぶ指定と除外する指定が矛盾するため)
+    public var excludedBundleIDs: [String] = []
     /// 収録する矩形領域 (ポイント座標、ディスプレイ左上が原点)。nil ならディスプレイ全体。
-    /// ウィンドウ収録 (windowMatch) や音声のみ (wantsVideo = false) とは併用しない
+    /// ウィンドウ収録 (windowMatches) や音声のみ (wantsVideo = false) とは併用しない
     public var region: CGRect?
     public var audioSources: [AudioSourceSpec] = [.system]
     public var trackPolicy: AudioTrackPolicy = .mixed
@@ -280,8 +285,18 @@ public final class Recorder {
             guard options.wantsVideo else {
                 throw KilError.failed("領域指定 (region) は音声のみのモードでは使えません")
             }
-            guard options.windowMatch == nil else {
+            guard options.windowMatches.isEmpty else {
                 throw KilError.failed("領域指定 (region) はウィンドウ収録とは併用できません")
+            }
+        }
+        // 除外 (excludedBundleIDs) はディスプレイ収録の絞り込みなので、収録対象を選ぶ
+        // ウィンドウ収録とは両立しない。region と同じく副作用より前に弾く
+        if !options.excludedBundleIDs.isEmpty {
+            guard options.wantsVideo else {
+                throw KilError.failed("アプリ除外 (exclude-app) は音声のみのモードでは使えません")
+            }
+            guard options.windowMatches.isEmpty else {
+                throw KilError.failed("アプリ除外 (exclude-app) はウィンドウ収録とは併用できません")
             }
         }
         let ext = options.wantsVideo ? "mov" : "m4a"
@@ -351,14 +366,27 @@ public final class Recorder {
                 cfg.minimumFrameInterval = CMTime(seconds: 1.0 / Double(fps), preferredTimescale: 600)
             }
             let filter: SCContentFilter
-            if let match = options.windowMatch {
-                let win = try await DisplayCatalog.resolveWindow(matching: match)
-                if options.wantsVideo {
-                    cfg.width = Int(win.frame.width)
-                    cfg.height = Int(win.frame.height)
-                    videoSize = CGSize(width: win.frame.width, height: win.frame.height)
+            if !options.windowMatches.isEmpty {
+                let windows = try await DisplayCatalog.resolveWindows(matching: options.windowMatches)
+                if let win = windows.first, windows.count == 1 {
+                    if options.wantsVideo {
+                        cfg.width = Int(win.frame.width)
+                        cfg.height = Int(win.frame.height)
+                        videoSize = CGSize(width: win.frame.width, height: win.frame.height)
+                    }
+                    filter = SCContentFilter(desktopIndependentWindow: win)
+                } else {
+                    // 複数ウィンドウはディスプレイ座標系のまま合成される (ウィンドウごとに
+                    // 切り出されるわけではない) ので、出力はディスプレイ全体の大きさになる。
+                    // 対象外の領域は黒で埋まる
+                    let display = try await DisplayCatalog.display(at: options.displayIndex)
+                    if options.wantsVideo {
+                        cfg.width = Int(display.width)
+                        cfg.height = Int(display.height)
+                        videoSize = CGSize(width: CGFloat(display.width), height: CGFloat(display.height))
+                    }
+                    filter = SCContentFilter(display: display, including: windows)
                 }
-                filter = SCContentFilter(desktopIndependentWindow: win)
             } else {
                 let display = try await DisplayCatalog.display(at: options.displayIndex)
                 if options.wantsVideo {
@@ -397,7 +425,10 @@ public final class Recorder {
                         videoSize = CGSize(width: display.width, height: display.height)
                     }
                 }
-                filter = SCContentFilter(display: display, excludingApplications: [], exceptingWindows: [])
+                let excluded = try await DisplayCatalog.resolveApplications(bundleIDs: options.excludedBundleIDs)
+                filter = SCContentFilter(display: display,
+                                         excludingApplications: excluded,
+                                         exceptingWindows: [])
             }
             if options.wantsVideo {
                 // AVAssetWriter で再圧縮するため非圧縮 BGRA を要求 (SPIKE-NOTES F-D.1)

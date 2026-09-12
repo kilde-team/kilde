@@ -57,6 +57,14 @@ kilde rec --no-video memo.m4a
 # 特定アプリの音声のみ (他アプリの音・通知音を除外)
 kilde rec --no-video --window zoom 会議.m4a
 
+# 複数のウィンドウをまとめて 1 本に収録
+#   出力はディスプレイ全体の大きさになり、対象外の領域は黒で埋まる
+kilde rec --window zoom --window "メモ" demo.mov
+
+# 画面全体から特定アプリだけを隠して収録 (パスワードマネージャ・チャットなど)
+#   bundleID は完全一致。kilde devices で確認できる
+kilde rec --exclude-app com.1password.1password --exclude-app com.tinyspeck.slackmacgap demo.mov
+
 # BlackHole 経由で「聞きながら録音」
 kilde rec --no-video --audio "device:BlackHole 2ch" --monitor 会議.m4a
 

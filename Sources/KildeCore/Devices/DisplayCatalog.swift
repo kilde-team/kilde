@@ -78,6 +78,44 @@ public enum DisplayCatalog {
     /// Recorder のセッション (async) からのみ使うので async 版だけを持つ
     static func resolveWindow(matching match: String) async throws -> SCWindow {
         let content = try await shareableContent("ウィンドウの一覧を取得できません")
+        return try resolve(match, in: content)
+    }
+
+    /// 複数指定をまとめて解決する (issue #13)。指定ごとに resolveWindow と同じ規則で 1 つ選び、
+    /// 同じウィンドウが二重に入らないよう windowID で重複を除く。
+    /// 列挙は 1 回にまとめる — 指定ごとに SCShareableContent.current を呼ぶと、その間の
+    /// ウィンドウの開閉で指定どうしが食い違った一覧を見ることになる
+    static func resolveWindows(matching matches: [String]) async throws -> [SCWindow] {
+        guard !matches.isEmpty else { return [] }
+        let content = try await shareableContent("ウィンドウの一覧を取得できません")
+        var resolved: [SCWindow] = []
+        for match in matches {
+            let window = try resolve(match, in: content)
+            if !resolved.contains(where: { $0.windowID == window.windowID }) {
+                resolved.append(window)
+            }
+        }
+        return resolved
+    }
+
+    /// bundleID から実行中アプリを解決する (--exclude-app、issue #13)。
+    /// ウィンドウ指定と違って部分一致にしていないのは、除外は「写っていないはず」を期待する
+    /// 操作で、取り違えても画面を見るまで気づけないため (例: "slack" で別アプリまで消える)
+    static func resolveApplications(bundleIDs: [String]) async throws -> [SCRunningApplication] {
+        guard !bundleIDs.isEmpty else { return [] }
+        let content = try await shareableContent("実行中アプリの一覧を取得できません")
+        return try bundleIDs.map { id in
+            guard let app = content.applications.first(where: {
+                $0.bundleIdentifier.caseInsensitiveCompare(id) == .orderedSame
+            }) else {
+                throw KilError.deviceNotFound(
+                    "bundleID \"\(id)\" のアプリが実行中に見つかりません (kilde devices で確認)")
+            }
+            return app
+        }
+    }
+
+    private static func resolve(_ match: String, in content: SCShareableContent) throws -> SCWindow {
         let candidates = content.windows.filter { $0.isOnScreen && $0.owningApplication != nil }
         // windowID の完全一致 (kilde devices の [ID]、GUI・meeting プリセットの選択結果) を先に見る。
         // 部分一致と同列に扱うと、タイトルに同じ数字を含むより大きいウィンドウが選ばれてしまう
