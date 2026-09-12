@@ -16,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var popover: NSPopover?
     private let recording = RecordingController()
     private let setup = RecordingSetup()
+    private let permissions = PermissionsModel()
     private var cancellables: Set<AnyCancellable> = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -30,7 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // パネル外のクリックで閉じる (メニューバーアプリの標準挙動)。閉じても録画は止まらない
         p.behavior = .transient
         p.contentViewController = NSHostingController(
-            rootView: ContentView(setup: setup, recording: recording))
+            rootView: ContentView(setup: setup, recording: recording, permissions: permissions))
         popover = p
         item.button?.target = self
         item.button?.action = #selector(togglePopover)
@@ -48,7 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             guard let self else { return }
             SelfTest.runIfRequested(
-                setup: self.setup, recording: self.recording,
+                setup: self.setup, recording: self.recording, permissions: self.permissions,
                 popover: SelfTest.PopoverControl(
                     show: { [weak self] in self?.showPopover() },
                     // performClose は「閉じる要求」なので transient の popover では
