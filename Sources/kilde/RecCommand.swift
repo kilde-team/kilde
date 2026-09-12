@@ -303,7 +303,11 @@ struct RecCommand: ParsableCommand {
         timer.schedule(deadline: .now() + 0.5, repeating: 0.5)
         timer.setEventHandler {
             guard let p = recorder.progress() else { return }
-            if wantsVideo && !warnedNoVideoFrames && p.elapsed >= 10 && p.videoAppended == 0 {
+            // .recording のゲート: progress() はマイク権限ダイアログの待ちより前から
+            // 値を返すため、ゲートしないと権限応答に 10 秒以上かけたユーザーに
+            // 「映像が来ない」警告を誤爆する (実際には録画がまだ始まっていない)
+            if wantsVideo && !warnedNoVideoFrames && recorder.currentState == .recording
+                && p.elapsed >= 10 && p.videoAppended == 0 {
                 warnedNoVideoFrames = true
                 let warning = "WARNING: 開始から 10 秒間映像フレームが来ていません。ディスプレイの消灯/ロック中の可能性があります\n"
                 FileHandle.standardError.write(warning.data(using: .utf8)!)
