@@ -37,11 +37,13 @@ final class RecorderEventTests: XCTestCase {
     }
 
     /// 成功フロー: preparing → armed → recording → finalizing → done の順に遷移し、
-    /// completed が末尾に来る。stop() は冪等なので二度呼んでも遷移は増えない
+    /// completed が末尾に来る。
+    /// 停止は duration に任せる — start() 直後の stop() は準備フェーズに割り込んで
+    /// 録画に入らずキャンセルされる (issue #56) ので、成功フローの検証には使えない
     func testStateOrderForSuccessfulSession() async throws {
         let url = tempURL()
         defer { try? FileManager.default.removeItem(at: url) }
-        let recorder = Recorder(options: emptySessionOptions(url: url))
+        let recorder = Recorder(options: emptySessionOptions(url: url, duration: 0.2))
         XCTAssertEqual(recorder.currentState, .idle)
 
         var events: [RecorderEvent] = []
@@ -49,8 +51,6 @@ final class RecorderEventTests: XCTestCase {
             for await e in recorder.events { events.append(e) }
         }
         recorder.start()
-        recorder.stop()
-        recorder.stop()
         await collector.value
 
         XCTAssertEqual(events.compactMap(\.state), [.preparing, .armed, .recording, .finalizing, .done])
@@ -190,6 +190,194 @@ final class RecorderEventTests: XCTestCase {
         })
         // 二重起動していても遷移列が二重になることはない
         XCTAssertEqual(events.compactMap(\.state), [.preparing, .armed, .recording, .finalizing, .done])
+    }
+
+    /// 準備中の停止 (issue #56): start() より前に stop() を呼ぶと、停止要求が立った状態で
+    /// セッションが走り出す。最初の中断点で畳まれ、**録画には入らず**終端イベントが流れる。
+    /// 空セッションは準備が一瞬で終わるので、「準備中に割り込む」のではなく
+    /// 「最初から停止済み」にすることで、タイミングに依存せず決定的に検証する
+    func testStopBeforeStartCancelsDuringPreparation() async throws {
+        let url = tempURL()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let recorder = Recorder(options: emptySessionOptions(url: url, duration: 5))
+
+        // stop() は冪等 — 二度呼んでも遷移は増えない
+        recorder.stop()
+        recorder.stop()
+        let events = await collectEvents(recorder)
+
+        // recording には入らない (preparing から直接畳まれる)
+        let states = events.compactMap(\.state)
+        XCTAssertEqual(states, [.preparing, .error], "録画に入ってしまいました: \(states)")
+        XCTAssertFalse(states.contains(.recording))
+        XCTAssertTrue(recorder.cancelledBeforeRecording)
+
+        // 終端イベントは必ず流れる — 購読側 (GUI の applicationShouldTerminate) が
+        // 待ち続けないことがこの issue の主眼
+        guard case .failed(let error, let partialFileExists) = events.last else {
+            return XCTFail("末尾が failed ではありません: \(events)")
+        }
+        XCTAssertEqual("\(error)", Recorder.cancelledDuringPreparationMessage)
+        XCTAssertFalse(partialFileExists)
+        // 録画が成立していないので出力ファイルを残さない
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
+    }
+
+    /// `awaitOrStop` そのものの回帰テスト (issue #56)。
+    ///
+    /// 当初 `withTaskGroup` で書いていたため 2 つの欠陥があった:
+    /// (a) タスクグループはスコープ終了時に未完了の子を暗黙 await するので、停止しても
+    ///     本体 (TCC ダイアログ) の完了まで戻らない
+    /// (b) 監視側の `try? await Task.sleep` がキャンセル例外を握り潰すので、本体が先に
+    ///     終わるとループが回り続けて戻らない
+    ///
+    /// (b) は**停止要求が無い通常経路**で起きる。セッション経由のテストでは権限状態に
+    /// 左右されてこの経路を確実に通せないので、ヘルパを直接叩く
+    func testAwaitOrStopReturnsValueWhenBodyFinishesFirst() async throws {
+        let recorder = Recorder(options: emptySessionOptions(url: tempURL()))
+        let value = await recorder.awaitOrStop { 42 }
+        XCTAssertEqual(value, 42, "本体が先に完了したのに戻ってきませんでした (欠陥 b の回帰)")
+    }
+
+    /// 停止が先なら nil を返し、**本体の完了を待たない**。
+    /// 待ってしまうと「準備中の停止」がユーザーのダイアログ応答まで効かず、この issue の
+    /// 目的そのものが失われる (欠陥 a の回帰)
+    func testAwaitOrStopReturnsNilWithoutWaitingForBody() async throws {
+        let recorder = Recorder(options: emptySessionOptions(url: tempURL()))
+        recorder.stop()
+
+        let started = Date()
+        let value: Int? = await recorder.awaitOrStop {
+            // 外から止められない処理の代役 (TCC ダイアログに相当)。
+            // **`Task.sleep` では代役にならない** — あれはキャンセルに応じるので、
+            // structured なタスクグループのままでも暗黙 await がすぐ解けてしまい、
+            // この回帰テストが素通りする。キャンセルを一切見ない待ちにする必要がある
+            await withCheckedContinuation { (continuation: CheckedContinuation<Int, Never>) in
+                DispatchQueue.global().asyncAfter(deadline: .now() + 5) {
+                    continuation.resume(returning: 1)
+                }
+            }
+        }
+        let elapsed = Date().timeIntervalSince(started)
+
+        XCTAssertNil(value)
+        XCTAssertLessThan(elapsed, 3.0, "本体 (5 秒) の完了を待ってしまっています: \(elapsed)s")
+    }
+
+    /// 停止要求と本体の完了が**近接した**ときも、停止が勝つこと (issue #56)。
+    ///
+    /// `watcher` は `isStopRequested` を 100ms 周期でポーリングするので、`stop()` が
+    /// フラグを立ててから `nil` を yield するまでに最大 100ms の窓がある。その間に
+    /// 本体が完了すると `work` が先に yield し、`bufferingOldest(1)` は「先に届いた方」を
+    /// 保持するので**停止要求が負ける**。準備中キャンセルのはずがマイク権限エラーになり、
+    /// CLI の終了コードが 0 ではなく 2 になる。
+    ///
+    /// **上の 2 本ではこの窓を通れない** — どちらも `stop()` を `awaitOrStop` の呼び出し
+    /// **前**に呼ぶため、ポーリングの初回で即座に `nil` が拾われてしまう。
+    /// ここでは呼び出した**後**に停止し、その直後に本体を完了させる
+    func testAwaitOrStopPrefersStopWhenBodyFinishesAlmostSimultaneously() async throws {
+        let recorder = Recorder(options: emptySessionOptions(url: tempURL()))
+        let watcherWaiting = DispatchSemaphore(value: 0)
+
+        // watcher が待機に入ったことを同期してから停止と本体完了を行う。
+        // 同期しないと、watcher の初回チェックが stop() より**後**に走る経路が残り、
+        // その場合は修正前の実装でも watcher が即座に nil を yield して停止が勝つ —
+        // つまりテストが通ってしまう (回帰を検出できない)。フックで「watcher が
+        // 確実に 100ms の待機中」を作ってから work を先に届かせる
+        let value: Int? = await recorder.awaitOrStop({
+            await withCheckedContinuation { (continuation: CheckedContinuation<Int, Never>) in
+                DispatchQueue.global().async {
+                    // フックは watcher の各ポーリング周期の冒頭で呼ばれる。2 回目を待てば
+                    // watcher は確実に待機の途中 (次のチェックは最長 100ms 先)。
+                    // 期限つき wait にする — onWatcherWaiting が呼ばれない回帰 (フックの
+                    // 削除・watcher の構造変更) で semaphore が解放されず、失敗ではなく
+                    // スイート全体の停止になるのを防ぐ。期限切れでは値を返して
+                    // XCTAssertNil を失敗させる
+                    // wait(timeout:) は DispatchTimeoutResult を返す (Bool ではない)
+                    let armed = watcherWaiting.wait(timeout: .now() + 5) == .success
+                        && watcherWaiting.wait(timeout: .now() + 5) == .success
+                    recorder.stop()
+                    // stop() 直後に完了させ、work が先に yield する状況を作る。
+                    // 同期に失敗した場合も 7 を返す (期待値 nil との不一致で落ちる)
+                    continuation.resume(returning: armed ? 7 : 7)
+                }
+            }
+        }, onWatcherWaiting: {
+            watcherWaiting.signal()
+        })
+
+        XCTAssertNil(value,
+                     "停止を要求した後なのに本体の値 (\(String(describing: value))) を採用しています"
+                     + " — ストリームへの到着順で停止要求が負けています")
+    }
+
+    /// マイクを要求する構成でもセッションが**終端する**こと (issue #56)。
+    ///
+    /// **このテストは `awaitOrStop` の中までは到達しない。** `stop()` を `start()` より前に
+    /// 呼ぶため、`performSession()` の最初の中断点 (マイク権限ブロックより前) で畳まれる。
+    /// `awaitOrStop` 自体の回帰は上の 2 つのテストがヘルパを直接叩いて担保しており、
+    /// ここで見るのは「マイクを要求する構成でもセッションが終端する」という一段外側の性質。
+    ///
+    /// 権限の許可状態には依存しない — 許可でも拒否でも「終端イベントが流れる」ことだけを見る。
+    /// 固まると XCTest のタイムアウトではなくここで待ち続けるので、明示的に時間を区切る
+    func testMicSessionTerminatesEvenWhenStoppedDuringPreparation() async throws {
+        let url = tempURL()
+        defer { try? FileManager.default.removeItem(at: url) }
+        var options = emptySessionOptions(url: url, duration: 5)
+        options.audioSources = [.mic]  // needsMicPermission = true → awaitOrStop を通る
+
+        let recorder = Recorder(options: options)
+        recorder.stop()
+
+        let finished = Task { () -> [RecorderEvent] in
+            var events: [RecorderEvent] = []
+            for await e in recorder.events { events.append(e) }
+            return events
+        }
+        recorder.start()
+
+        // 10 秒で終端しなければ「固まった」とみなす (TCC ダイアログの応答待ちを含めても十分)。
+        // **タイムアウトしたことを戻り値で受け取って明示的に失敗させる** — collector を
+        // キャンセルするだけだと、終端しない回帰が起きてもテストが緑のまま通る
+        let guardTask = Task { [finished] () -> Bool in
+            do {
+                try await Task.sleep(nanoseconds: 10_000_000_000)
+            } catch {
+                return false  // 正常終了してキャンセルされた
+            }
+            finished.cancel()
+            return true
+        }
+        let events = await finished.value
+        guardTask.cancel()
+        let timedOut = await guardTask.value
+        XCTAssertFalse(timedOut, "10 秒たっても終端しませんでした (セッションが固まっています)")
+
+        XCTAssertFalse(events.isEmpty, "終端イベントが流れませんでした (セッションが固まった疑い)")
+        // 録画には入らない。権限が拒否されていれば .permission、停止が先なら準備中キャンセル
+        XCTAssertFalse(events.compactMap(\.state).contains(.recording),
+                       "停止を要求したのに録画に入りました: \(events.compactMap(\.state))")
+        guard case .failed = events.last else {
+            return XCTFail("末尾が failed ではありません: \(events)")
+        }
+    }
+
+    /// 同期 run() でも準備中の停止は例外として返る (CLI はこれを exit 0 に読み替える)。
+    /// run() が固まらないこと自体が回帰対象 — 完了通知に到達しないと呼び出し元が待ち続ける
+    func testRunWrapperReturnsWhenCancelledDuringPreparation() throws {
+        let url = tempURL()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let recorder = Recorder(options: emptySessionOptions(url: url, duration: 5))
+
+        recorder.stop()
+        XCTAssertThrowsError(try recorder.run()) { error in
+            guard case KilError.failed(let message) = error else {
+                return XCTFail("KilError.failed ではありません: \(error)")
+            }
+            XCTAssertEqual(message, Recorder.cancelledDuringPreparationMessage)
+        }
+        XCTAssertTrue(recorder.cancelledBeforeRecording)
+        XCTAssertEqual(recorder.currentState, .error)
     }
 
     /// 実ストリームを必要としない純粋判定で、映像ありの 0 フレームだけを失敗にする。

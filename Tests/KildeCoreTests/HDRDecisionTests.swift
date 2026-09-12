@@ -20,6 +20,9 @@ final class HDRDecisionTests: XCTestCase {
         o.wantsVideo = false
         o.audioSources = []  // SCK もマイクも使わない = 権限・デバイス不要
         o.outputURL = url
+        // start() 直後の stop() は準備中キャンセルになる (issue #56) ため、
+        // 成功フローは短い duration で自然終了させる
+        o.duration = 0.2
         o.hdr = true
         o.hdrCapableDisplayIDs = []   // 判定済み・対応ディスプレイなし
         return o
@@ -31,7 +34,6 @@ final class HDRDecisionTests: XCTestCase {
             for await e in recorder.events { events.append(e) }
         }
         recorder.start()
-        recorder.stop()
         await collector.value
         return events
     }
