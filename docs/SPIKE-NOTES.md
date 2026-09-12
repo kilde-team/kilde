@@ -197,10 +197,11 @@ EDR の上限」で、SDR ディスプレイでは 1.0 のままになる。**�
 | `captureHDRStreamCanonicalDisplay` | `xf44` | `DisplayP3_PQ` | 2 (HDRCanonicalDisplay) |
 | `captureHDRRecordingPreservedSDRHDR10` | `x420` | `ITUR_2100_PQ` | 2 |
 
-実装が使うのは **`captureHDRStreamLocalDisplay` (macOS 15+) のみ**。プリセットを使うのは、
+実装は OS ごとにプリセットを選ぶ (#76)。プリセットを使うのは、
 `captureDynamicRange` / `pixelFormat` / `colorSpace` / `colorMatrix` を自分で
-整合させるのが間違えやすいため。書き出し側は HEVC **Main10** + Display P3 / PQ を明示する
-(色情報を書かないと再生側が SDR と解釈する)。
+整合させるのが間違えやすいため。書き出し側は HEVC **Main10** + PQ を明示し、
+色域はプリセットのバッファに合わせる (26 の HDR10 は BT.2020、15 は Display P3。
+色情報を書かないと再生側が SDR と解釈する)。
 
 ~~**`captureHDRRecordingPreservedSDRHDR10` (macOS 26、HDR10 メタデータ付き) は使っていない。**~~ → **#76 で使用開始** (CI を macos-26 に上げて解消)
 CI が `macos-15` ランナーで動いており、**その SDK にシンボルが存在しないためコンパイルできない**:

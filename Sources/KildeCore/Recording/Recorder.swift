@@ -161,11 +161,6 @@ public final class Recorder {
     private var hdrPresetDescription: String?
     /// 書き出し側の色タグを切り替える方式。SDR (hdr 要求なし・フォールバック) は nil
     private var hdrModeForWriter: MovieWriter.HDRMode?
-    /// HDR で書き出すか (issue #16)。**セッション開始時に 1 回だけ決めて持ち回す** —
-    /// 都度判定するとストリーム側と書き出し側で答えが割れ、8-bit のバッファに
-    /// Main10 + PQ のタグが付いた「HDR のつもりのファイル」ができる。
-    /// 実際の色空間・マトリクス (P3 / PQ / BT.2020) は `MovieWriter` 側で固定しており、
-    /// ここが持つのは on/off だけ
 
     public struct Progress: Sendable {
         /// 録画開始からの経過 (一時停止した区間を含まない — 出力ファイルの長さに対応する)
