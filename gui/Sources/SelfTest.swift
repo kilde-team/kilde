@@ -14,8 +14,16 @@ import KildeCore
 /// 「GUI から開始した録画が CLI と同じ Recorder を通り、同等のファイルが生成される」を
 /// 機械的に確かめるためのもので、通常起動では何もしない
 enum SelfTest {
+    /// ポップオーバーの操作 (AppDelegate から渡す)。セルフテストでしか使わない
+    struct PopoverControl {
+        let show: () -> Void
+        let close: () -> Void
+        let isShown: () -> Bool
+    }
+
     @MainActor
-    static func runIfRequested(setup: RecordingSetup, recording: RecordingController) {
+    static func runIfRequested(setup: RecordingSetup, recording: RecordingController,
+                               popover: PopoverControl) {
         let env = ProcessInfo.processInfo.environment
         guard let text = env["KILDE_GUI_SELFTEST_RECORD"] else { return }
         guard let seconds = Double(text), seconds > 0 else {
@@ -49,10 +57,32 @@ enum SelfTest {
         } catch {
             fail("録画オプションを作れません: \(error)")
         }
+        // KILDE_GUI_SELFTEST_POPOVER=close: 録画中にポップオーバーを閉じても録画が続くこと
+        // (issue #18 の受け入れ条件) を確かめる。閉じた時点と終了時の出力サイズを出すので、
+        // 閉じた後もファイルが伸びていれば録画が継続している
+        let closesPopover = env["KILDE_GUI_SELFTEST_POPOVER"] == "close"
+        if closesPopover {
+            // LSUIElement のアプリをターミナルから起動すると非アクティブのままで、
+            // その状態では NSPopover が表示されない (isShown が false のまま)。明示的にアクティブ化する
+            NSApp.activate(ignoringOtherApps: true)
+            popover.show()
+            if !popover.isShown() {
+                // アクティブ化やステータス項目の生成が間に合わないことがあるので 1 回だけ待って再試行する
+                RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+                popover.show()
+            }
+            guard popover.isShown() else {
+                fail("ポップオーバーを開けませんでした (isShown=false)")
+            }
+            print("selftest: popover shown=true")
+            fflush(stdout)
+        }
+
         recording.whenSessionEnds {
             switch recording.phase {
             case .finished(let url):
-                print("selftest: finished \(url.path)")
+                let bytes = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
+                print("selftest: finished \(url.path) bytes=\(bytes ?? 0) popoverShown=\(popover.isShown())")
                 fflush(stdout)
                 exit(0)
             case .failed(let message):
@@ -62,6 +92,15 @@ enum SelfTest {
             }
         }
         recording.start(options)
+        if closesPopover {
+            // 録画が始まってから閉じる (開始直後は準備中なのでファイルがまだ伸びていない)
+            DispatchQueue.main.asyncAfter(deadline: .now() + max(1.5, seconds / 3)) {
+                popover.close()
+                print("selftest: popover closed shown=\(popover.isShown())"
+                    + " elapsed=\(String(format: "%.1f", recording.elapsed))s bytes=\(recording.outputBytes)")
+                fflush(stdout)
+            }
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
             recording.stop()
         }

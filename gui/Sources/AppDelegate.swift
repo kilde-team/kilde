@@ -43,7 +43,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
-        SelfTest.runIfRequested(setup: setup, recording: recording)
+        // セルフテストは 1 回ランループを回してから始める — applicationDidFinishLaunching の
+        // 中ではステータス項目のボタンがまだウィンドウに載っておらず、NSPopover を出せないため
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self else { return }
+            SelfTest.runIfRequested(
+                setup: self.setup, recording: self.recording,
+                popover: SelfTest.PopoverControl(
+                    show: { [weak self] in self?.showPopover() },
+                    close: { [weak self] in self?.popover?.performClose(nil) },
+                    isShown: { [weak self] in self?.popover?.isShown ?? false }))
+        }
     }
 
     /// 録画中に終了 (メニューの終了・ログアウト等) されたら、停止してファイナライズを待ってから終わる。
@@ -58,16 +68,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func togglePopover() {
-        guard let item = statusItem, let button = item.button, let popover else { return }
+        guard let popover else { return }
         if popover.isShown {
             popover.performClose(nil)
         } else {
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-            // NSPopover の内容は key window にならないため didBecomeKey では拾えない。
-            // 開くたびに通知して一覧を更新させる (閉じている間のウィンドウ・デバイスの増減を拾う)
-            NotificationCenter.default.post(
-                name: .kildePopoverDidShow, object: popover.contentViewController)
+            showPopover()
         }
+    }
+
+    private func showPopover() {
+        guard let button = statusItem?.button, let popover, !popover.isShown else { return }
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        // NSPopover の内容は key window にならないため didBecomeKey では拾えない。
+        // 開くたびに通知して一覧を更新させる (閉じている間のウィンドウ・デバイスの増減を拾う)
+        NotificationCenter.default.post(
+            name: .kildePopoverDidShow, object: popover.contentViewController)
     }
 
     private func updateStatusItem(phase: RecordingController.Phase, elapsed: TimeInterval) {
