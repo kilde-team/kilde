@@ -97,6 +97,13 @@ public final class HotkeyRecordingController {
 
     private func startRecording() {
         var options = baseOptions
+        // HDR 可否は待機開始前ではなく「いま」の表示状態で決める (issue #16)。
+        // 待機は数時間に及びうるので、その間に HDR ディスプレイを繋いだ / 外した /
+        // 切り替えたことが反映されないと、指定どおりに録れない。
+        // ここは handleHotkey() 経由でメインスレッド上なので DisplayHDR を読める
+        if options.hdr {
+            options.hdrCapableDisplayIDs = MainActor.assumeIsolated { DisplayHDR.capableDisplayIDs() }
+        }
         do {
             if overrides.outputPath == nil {
                 // 待機が長時間でも既定ファイル名を実際の開始時刻に合わせる。

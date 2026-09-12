@@ -296,6 +296,7 @@ scripts/integration-test.sh
 | T18b | 同秒の 2 本同時起動で互いのファイルを消さない (共存を検証。固まる場合は #70 をタイムアウトで回収) |
 | T19 | `rec --codec prores` — ProRes (BGRA 経路) で録れる |
 | T19b | `rec --codec hevc` — HEVC (420v 経路) で録れる。`SCStreamConfiguration` は単体テストから触れないため、両経路をここで通す |
+| T20 | `rec --hdr` — SDR 機でのフォールバック (理由を `⚠ HDR:` で表示し、録画は成功して **exit 0**) / **`--codec` を明示**して hevc 以外にした場合と `--no-video` との併用は録画前に exit 64。**`--codec` 省略時と設定ファイル由来の非 hevc は exit 64 ではなく、警告つき SDR フォールバック (exit 0)** — CLI の引数検証は明示指定しか見られず、解決後の値は `Recorder` が判定するため。HDR として録れることの確認は HDR ディスプレイが要るため別 (下記の手動確認) |
 
 作業ディレクトリ (録画物とログ) は失敗調査のため削除されず、最後に
 パスが表示されます。
@@ -303,6 +304,33 @@ scripts/integration-test.sh
 テスト用に「自分で音を鳴らすウィンドウ」を持つ最小アプリ
 `scripts/soundapp.swift` を同梱しており、スクリプトが自動でコンパイルして使います
 (T6–T8 のウィンドウ音声スコープ検証用)。
+
+### HDR 収録の確認 (要 HDR ディスプレイ — issue #16)
+
+`--hdr` は統合テストに入れていません。**HDR として録れたことの確認には HDR ディスプレイが
+必要で、現在の検証機 (LG Ultra HD) は HDR 非対応**のためです (SPIKE-NOTES F-H)。
+HDR ディスプレイのある環境では、次を手動で確認してください:
+
+```sh
+kilde rec --hdr --codec hevc --duration 10s hdr.mov
+```
+
+- 結果に `⚠ HDR:` の行が**出ない**こと (出ていれば SDR に落ちています)
+- QuickTime Player でファイルを開き、インスペクタ (⌘I) で色空間が PQ
+  (HLG ではない) になっていること
+- `ffprobe -show_streams hdr.mov` なら `color_primaries=smpte432` (Display P3),
+  `color_transfer=smpte2084` (PQ), `color_space=bt2020nc`, `profile=Main 10`
+
+  色域が Display P3 なのは、使うプリセットが `captureHDRStreamLocalDisplay` だからです
+  (HDR10 メタデータ付きの `captureHDRRecordingPreservedSDRHDR10` は CI の SDK に
+  シンボルが無く使えていません — issue #76)。**PQ と組み合わせる YCbCr マトリクスは、
+  色域が P3 でも BT.2020 を使います** (709 を使うと広色域が範囲外に出てクランプされる)。
+
+SDR ディスプレイでは逆に、**SDR へのフォールバックが働くこと**を確認できます
+(`⚠ HDR: 収録対象のディスプレイが HDR に対応していないため SDR で録画します
+(HDR には HDR 対応ディスプレイが必要です)` が出て、録画自体は成功し**終了コードは 0**)。
+`--codec` を省略した場合や設定ファイルの codec が hevc でない場合は、代わりに
+`⚠ HDR: HDR は HEVC でのみ書き出せます (現在のコーデック: h264)。…` が出ます。
 
 ### A/V ドリフト計測 (長時間録画)
 

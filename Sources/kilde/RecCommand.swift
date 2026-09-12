@@ -66,6 +66,9 @@ struct RecCommand: ParsableCommand {
     @Flag(inversion: .prefixedNo, help: "カーソルを写り込む / 写り込まない (既定: 写り込む。設定 showsCursor で変更可、--cursor は false をその回だけ打ち消す)")
     var cursor: Bool?
 
+    @Flag(help: "HDR で収録する (macOS 15 以降 + HDR ディスプレイ + --codec hevc。条件を満たさない環境では警告して SDR で録る)")
+    var hdr: Bool = false
+
     @Option(help: "開始前カウントダウン (秒)")
     var countdown: Int = 0
 
@@ -141,6 +144,16 @@ struct RecCommand: ParsableCommand {
         if let codec, VideoCodecKind(rawValue: codec) == nil {
             throw ValidationError("--codec は h264 / hevc / prores を指定してください")
         }
+        if hdr {
+            // HDR は 10-bit の HEVC (Main10) で書くので、他のコーデックでは成立しない。
+            // 黙って HEVC に変えると「指定した codec と違うもので録れる」ことになるので弾く
+            if let codec, codec != "hevc" {
+                throw ValidationError("--hdr は --codec hevc と組み合わせてください (指定: \(codec))")
+            }
+            if noVideo {
+                throw ValidationError("--hdr と --no-video は併用できません (映像を録らないため HDR が効きません)")
+            }
+        }
         if let format {
             guard ContainerKind(rawValue: format.lowercased()) != nil else {
                 throw ValidationError("--format は mov か mp4 を指定してください")
@@ -191,6 +204,17 @@ struct RecCommand: ParsableCommand {
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
 
+        // HDR 対応ディスプレイの判定は NSScreen = メインスレッドが要る。
+        // Recorder のセッションから呼ぶと、run() が塞いでいるメインスレッドへ
+        // ディスパッチすることになってデッドロックするので、ここで先に済ませる
+        // (KildeCore.Recorder は MainActor を要求しない — CLAUDE.md §6)。
+        //
+        // ArgumentParser の main() はメインスレッドで走るのでこの関数もメインスレッド上だが、
+        // 型の上では nonisolated なので assumeIsolated で表明する。await にしないのは、
+        // ここが同期関数でありメインスレッドを手放せないため。前提が崩れれば
+        // assumeIsolated がその場で落ちるので、黙って間違った値を使うことはない
+        let hdrCapableDisplays = MainActor.assumeIsolated { DisplayHDR.capableDisplayIDs() }
+
         // 設定ファイルの不正は対話 (meeting のウィンドウ選択) より前に失敗させる
         let config: KildeConfig
         do {
@@ -217,6 +241,8 @@ struct RecCommand: ParsableCommand {
         options.wantsVideo = !noVideo
         options.duration = parseDuration(duration)
         options.autoMonitor = monitor
+        options.hdr = hdr
+        options.hdrCapableDisplayIDs = hdrCapableDisplays
 
         // CLI 引数 > プリセット > 環境変数 > 設定ファイル > 既定値 の解決は KildeCore 側
         // (GUI も同じ規則で設定を読むため)。出力 URL もここで一度だけ決まる
@@ -521,6 +547,11 @@ struct RecCommand: ParsableCommand {
         print("file: \(s.outputURL.path) (\(fileSizeString(s.outputURL)))")
         if s.mixedDecodeFailures > 0 {
             print("⚠ ミックスできなかった音声バッファ: \(s.mixedDecodeFailures) 件 (非対応フォーマットの可能性)")
+        }
+        if let reason = s.hdrFallback {
+            // 録画は成功しているので終了コードは 0 のまま。ただし黙って SDR にすると
+            // 「HDR で録れたつもりのファイル」ができるので、結果に必ず出す (issue #16)
+            print("⚠ HDR: \(reason)")
         }
         if let report = try? FileInspection.report(url: s.outputURL) {
             if let size = report.videoSize {

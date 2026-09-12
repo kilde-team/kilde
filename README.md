@@ -143,6 +143,12 @@ kilde rec --window zoom --window notes demo.mov
 #   browser loses its sound as well, so if you only want to hide what is on
 #   screen, consider recording the windows you want with --window instead
 kilde rec --exclude-app com.1password.1password --exclude-app com.tinyspeck.slackmacgap demo.mov
+
+# HDR capture, which needs macOS 15 or later, an HDR display, and HEVC.
+# Output is HEVC Main10 in Display P3 with the PQ transfer function
+#   Where any of that is missing, kilde records SDR, says why, and still exits 0 --
+#   it will not hand you a file you believe is HDR when it is not
+kilde rec --hdr --codec hevc demo.mov
 ```
 
 To record through BlackHole while still hearing the audio, install BlackHole

@@ -899,6 +899,70 @@ else
     bad "T17d exclude-app 引数検証: 上記の組合せが想定どおりに弾かれていない"
 fi
 
+# ---- T20: HDR の SDR フォールバックと引数検証 (issue #16) ------------------------
+# HDR として録れることは HDR ディスプレイが要るので確かめられない (SPIKE-NOTES F-H)。
+# だが **SDR 機でこそ通る経路** = 「HDR を求められたが応えられなかったときの振る舞い」は
+# ここで検証できる。とくに重要なのは終了コードで、フォールバックの理由を
+# cleanupWarnings に載せてしまうと CLI がそれを exit 1 に変換する (DESIGN.md §6)。
+# 録画は成功しているので 0 でなければならない
+
+log "T20: rec --hdr --codec hevc — 録画は成功し終了コードは 0 (SDR 機ではフォールバックの理由つき)"
+F="$WORK/t20-hdr-fallback.mov"
+if "$KILDE" rec --hdr --codec hevc --duration 3s --output "$F" > "$WORK/t20.log" 2>&1; then
+    VD=$(video_duration_of "$F")
+    # HDR 対応ディスプレイでは警告が出ない (それが正しい挙動) ので、警告の有無では判定しない。
+    # 出た場合だけ「理由が書かれているか」を見る — SDR 機ではこちらを通る
+    if grep -q "⚠ HDR:" "$WORK/t20.log"; then
+        T20_MODE="SDR フォールバック ($(grep -o '⚠ HDR:.*' "$WORK/t20.log" | head -1 | cut -c1-40)…)"
+    else
+        T20_MODE="HDR 経路 (このディスプレイは HDR 対応)"
+    fi
+    if num_between "${VD:-0}" 2 5; then
+        ok "T20 hdr: exit=0・映像あり (${VD}s) — $T20_MODE"
+    else
+        bad "T20 hdr: duration=${VD:-N/A}s — $WORK/t20.log"
+    fi
+else
+    bad "T20 hdr: exit=$? (0 が必要 — フォールバックを cleanupWarnings に載せると 1 になる) — $WORK/t20.log"
+fi
+
+log "T20a: rec --hdr (--codec 省略) — 解決後 h264 なので警告つき SDR で録り、exit 0"
+# CLI の引数検証は明示指定しか見られないため、省略時は exit 64 ではなく Recorder 側の
+# フォールバックに落ちる。ここを通さないと「解決後の値で契約を強制する」実装の退行を
+# 統合テストが捕まえられない (T20b は明示指定しか叩いていない)
+F="$WORK/t20a-hdr-default-codec.mov"
+if "$KILDE" rec --hdr --duration 3s --output "$F" > "$WORK/t20a.log" 2>&1; then
+    VD=$(video_duration_of "$F")
+    if grep -q "⚠ HDR:.*HEVC" "$WORK/t20a.log" && num_between "${VD:-0}" 2 5; then
+        ok "T20a hdr 既定コーデック: HEVC でない旨を出して SDR で録れ、exit=0 (${VD}s)"
+    else
+        bad "T20a hdr 既定コーデック: 警告=$(grep -o '⚠ HDR:.*' "$WORK/t20a.log" | head -1) duration=${VD:-N/A}s — $WORK/t20a.log"
+    fi
+else
+    bad "T20a hdr 既定コーデック: exit=$? (0 が必要) — $WORK/t20a.log"
+fi
+
+log "T20b: rec --hdr — 併用できない組合せは録画前に exit 64"
+T20B_FAIL=0
+check_hdr_rejected() {  # check_hdr_rejected <ログ名> <説明> <kilde rec の引数...>
+    local logname="$1" desc="$2"; shift 2
+    local start=$(date +%s)
+    "$KILDE" rec "$@" --duration 30s --output "$WORK/$logname.mov" > "$WORK/$logname.log" 2>&1
+    local code=$? elapsed=$(( $(date +%s) - start ))
+    if [ "$code" != "64" ] || [ -f "$WORK/$logname.mov" ] || [ "$elapsed" -ge 5 ]; then
+        echo "  $desc: exit=$code (64 が必要) elapsed=${elapsed}s file=$([ -f "$WORK/$logname.mov" ] && echo あり || echo なし)"
+        T20B_FAIL=1
+    fi
+}
+check_hdr_rejected t20b "--codec prores との併用" --hdr --codec prores
+check_hdr_rejected t20b2 "--codec h264 との併用" --hdr --codec h264
+check_hdr_rejected t20b3 "--no-video との併用" --hdr --no-video
+if [ "$T20B_FAIL" = "0" ]; then
+    ok "T20b hdr 引数検証: 3 パターンすべて録画前に exit=64・ファイルなし"
+else
+    bad "T20b hdr 引数検証: 上記の組合せが想定どおりに弾かれていない"
+fi
+
 # ---- サマリ -------------------------------------------------------------------
 
 echo ""

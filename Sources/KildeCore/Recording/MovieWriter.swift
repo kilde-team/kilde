@@ -2,6 +2,9 @@ import Foundation
 import AVFoundation
 import CoreMedia
 import CoreGraphics
+// HEVC Main10 のプロファイル定数 (kVTProfileLevel_HEVC_Main10_AutoLevel) は
+// AVFoundation ではなく VideoToolbox 側にある (issue #16)
+import VideoToolbox
 
 /// AVAssetWriter ラッパ。
 /// - 映像あり: 最初の映像サンプル PTS をセッション開始 (アンカー) にする
@@ -42,7 +45,8 @@ final class MovieWriter {
     private var pauseOffset = CMTime.zero
 
     init(url: URL, fileType: AVFileType, video: Bool, videoSize: CGSize?,
-         codec: VideoCodecKind, audioLabels: [String], anchor: Anchor,
+         codec: VideoCodecKind, hdr: Bool = false,
+         audioLabels: [String], anchor: Anchor,
          outputFilePolicy: OutputFilePolicy = .rejectExisting) throws {
         self.url = url
         self.anchor = anchor
@@ -93,9 +97,28 @@ final class MovieWriter {
                 ]
             case .hevc:
                 settings[AVVideoCodecKey] = AVVideoCodecType.hevc
-                settings[AVVideoCompressionPropertiesKey] = [
-                    AVVideoAverageBitRateKey: 10_000_000,
-                ]
+                if hdr {
+                    // HDR は 10-bit が要るので Main10 を明示する (既定の Main は 8-bit)。
+                    // 色情報も書かないと、再生側が SDR として解釈して眠い絵になる
+                    settings[AVVideoCompressionPropertiesKey] = [
+                        AVVideoAverageBitRateKey: 20_000_000,
+                        AVVideoProfileLevelKey: kVTProfileLevel_HEVC_Main10_AutoLevel,
+                    ]
+                    // 色域は SCK のプリセット (captureHDRStreamLocalDisplay) が実際に渡してくる
+                    // バッファに合わせて Display P3。**PQ と組み合わせる YCbCr マトリクスは、
+                    // 色域が P3 でも BT.2020 を使う** — P3 に BT.709 を合わせるのは SDR と HLG の
+                    // 話で、709 で変換すると BT.2020 の部分集合である P3 の彩度の高い色が
+                    // 範囲外の Cb/Cr になってクランプされ、色相と彩度がずれる (SPIKE-NOTES F-H)
+                    settings[AVVideoColorPropertiesKey] = [
+                        AVVideoColorPrimariesKey: AVVideoColorPrimaries_P3_D65,
+                        AVVideoTransferFunctionKey: AVVideoTransferFunction_SMPTE_ST_2084_PQ,
+                        AVVideoYCbCrMatrixKey: AVVideoYCbCrMatrix_ITU_R_2020,
+                    ]
+                } else {
+                    settings[AVVideoCompressionPropertiesKey] = [
+                        AVVideoAverageBitRateKey: 10_000_000,
+                    ]
+                }
             case .prores:
                 settings[AVVideoCodecKey] = AVVideoCodecType.proRes422
             }
