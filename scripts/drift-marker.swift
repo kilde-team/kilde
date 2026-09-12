@@ -124,8 +124,14 @@ func outputDevices() -> [(id: AudioDeviceID, name: String)] {
 ///  BlackHole のように似た名前のデバイスが複数入りうる)
 func resolveOutput(_ wanted: String) -> (id: AudioDeviceID, name: String)? {
     let devices = outputDevices()
-    if let exact = devices.first(where: { $0.name.localizedCaseInsensitiveCompare(wanted) == .orderedSame }) {
-        return exact
+    // 同名のデバイスが複数ある場合 (同型機を 2 台つないでいる等) も、列挙順で黙って選ばない。
+    // 完全一致だけ素通しにすると、部分一致を厳しくした意味 (違う経路を無言で測らない) が失われる
+    let exact = devices.filter { $0.name.localizedCaseInsensitiveCompare(wanted) == .orderedSame }
+    guard exact.count <= 1 else {
+        fail("同じ名前の出力デバイスが \(exact.count) 台あります: \(wanted)\n  どれを使うか区別できないので、一方を外してから実行してください", 2)
+    }
+    if let one = exact.first {
+        return one
     }
     let partial = devices.filter { $0.name.localizedCaseInsensitiveContains(wanted) }
     guard partial.count <= 1 else {
