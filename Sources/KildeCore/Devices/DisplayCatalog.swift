@@ -76,12 +76,7 @@ public enum DisplayCatalog {
     /// SCWindow を解決する。windowID の完全一致を最優先し、無ければタイトル / bundleID の
     /// 部分一致 (複数ヒット時は面積が最大のもの)。
     /// Recorder のセッション (async) からのみ使うので async 版だけを持つ
-    static func resolveWindow(matching match: String) async throws -> SCWindow {
-        let content = try await shareableContent("ウィンドウの一覧を取得できません")
-        return try resolve(match, in: content)
-    }
-
-    /// 複数指定をまとめて解決する (issue #13)。指定ごとに resolveWindow と同じ規則で 1 つ選び、
+    /// 指定をまとめて解決する (issue #13)。指定ごとに resolveWindow と同じ規則で 1 つ選び、
     /// 同じウィンドウが二重に入らないよう windowID で重複を除く。
     /// 列挙は 1 回にまとめる — 指定ごとに SCShareableContent.current を呼ぶと、その間の
     /// ウィンドウの開閉で指定どうしが食い違った一覧を見ることになる
@@ -104,14 +99,18 @@ public enum DisplayCatalog {
     static func resolveApplications(bundleIDs: [String]) async throws -> [SCRunningApplication] {
         guard !bundleIDs.isEmpty else { return [] }
         let content = try await shareableContent("実行中アプリの一覧を取得できません")
-        return try bundleIDs.map { id in
-            guard let app = content.applications.first(where: {
+        return try bundleIDs.flatMap { id -> [SCRunningApplication] in
+            // 同じ bundleID のインスタンスが複数動いていることがある (プロファイルを分けた
+            // ブラウザなど)。first で 1 つだけ返すと、残りのインスタンスの映像と音声が
+            // 出力に残ってしまう — 「隠したはずが写っている」ので全部を渡す
+            let matched = content.applications.filter {
                 $0.bundleIdentifier.caseInsensitiveCompare(id) == .orderedSame
-            }) else {
+            }
+            guard !matched.isEmpty else {
                 throw KilError.deviceNotFound(
                     "bundleID \"\(id)\" のアプリが実行中に見つかりません (kilde devices で確認)")
             }
-            return app
+            return matched
         }
     }
 

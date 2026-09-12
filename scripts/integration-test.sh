@@ -557,8 +557,11 @@ if "$KILDE" devices 2>/dev/null | grep -q "Wallpaper"; then
 elif "$KILDE" devices 2>/dev/null | grep -q "ゴミ箱"; then
     SECOND="ゴミ箱"
 fi
+# 複数ディスプレイ環境では 2 つ目のウィンドウが別ディスプレイにある可能性がある。
+# その場合 Recorder が録画前に拒否するのは正しい挙動なので、テストとしては SKIP にする
+DISP_COUNT=$("$KILDE" devices --no-windows 2>/dev/null | grep -c 'display\[')
 F="$WORK/t17b-multi.mov"
-if [ -n "$SECOND" ]; then
+if [ -n "$SECOND" ] && [ "$DISP_COUNT" = "1" ]; then
     if "$KILDE" rec --window SpikeSoundWindow --window "$SECOND" --duration 3s --output "$F" > "$WORK/t17b.log" 2>&1; then
         SIZE=$(inspect "$F" | grep '^video:' | grep -oE '[0-9]+x[0-9]+' | head -1)
         # 複数ウィンドウはディスプレイ座標系のまま合成されるので、出力はディスプレイ全体の大きさ
@@ -574,14 +577,18 @@ if [ -n "$SECOND" ]; then
         bad "T17b window 複数: コマンド失敗 — $WORK/t17b.log"
     fi
 else
-    skip "T17b window 複数: 2 つ目に使える無関係ウィンドウが見つからない"
+    skip "T17b window 複数: 2 つ目に使える無関係ウィンドウが無い / ディスプレイが複数 (同一ディスプレイを保証できない)"
 fi
 
 # 陽性だけだと「常に音が入る」実装でも通ってしまうので、音源を外した指定で無音を確かめる
 log "T17b2: rec --window 複数指定 — 含めなかったアプリの音は入らない (陰性確認)"
 F="$WORK/t17b2-multi-negative.mov"
-if [ -n "$SECOND" ]; then
-    if "$KILDE" rec --window "$SECOND" --window Menubar --duration 3s --output "$F" > "$WORK/t17b2.log" 2>&1; then
+# 2 つ目も存在を確かめる — resolveWindows はどれか 1 つでも解決できないと exit 3 になるので、
+# 決め打ちのままだと「見つからない環境」で SKIP ではなく FAIL になってしまう
+THIRD=""
+"$KILDE" devices 2>/dev/null | grep -q "Menubar" && THIRD="Menubar"
+if [ -n "$SECOND" ] && [ -n "$THIRD" ] && [ "$DISP_COUNT" = "1" ]; then
+    if "$KILDE" rec --window "$SECOND" --window "$THIRD" --duration 3s --output "$F" > "$WORK/t17b2.log" 2>&1; then
         RMS=$(rms_of "$F")
         if awk -v v="${RMS:-1}" 'BEGIN{exit !(v < 0.00005)}'; then
             ok "T17b2 window 複数 陰性: 含めなかったアプリの音は入らない (rms=$RMS)"
@@ -597,13 +604,17 @@ fi
 stop_excl_app
 
 log "T17c: rec --exclude-app — 実行中でない bundleID は録画前に exit 3"
+# --duration 30s にしておくと、録画が始まってしまった実装では 30 秒かかる。
+# 5 秒未満で返ったことをもって「録画前に弾いた」と判定する (T12b / T16c と同じ考え方)
+START=$(date +%s)
 "$KILDE" rec --exclude-app com.kilde.definitely-not-running --duration 30s \
     --output "$WORK/t17c.mov" > "$WORK/t17c.log" 2>&1
 EXIT_CODE=$?
-if [ "$EXIT_CODE" = "3" ] && [ ! -f "$WORK/t17c.mov" ]; then
-    ok "T17c exclude-app 不明 bundleID: exit=3・ファイルを作らない"
+ELAPSED=$(( $(date +%s) - START ))
+if [ "$EXIT_CODE" = "3" ] && [ "$ELAPSED" -lt 5 ] && [ ! -f "$WORK/t17c.mov" ]; then
+    ok "T17c exclude-app 不明 bundleID: 録画前に exit=3 (${ELAPSED}s)・ファイルを作らない"
 else
-    bad "T17c exclude-app 不明 bundleID: exit=$EXIT_CODE (3 が必要) — $WORK/t17c.log"
+    bad "T17c exclude-app 不明 bundleID: exit=$EXIT_CODE elapsed=${ELAPSED}s (3 が必要) — $WORK/t17c.log"
 fi
 
 log "T17d: rec --exclude-app — 併用不可の組合せは録画前に exit 64"
