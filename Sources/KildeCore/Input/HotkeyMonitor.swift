@@ -314,25 +314,42 @@ public enum HotkeyDiagnostics {
         throw lastError ?? KilError.failed("ホットキー登録の診断に失敗しました")
     }
 
+    /// `canRegister` の結果。**「登録できない」と「プローブがキーを握ったまま」を
+    /// 区別する** — どちらも「待機はできない」だが、後者で即時録画へ縮退すると
+    /// 録画中ずっとキーを占有し、GUI も CLI もそのキーを使えなくなる (issue #80)
+    public enum Registrability: Equatable {
+        /// 登録でき、解除もできた。待機してよい
+        case available
+        /// 競合などで登録できなかった。キーは握っていないので縮退してよい
+        case taken
+        /// 登録はできたが**解除に失敗した**。プローブがキーを保持したままなので縮退してはならない
+        case probeStuck
+    }
+
     /// 指定のキーを**このプロセスが今**登録できるかを、実際に一度登録して確かめる (issue #80)。
     ///
     /// `RegisterEventHotKey` は `kEventHotKeyExclusive` なので、GUI が常駐して同じキーを
     /// 握っていると CLI 側の登録は失敗する。**待機に入ってから失敗しても即時録画へ
     /// 引き返せない** ため (理由は `RecCommand.shouldWaitForHotkey`)、分岐の前にここで試す。
     ///
-    /// 解除まで成功したときだけ true を返す — `stop()` が false のときはキーが予約された
-    /// ままで、続く本登録がどのみち失敗するため。試用の直後に同じキーを登録し直せるのは
-    /// `stop()` をメインスレッドで同期的に呼んでいるからで、
-    /// `HotkeyRecordingController.deinit` が非同期の解除を避けているのと同じ理由
-    public static func canRegister(_ source: String) -> Bool {
+    /// 試用の直後に同じキーを登録し直せるのは `stop()` をメインスレッドで同期的に
+    /// 呼んでいるからで、`HotkeyRecordingController.deinit` が非同期の解除を避けているのと
+    /// 同じ理由。**`stop()` の失敗を `.taken` と同じ扱いにしない** — `stop()` は解除に
+    /// 失敗すると再試行を要求して参照を保持する設計なので、ここでモニターを捨てて
+    /// 縮退すると、解放されないプローブがキーを握ったまま録画が始まる
+    public static func canRegister(_ source: String) -> Registrability {
         precondition(Thread.isMainThread, "ホットキーの登録可否判定はメインスレッドから実行してください")
-        guard let monitor = try? HotkeyMonitor(source, handler: {}) else { return false }
+        guard let monitor = try? HotkeyMonitor(source, handler: {}) else { return .taken }
         do {
             try monitor.start()
         } catch {
-            return false
+            // start() は RegisterEventHotKey 失敗時に自前で後始末するが、その後始末
+            // (RemoveEventHandler) 自体が失敗するとハンドラと retainedSelf が残る。
+            // stop() は残っていれば解除を再試行するので、ここで一度呼んでおく
+            _ = monitor.stop()
+            return .taken
         }
-        return monitor.stop()
+        return monitor.stop() ? .available : .probeStuck
     }
 }
 

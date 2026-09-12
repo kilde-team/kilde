@@ -318,6 +318,10 @@ struct RecCommand: ParsableCommand {
     /// 設定ファイル由来のときだけ警告を出して即時録画へ縮退する。GUI が常駐して同じキーを
     /// 握っているだけで `kilde rec` 全体が exit 1 になるのは重すぎるため。
     ///
+    /// ただし**縮退してよいのはプローブがキーを手放せたときだけ**。`.probeStuck`
+    /// (登録はできたが解除に失敗) で縮退すると、解放されないプローブが録画中ずっと
+    /// キーを握り、GUI も CLI もそのキーを使えなくなる。待機経路へ進めて失敗させる方が軽い。
+    ///
     /// **この判定を `waitForHotkey` の catch には置けない。** あちらは issue #67 の理由で
     /// `controller.start()` より前に停止シグナルを設置しており、catch に来た時点で
     /// 死んだコントローラを掴んだハンドラが残っている。そこから `runImmediately` に
@@ -325,12 +329,16 @@ struct RecCommand: ParsableCommand {
     /// コントローラを触る
     private func shouldWaitForHotkey(_ resolution: HotkeySettings.Resolution) -> Bool {
         guard resolution.origin == .config else { return true }
-        guard !HotkeyDiagnostics.canRegister(resolution.source) else { return true }
-        let warning = "WARNING: ホットキー \"\(resolution.source)\" を登録できないため、"
-            + "待機せずに録画を開始します "
-            + "(GUI など他のアプリが同じキーを先に登録している可能性があります)\n"
-        FileHandle.standardError.write(warning.data(using: .utf8)!)
-        return false
+        switch HotkeyDiagnostics.canRegister(resolution.source) {
+        case .available, .probeStuck:
+            return true
+        case .taken:
+            let warning = "WARNING: ホットキー \"\(resolution.source)\" を登録できないため、"
+                + "待機せずに録画を開始します "
+                + "(GUI など他のアプリが同じキーを先に登録している可能性があります)\n"
+            FileHandle.standardError.write(warning.data(using: .utf8)!)
+            return false
+        }
     }
 
     // MARK: - 実行モード
