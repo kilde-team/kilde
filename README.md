@@ -38,6 +38,12 @@ swift build
 # 画面 + システム音声 (既定)
 kilde rec demo.mov
 
+# 画面の一部だけを収録 (x,y,w,h のポイント座標、左上が原点)
+#   幅・高さは H.264 の制約で偶数に切り捨て。ディスプレイの範囲外は終了コード 1、
+#   形式不正や 2 ポイント未満はオプション検証エラー (64)
+#   --window / --no-video / --preset meeting とは併用不可
+kilde rec --region 0,0,1280,720 demo.mov
+
 # 会議 (Zoom / Google Meet / Teams) を録画 — ウィンドウを選択し、
 # 相手の声 + 自分の声を 1 トラックにミックス
 kilde rec --preset meeting 会議.mov
