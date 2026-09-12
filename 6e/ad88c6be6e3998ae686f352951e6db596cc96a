@@ -1,0 +1,15 @@
+Sources/KildeCore/Recording/MovieWriter.swift
+  ai_agent 47-55,57,109,116-119,121-125,127
+CLAUDE.md
+  ai_agent 157-161,163-164
+docs/DEVELOPMENT.md
+  ai_agent 319-321,324-330
+Sources/KildeCore/Recording/Recorder.swift
+  ai_agent 162,729,882,896,1053-1054,1056,1060,1114,1119
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "6ead88c6be6e3998ae686f352951e6db596cc96a",
+  "prompts": {}
+}
