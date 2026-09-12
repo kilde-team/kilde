@@ -1,0 +1,38 @@
+docs/DEVELOPMENT.md
+  s_35faeec28b4c4b::t_cf2fa6815c1ecc 270-276
+docs/DESIGN.md
+  s_35faeec28b4c4b::t_f3409ddee13be5 257
+CLAUDE.md
+  s_35faeec28b4c4b::t_40dbfd8746215f 149-156
+  s_35faeec28b4c4b::t_c443ac461f95cd 130
+  s_35faeec28b4c4b::t_39ad9e8ba9859d 121-122
+docs/SPIKE-NOTES.md
+  s_35faeec28b4c4b::t_94ab63414b2989 197,199,202-221
+Sources/KildeCore/Recording/Recorder.swift
+  s_35faeec28b4c4b::t_ac6ef19713187f 111
+  s_35faeec28b4c4b::t_1cbb8042ca9661 666
+  s_35faeec28b4c4b::t_7e974b130d97dc 606,609-614
+  s_35faeec28b4c4b::t_742a84cb69e4ed 645-647,650,653-655,659-663
+  s_35faeec28b4c4b::t_20341b918ae911 633
+README.md
+  s_35faeec28b4c4b::t_3b40117bcae38f 68
+Sources/KildeCore/Recording/MovieWriter.swift
+  s_35faeec28b4c4b::t_1072d3e4c62523 66,73-77,79,81
+  s_35faeec28b4c4b::t_378969b65db88c 36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d57d79207eeeba9c48bb283df8e3ad246dbe5bd9",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
