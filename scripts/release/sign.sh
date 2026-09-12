@@ -185,11 +185,12 @@ xcodebuild -project "$GUI_PROJECT" -scheme KildeGUI -configuration Release \
 
 # 現在は埋め込みフレームワークを持たない。将来追加された dylib / framework は
 # 外側の .app より先に署名し、コード署名の内側から外側という順序を維持する。
-# find は親ディレクトリを子より先に列挙するため、sort -rz (パス逆順) で最深の
-# コードから署名する — 内側を後から署名すると外側の署名が無効になるため。
+# find -d (-depth) で子を親より先に列挙し、最深のコードから署名する — 内側を
+# 後から署名すると外側の署名が無効になるため。BSD find の -d を使うのは、
+# macOS 標準の sort に NUL 区切りの -z が無いため (パス逆順ソートが使えない)
 while IFS= read -r -d '' nested_code; do
     codesign --force --sign "$SIGN_IDENTITY" --options runtime --timestamp "$nested_code"
-done < <(find "$GUI_APP/Contents" \( -type f -name '*.dylib' -o -type d \( -name '*.framework' -o -name '*.xpc' -o -name '*.appex' \) \) -print0 | sort -rz)
+done < <(find -d "$GUI_APP/Contents" \( -type f -name '*.dylib' -o -type d \( -name '*.framework' -o -name '*.xpc' -o -name '*.appex' \) \) -print0)
 
 echo "==> GUI を署名 (Hardened Runtime)"
 codesign --force --sign "$SIGN_IDENTITY" --options runtime --timestamp \
