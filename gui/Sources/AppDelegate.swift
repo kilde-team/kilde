@@ -32,6 +32,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 設定 (~/.kilde/config.json の `hotkey`) も CLI と共有する。
     /// nil は «設定されていない» (待機しない)
     private var hotkeyMonitor: HotkeyMonitor?
+    /// 解除に失敗して Carbon が握ったままのモニター。次回の適用で再試行する。
+    /// 捨てると再度 `stop()` を呼ぶ手段が無くなり、そのキーが効き続ける
+    private var pendingRelease: [HotkeyMonitor] = []
 
     /// 現在登録できているホットキー (nil は未登録)。検証から参照する。
     /// **self-test が自前で HotkeyMonitor を作ると、ここで登録済みのキーと
@@ -121,6 +124,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 区別できないと競合するキーが設定に残り、次回起動でも GUI と CLI が同じ失敗を繰り返す
     func applyHotkeyFromConfig(revert: String?? = nil) {
         let previous = revert ?? nil
+        // 解除に失敗して持ち越したモニターを、まず再試行する
+        pendingRelease.removeAll { $0.stop() }
         let source: String?
         do {
             source = try HotkeySettings.resolve(explicit: nil, config: setup.config)
@@ -159,7 +164,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // **解除に失敗したら置き換えない** — 上書きすると旧モニターへの参照が消え、
         // 新旧のホットキーが両方効いたまま、旧モニターを再解除する機会も失われる
         guard releaseHotkeyMonitor() else {
-            replacement?.stop()
+            // 新モニターの解除にも失敗したら、**参照を保持して次回の適用で再試行する**。
+            // 捨てると Carbon が新キーを握ったまま追跡対象から外れ、旧設定へ戻した後も
+            // そのキーが録画をトグルし続ける (HotkeyMonitor.stop() の契約どおり)
+            if let replacement, !replacement.stop() {
+                pendingRelease.append(replacement)
+            }
             // 旧モニターが動いたままなので、設定も旧値へ戻す。戻さないと
             // **実際に効くキーと設定ファイルの値が食い違い**、次回起動で
             // 設定側のキーが登録されて挙動が変わる

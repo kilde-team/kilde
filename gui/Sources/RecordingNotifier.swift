@@ -42,14 +42,29 @@ final class RecordingNotifier: NSObject {
     /// 取得が非同期である以上「短い録画が旗の立つ前に終わって通知が捨てられる」
     /// という別の消え方を作るだけだった。未許可のときは `add` が黙って捨てるので、
     /// **判定せずに投げるのが最も確実で、状態も競合も持たずに済む**
-    /// `bytes` は進捗由来の値 (フォールバック)。**実ファイルが読めればそちらを優先する** —
-    /// 進捗は 0.5 秒周期なので、短い録画では 1 度も届かず `0 bytes` と表示されてしまう。
-    /// ここでの stat は**完了時の 1 回だけ**なので、MainActor を塞ぐ心配はない
-    /// (通知のたびに読む形は避けた、という元の判断はそのまま)
+    /// `bytes` は進捗由来の値 (フォールバック)。
+    ///
+    /// 実ファイルのサイズを優先する — 進捗は 0.5 秒周期なので、短い録画では 1 度も
+    /// 届かず `0 bytes` と表示される。ただし **`stat` は MainActor の外で行う**:
+    /// `attributesOfItem` は同期 API で、遅いボリューム (ネットワーク・FUSE) では
+    /// 呼び出したアクターを塞ぐ。`notifyThenEndSession` の 2 秒タイムアウトは
+    /// このクロージャが返った後に始まるので、**タイムアウトでも救えない**
     func notifyCompleted(url: URL, elapsed: TimeInterval, bytes: Int64,
                          completion: @escaping () -> Void = {}) {
-        let finalBytes = (try? FileManager.default
-            .attributesOfItem(atPath: url.path)[.size] as? Int64).flatMap { $0 } ?? bytes
+        Task.detached {
+            let stated = (try? FileManager.default
+                .attributesOfItem(atPath: url.path)[.size] as? Int64).flatMap { $0 }
+            await MainActor.run { [weak self] in
+                self?.post(url: url, elapsed: elapsed, bytes: stated ?? bytes,
+                           completion: completion)
+            }
+        }
+    }
+
+    /// 通知の組み立てと登録 (サイズは確定済みの値を受け取る)
+    private func post(url: URL, elapsed: TimeInterval, bytes: Int64,
+                      completion: @escaping () -> Void) {
+        let finalBytes = bytes
         let identifier = UUID().uuidString
         let content = UNMutableNotificationContent()
         content.title = "録画を保存しました"

@@ -136,14 +136,19 @@ final class RecordingSetup: ObservableObject {
     /// エラーになり、GUI から直せない状態に陥る
     /// 戻り値は保存できたか。**失敗したら呼び出し元は登録処理へ進んではいけない** —
     /// 進むと、旧ホットキーの解除だけが行われて何も登録されない状態になりうる
-    @discardableResult
-    func saveHotkey() -> Bool {
+    /// 戻り値は `(保存できたか, 保存直前にファイルにあった hotkey)`。
+    /// **巻き戻しには «保存直前の実際の値» を使う** — `setup.config.hotkey` は GUI 起動時に
+    /// 読んだ値なので、その間に CLI (`kilde config set hotkey`) が変更していると、
+    /// 巻き戻しで CLI の設定を古い値に上書きしてしまう
+    func saveHotkey() -> (saved: Bool, previous: String?) {
         let trimmed = hotkeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        var onDisk: String?
         do {
             if !trimmed.isEmpty {
                 _ = try HotkeyParser.parse(trimmed)
             }
             var updated = try ConfigStore.load()
+            onDisk = updated.hotkey
             updated.hotkey = trimmed.isEmpty ? nil : trimmed
             try ConfigStore.save(updated)
             config = updated
@@ -151,10 +156,10 @@ final class RecordingSetup: ObservableObject {
             notice = trimmed.isEmpty
                 ? "ホットキーを無効にしました"
                 : "ホットキーを \(trimmed) に設定しました"
-            return true
+            return (true, onDisk)
         } catch {
             notice = "ホットキーを保存できません: \(error)"
-            return false
+            return (false, onDisk)
         }
     }
 

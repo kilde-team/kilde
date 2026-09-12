@@ -273,7 +273,15 @@ enum SelfTest {
             print("selftest: hotkeyRegistered=false resolved=\(resolved ?? "none")"
                 + " notice=\(setup.notice ?? "(なし)")")
             fflush(stdout)
-            fail("ホットキーを登録できませんでした (resolved=\(resolved ?? "none"))")
+            // **«設定が無いから登録されていない» と «登録に失敗した» を分ける。**
+            // 前者で「登録できませんでした」と exit 1 にすると、設定なしで手動実行
+            // したときに原因を取り違える
+            if resolved == nil {
+                print("selftest: hotkeyUnset=true (設定に hotkey が無いので登録対象なし)")
+                fflush(stdout)
+            } else {
+                fail("ホットキーを登録できませんでした (resolved=\(resolved!))")
+            }
         }
 
         // 最近の録画の走査。結果は Task 経由で MainActor に届くので、**RunLoop を回しても

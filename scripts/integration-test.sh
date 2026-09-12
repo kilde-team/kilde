@@ -1060,6 +1060,9 @@ else
         # 比較する前に実体パスへ正規化する
         T21_DIR_REAL=$(cd "$T21_DIR" && pwd -P)
         T21_HOTKEY=$(grep -m1 "^selftest: hotkeyRegistered=" "$WORK/t21.log" | sed 's/.*hotkeyRegistered=\([a-z]*\).*/\1/')
+        # 登録できたかだけでなく **どのキーを登録したか** も見る。true しか見ないと、
+        # 解決した値と違うキーを登録していても T21 は通ってしまう
+        T21_HOTKEY_SOURCE=$(grep -m1 "^selftest: hotkeyRegistered=true" "$WORK/t21.log" | sed 's/.* source=//')
         T21_EXCLUDED=$(grep -c "^selftest: recent=\(other-\|\.kilde\)" "$WORK/t21.log")
         T21_TXT=$(grep -c "^selftest: recent=.*\.txt" "$WORK/t21.log")
         # scanFinished を見るのは «0 件だから空» と «走査が終わっていないから空» を
@@ -1074,10 +1077,11 @@ else
             && [ "$T21_FALLBACK_SEL" = "false" ] \
             && [ "$T21_RESOLVED" = "cmd+opt+ctrl+shift+f9" ] \
             && [ "$T21_HOTKEY" = "true" ] \
+            && [ "$T21_HOTKEY_SOURCE" = "cmd+opt+ctrl+shift+f9" ] \
             && [ "$T21_EXCLUDED" = "0" ] && [ "$T21_TXT" = "0" ]; then
             ok "T21 GUI 通知/一覧: 上限 5 件・更新時刻の新しい順・混ぜ物 4 件を除外・Finder の対象は実装本体が決定 (実在=選択/欠損=親ディレクトリ)・設定ファイル経由でホットキー登録"
         else
-            bad "T21 GUI 通知/一覧: exit=$T21_EXIT scan=$T21_SCAN count=$T21_COUNT hotkey=$T21_HOTKEY excluded=$T21_EXCLUDED txt=$T21_TXT resolved=$T21_RESOLVED
+            bad "T21 GUI 通知/一覧: exit=$T21_EXIT scan=$T21_SCAN count=$T21_COUNT hotkey=$T21_HOTKEY/$T21_HOTKEY_SOURCE excluded=$T21_EXCLUDED txt=$T21_TXT resolved=$T21_RESOLVED
   reveal   = [$T21_REVEAL] select=$T21_REVEAL_SEL
   fallback = [$T21_FALLBACK] select=$T21_FALLBACK_SEL
   dir      = [$T21_DIR_REAL]

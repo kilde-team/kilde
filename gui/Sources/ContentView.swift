@@ -334,8 +334,10 @@ struct ContentView: View {
     /// AppDelegate 側が設定を旧値へ巻き戻す (設定だけ新しい値が残ると、次回の起動で
     /// CLI も GUI も登録できない値を読むことになる)
     private func applyHotkey() {
-        let previous = setup.config.hotkey
-        guard setup.saveHotkey() else { return }
+        // 巻き戻し値は **保存直前にファイルにあった値** を使う。setup.config は GUI
+        // 起動時のスナップショットなので、その間に CLI が変更していると上書きになる
+        let (saved, previous) = setup.saveHotkey()
+        guard saved else { return }
         // `NSApp.delegate` からは取れない — @NSApplicationDelegateAdaptor が
         // 挟むプロキシのせいで `as? AppDelegate` が nil になる (AppDelegate.shared のコメント)。
         // ここを NSApp.delegate にしていたため「適用」を押してもホットキーが

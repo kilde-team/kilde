@@ -45,6 +45,8 @@ final class RecordingController: ObservableObject {
     /// 終点を `.finalizing` にしているのも同じ理由で、writer の finish は収録ではない
     private var recordingStartedAt: Date?
     private var stoppedAt: Date?
+    /// 収録開始前に stop() が呼ばれたか (準備中の失敗が自発的な停止かの判定に使う)
+    private var stopRequestedDuringPreparation = false
 
     var isActive: Bool {
         switch phase {
@@ -68,6 +70,7 @@ final class RecordingController: ObservableObject {
         }
         recordingStartedAt = nil
         stoppedAt = nil
+        stopRequestedDuringPreparation = false
         let recorder = Recorder(options: options)
         self.recorder = recorder
         phase = .starting
@@ -89,6 +92,9 @@ final class RecordingController: ObservableObject {
 
     /// 停止を要求する (SIGINT / --duration と同じ経路。冪等)。完了は phase の変化で分かる
     func stop() {
+        // 収録が始まる前の停止要求を覚えておく。準備中の失敗が «ユーザーが止めた»
+        // のか «デバイス解決などに失敗した» のかは、これが無いと区別できない
+        if recordingStartedAt == nil { stopRequestedDuringPreparation = true }
         recorder?.stop()
     }
 
@@ -154,14 +160,15 @@ final class RecordingController: ObservableObject {
             phase = .failed(message)
             // ホットキーで他アプリの前面から始めた録画は、失敗しても画面上に何も出ない。
             // 失敗こそ気づかせる必要があるので通知する (issue #20)
-            // 準備中 (.recording 未到達) の停止は、ユーザーが自分で止めた結果なので
-            // 失敗通知を出さない。映像を 1 フレームも書けずに止めた録画は
-            // validateVideoFrameCount により .failed になるが、**意図的な即停止まで
-            // 「録画に失敗しました」と通知するのは誤報**で、他アプリの前面にいる
-            // ユーザーに無用の不安を与える。画面上の resultView には理由が残る
-            let startedRecording = recordingStartedAt != nil
+            // 準備中に**ユーザーが自分で止めた**場合だけ失敗通知を抑止する。
+            // 映像を 1 フレームも書けずに止めた録画は validateVideoFrameCount により
+            // .failed になるが、意図的な即停止まで「録画に失敗しました」と通知するのは
+            // 誤報になる。ただし **.recording 未到達というだけで抑止してはいけない** —
+            // デバイス解決や SCStream 構築の失敗も同じ条件を満たすので、
+            // 本物の失敗まで黙殺してしまう (画面を見ていないユーザーには何も届かない)
+            let suppress = recordingStartedAt == nil && stopRequestedDuringPreparation
             notifyThenEndSession { [weak self] done in
-                guard startedRecording else { done(); return }
+                guard !suppress else { done(); return }
                 self?.notifier?.notifyFailed(message: message, completion: done)
             }
         }
