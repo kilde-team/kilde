@@ -26,6 +26,8 @@ MONITOR_SET_UP=0
 SOUNDAPP_PID=""
 GUI_PID=""
 T21_PID=""
+T23_HOLDER_PID=""
+T23_RUN_PID=""
 
 cleanup() {
     if [ "$MONITOR_SET_UP" = "1" ]; then
@@ -49,6 +51,45 @@ T22_PID=""
     # T21 の self-test はバックグラウンド起動なので、スイートを途中で止めたときに
     # KildeGUI が残る。録画はしていないので安全停止の待ちは要らない
     [ -n "$T21_PID" ] && kill "$T21_PID" 2>/dev/null
+    # T23 の占有役 (rec --hotkey の待機) も残さない。**残すと次回以降のスイートが壊れる** —
+    # ホットキーは排他登録なので、孤児が同じキーを握ったままだと T23 の占有役が登録できず、
+    # 以後ずっと「占有役が待機に入れませんでした」で落ち続ける (開発中に実際に踏んだ)。
+    # **SIGINT を 1 回送って待たずに抜けない** — 停止は非同期なうえ、
+    # installStopSignalHandler の設置前に届いた SIGINT は失われうるので、
+    # 終了を確認するまで送り直し、期限を超えたら TERM/KILL で強制する
+    if [ -n "$T23_HOLDER_PID" ] && kill -0 "$T23_HOLDER_PID" 2>/dev/null; then
+        for _ in $(seq 1 10); do
+            kill -INT "$T23_HOLDER_PID" 2>/dev/null
+            kill -0 "$T23_HOLDER_PID" 2>/dev/null || break
+            sleep 0.5
+        done
+        if kill -0 "$T23_HOLDER_PID" 2>/dev/null; then
+            kill -TERM "$T23_HOLDER_PID" 2>/dev/null
+            sleep 1
+            kill -0 "$T23_HOLDER_PID" 2>/dev/null && kill -KILL "$T23_HOLDER_PID" 2>/dev/null
+        fi
+        wait "$T23_HOLDER_PID" 2>/dev/null
+    fi
+    T23_HOLDER_PID=""
+    # T23 のサブ実行 (rec 本体) も回収する。待機回帰なら同じキーを、録画中なら
+    # 録画デバイスと未完了ファイルを残すため、占有役だけ止めても足りない
+    # **占有役と同じく SIGINT を終了まで送り直す。** こちらは実際に録画しているので、
+    # installStopSignalHandler の設置前に届いた SIGINT を取りこぼしたまま KILL すると
+    # Recorder.stop() が走らず未完了ファイルが残る (「Ctrl+C でも必ずファイナライズ」に反する)
+    if [ -n "${T23_RUN_PID:-}" ] && kill -0 "$T23_RUN_PID" 2>/dev/null; then
+        for _ in $(seq 1 20); do
+            kill -INT "$T23_RUN_PID" 2>/dev/null
+            kill -0 "$T23_RUN_PID" 2>/dev/null || break
+            sleep 0.5
+        done
+        if kill -0 "$T23_RUN_PID" 2>/dev/null; then
+            kill -TERM "$T23_RUN_PID" 2>/dev/null
+            sleep 1
+            kill -0 "$T23_RUN_PID" 2>/dev/null && kill -KILL "$T23_RUN_PID" 2>/dev/null
+        fi
+        wait "$T23_RUN_PID" 2>/dev/null
+    fi
+    T23_RUN_PID=""
     # T15 の録画は 12 秒走る。スイートを途中で止めたときに録画だけ残さない
     # (安全停止を送ってファイナライズを待つ)
     if [ -n "${T15_PID:-}" ] && kill -0 "$T15_PID" 2>/dev/null; then
@@ -452,6 +493,141 @@ if [ "$T13_READY" = "1" ] && [ "$T13_EXIT" = "0" ] && [ "$T13_FILES" = "0" ]; th
     ok "T13 hotkey 待機中止: exit=0・出力ファイルなし"
 else
     bad "T13 hotkey 待機中止: ready=$T13_READY exit=$T13_EXIT files=$T13_FILES — $WORK/t13.log"
+fi
+
+# ---- T23: ホットキーの排他と縮退 (issue #80) -------------------------------------
+# 同じキーは 2 プロセスが同時に持てない (kEventHotKeyExclusive)。常駐した GUI が
+# キーを握っている状況を、占有役の `rec --hotkey` で再現する — GUI をビルドせずに
+# 同じ衝突を作れるので、この契約は CLI だけで機械検証できる。
+#   * 設定ファイル由来のキーが取れない → 警告を出して即時録画へ縮退 (exit 0・ファイルあり)
+#   * --hotkey 明示で取れない → 縮退せず失敗 (exit 1・ファイルなし)
+# T13 とはキーを分ける — 取り違えで「実は誰も握っていない」状態を緑と誤認しないため
+
+log "T23: ホットキー排他 — 設定由来は縮退し、--hotkey 明示は失敗する"
+T23_KEY="cmd+opt+ctrl+shift+f10"
+T23_DIR="$WORK/t23"
+T23_CFG_DIR="$WORK/t23-config"
+# 明示指定のログは最終判定で必ず grep する。占有役が待機に入れず (2) を実行しなかった
+# ときのために空で用意しておく — **実行の後に置くと実行が書いた内容を消してしまう**
+: > "$WORK/t23-explicit.log"
+mkdir -p "$T23_DIR" "$T23_CFG_DIR"
+printf '{"hotkey": "%s"}\n' "$T23_KEY" > "$T23_CFG_DIR/config.json"
+# 占有役。T13 と同じ理由で exec を使う (kill を kilde 本体に届かせる)
+(cd "$WORK" && exec "$KILDE" rec --no-video --hotkey "$T23_KEY" \
+    > "$WORK/t23-holder.log" 2>&1) &
+T23_HOLDER_PID=$!
+T23_HELD=0
+for _ in $(seq 1 20); do
+    if grep -q "待機中" "$WORK/t23-holder.log" 2>/dev/null; then T23_HELD=1; break; fi
+    sleep 0.5
+done
+
+if [ "$T23_HELD" != "1" ]; then
+    # 占有できていないなら以降の判定は無意味 (握られていないキーは当然登録できる)。
+    # ここでは bad を呼ばず、下の最終判定に一本化する — 2 箇所で呼ぶと 1 つの失敗で
+    # FAIL が 2 増え、スイート末尾の PASS=…/FAIL=… の集計がずれる
+    T23_CFG_EXIT=-1; T23_CFG_FILES=-1; T23_CFG_WARN=0; T23_EXP_EXIT=-1; T23_EXP_FILES=-1
+else
+    # 期限付きで rec を 1 本走らせ、終了コードを T23_RUN_EXIT に入れる。
+    # **--duration は待機モードでは効かない** (録画開始後の長さしか縛らない) ので、
+    # 縮退が壊れて待機に入る回帰が起きると前景実行はスイートごと無限に止まる。
+    # ここを FAIL として回収するために、T13 と同じ段階的強制で期限を切る。
+    # 期限超過は T23_RUN_EXIT=-2 として区別する (「待機に入ってしまった」の印)
+    t23_run() {  # $1 = 作業ディレクトリ, $2 = ログ, $3.. = kilde の引数
+        local dir="$1" log="$2"; shift 2
+        # 占有役が先に死んでいたら前提が崩れる (キーが空くので待機に入るのが正常)。
+        # ハングを待つ前にここで落とす
+        if ! kill -0 "$T23_HOLDER_PID" 2>/dev/null; then
+            T23_RUN_EXIT=-3
+            return
+        fi
+        # PID はグローバルに持つ — スイートを中断したとき EXIT trap から回収するため。
+        # local にすると trap から見えず、待機回帰なら同じキーを、録画中なら録画デバイスと
+        # 未完了ファイルを掴んだ子が残る
+        ( cd "$dir" && exec env KILDE_CONFIG_DIR="$T23_CFG_DIR" "$KILDE" "$@" > "$log" 2>&1 ) &
+        T23_RUN_PID=$!
+        local i
+        for i in $(seq 1 30); do
+            kill -0 "$T23_RUN_PID" 2>/dev/null || break
+            sleep 0.5
+        done
+        if kill -0 "$T23_RUN_PID" 2>/dev/null; then
+            kill -INT "$T23_RUN_PID" 2>/dev/null
+            sleep 1
+            kill -0 "$T23_RUN_PID" 2>/dev/null && kill -TERM "$T23_RUN_PID" 2>/dev/null
+            sleep 1
+            kill -0 "$T23_RUN_PID" 2>/dev/null && kill -KILL "$T23_RUN_PID" 2>/dev/null
+            wait "$T23_RUN_PID" 2>/dev/null
+            T23_RUN_PID=""
+            T23_RUN_EXIT=-2
+            return
+        fi
+        wait "$T23_RUN_PID" 2>/dev/null
+        T23_RUN_EXIT=$?
+        # 回収済みの PID を trap に残さない (T22 / 占有役と同じ理由 — PID の再利用で
+        # 無関係なプロセスに signal を送りうる)
+        T23_RUN_PID=""
+    }
+
+    # (1) 設定由来 — 縮退して録画できるはず
+    t23_run "$T23_DIR" "$WORK/t23-config.log" rec --no-video --duration 1
+    T23_CFG_EXIT=$T23_RUN_EXIT
+    T23_CFG_FILES=$(ls "$T23_DIR" 2>/dev/null | wc -l | tr -d ' ')
+    # 黙って縮退していないこと (理由が読めること) も契約のうち。
+    # grep -c は不一致でも "0" を出しつつ終了コード 1 を返すので `|| echo 0` を足すと
+    # "0\n0" を掴んで数値比較が壊れる — -q で真偽だけ取る
+    if grep -q "WARNING: ホットキー" "$WORK/t23-config.log" 2>/dev/null; then
+        T23_CFG_WARN=1
+    else
+        T23_CFG_WARN=0
+    fi
+
+    # (2) --hotkey 明示 — 縮退せず失敗するはず
+    T23_EXP_DIR="$WORK/t23-explicit"
+    mkdir -p "$T23_EXP_DIR"
+    t23_run "$T23_EXP_DIR" "$WORK/t23-explicit.log" \
+        rec --no-video --duration 1 --hotkey "$T23_KEY"
+    T23_EXP_EXIT=$T23_RUN_EXIT
+    T23_EXP_FILES=$(ls "$T23_EXP_DIR" 2>/dev/null | wc -l | tr -d ' ')
+fi
+
+# 占有役を畳む (T13 と同じ段階的強制)
+kill -INT $T23_HOLDER_PID 2>/dev/null
+for _ in $(seq 1 10); do
+    if ! kill -0 $T23_HOLDER_PID 2>/dev/null; then break; fi
+    sleep 0.5
+done
+if kill -0 $T23_HOLDER_PID 2>/dev/null; then
+    kill -TERM $T23_HOLDER_PID 2>/dev/null
+    sleep 1
+    kill -0 $T23_HOLDER_PID 2>/dev/null && kill -KILL $T23_HOLDER_PID 2>/dev/null
+fi
+wait $T23_HOLDER_PID 2>/dev/null
+# 回収済みの PID を trap に残さない — スイートの残りで数百のプロセスが起動するため、
+# PID が一周して再利用されると無関係なプロセスに SIGINT を送りうる (T22 が同じ理由で
+# kill 後に空へ戻している)
+T23_HOLDER_PID=""
+
+if grep -Eq "ホットキー .*を登録できません" "$WORK/t23-explicit.log" 2>/dev/null; then
+    T23_EXP_REASON=1
+else
+    T23_EXP_REASON=0
+fi
+
+# 明示指定は「exit 1」だけでなく**理由が競合であること**まで見る — 権限エラーや
+# 引数エラーでも exit 1 になるので、それらを PASS と取り違えないため
+if [ "$T23_HELD" = "1" ] && [ "$T23_CFG_EXIT" = "0" ] && [ "$T23_CFG_FILES" = "1" ] \
+    && [ "$T23_CFG_WARN" -ge 1 ] \
+    && [ "$T23_EXP_EXIT" = "1" ] && [ "$T23_EXP_FILES" = "0" ] \
+    && [ "$T23_EXP_REASON" = "1" ]; then
+    ok "T23 ホットキー排他: 設定由来は縮退 (exit=0・警告あり)・明示は exit=1"
+elif [ "$T23_HELD" != "1" ]; then
+    # 占有役が待機に入れない = 残留プロセスが同じキーを握っている可能性が高い
+    bad "T23 ホットキー排他: 占有役が待機に入れませんでした (他のプロセスが $T23_KEY を握っていないか確認してください) — $WORK/t23-holder.log"
+else
+    # exit=-2 は期限超過 (待機モードに入ったまま帰ってこない = 縮退の回帰)、
+    # -3 は占有役が先に死んだ (前提が崩れており判定は無意味)
+    bad "T23 ホットキー排他: cfg_exit=$T23_CFG_EXIT cfg_files=$T23_CFG_FILES cfg_warn=$T23_CFG_WARN exp_exit=$T23_EXP_EXIT exp_files=$T23_EXP_FILES exp_reason=$T23_EXP_REASON (exit=-2 は待機のまま期限超過 / -3 は占有役が先に終了 / exp_reason=0 は exit 1 だが競合が理由でない) — $WORK/t23-config.log / $WORK/t23-explicit.log"
 fi
 
 # ---- T14: 矩形領域の収録 (issue #9) ---------------------------------------------
