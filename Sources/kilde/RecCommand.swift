@@ -299,8 +299,17 @@ struct RecCommand: ParsableCommand {
             // 0 で返す (DESIGN.md §6)。録画は 1 フレームも成立していないのでサマリは出さない
             // ただし後始末の警告 (monitor の復元失敗など) があるときは通常の失敗として扱う —
             // 既定出力が `kilde Monitor` のまま残っているのを exit 0 で隠さない
-            if recorder.cancelledBeforeRecording && recorder.cleanupWarnings.isEmpty {
+            if recorder.cancelledBeforeRecording {
                 print(Recorder.cancelledDuringPreparationMessage)
+                guard recorder.cleanupWarnings.isEmpty else {
+                    // 非 0 で終わる原因は停止ではなく後始末の失敗 (既定出力が
+                    // `kilde Monitor` のまま残っている)。停止そのものを失敗扱いする
+                    // ERROR 行を出すと原因を取り違えさせるので、後始末の方を理由として出す
+                    let message = "ERROR: 停止しましたが、既定の出力デバイスを復元できませんでした "
+                        + "(上の WARNING を参照。`kilde audio monitor teardown` で復元できます)\n"
+                    FileHandle.standardError.write(message.data(using: .utf8)!)
+                    Darwin.exit(1)
+                }
                 return
             }
             cliError(error)

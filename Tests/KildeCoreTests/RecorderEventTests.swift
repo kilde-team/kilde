@@ -244,9 +244,15 @@ final class RecorderEventTests: XCTestCase {
 
         let started = Date()
         let value: Int? = await recorder.awaitOrStop {
-            // 外から止められない処理の代役 (TCC ダイアログに相当)
-            try? await Task.sleep(nanoseconds: 5_000_000_000)
-            return 1
+            // 外から止められない処理の代役 (TCC ダイアログに相当)。
+            // **`Task.sleep` では代役にならない** — あれはキャンセルに応じるので、
+            // structured なタスクグループのままでも暗黙 await がすぐ解けてしまい、
+            // この回帰テストが素通りする。キャンセルを一切見ない待ちにする必要がある
+            await withCheckedContinuation { (continuation: CheckedContinuation<Int, Never>) in
+                DispatchQueue.global().asyncAfter(deadline: .now() + 5) {
+                    continuation.resume(returning: 1)
+                }
+            }
         }
         let elapsed = Date().timeIntervalSince(started)
 
@@ -256,10 +262,10 @@ final class RecorderEventTests: XCTestCase {
 
     /// マイクを要求する構成でもセッションが**終端する**こと (issue #56)。
     ///
-    /// このテストが無かったために、`awaitOrStop` の欠陥 (structured なタスクグループが
-    /// スコープ終了時に子を暗黙 await するため停止しても戻れない / ポーリング側が
-    /// `Task.isCancelled` を見ずに回り続ける) を見逃した。既存のテストはすべて
-    /// `audioSources = []` の空セッションで、**権限要求の経路を一度も通っていなかった**。
+    /// **このテストは `awaitOrStop` の中までは到達しない。** `stop()` を `start()` より前に
+    /// 呼ぶため、`performSession()` の最初の中断点 (マイク権限ブロックより前) で畳まれる。
+    /// `awaitOrStop` 自体の回帰は上の 2 つのテストがヘルパを直接叩いて担保しており、
+    /// ここで見るのは「マイクを要求する構成でもセッションが終端する」という一段外側の性質。
     ///
     /// 権限の許可状態には依存しない — 許可でも拒否でも「終端イベントが流れる」ことだけを見る。
     /// 固まると XCTest のタイムアウトではなくここで待ち続けるので、明示的に時間を区切る
@@ -279,13 +285,22 @@ final class RecorderEventTests: XCTestCase {
         }
         recorder.start()
 
-        // 10 秒で終端しなければ「固まった」とみなす (TCC ダイアログの応答待ちを含めても十分)
-        let guardTask = Task { [finished] in
-            try? await Task.sleep(nanoseconds: 10_000_000_000)
+        // 10 秒で終端しなければ「固まった」とみなす (TCC ダイアログの応答待ちを含めても十分)。
+        // **タイムアウトしたことを戻り値で受け取って明示的に失敗させる** — collector を
+        // キャンセルするだけだと、終端しない回帰が起きてもテストが緑のまま通る
+        let guardTask = Task { [finished] () -> Bool in
+            do {
+                try await Task.sleep(nanoseconds: 10_000_000_000)
+            } catch {
+                return false  // 正常終了してキャンセルされた
+            }
             finished.cancel()
+            return true
         }
         let events = await finished.value
         guardTask.cancel()
+        let timedOut = await guardTask.value
+        XCTAssertFalse(timedOut, "10 秒たっても終端しませんでした (セッションが固まっています)")
 
         XCTAssertFalse(events.isEmpty, "終端イベントが流れませんでした (セッションが固まった疑い)")
         // 録画には入らない。権限が拒否されていれば .permission、停止が先なら準備中キャンセル
