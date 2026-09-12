@@ -42,39 +42,32 @@ final class RecordingNotifier: NSObject {
     /// 取得が非同期である以上「短い録画が旗の立つ前に終わって通知が捨てられる」
     /// という別の消え方を作るだけだった。未許可のときは `add` が黙って捨てるので、
     /// **判定せずに投げるのが最も確実で、状態も競合も持たずに済む**
-    /// `bytes` は進捗由来の値 (フォールバック)。
+    /// `bytes` は進捗由来のサイズ。**出力ファイルを `stat` しない。**
     ///
-    /// 実ファイルのサイズを優先する — 進捗は 0.5 秒周期なので、短い録画では 1 度も
-    /// 届かず `0 bytes` と表示される。ただし **`stat` は MainActor の外で行う**:
-    /// `attributesOfItem` は同期 API で、遅いボリューム (ネットワーク・FUSE) では
-    /// 呼び出したアクターを塞ぐ。`notifyThenEndSession` の 2 秒タイムアウトは
-    /// このクロージャが返った後に始まるので、**タイムアウトでも救えない**
+    /// 三つの要求は同時には満たせない、というのがレビューの往復で分かったこと:
+    ///
+    /// 1. 通知が確実に届く (録画完了直後にアプリを終了しても)
+    /// 2. MainActor を塞がない (遅いボリュームで `attributesOfItem` が返らない)
+    /// 3. 進捗が 1 度も来なかった短い録画でも実サイズを出す
+    ///
+    /// MainActor で `stat` すると 2 が壊れ、`Task.detached` で逃がすと
+    /// **`notifyThenEndSession` のタイムアウトも `applicationShouldTerminate` も
+    /// その完了を待てず 1 が壊れる**。1 は issue #20 の目的そのもの (他アプリで
+    /// 作業している人に結果を伝える) なので、**3 を捨てる**。
+    /// 短い録画でサイズが 0 になるが、通知が届かないことに比べれば軽い
     func notifyCompleted(url: URL, elapsed: TimeInterval, bytes: Int64,
                          completion: @escaping () -> Void = {}) {
-        Task.detached {
-            let stated = (try? FileManager.default
-                .attributesOfItem(atPath: url.path)[.size] as? Int64).flatMap { $0 }
-            await MainActor.run { [weak self] in
-                self?.post(url: url, elapsed: elapsed, bytes: stated ?? bytes,
-                           completion: completion)
-            }
-        }
-    }
-
-    /// 通知の組み立てと登録 (サイズは確定済みの値を受け取る)
-    private func post(url: URL, elapsed: TimeInterval, bytes: Int64,
-                      completion: @escaping () -> Void) {
-        let finalBytes = bytes
         let identifier = UUID().uuidString
         let content = UNMutableNotificationContent()
         content.title = "録画を保存しました"
         // 本文はファイル名 + 長さ + サイズ。パス全体は長すぎて通知に収まらないので
         // ファイル名だけにし、場所は Finder 表示で見せる。
-        // **サイズはここで stat しない** — MainActor 上なので、保存先が遅い
-        // ボリュームだと通知の組み立てで UI が止まる。呼び出し元が持っている
-        // 進捗由来の値を使う
-        content.body = "\(url.lastPathComponent)\n\(Self.formatDuration(elapsed))"
-            + " · \(ByteCountFormatter.string(fromByteCount: finalBytes, countStyle: .file))"
+        // サイズが分からない (進捗が 1 度も来ない短い録画) ときは、`0 bytes` と
+        // 嘘を書くより出さない。長さとファイル名だけでも用は足りる
+        let size = bytes > 0
+            ? " · \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))"
+            : ""
+        content.body = "\(url.lastPathComponent)\n\(Self.formatDuration(elapsed))\(size)"
         content.sound = .default
         // 通知は macOS 側に残るので、**アプリを終了して起動し直した後にクリックされうる**。
         // メモリ上の対応表だけだと復元できないので、パスを通知自身に持たせる
