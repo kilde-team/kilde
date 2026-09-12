@@ -323,6 +323,17 @@ public final class Recorder {
     }
 
     private func recordAndFinalize(url: URL) async throws -> Summary {
+        // region の排他は CLI でも弾いているが、GUI (M3) や HotkeyRecordingController も
+        // 同じ RecordOptions を組み立てる。KildeCore 側で弾かないと、呼び出し元が両方
+        // 設定したときに「指定した領域と違う範囲を無警告で録る」ことになる
+        if options.region != nil {
+            guard options.wantsVideo else {
+                throw KilError.failed("領域指定 (region) は音声のみのモードでは使えません")
+            }
+            guard options.windowMatch == nil else {
+                throw KilError.failed("領域指定 (region) はウィンドウ収録とは併用できません")
+            }
+        }
         audioLabels = try labeledSources().map { $0.label }
         let useMixer = options.trackPolicy == .mixed && options.audioSources.count > 1
 

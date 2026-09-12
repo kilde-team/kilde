@@ -93,6 +93,12 @@ struct RecCommand: ParsableCommand {
             if noVideo {
                 throw ValidationError("--region と --no-video は併用できません (映像を録らないため領域が効きません)")
             }
+            // meeting プリセットは validate() の後、run() の対話でウィンドウを選ぶ。
+            // ここで弾かないと「ウィンドウを選んだら region が無視され、空欄 Enter なら効く」と
+            // 選択結果次第で挙動が変わってしまう
+            if preset == "meeting" {
+                throw ValidationError("--region と --preset meeting は併用できません (meeting はウィンドウを選んで収録するため)")
+            }
         }
         if let codec, VideoCodecKind(rawValue: codec) == nil {
             throw ValidationError("--codec は h264 / hevc / prores を指定してください")
