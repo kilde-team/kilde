@@ -1,0 +1,50 @@
+Sources/KildeCore/Recording/RecordRequest.swift
+  s_35faeec28b4c4b::t_a5186122daecd9 79
+Sources/KildeCore/Recording/Recorder.swift
+  s_35faeec28b4c4b::t_803d4dd9635951 428-431
+  s_35faeec28b4c4b::t_cfd4524b01ad43 288,292-299
+  s_35faeec28b4c4b::t_9743da6bc74897 369-388
+  s_35faeec28b4c4b::t_7ba401f426bcc7 28-33,35
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_4c70ff48ebe89c 34-35
+  s_35faeec28b4c4b::t_e932009ccc1206 545
+  s_35faeec28b4c4b::t_82804e64e9c006 501-544,546-611
+Tests/KildeCoreTests/RecordRequestTests.swift
+  s_35faeec28b4c4b::t_813292861c58ab 37
+  s_35faeec28b4c4b::t_e7b102dd441201 24
+Sources/kilde/DevicesCommand.swift
+  s_35faeec28b4c4b::t_e5df967f54869e 23-25,33-37
+  s_35faeec28b4c4b::t_7072a21b6818f8 26-32
+Sources/kilde/RecCommand.swift
+  s_35faeec28b4c4b::t_0b8ba8864c0b66 214-215
+  s_35faeec28b4c4b::t_98bc633d1c47ea 111-128
+  s_35faeec28b4c4b::t_942bdb50db91e0 205,208
+  s_35faeec28b4c4b::t_309bb53d54156c 98
+  s_35faeec28b4c4b::t_40623bd6d15298 16-20
+docs/DEVELOPMENT.md
+  s_35faeec28b4c4b::t_22e7542080ac33 248
+Sources/KildeCore/Devices/DisplayCatalog.swift
+  s_35faeec28b4c4b::t_f1932825057cce 81-118
+docs/DESIGN.md
+  s_35faeec28b4c4b::t_6249e131bca4e9 249-250
+README.md
+  s_35faeec28b4c4b::t_4d57e6382e5fbe 60-67
+docs/SPIKE-NOTES.md
+  s_35faeec28b4c4b::t_0bde298b30d269 171-196
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "896f3100f8680f95ae18e4e061d416e1ab6bdc2d",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
