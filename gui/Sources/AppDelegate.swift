@@ -66,22 +66,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.reply(toApplicationShouldTerminate: true)
         }
         recording.stop()
-        // 権限ダイアログ待ち・デバイス列挙待ちの間は stop() が効かず、セッション終了イベントが
-        // 来ないまま終了できなくなることがある。**出力ファイルがまだ無い preparing の間だけ**
-        // 猶予後に終了を許す — armed 以降は writer が startWriting 済みで、待たずに落とすと
-        // ファイナライズされないファイルが残るため、その場合は従来どおり待ち続ける。
-        // (準備フェーズ自体をキャンセル可能にするのは Recorder 側の課題 — issue #56)
-        if recording.isBeforeOutputFile {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Self.startingTerminateGrace) { [weak self] in
-                guard let self, self.recording.isBeforeOutputFile else { return }
-                NSApp.reply(toApplicationShouldTerminate: true)
-            }
-        }
+        // 猶予を設けて終了を許す案は採らない: writer は Recorder の preparing の途中で作られ、
+        // 状態イベントからは「作られた瞬間」が分からない。マイク初期化が長引くと、writer 生成後
+        // なのに preparing のまま猶予が切れ、ファイナライズされないファイルを残しうる。
+        // 準備中に stop() が効かず終了できない問題は Recorder 側で直す (issue #56)
         return .terminateLater
     }
-
-    /// 準備中に終了要求が来たときに待つ上限 (これを過ぎたら終了を許す)
-    private static let startingTerminateGrace: TimeInterval = 5
 
     @objc private func togglePopover() {
         guard let popover else { return }

@@ -98,12 +98,12 @@ public struct RecordRequest: Equatable {
     /// 空いている出力名を選ぶ。既定名は秒までしか持たないので、短い録画を止めてすぐ録り直すと
     /// 同じ名前になり、`MovieWriter` が既存ファイルを消してしまう (直前の録画が失われる)。
     /// 衝突したら `kilde-….mov` → `kilde-…-2.mov` のように連番を付ける
-    static func availableOutputURL(in directory: URL, ext: String) throws -> URL {
+    static func availableOutputURL(in directory: URL, ext: String, maxSuffix: Int = 999) throws -> URL {
         let base = defaultOutputName(ext: ext)
         let first = directory.appendingPathComponent(base)
         guard FileManager.default.fileExists(atPath: first.path) else { return first }
         let stem = (base as NSString).deletingPathExtension
-        for suffix in 2...999 {
+        for suffix in 2...max(2, maxSuffix) {
             let candidate = directory.appendingPathComponent("\(stem)-\(suffix).\(ext)")
             if !FileManager.default.fileExists(atPath: candidate.path) { return candidate }
         }

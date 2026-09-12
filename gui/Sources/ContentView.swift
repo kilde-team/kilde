@@ -277,8 +277,10 @@ struct ContentView: View {
         .controlSize(.large)
         .keyboardShortcut(.defaultAction)
         // 列挙中の開始は、進行中の SCShareableContent 列挙と Recorder の対象解決が
-        // 同時に SCK へ行くことになるので受け付けない
-        .disabled(setup.loading || (mode == .audioOnly && setup.request.audioSourceCount == 0))
+        // 同時に SCK へ行くことになるので受け付けない。タイムアウト後も返らない列挙が
+        // 残っている間 (enumerationsRunning > 0) も同じ理由で止める
+        .disabled(setup.loading || setup.enumerationsRunning > 0
+            || (mode == .audioOnly && setup.request.audioSourceCount == 0))
     }
 
     private func start() {

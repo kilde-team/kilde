@@ -29,8 +29,10 @@ final class RecordingSetup: ObservableObject {
     private var generation = 0
     /// 実際に走っている列挙の数。タイムアウトしても SCShareableContent の列挙自体は止められないので、
     /// 上限を設けて「応答しない環境で更新を連打するとタスクが無限に積み上がる」のを防ぐ
-    private var runningEnumerations = 0
+    @Published private(set) var enumerationsRunning = 0
     private static let maxConcurrentEnumerations = 3
+    /// 入力デバイスの列挙も、返らないことがある (デバイス構成の変更中)。1 本だけ走らせる
+    private var audioEnumerationInFlight = false
 
     private static let enumerationTimeout: TimeInterval = 10
     /// サムネイルを撮るウィンドウ数の上限 (1 枚ごとに SCScreenshotManager の撮影が走るため)
@@ -114,23 +116,29 @@ final class RecordingSetup: ObservableObject {
             if hasLoadedOnce { needsReload = true }
             return
         }
-        guard runningEnumerations < Self.maxConcurrentEnumerations else {
-            // 前の列挙が返ってこないまま上限に達した (権限プロンプト保留中など)
+        guard enumerationsRunning < Self.maxConcurrentEnumerations else {
+            // 前の列挙が返ってこないまま上限に達した (権限プロンプト保留中など)。
+            // enumerationsRunning は 0 に戻らないので、録画開始もこの間は止まる
             loadError = "画面/ウィンドウの列挙が応答しません。画面収録の権限確認が保留になっていないか確認してください"
             return
         }
         enumerationInFlight = true
-        runningEnumerations += 1
+        enumerationsRunning += 1
         loading = true
         generation += 1
         let generation = self.generation
         // 入力デバイスの列挙 (CoreAudio) は権限不要で普通は速いが、デバイス構成の変更中などに
         // ブロックすることがある。メニューバーの UI を止めないよう detached で回し、結果だけ反映する
-        Task.detached {
-            let devices = AudioDeviceCatalog.devices.filter { $0.inputChannels > 0 }
-            await MainActor.run { [weak self] in
-                guard let self, generation == self.generation else { return }
-                self.inputDevices = devices
+        if !audioEnumerationInFlight {
+            audioEnumerationInFlight = true
+            Task.detached {
+                let devices = AudioDeviceCatalog.devices.filter { $0.inputChannels > 0 }
+                await MainActor.run { [weak self] in
+                    guard let self else { return }
+                    self.audioEnumerationInFlight = false
+                    guard generation == self.generation else { return }
+                    self.inputDevices = devices
+                }
             }
         }
 
@@ -141,7 +149,7 @@ final class RecordingSetup: ObservableObject {
         // タイムアウトしても列挙は止められないので、実際に完了した時点で本数を戻す
         Task { [weak self] in
             _ = await enumerate.value
-            self?.runningEnumerations -= 1
+            self?.enumerationsRunning -= 1
         }
         Task { [weak self] in
             let finished = await Self.value(of: enumerate, timeout: Self.enumerationTimeout)
