@@ -1,0 +1,55 @@
+docs/DEVELOPMENT.md
+  s_35faeec28b4c4b::t_e54230282bd93a 189
+Sources/kilde/RecCommand.swift
+  s_35faeec28b4c4b::t_1cf9a4b9e264b0 7-11
+  s_35faeec28b4c4b::t_1d77bccc2a4bb0 312-344
+  s_35faeec28b4c4b::t_fb208fc3e2c628 357-359
+  s_35faeec28b4c4b::t_6b085653623b82 205-211,214-215
+  s_35faeec28b4c4b::t_2540bdf56dda54 379-381
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_bcb24944df66fb 425-447
+Tests/KildeCoreTests/MovieWriterShiftTests.swift
+  s_35faeec28b4c4b::t_b8a9150244f8a2 1-53
+Sources/KildeCore/Recording/AudioMixer.swift
+  s_35faeec28b4c4b::t_9726339d6dbdf0 80-89
+Sources/KildeCore/Recording/Recorder.swift
+  s_35faeec28b4c4b::t_18784c9763a7b8 523-524
+  s_35faeec28b4c4b::t_decce76018e8e2 639-640
+  s_35faeec28b4c4b::t_9e97eaa30d3204 623-625
+  s_35faeec28b4c4b::t_48cf1a8b1c6b37 130-137
+  s_35faeec28b4c4b::t_06a6100f2cbcb9 513-515
+  s_35faeec28b4c4b::t_c1f6d80fea555c 114-115
+  s_35faeec28b4c4b::t_85c0665181e338 206-241
+  s_35faeec28b4c4b::t_be275c9ee438f4 45,53-56
+  s_35faeec28b4c4b::t_ccc6dc1b49ea52 242-248
+  s_35faeec28b4c4b::t_740d4ce8614e7f 300-301
+  s_35faeec28b4c4b::t_dfd600a3855e26 94,101-102
+  s_35faeec28b4c4b::t_3f06aa76944e3c 277-284
+Sources/kilde/KildeCommand.swift
+  s_35faeec28b4c4b::t_0e860906584b3c 38-49
+docs/DESIGN.md
+  s_35faeec28b4c4b::t_6e52edfea94efb 122,130-135
+  s_35faeec28b4c4b::t_9be3f614fe3adf 338-339
+  s_35faeec28b4c4b::t_101676e1026066 335-337
+Sources/KildeCore/Recording/MovieWriter.swift
+  s_35faeec28b4c4b::t_82066ceb225b54 134,136-137
+  s_35faeec28b4c4b::t_e6fe8e81162a8f 177-212
+  s_35faeec28b4c4b::t_ba72a155ee431d 31-33
+  s_35faeec28b4c4b::t_683a4f7bc7d096 110,112-114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "9f4fa1a6b8f16ee560d548b96fde689a6347b13a",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
