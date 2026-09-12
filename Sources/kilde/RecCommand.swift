@@ -256,9 +256,14 @@ struct RecCommand: ParsableCommand {
                 controller.requestStop()
             }
             // 録画が始まっていなければ何もしない (待機中の SIGUSR1 と 'p' は無視)
+            // activeRecorder は onStarted (メインキュー) で書かれ、シグナルと 'p' キーは
+            // それぞれ別のキューから読む。メインキューへ直列化しないとデータ競合になり、
+            // 両方が同時に来たときに同じ isPaused を見て一方のトグルが失われる
             let toggle = {
-                guard let recorder = activeRecorder else { return }
-                if recorder.isPaused { recorder.resume() } else { recorder.pause() }
+                DispatchQueue.main.async {
+                    guard let recorder = activeRecorder else { return }
+                    if recorder.isPaused { recorder.resume() } else { recorder.pause() }
+                }
             }
             installPauseSignalHandler(toggle)
             // 待機経路でも 'p' キーを使えるようにする (即時録画と操作を揃える)

@@ -221,9 +221,10 @@ public final class Recorder {
         pausedSince = Date()
         state = .paused
         lock.unlock()
-        sampleGate.unlock()
-        // イベントは状態が確定してから流す (購読側が中途半端な状態を観測しないように)
+        // イベントもゲートの中で流す。外に出すと、pause と resume が短時間に続いたときに
+        // 配信順が入れ替わり、購読側が最終状態を取り違える
         eventContinuation.yield(.stateChanged(.paused))
+        sampleGate.unlock()
     }
 
     /// 一時停止から再開する (issue #11)。冪等で、一時停止していなければ何もしない。
@@ -250,8 +251,9 @@ public final class Recorder {
             writer?.addPauseGap(seconds: gap)
             mixer?.advanceAnchor(by: gap)
         }
-        sampleGate.unlock()
+        // pause() と同じく、配信順を守るためゲートの中で流す
         eventContinuation.yield(.stateChanged(.recording))
+        sampleGate.unlock()
     }
 
     /// 一時停止したまま停止されたときに、その区間を確定する (停止時に 1 回だけ呼ぶ)。

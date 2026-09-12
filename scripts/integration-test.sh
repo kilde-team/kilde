@@ -451,10 +451,11 @@ F="$WORK/t15-pause.mov"
 (exec "$KILDE" rec --duration 12s --output "$F" > "$WORK/t15.log" 2>&1) &
 T15_PID=$!
 # 固定の sleep で送ると、起動が遅い環境では録画開始前に SIGUSR1 が届いて素通りする。
-# 録画開始の表示 (● 録画) を待ってからトグルする
+# 「● 録画」は run() の前に出るので readiness にならない — ステータス行 (REC mm:ss) は
+# 録画が始まって progress() が返るようになってから出るので、こちらを待つ
 T15_READY=0
-for _ in $(seq 1 20); do
-    if grep -q "● 録画" "$WORK/t15.log" 2>/dev/null; then T15_READY=1; break; fi
+for _ in $(seq 1 40); do
+    if grep -q "REC " "$WORK/t15.log" 2>/dev/null; then T15_READY=1; break; fi
     sleep 0.5
 done
 sleep 2                            # 数秒ぶんは録ってから止める
