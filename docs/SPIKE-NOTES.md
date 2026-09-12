@@ -202,7 +202,7 @@ EDR の上限」で、SDR ディスプレイでは 1.0 のままになる。**�
 整合させるのが間違えやすいため。書き出し側は HEVC **Main10** + Display P3 / PQ を明示する
 (色情報を書かないと再生側が SDR と解釈する)。
 
-**`captureHDRRecordingPreservedSDRHDR10` (macOS 26、HDR10 メタデータ付き) は使っていない。**
+~~**`captureHDRRecordingPreservedSDRHDR10` (macOS 26、HDR10 メタデータ付き) は使っていない。**~~ → **#76 で使用開始** (CI を macos-26 に上げて解消)
 CI が `macos-15` ランナーで動いており、**その SDK にシンボルが存在しないためコンパイルできない**:
 
 ```
