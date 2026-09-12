@@ -509,6 +509,10 @@ public final class Recorder {
         let progressTask = startProgressEmissionIfNeeded()
         // 停止要求と duration のどちらか早い方を待つ
         await waitForStopOrDuration()
+        // 録画経過はこの時点で確定させる — 以降のファイナライズ (SCK の drain、
+        // mixer の flush) に時間がかかると elapsed が伸び、短時間録画を誤って
+        // 消灯・ロック扱いの案内にしてしまうため
+        let recordedElapsed = Date().timeIntervalSince(startDate)
         // cancel だけでなく終了まで待つ — sleep 起き直し直後の yield と
         // finalizing 遷移の間にプリエンプション窓があると、progress が
         // .completed より後に届いてイベントの順序が崩れるため
@@ -527,6 +531,18 @@ public final class Recorder {
                 w.appendAudio(chunk, label: "mixed")
             }
         }
+        do {
+            try Self.validateVideoFrameCount(
+                wantsVideo: options.wantsVideo,
+                videoAppended: w.countersSnapshot().videoAppended,
+                elapsed: recordedElapsed
+            )
+        } catch {
+            // 映像アンカーが立たない空振りを成功扱いせず、空の出力も残さない。
+            // finishWriting ではなく cancel 経路にすることで未成立セッションを閉じる
+            w.cancel(removingOutput: true)
+            throw error
+        }
         try await w.finish()
 
         // 一時停止したまま停止された場合も、その区間を合計に含める。
@@ -542,6 +558,24 @@ public final class Recorder {
             mixedDecodeFailures: mixer?.decodeFailures ?? 0,
             pausedDuration: pausedDuration
         )
+    }
+
+    /// 映像ありモードでは、停止までに 1 フレームも書けなければ録画不成立とする。
+    /// 純粋な判定として切り出し、権限や実ディスプレイなしでも回帰テストできるようにする。
+    /// 経過時間で案内を分ける — 初回フレーム到着前に止めた短時間録画 (`--duration 0.5s` や
+    /// 開始直後の Ctrl+C) は「消灯・ロック」と断定しない
+    static func validateVideoFrameCount(wantsVideo: Bool, videoAppended: Int,
+                                        elapsed: TimeInterval) throws {
+        guard !wantsVideo || videoAppended > 0 else {
+            if elapsed < 2 {
+                throw KilError.failed(
+                    "録画が短すぎて映像を 1 フレームも取得できませんでした (経過 \(String(format: "%.1f", elapsed)) 秒)。もう少し長い時間を指定してください"
+                )
+            }
+            throw KilError.failed(
+                "録画が 1 フレームも取得できませんでした — ディスプレイの消灯・ロック中に開始した可能性があります。画面を表示した状態で再実行してください"
+            )
+        }
     }
 
     /// recording 中 0.5 秒周期で progress イベントを流ぶ (GUI 向け)。

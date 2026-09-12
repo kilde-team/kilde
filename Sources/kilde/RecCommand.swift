@@ -213,7 +213,7 @@ struct RecCommand: ParsableCommand {
         let result: Result<Recorder.Summary, Error>
         let pauseHint = pauseKey != nil ? " / p で一時停止・再開" : " / SIGUSR1 で一時停止・再開"
         print("● 録画\(!options.wantsVideo ? " (音声のみ)" : "") → \(options.outputURL!.path)  (Ctrl+C で停止\(pauseHint))")
-        let ticker = startStatusTicker(recorder)
+        let ticker = startStatusTicker(recorder, wantsVideo: options.wantsVideo)
         result = Result { try recorder.run() }
         ticker.cancel()
         finish(recorder: recorder, result: result)
@@ -236,7 +236,7 @@ struct RecCommand: ParsableCommand {
                 onStarted: { recorder, startedOptions, normalized in
                     activeRecorder = recorder
                     print("● 録画\(!startedOptions.wantsVideo ? " (音声のみ)" : "") → \(startedOptions.outputURL!.path)  (Ctrl+C / \(normalized) で停止 / SIGUSR1 で一時停止・再開)")
-                    ticker = startStatusTicker(recorder)
+                    ticker = startStatusTicker(recorder, wantsVideo: startedOptions.wantsVideo)
                 },
                 onFinished: { result in
                     ticker?.cancel()
@@ -318,6 +318,7 @@ struct RecCommand: ParsableCommand {
         throw KilError.failed("有効なウィンドウ番号が入力されませんでした (--window で直接指定もできます)")
     }
 
+<<<<<<< HEAD
     /// 録画中に stdin の 'p' で一時停止 / 再開する (issue #11)。
     /// stdin が端末でないとき (パイプ・リダイレクト・統合テスト) は何もしない —
     /// 端末以外を raw mode にしても入力は来ず、呼び出し元のシェルの端末設定を壊しかねないため
@@ -352,11 +353,24 @@ struct RecCommand: ParsableCommand {
     }
 
     private func startStatusTicker(_ recorder: Recorder) -> DispatchSourceTimer {
+=======
+    private func startStatusTicker(_ recorder: Recorder, wantsVideo: Bool) -> DispatchSourceTimer {
+>>>>>>> origin/main
         let q = DispatchQueue(label: "kilde.status")
         let timer = DispatchSource.makeTimerSource(queue: q)
+        var warnedNoVideoFrames = false
         timer.schedule(deadline: .now() + 0.5, repeating: 0.5)
         timer.setEventHandler {
             guard let p = recorder.progress() else { return }
+            // .recording のゲート: progress() はマイク権限ダイアログの待ちより前から
+            // 値を返すため、ゲートしないと権限応答に 10 秒以上かけたユーザーに
+            // 「映像が来ない」警告を誤爆する (実際には録画がまだ始まっていない)
+            if wantsVideo && !warnedNoVideoFrames && recorder.currentState == .recording
+                && p.elapsed >= 10 && p.videoAppended == 0 {
+                warnedNoVideoFrames = true
+                let warning = "WARNING: 開始から 10 秒間映像フレームが来ていません。ディスプレイの消灯/ロック中の可能性があります\n"
+                FileHandle.standardError.write(warning.data(using: .utf8)!)
+            }
             let m = Int(p.elapsed) / 60
             let s = Int(p.elapsed) % 60
             let size = ByteCountFormatter.string(fromByteCount: p.outputBytes, countStyle: .file)
