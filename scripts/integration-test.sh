@@ -451,21 +451,36 @@ else
     bad "T14b region 偶数丸め: コマンド失敗 — $WORK/t14b.log"
 fi
 
-log "T14c: rec --region — 範囲外・不正指定は録画前に失敗"
-if "$KILDE" rec --region 0,0,99999,99999 --duration 30s --output "$WORK/t14c.mov" > "$WORK/t14c.log" 2>&1; then
-    bad "T14c region 範囲外: 成功してしまった — $WORK/t14c.log"
-elif grep -q "範囲外" "$WORK/t14c.log" && [ ! -f "$WORK/t14c.mov" ]; then
-    ok "T14c region 範囲外: 録画前に失敗しファイルを作らない"
-else
-    bad "T14c region 範囲外: 想定外の失敗 — $WORK/t14c.log"
-fi
-# 形式不正は ArgumentParser の検証なので終了コード 64 (DESIGN.md §6)
-"$KILDE" rec --region 0,0,640 --duration 3s --output "$WORK/t14d.mov" > "$WORK/t14d.log" 2>&1
+log "T14c: rec --region — 範囲外は録画前に exit 1"
+"$KILDE" rec --region 0,0,99999,99999 --duration 30s --output "$WORK/t14c.mov" > "$WORK/t14c.log" 2>&1
 EXIT_CODE=$?
-if [ "$EXIT_CODE" = "64" ]; then
-    ok "T14d region 形式不正: 終了コード 64"
+if [ "$EXIT_CODE" = "1" ] && grep -q "範囲外" "$WORK/t14c.log" && [ ! -f "$WORK/t14c.mov" ]; then
+    ok "T14c region 範囲外: exit=1・ファイルを作らない"
 else
-    bad "T14d region 形式不正: exit=$EXIT_CODE (64 が必要) — $WORK/t14d.log"
+    bad "T14c region 範囲外: exit=$EXIT_CODE (1 が必要) — $WORK/t14c.log"
+fi
+# 形式不正・小さすぎる指定・併用不可の組合せは引数検証なので 64 (DESIGN.md §6)。
+# 併用の排他が消えても「録画は成功する」ため、ここで検証しないと回帰に気づけない
+T14D_FAIL=0
+check_rejected() {  # check_rejected <ログ名> <説明> <kilde rec の引数...>
+    local logname="$1" desc="$2"; shift 2
+    "$KILDE" rec "$@" --duration 3s --output "$WORK/$logname.mov" > "$WORK/$logname.log" 2>&1
+    local code=$?
+    if [ "$code" != "64" ] || [ -f "$WORK/$logname.mov" ]; then
+        echo "  $desc: exit=$code (64 が必要) file=$([ -f "$WORK/$logname.mov" ] && echo あり || echo なし)"
+        T14D_FAIL=1
+    fi
+}
+log "T14d: rec --region — 形式不正・小さすぎる指定・併用不可は exit 64 でファイルを作らない"
+check_rejected t14d "形式不正 (要素不足)" --region 0,0,640
+check_rejected t14d2 "幅・高さが 2 未満" --region 0,0,1,360
+check_rejected t14d3 "--window との併用" --region 0,0,640,360 --window Finder
+check_rejected t14d4 "--no-video との併用" --region 0,0,640,360 --no-video
+check_rejected t14d5 "--preset meeting との併用" --region 0,0,640,360 --preset meeting
+if [ "$T14D_FAIL" = "0" ]; then
+    ok "T14d region 引数検証: 5 パターンすべて exit=64・ファイルなし"
+else
+    bad "T14d region 引数検証: 上記の組合せが想定どおりに弾かれていない"
 fi
 
 # ---- サマリ -------------------------------------------------------------------

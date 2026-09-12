@@ -240,7 +240,7 @@ kilde config [show|set|unset|path]        設定ファイル ~/.kilde/config.jso
 | `[<出力パス>]` / `--output, -o <path>` | 自動生成 | 既定 `kilde-yyyyMMdd-HHmmss.mov` (音声のみは `.m4a`)。保存先は `KILDE_OUTPUT_DIR` > 設定 `outputDirectory` > カレントディレクトリ (前二者が存在しないディレクトリなら録画開始前に終了コード 1)。位置引数と `-o` は同時指定不可。`~` は展開する |
 | `--display <番号>` | `0` | 収録ディスプレイ (`kilde devices` の番号)。範囲外は終了コード 3。`--window` 指定時は無視される (`all` は M2 — #12) |
 | `--window <windowID\|文字列>` | なし | ウィンドウ単位で収録。windowID の完全一致、またはタイトル / bundleID の部分一致 (大文字小文字を区別しない)。複数ヒット時は面積が最大のもの。見つからなければ終了コード 3。音声もそのアプリにスコープされる |
-| `--region <x,y,w,h>` | なし (ディスプレイ全体) | ディスプレイの一部だけを収録 (ポイント座標、左上が原点 — M2 #9)。H.264 の制約で幅・高さは偶数へ切り捨てる (`sourceRect` も同じ大きさに揃えるので引き伸ばされない)。ディスプレイの範囲外は終了コード 1、形式不正は 64。`--window` / `--no-video` とは併用不可 |
+| `--region <x,y,w,h>` | なし (ディスプレイ全体) | ディスプレイの一部だけを収録 (ポイント座標、左上が原点 — M2 #9)。H.264 の制約で幅・高さは偶数へ切り捨てる (`sourceRect` も同じ大きさに揃えるので引き伸ばされない)。ディスプレイの範囲外は終了コード 1、形式不正と 2 ポイント未満は 64。`--window` / `--no-video` / `--preset meeting` とは併用不可 (meeting は対話でウィンドウを選ぶため) |
 | `--audio <source>` | `system` (設定 `defaultAudioSources`) | `system` / `mic` / `device:<名前 or UID>` / `none`。複数回指定可。`device:` は入力デバイスの UID 完全一致または名前の部分一致。`none` は他ソースと併用不可、`--no-video` とも併用不可 |
 | `--audio-tracks <mixed\|separate>` | `mixed` (設定 `audioTracks`) | 音声ソースが複数のとき 1 トラックに合成 (既定) か、ソースごとにトラック分離か |
 | `--no-video` | off | 録音 (音声のみ) モード。出力は M4A |
@@ -250,7 +250,7 @@ kilde config [show|set|unset|path]        設定ファイル ~/.kilde/config.jso
 | `--fps <n>` | 指定なし (SCK 既定。設定 `fps`) | 上限フレームレート。1 以上 (0 以下は終了コード 64 — 以前は黙って無視していた) |
 | `--cursor` / `--no-cursor` | 写り込む (設定 `showsCursor`) | カーソルを写し込むか。`--cursor` は設定 `showsCursor: false` をその回だけ打ち消す用 (M1 の `--no-cursor` はそのまま使える) |
 | `--countdown <sec>` | `0` | 開始前カウントダウン。hotkey (CLI 引数) との併用は引数検証エラー (終了コード 64)、設定 `hotkey` との組合せは終了コード 1 で拒否 — 待機モードではカウントダウンが待機開始前に消費され、録画の開始を守れなくなるため |
-| `--preset meeting` | なし | `--audio system --audio mic` + mixed。`--window` 未指定なら on-screen ウィンドウを面積順に列挙して対話選択 (空欄 Enter = ディスプレイ全体)。EOF (非対話実行) と 3 回連続の無効入力は終了コード 1 で中止。明示した `--audio` / `--audio-tracks` はプリセットより優先。プリセットは設定ファイルより優先 |
+| `--preset meeting` | なし | `--audio system --audio mic` + mixed。`--window` 未指定なら on-screen ウィンドウを面積順に列挙して対話選択 (空欄 Enter = ディスプレイ全体)。EOF (非対話実行) と 3 回連続の無効入力は終了コード 1 で中止。明示した `--audio` / `--audio-tracks` はプリセットより優先。プリセットは設定ファイルより優先。`--region` とは併用不可 |
 | `--hotkey <key>` | なし (設定 `hotkey`) | `cmd+shift+r` 形式のグローバルホットキーで開始 / 停止。指定時は録画ファイルを作らず待機し、待機中の Ctrl+C は成功 (0) で終了する。録画開始後のホットキーと Ctrl+C はどちらも `Recorder.stop()` で安全に停止する。`--countdown` との併用不可 (上記参照) |
 
 ### 設定ファイル (`~/.kilde/config.json`, M2 — #14)

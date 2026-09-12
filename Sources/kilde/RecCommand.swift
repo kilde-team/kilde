@@ -16,7 +16,7 @@ struct RecCommand: ParsableCommand {
     @Option(help: "ウィンドウ単位で収録 (title / bundleID / windowID の部分一致)。音声もそのアプリにスコープされる")
     var window: String?
 
-    @Option(help: "ディスプレイの一部だけを収録 x,y,w,h (ポイント座標、左上が原点。--window / --no-video とは併用不可)")
+    @Option(help: "ディスプレイの一部だけを収録 x,y,w,h (ポイント座標、左上が原点)。幅・高さは 2 以上で偶数に切り捨て、ディスプレイの範囲外は録画前に失敗 (終了コード 1)。--window / --no-video / --preset meeting とは併用不可")
     var region: String?
 
     @Option(help: "音声ソース。system / mic / device:<名前orUID> / none。複数回指定可 (既定 system。設定 defaultAudioSources で変更可)")
@@ -80,6 +80,11 @@ struct RecCommand: ParsableCommand {
             throw ValidationError("--fps は 1 以上の整数を指定してください")
         }
         if let region {
+            // 幅・高さの下限はディスプレイの情報が要らないので、ここで弾いて終了コードを
+            // 64 (引数エラー) に揃える。Recorder まで持ち越すと範囲外と同じ 1 になってしまう
+            if let r = parseRegion(region), r.width < 2 || r.height < 2 {
+                throw ValidationError("--region の幅と高さは 2 ポイント以上にしてください: \(region)")
+            }
             guard parseRegion(region) != nil else {
                 throw ValidationError(
                     "--region は x,y,w,h の形式で指定してください (例: 0,0,1280,720。"
