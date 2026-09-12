@@ -56,6 +56,13 @@ public struct RecordOptions {
     public var trackPolicy: AudioTrackPolicy = .mixed
     public var wantsVideo = true
     public var outputURL: URL?
+    /// CLI の位置引数 / --output で指定されたパスだけは従来どおり上書きを許可する。
+    /// false の既定名は原子的に予約され、既存の録画を保護する。
+    public var outputPathIsExplicit = false
+    /// 呼び出し側が事前に予約済みの出力 (CLI は表示のために開始前に確定させ、GUI の
+    /// makeOptions もこれを渡す)。無い場合は Recorder が outputPathIsExplicit に従って
+    /// 予約する — 録画の挙動はどちらの経路でも同じになる
+    public var outputReservation: OutputFileReservation?
     public var duration: TimeInterval?
     public var codec: VideoCodecKind = .h264
     /// 映像ありのときの出力コンテナ (issue #12)。音声のみは M4A 固定
@@ -404,6 +411,17 @@ public final class Recorder {
 
     private func performSession() async throws -> Summary {
         cleanupWarnings.removeAll()
+        // 予約の清掃はこの 1 本の defer で賄う。region/window の入力検証は予約の解決より
+        // 前で throw しうるため、関数冒頭から登録する。activeReservation は後段 (注入の
+        // 一致確認・自前予約) で差し替わるので、defer の実行時点で実際の予約を見る —
+        // 二重登録すると削除失敗時に警告が 2 回出る (書き出し側は消費後 inode が変わり
+        // 完成ファイルには触れない)
+        var activeReservation = options.outputReservation
+        defer {
+            if let r = activeReservation, !r.removeIfStillReserved() {
+                cleanupWarnings.append("予約した出力ファイルを削除できませんでした: \(r.url.path)")
+            }
+        }
         // 入力の矛盾は副作用 (権限ダイアログ・monitor の既定出力変更) より前に弾く。
         // CLI でも弾いているが、GUI (M3) や HotkeyRecordingController も同じ RecordOptions を
         // 組み立てるため、ここで止めないと「指定した領域と違う範囲を無警告で録る」ことになる
@@ -425,9 +443,29 @@ public final class Recorder {
                 throw KilError.failed("アプリ除外 (exclude-app) はウィンドウ収録とは併用できません")
             }
         }
+        // #12 (MP4 コンテナ) と #59 (出力名予約) の統合: 拡張子はコンテナ種別に従い、
+        // 既定名は予約を挟んで確定させる
         let ext = options.wantsVideo ? options.container.rawValue : "m4a"
-        let url = options.outputURL ?? URL(fileURLWithPath: defaultOutputName(ext: ext))
+        let preferredURL = options.outputURL ?? URL(fileURLWithPath: defaultOutputName(ext: ext))
+        // 呼び出し側の予約を優先し、無ければ既定名 (非明示) のときここで予約する。
+        // 明示パスは従来どおり予約なしの上書き
+        let reservation: OutputFileReservation?
+        if let injected = options.outputReservation {
+            guard injected.url == preferredURL else {
+                throw KilError.failed("予約済みの出力と解決された出力が一致しません: \(preferredURL.path)")
+            }
+            reservation = injected
+        } else if options.outputPathIsExplicit {
+            reservation = nil
+        } else {
+            reservation = try OutputFileReservation.reserve(preferredURL: preferredURL)
+        }
+        let url = reservation?.url ?? preferredURL
         outputURL = url
+        // 権限・デバイス解決など writer 構築前のどの失敗経路でも予約ゴミを残さないのは
+        // 冒頭の defer (activeReservation) の役割。writer が予約を消費した後は inode が
+        // 変わるため、完成中/完成済みファイルには触れない
+        activeReservation = reservation
 
         let wantsSCK = options.wantsVideo || options.audioSources.contains(.system)
         if wantsSCK && !Permissions.hasScreenCapture {
@@ -456,7 +494,7 @@ public final class Recorder {
         }
 
         do {
-            let summary = try await recordAndFinalize(url: url)
+            let summary = try await recordAndFinalize(url: url, reservation: reservation)
             teardownMonitorIfNeeded(monitorCreatedByUs)
             // 復元失敗は録画の失敗ではないが、購読側が気づけないと既定出力が
             // kilde Monitor のまま残る — 完了の前に警告イベントで伝える
@@ -474,7 +512,7 @@ public final class Recorder {
         }
     }
 
-    private func recordAndFinalize(url: URL) async throws -> Summary {
+    private func recordAndFinalize(url: URL, reservation: OutputFileReservation?) async throws -> Summary {
         audioLabels = try labeledSources().map { $0.label }
         let useMixer = options.trackPolicy == .mixed && options.audioSources.count > 1
 
@@ -622,7 +660,8 @@ public final class Recorder {
             videoSize: videoSize,
             codec: options.codec,
             audioLabels: useMixer ? ["mixed"] : audioLabels,
-            anchor: options.wantsVideo ? .firstVideo : .firstAudio
+            anchor: options.wantsVideo ? .firstVideo : .firstAudio,
+            outputFilePolicy: reservation.map(MovieWriter.OutputFilePolicy.reserved) ?? .overwrite
         )
         writer = w
         if useMixer {

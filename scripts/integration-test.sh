@@ -667,6 +667,95 @@ if "$KILDE" rec --codec hevc --duration 3s --output "$F" > "$WORK/t19b.log" 2>&1
 else
     bad "T19b codec hevc: コマンド失敗 — $WORK/t19b.log"
 fi
+# ---- T18: 既定出力名の原子的な予約 -------------------------------------------
+
+log "T18: 既定出力名 — 同名ファイルがあれば -2 に逃がす"
+T18_DIR="$WORK/t18"
+mkdir -p "$T18_DIR"
+# コマンド起動中に秒境界をまたいでも衝突候補が必ずあるよう、直近数秒ぶんを予約しておく。
+# 既存の 0 バイトファイルも他人の所有物として残すことを同時に検証する。
+# 起動 (権限・設定の解決を含む) に時間がかかると予約のタイムスタンプが
+# ダミーの範囲外にずれて -2 に退避しなくなるため、十分な幅を持たせる
+for OFFSET in 0 1 2 3 4 5 6 7 8 9; do
+    STAMP=$(date -v+"${OFFSET}"S +%Y%m%d-%H%M%S)
+    touch "$T18_DIR/kilde-$STAMP.m4a"
+done
+if (cd "$T18_DIR" && KILDE_OUTPUT_DIR="$T18_DIR" "$KILDE" rec --no-video --duration 3s \
+    > "$WORK/t18.log" 2>&1); then
+    T18_OUTPUT=$(find "$T18_DIR" -type f -name 'kilde-*-2.m4a' -size +0c | head -1)
+    if [ -n "$T18_OUTPUT" ]; then
+        T18_BASE="${T18_OUTPUT%-2.m4a}.m4a"
+        if [ -f "$T18_BASE" ] && [ ! -s "$T18_BASE" ]; then
+            ok "T18 既定名予約: ダミーを保持し、$(basename "$T18_OUTPUT") に退避"
+        else
+            bad "T18 既定名予約: 対応するダミーが保持されていない — $WORK/t18.log"
+        fi
+    else
+        bad "T18 既定名予約: -2 の録画ファイルがない — $WORK/t18.log"
+    fi
+else
+    bad "T18 既定名予約: コマンド失敗 — $WORK/t18.log"
+fi
+
+# ---- T18b: 同じ秒に 2 本起動しても互いのファイルを消さない (issue #59 の主シナリオ)
+# 秒境界の直後に 2 つの kilde rec を同時起動し、既定名の取り合いでどちらかのファイルが
+# 「削除されて」いないことを検証する。
+# 注意: 2 プロセスが同時に SCK のシステム音声を開始するとセッションが固まる
+# 既知の問題がある (issue #70 — duration を過ぎても停止しない/開始が完了しない)。
+# そのため exit コードは検証せず、「予約の取り合いで元ファイルが消えない」ことと、
+# 固まった場合でもテストが進むことを保証するタイムアウトを主眼に置く
+
+log "T18b: 既定名 — 同秒の 2 本同時起動で互いのファイルを消さない"
+# 秒境界の計算に python3 を使う (BSD date に +%N が無いため)。無い環境では
+# 同期を諦めてスキップする — 失敗にすると python3 の無い環境で常に赤になる
+if ! command -v python3 >/dev/null 2>&1; then
+    skip "T18b 同時起動: python3 が無いため秒境界の同期ができません"
+else
+T18B_DIR="$WORK/t18b"
+mkdir -p "$T18B_DIR"
+# 次の秒の先頭まで待ってから同時に出す (date +%N は BSD date に無いため python3 で)
+T18B_WAIT=$(python3 -c 'import time; print(max(0.05, 1.02 - (time.time() % 1.0)))')
+sleep "$T18B_WAIT"
+(cd "$T18B_DIR" && exec "$KILDE" rec --no-video --duration 3s > "$WORK/t18b-1.log" 2>&1) &
+T18B_PID1=$!
+(cd "$T18B_DIR" && exec "$KILDE" rec --no-video --duration 3s > "$WORK/t18b-2.log" 2>&1) &
+T18B_PID2=$!
+# 固まり (issue #70) でもスイートが無言で止まらないよう、期限つきで待つ
+T18B_GRACE=25  # duration 3s + 余裕
+T18B_DEADLINE=$(( $(date +%s) + T18B_GRACE ))
+while [ "$(date +%s)" -lt "$T18B_DEADLINE" ] \
+      && { kill -0 $T18B_PID1 2>/dev/null || kill -0 $T18B_PID2 2>/dev/null; }; do
+    sleep 1
+done
+for pid in $T18B_PID1 $T18B_PID2; do
+    if kill -0 $pid 2>/dev/null; then
+        kill -TERM $pid 2>/dev/null
+        sleep 1
+        kill -0 $pid 2>/dev/null && kill -KILL $pid 2>/dev/null
+    fi
+done
+wait $T18B_PID1 2>/dev/null; T18B_EXIT1=$?
+wait $T18B_PID2 2>/dev/null; T18B_EXIT2=$?
+# 検証の主眼: 予約の取り合いで「先に確保した名前のファイルが他方に削除されない」こと。
+# 片方が固まって 0 バイトのままでも、名前が片寄らず両方残っていれば保護は機能している
+T18B_NAMES=$(ls "$T18B_DIR" 2>/dev/null | wc -l | tr -d ' ')
+if [ "$T18B_NAMES" = "2" ]; then
+    # 両者のタイムスタンプが同じ秒なら、片方が必ず -2 に退避しているはず。異なる秒に
+    # 落ちた場合は起動の揺らぎで、名前の衝突自体が起きていない (同一秒の決定的検証は T18 が担う)
+    T18B_SAME=$(cd "$T18B_DIR" && ls | sed -E 's/kilde-([0-9]{8}-[0-9]{6})(-2)?\..*/\1/' | sort -u | wc -l | tr -d ' ')
+    if [ "$T18B_SAME" = "1" ]; then
+        if ls "$T18B_DIR" | grep -q -- "-2\."; then
+            ok "T18b 同時起動: 同一秒で -2 に退避して共存 (exit=$T18B_EXIT1/$T18B_EXIT2)"
+        else
+            bad "T18b 同時起動: 同一秒なのに -2 が無い (ls: $(cd "$T18B_DIR" && ls | tr '\n' ' '))"
+        fi
+    else
+        ok "T18b 同時起動: 2 つの名前が共存・別秒に分岐 (exit=$T18B_EXIT1/$T18B_EXIT2)"
+    fi
+else
+    bad "T18b 同時起動: 名前数=$T18B_NAMES (2 が必要) exit=$T18B_EXIT1/$T18B_EXIT2 — $WORK/t18b-1.log $WORK/t18b-2.log"
+fi
+fi  # python3 ありのときのみ T18b を実行
 
 # ---- T17: アプリ除外と複数ウィンドウ (issue #13) ---------------------------------
 # 除外したアプリの音が出力に入らないこと、--window の複数指定でまとめて録れること、

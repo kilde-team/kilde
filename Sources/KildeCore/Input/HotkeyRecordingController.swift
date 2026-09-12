@@ -102,6 +102,9 @@ public final class HotkeyRecordingController {
                 // 待機が長時間でも既定ファイル名を実際の開始時刻に合わせる。
                 try RecordSettings.apply(overrides, config: config, environment: environment, to: &options)
             }
+            // 開始表示 (onStarted) に実際の出力先を出すため、予約もここで確定させる
+            // (Recorder 側でも予約できるが、-2 に退避すると表示と実態が食い違う)
+            try OutputFileReservation.resolveDefaultOutput(on: &options)
         } catch {
             finishMonitoring()
             onFinished(.failed(error))

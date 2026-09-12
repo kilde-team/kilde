@@ -79,6 +79,13 @@ enum SelfTest {
                 popover.show()
             }
             guard popover.isShown() else {
+                // この時点ではまだ recording.start していないため、makeOptions が確保した
+                // 予約の清掃を Recorder に任せられない — 自分で片付けてから失敗する
+                if let r = options.outputReservation, !r.removeIfStillReserved() {
+                    FileHandle.standardError.write(
+                        "WARNING: 予約した出力ファイルを削除できませんでした: \(r.url.path)\n"
+                            .data(using: .utf8)!)
+                }
                 fail("ポップオーバーを開けませんでした (isShown=false)")
             }
             print("selftest: popover shown=true")

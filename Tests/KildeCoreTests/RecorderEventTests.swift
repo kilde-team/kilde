@@ -86,7 +86,11 @@ final class RecorderEventTests: XCTestCase {
         }
         let url = dir.appendingPathComponent("out.m4a")
 
-        let recorder = Recorder(options: emptySessionOptions(url: url, duration: 5))
+        // 明示パスとして解決させる — 既定名だと予約 (O_CREAT) の失敗が先に起こり、
+        // このテストが見たい writer 生成の失敗 (startWriting ガード) まで届かない
+        var options = emptySessionOptions(url: url, duration: 5)
+        options.outputPathIsExplicit = true
+        let recorder = Recorder(options: options)
         let events = await collectEvents(recorder)
 
         XCTAssertEqual(events.compactMap(\.state), [.preparing, .error])

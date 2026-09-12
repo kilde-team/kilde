@@ -158,6 +158,7 @@ final class ConfigTests: XCTestCase {
                        FileManager.default.currentDirectoryPath)
         XCTAssertEqual(o.outputURL?.pathExtension, "mov")
         XCTAssertTrue(o.outputURL?.lastPathComponent.hasPrefix("kilde-") ?? false)
+        XCTAssertFalse(o.outputPathIsExplicit)
     }
 
     private var fullConfig: KildeConfig {
@@ -191,6 +192,7 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(o.fps, 60)
         XCTAssertTrue(o.showsCursor)
         XCTAssertEqual(o.outputURL?.path, "/tmp/explicit.mov")
+        XCTAssertTrue(o.outputPathIsExplicit)
     }
 
     func testEnvironmentOverridesConfigOutputDirectory() throws {
