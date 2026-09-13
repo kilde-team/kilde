@@ -1,0 +1,26 @@
+docs/MONETIZATION.md
+  s_8c80461e71c199::t_aca4cd7c22df34 104-107
+  s_8c80461e71c199::t_9e088de4690e06 6-9
+  s_8c80461e71c199::t_6426004fe8a1d4 81-82
+  s_8c80461e71c199::t_1084a08671420d 35-36
+  s_8c80461e71c199::t_0a433c74eb75a1 121-122
+  s_8c80461e71c199::t_8a9642ee636eb0 42-43
+  s_8c80461e71c199::t_d6d6c61ceefa32 128-131
+  s_8c80461e71c199::t_466a59d7710fae 24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "59dbb4e31060db6bbae4dc10d83c6e5a24cc6fc2",
+  "prompts": {},
+  "sessions": {
+    "s_8c80461e71c199": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d345635f-8299-48c7-845b-669e71a22f6f",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
