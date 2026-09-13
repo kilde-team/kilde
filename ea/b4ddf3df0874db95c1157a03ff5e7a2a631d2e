@@ -1,0 +1,25 @@
+docs/DESIGN.md
+  s_35faeec28b4c4b::t_7b09b85a49fb5f 353-368
+Sources/KildeCore/Capture/ScreenAudioStream.swift
+  s_35faeec28b4c4b::t_bb88481c0f03b9 116-123
+  s_35faeec28b4c4b::t_6fa610db1c8105 89-101,103-110
+Sources/KildeCore/Recording/Recorder.swift
+  s_35faeec28b4c4b::t_94876f0e42886a 1154-1155
+  s_35faeec28b4c4b::t_50e726073ac67b 1169,1171-1189
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "eab4ddf3df0874db95c1157a03ff5e7a2a631d2e",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
