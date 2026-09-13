@@ -1,0 +1,42 @@
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_c3ae6588e13d3c 1372-1417
+  s_35faeec28b4c4b::t_9582ab520b5119 31
+  s_35faeec28b4c4b::t_d5e8bc8f4a2e5f 55-58
+docs/DESIGN.md
+  s_35faeec28b4c4b::t_d345d84eec73ae 315-350
+Sources/KildeCore/Support/SCKStartupLock.swift
+  s_35faeec28b4c4b::t_553f336c3c8858 122-131
+  s_35faeec28b4c4b::t_067a5b73dd57dc 139
+Sources/KildeCore/Devices/DisplayCatalog.swift
+  s_35faeec28b4c4b::t_79a9d2aa1db924 115-116,118-119
+  s_35faeec28b4c4b::t_e819690278b284 154-156
+  s_35faeec28b4c4b::t_e68feca142419d 200-233,240,242-245
+  s_35faeec28b4c4b::t_403c25eb02ccae 166-169,177-180
+  s_35faeec28b4c4b::t_f75afde6cc4551 170-175
+  s_35faeec28b4c4b::t_ca3715ebdee785 41-45,48,51-58
+  s_35faeec28b4c4b::t_a3a81e15cc4898 234-239,241
+  s_35faeec28b4c4b::t_11958f5e46f67a 74-75,78,82-86
+  s_35faeec28b4c4b::t_e82ad12b103a9a 97-98,100-101
+Sources/KildeCore/Recording/Recorder.swift
+  s_35faeec28b4c4b::t_39b7fd50c7cb0d 895-897
+  s_35faeec28b4c4b::t_336638ac706cfe 734-738,740-741,744,747-748
+Tests/KildeCoreTests/SCKStartupLockTests.swift
+  s_35faeec28b4c4b::t_81de9d0650ec65 285-291,294,297,301-304
+  s_35faeec28b4c4b::t_358f37f1668653 271-284,292-293,295-296,298-300,305-307
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "824a0d759d0a8c82f954e47147ba1cfc04258ad3",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
