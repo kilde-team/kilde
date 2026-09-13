@@ -1026,12 +1026,20 @@ else
 #     約 10% で落ちるものを必須にすると、**#70 と無関係な PR まで恒常的に赤くなる**。
 #     #95 が閉じたらここを `bad` に上げること
 T18B_ROUNDS=3
-T18B_NAME_NG=0      # #59 側で崩れた組
-T18B_LIVE_NG=0      # #70 側で崩れた組
+T18B_NAME_NG=0      # #59 側で崩れた組 (名前の予約が保護されなかった)
+T18B_FILE_NG=0      # **出力が再生可能でなかった組 (issue #95)。これは bad にする**
+T18B_COUNT_NG=0     # m4a が 2 本揃わなかった組 (欠落 / 別拡張子)。再生不能とは別の失敗
+T18B_SELF_FAIL=0    # watchdog 未介入で非ゼロ終了した組 (ハングではない本物の失敗)
+T18B_KILLED=""      # watchdog が KILL した PID の一覧 (組ごとに下で解釈する)
+T18B_LIVE_NG=0      # 両者が完走しなかった組 (ハングを含む。#103 が残る間は skip)
 T18B_DETAIL=""
 for T18B_ROUND in $(seq 1 "$T18B_ROUNDS"); do
     T18B_DIR="$WORK/t18b-$T18B_ROUND"
     mkdir -p "$T18B_DIR"
+    # **組ごとに空へ戻す。** 持ち越すと前の組の PID が残り、**PID の再利用**で
+    # 今の組のプロセスが「watchdog に撃たれた」と誤判定されうる
+    # (スイートは数百のプロセスを起動するので一周しえる)
+    T18B_KILLED=""
     # 次の秒の先頭まで待ってから同時に出す (date +%N は BSD date に無いため python3 で)
     T18B_WAIT=$(python3 -c 'import time; print(max(0.05, 1.02 - (time.time() % 1.0)))')
     sleep "$T18B_WAIT"
@@ -1059,25 +1067,115 @@ for T18B_ROUND in $(seq 1 "$T18B_ROUNDS"); do
             # graceful に 0 で終わりうる — つまり**ハングしたのに exit 0 になり、
             # 下の判定がすり抜ける**。KILL なら 137 で残るので回帰を捕まえられる
             kill -KILL $pid 2>/dev/null
+            # **KILL した事実を残す (CodeRabbit の指摘)。** これが無いと、下の判定で
+            # 「期限切れで撃たれた 137」と「自力で終わった非ゼロ」を区別できず、
+            # **本物の失敗まで #103 のハングとして skip に流してしまう**
+            T18B_KILLED="$T18B_KILLED $pid"
         fi
     done
     wait $T18B_PID1 2>/dev/null; T18B_EXIT1=$?
     wait $T18B_PID2 2>/dev/null; T18B_EXIT2=$?
+    # 各プロセスが watchdog に撃たれたか (自力終了なら 0)。
+    # **終了コードとも突き合わせる (cubic の指摘)。** `kill -0` と `kill -KILL` の間に
+    # 自力終了しうるので、PID を記録しただけでは「撃った」と誤認する。実際に
+    # SIGKILL で死んだなら 137 になるはずで、そうでなければ自力終了として扱う
+    case " $T18B_KILLED " in
+        *" $T18B_PID1 "*) [ "$T18B_EXIT1" = "137" ] && T18B_KILLED1=1 || T18B_KILLED1=0 ;;
+        *) T18B_KILLED1=0 ;;
+    esac
+    case " $T18B_KILLED " in
+        *" $T18B_PID2 "*) [ "$T18B_EXIT2" = "137" ] && T18B_KILLED2=1 || T18B_KILLED2=0 ;;
+        *) T18B_KILLED2=0 ;;
+    esac
 
     T18B_N=$(ls "$T18B_DIR" 2>/dev/null | wc -l | tr -d ' ')
-    # 1KB 未満は「開いただけで中身が無い」とみなす (正常な 3 秒の録音は数十 KB になる)
-    T18B_EMPTY_R=$(find "$T18B_DIR" -name '*.m4a' -size -1k 2>/dev/null | wc -l | tr -d ' ')
     if [ "$T18B_N" != "2" ]; then
         T18B_NAME_NG=$((T18B_NAME_NG+1))
         T18B_DETAIL="$T18B_DETAIL [組$T18B_ROUND 名前数=$T18B_N]"
     fi
-    if [ "$T18B_EXIT1" != "0" ] || [ "$T18B_EXIT2" != "0" ] || [ "$T18B_EMPTY_R" != "0" ]; then
+    # **「ファイルが壊れたか」と「プロセスが終わったか」を分けて数える (issue #95)。**
+    # 以前は `exit != 0` と「1KB 未満」を 1 つの判定に畳んでいたが、**#95 の調査で
+    # この 2 つは別の問題だと分かった**:
+    #
+    #   * ファイルが未完了 → **kilde の不具合**。停止シーケンスの順序を誤ると起きる
+    #     (旧順序では stopCapture() のハングでファイナライズに到達せず、実測 9/9 が未完了)
+    #   * プロセスが終わらない → **replayd 側**。`SCStream.stopCapture()` が XPC から
+    #     戻らないもので、kilde 側では解消できない (issue #103)
+    #
+    # 畳んだままだと、#103 が残る限り `exit=137` が消えないので**この判定は永久に skip**
+    # になり、ファイル健全性の回帰を検出できなくなる。**壊れたら bad、ハングだけなら skip**
+    T18B_FILE_NG_R=0
+    # **まず本数を数える (cubic の指摘)。** 下のループは `*.m4a` だけを見るので、
+    # 片方が別の拡張子で出た / そもそも作られなかった場合に**検査対象が 0〜1 本でも
+    # 「壊れ 0」で通ってしまう**。2 プロセスぶん揃っていることを先に確かめる
+    # (名前の予約が壊れた場合は上の T18B_NAME_NG が拾うが、あちらは `ls` の総数を
+    #  見るので、拡張子が違うケースはここでしか捕まらない)
+    # **本数不一致は「再生不能」とは別に数える (cubic の指摘)。** 同じカウンタに
+    # 混ぜると「出力が再生可能でない (stopCapture のハング疑い)」と報告され、
+    # **欠落や拡張子違いなのに停止順序の回帰を疑わせる** — 機序の切り分けを誤らせる
+    T18B_M4A_N=0
+    for T18B_COUNT_F in "$T18B_DIR"/*.m4a; do
+        [ -f "$T18B_COUNT_F" ] || continue
+        T18B_M4A_N=$((T18B_M4A_N+1))
+    done
+    if [ "$T18B_M4A_N" != "2" ]; then
+        T18B_COUNT_NG=$((T18B_COUNT_NG+1))
+        T18B_DETAIL="$T18B_DETAIL [組$T18B_ROUND m4a の本数=$T18B_M4A_N (2 が期待値)]"
+    fi
+    for T18B_F in "$T18B_DIR"/*.m4a; do
+        [ -f "$T18B_F" ] || continue
+        # 1KB 未満は「開いただけで中身が無い」(正常な 3 秒の録音は数十 KB)。
+        # サイズだけでなく **inspect が通ること**まで見る — ファイナライズを飛ばした
+        # ファイルはサイズがあっても moov が無く、再生できない。
+        # **`duration` も要求する (CodeRabbit の指摘)** — `rms=` だけだと、長さが
+        # 読めない (moov が壊れている) 出力を「再生可能」と誤判定しうる
+        T18B_INSPECT=$(inspect "$T18B_F")
+        # **長さが 1 秒未満なら落とす (cubic の指摘)。** `duration=` の存在だけを
+        # 見ると `duration=0.00s` が通り、**ファイナライズは済んでいるが中身が空**
+        # という失敗を見逃す。3 秒録画なので 1 秒を下限にすれば、
+        # 起動の揺らぎで短くなった回を誤判定せずに空振りだけ捕まえられる
+        T18B_DUR=$(printf '%s' "$T18B_INSPECT" | grep -o 'duration=[0-9.]*' | head -1 | cut -d= -f2)
+        # **`rms` は存在だけを見る。正値は要求しない (cubic の指摘で撤回)。**
+        #
+        # 一度 CodeRabbit の指摘に従って `rms > 0` を課したが、**それは誤りだった**。
+        # `InspectCommand` は `%.4f` で出すので、**実測で 0.00005 までが `0.0000` に
+        # 丸まる**。つまり**無音に近い正常な録音**が壊れたファイル扱いで FAIL になる。
+        # この機体は無音環境で録っており、まさにその条件に当たる。
+        #
+        # CodeRabbit の懸念 (サンプルが 1 つも無いファイルが通る) は残る。ただし
+        # `FileInspection` は**「サンプル 0」と「完全な無音」を同じ `rms=0` にする**うえ、
+        # `AudioStats` は duration / rms / peak しか持たずサンプル数を出せないので、
+        # **`rms` では原理的に区別できない**。区別するなら `FileInspection` に
+        # サンプル数を足す必要があり、それは本 PR (停止シーケンスの順序) の範囲外。
+        #
+        # T18b が守りたいのは #95 の回帰 — ファイナライズ前のハングで moov が壊れること。
+        # それは下のサイズ・`inspect` の成功・`duration >= 1.0` で捕まえられる
+        T18B_RMS=$(printf '%s' "$T18B_INSPECT" | grep -o 'rms=[0-9.]*' | head -1 | cut -d= -f2)
+        if [ "$(stat -f%z "$T18B_F" 2>/dev/null || echo 0)" -lt 1024 ] \
+           || [ -z "$T18B_RMS" ] \
+           || [ -z "$T18B_DUR" ] \
+           || ! awk -v d="$T18B_DUR" 'BEGIN { exit !(d >= 1.0) }'; then
+            T18B_FILE_NG_R=$((T18B_FILE_NG_R+1))
+            T18B_DETAIL="$T18B_DETAIL [組$T18B_ROUND $(basename "$T18B_F") duration=${T18B_DUR:-なし} rms=${T18B_RMS:-なし}]"
+        fi
+    done
+    if [ "$T18B_FILE_NG_R" != "0" ]; then
+        T18B_FILE_NG=$((T18B_FILE_NG+1))
+    fi
+    # **watchdog に撃たれた非ゼロだけを #103 扱いにする (CodeRabbit の指摘)。**
+    # 自力で終わった非ゼロは kilde が失敗を返したということで、ハングとは別物。
+    # skip に流すと**本物の失敗を見逃す**ので、専用カウンタで bad へ回す
+    if { [ "$T18B_EXIT1" != "0" ] && [ "$T18B_KILLED1" != "1" ]; } \
+       || { [ "$T18B_EXIT2" != "0" ] && [ "$T18B_KILLED2" != "1" ]; }; then
+        T18B_SELF_FAIL=$((T18B_SELF_FAIL+1))
+        T18B_DETAIL="$T18B_DETAIL [組$T18B_ROUND 自力終了で非ゼロ exit=$T18B_EXIT1/$T18B_EXIT2 (watchdog 未介入)]"
+    fi
+    if [ "$T18B_EXIT1" != "0" ] || [ "$T18B_EXIT2" != "0" ] || [ "$T18B_FILE_NG_R" != "0" ]; then
         T18B_LIVE_NG=$((T18B_LIVE_NG+1))
-        # **書き込み量も残す。** issue #95 の残存ハングは「片方が完走し、片方が途中で
-        # 止まる」形なので、サイズの非対称 (例: 2810 と 1425) が機序を絞る手がかりになる。
-        # skip で終わる回も観測として #95 に積み上がるよう、毎回この値を出す
+        # **書き込み量も残す。** 停止側のサイズが完走側とほぼ同じか大きく欠けるかは、
+        # 機序を絞る手がかりになる。skip で終わる回も観測として #103 に積み上がるよう毎回出す
         T18B_SIZES=$(ls -la "$T18B_DIR"/*.m4a 2>/dev/null | awk '{printf "%s ", $5}')
-        T18B_DETAIL="$T18B_DETAIL [組$T18B_ROUND exit=$T18B_EXIT1/$T18B_EXIT2 空=$T18B_EMPTY_R サイズ=${T18B_SIZES:-なし}]"
+        T18B_DETAIL="$T18B_DETAIL [組$T18B_ROUND exit=$T18B_EXIT1/$T18B_EXIT2 壊れ=$T18B_FILE_NG_R サイズ=${T18B_SIZES:-なし}]"
     fi
 done
 # 同一秒での -2 退避は最後の組で確認する (名前の衝突が起きた組でしか判定できないため)
@@ -1085,14 +1183,34 @@ T18B_DIR="$WORK/t18b-$T18B_ROUNDS"
 T18B_NAMES=$(ls "$T18B_DIR" 2>/dev/null | wc -l | tr -d ' ')
 if [ "$T18B_NAME_NG" != "0" ]; then
     bad "T18b 同時起動: ${T18B_ROUNDS} 組中 $T18B_NAME_NG 組で名前が 2 つ残らなかった (予約の保護が壊れている。issue #59)$T18B_DETAIL"
-elif [ "$T18B_LIVE_NG" = "$T18B_ROUNDS" ]; then
-    # **全組が落ちたらロック自体の回帰。** #95 の残存は約 10% なので、3 組連続で
-    # 引く確率は 0.1% 未満。全滅は「たまたま」では説明できず、SCKStartupLock が
-    # 効いていない (= issue #70 の回帰) と見るべきなので、ここは skip にしない
-    bad "T18b 同時起動: ${T18B_ROUNDS}/${T18B_ROUNDS} 組すべてで両者が完走しなかった (SCK 起動ロックの回帰を疑う。issue #70)$T18B_DETAIL"
+elif [ "$T18B_FILE_NG" != "0" ]; then
+    # **出力が再生可能でないのは kilde の不具合 (issue #95)。ここは必ず落とす。**
+    # 停止シーケンスは「配送の停止 → ファイナライズ → replayd への通知」の順で、
+    # 最後がハングしてもファイルは完成済みになる (DESIGN.md の停止の節)。
+    # 順序を戻す変更が入るとここで落ちる — **この分岐が #95 の回帰の門**
+    bad "T18b 同時起動: ${T18B_ROUNDS} 組中 $T18B_FILE_NG 組で出力が再生可能でない (停止シーケンスの順序が壊れ、ファイナライズ前に stopCapture でハングした疑い。issue #95)$T18B_DETAIL"
+elif [ "$T18B_COUNT_NG" != "0" ]; then
+    # **「再生不能」とは別に報告する (cubic の指摘)。** 欠落や拡張子違いは
+    # 停止順序の回帰ではないので、#95 の文言で報告すると機序の切り分けを誤らせる。
+    # **#95 の門 (FILE_NG) より後ろに置く** — 両方起きたときに名指しすべきは
+    # 回帰のほうで、こちらは前提が崩れた側 (cubic の指摘)
+    bad "T18b 同時起動: ${T18B_ROUNDS} 組中 $T18B_COUNT_NG 組で m4a が 2 本揃わなかった (ファイルの欠落または別拡張子。再生可否以前の問題)$T18B_DETAIL"
+elif [ "$T18B_SELF_FAIL" != "0" ]; then
+    # **watchdog 未介入の非ゼロは #103 のハングではない (CodeRabbit の指摘)。**
+    # 自力で終わって非ゼロ = kilde が失敗を返したということ。skip に流すと
+    # 本物の失敗を #103 の名前で見逃す
+    bad "T18b 同時起動: ${T18B_ROUNDS} 組中 $T18B_SELF_FAIL 組で watchdog 未介入のまま非ゼロ終了した (ハングではなく録画自体の失敗)$T18B_DETAIL"
 elif [ "$T18B_LIVE_NG" != "0" ]; then
-    # 一部だけなら #95 の残存。ここで落とさない (約 10% で起きるため無関係な PR まで赤くなる)
-    skip "T18b 同時起動: 名前の保護は ${T18B_ROUNDS}/${T18B_ROUNDS} 組で成立。ただし $T18B_LIVE_NG 組で両者が完走しなかった (issue #95 の残存ハング。#95 が閉じたらこの分岐を bad に上げること)$T18B_DETAIL"
+    # **ここは「プロセスが自力で終わらなかった」だけ。ファイルは全部健全。**
+    # `SCStream.stopCapture()` が replayd から戻らないもので (issue #103)、
+    # **kilde 側では解消できない**。実測で 24/40 組、条件次第で 9/10 組出るので、
+    # 落とすと無関係な PR が恒常的に赤くなる。
+    #
+    # **「全組で起きたら bad」にはしない。** 以前は「#95 の残存は約 10% なので
+    # 3 組連続は 0.1% 未満」として全滅を bad にしていたが、**その前提は実測で崩れた** —
+    # 同じプロトコルで 90% 出る。全滅は普通に起こりうるので、回数では回帰を判定できない。
+    # 起動ロックの回帰 (issue #70) はファイルが壊れる形で上の分岐に出る
+    skip "T18b 同時起動: 名前の保護と出力の健全性は ${T18B_ROUNDS}/${T18B_ROUNDS} 組で成立。ただし $T18B_LIVE_NG 組でプロセスが自力終了しなかった (issue #103 の未解決分。#103 が閉じたらこの分岐を bad に上げること)$T18B_DETAIL"
 elif [ "$T18B_NAMES" = "2" ]; then
     # 両者のタイムスタンプが同じ秒なら、片方が必ず -2 に退避しているはず。異なる秒に
     # 落ちた場合は起動の揺らぎで、名前の衝突自体が起きていない (同一秒の決定的検証は T18 が担う)
