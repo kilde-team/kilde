@@ -1025,14 +1025,19 @@ stop_excl_app() {
 # T17 だけはディスプレイ全体のシステム音声を録るため、マシン上で他の音が鳴っていると
 # 除外対象以外の音が出力に混入する (issue #83: 並行実行のスイートが起動する soundapp /
 # afplay が実際に混入した。--exclude-app は bundleID を持たない音源を除外できない)。
-# 判定の前に 1 秒の無音プローブを録って環境が静かであることを確認し、鳴っていたら
-# 「判定不能」として SKIP する — 偽陰性を偽陰性として扱うため。T17b/b2 はウィンドウ
-# スコープなので他の音が入らず、この確認の外で続行する
+# 判定の前に 1 秒の無音プローブを録って環境が静かであることを確認する。ただし
+# プローブと実際の録音の間 (~8 秒) に音が鳴り始める窓は残るので、失敗したときは
+# もう一度プローブして環境が汚れていれば退行ではなく「判定不能」に落とす —
+# 環境起因の失敗を SCK 除外の退行と誤帰属させるのを防ぐため。
+# T17b/b2 はウィンドウスコープなので他の音が入らず、この確認の外で続行する
 T17_ENV_OK=1
 PROBE="$WORK/t17-silence-probe.m4a"
 if "$KILDE" rec --no-video --duration 1s --output "$PROBE" > "$WORK/t17-probe.log" 2>&1; then
     PROBE_RMS=$(rms_of "$PROBE")
-    if ! awk -v v="${PROBE_RMS:-1}" 'BEGIN{exit !(v < 0.00005)}'; then
+    if [ -z "$PROBE_RMS" ]; then
+        skip "T17 exclude-app: 無音プローブの結果を検査できません (rms 不明) — $WORK/t17-probe.log"
+        T17_ENV_OK=0
+    elif ! awk -v v="$PROBE_RMS" 'BEGIN{exit !(v < 0.00005)}'; then
         skip "T17 exclude-app: 環境が無音でないため判定不能 (probe rms=$PROBE_RMS — 他の音源が鳴っています。issue #83 を参照)"
         T17_ENV_OK=0
     fi
@@ -1046,12 +1051,26 @@ if [ "$T17_ENV_OK" = "1" ]; then
     F="$WORK/t17-exclude.mov"
     if "$KILDE" rec --exclude-app "$EXCL_ID" --duration "$DUR" --output "$F" > "$WORK/t17.log" 2>&1; then
         RMS=$(rms_of "$F")
-        # T7 (ウィンドウ収録の陰性確認) と同じしきい値。プローブで無音を確認済みなので、
-        # ここでの混入は除外経路の退行を疑える (issue #83 の環境起因と区別できる)
+        # T7 (ウィンドウ収録の陰性確認) と同じしきい値
         if awk -v v="${RMS:-1}" 'BEGIN{exit !(v < 0.00005)}'; then
             ok "T17 exclude-app: 除外アプリの音が完全除外 (rms=$RMS)"
         else
-            bad "T17 exclude-app: 除外したアプリの音が混入 (rms=$RMS、環境は無音確認済み) — SCK の除外が映像だけになった可能性。docs/SPIKE-NOTES.md F-F を参照"
+            # プローブ後の ~8 秒で鳴り始めた音は事前プローブでは検出できない。
+            # 録画後に再プローブして環境が無音のままなら退行、鳴り始めていたら判定不能
+            POST="$WORK/t17-post-probe.m4a"
+            POST_QUIET=0
+            POST_RMS=""
+            if "$KILDE" rec --no-video --duration 1s --output "$POST" > "$WORK/t17-post-probe.log" 2>&1; then
+                POST_RMS=$(rms_of "$POST")
+                if [ -n "$POST_RMS" ] && awk -v v="$POST_RMS" 'BEGIN{exit !(v < 0.00005)}'; then
+                    POST_QUIET=1
+                fi
+            fi
+            if [ "$POST_QUIET" = "1" ]; then
+                bad "T17 exclude-app: 除外したアプリの音が混入 (rms=$RMS、録画前後のプローブは無音) — SCK の除外が映像だけになった可能性。docs/SPIKE-NOTES.md F-F を参照"
+            else
+                skip "T17 exclude-app: 録画中に他の音源が鳴り始めたため判定不能 (probe rms=$PROBE_RMS→post rms=${POST_RMS:-不明}。issue #83 を参照)"
+            fi
         fi
     else
         bad "T17 exclude-app: コマンド失敗 — $WORK/t17.log"
