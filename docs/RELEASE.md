@@ -148,8 +148,8 @@ Info.plist の生存とバージョンを検証 → 署名 → Release を作成
 | 未設定 (現在) | **unsigned zip** でリリース。Release Notes に「未署名」の注意と `xattr -d` の回避方法を明記 |
 
 証明書を取得したらリポジトリ設定で 6 つの secrets を足すだけで署名に切り替わります
-(ワークフロー側の変更は不要)。`MACOS_CERTIFICATE` は「Developer ID Application」の
-.p12 を `base64 -i cert.p12 | pbcopy` でエンコードしたもの。
+(ワークフロー側の変更は不要)。`DEVELOPER_ID_CERTIFICATE_BASE64` は「Developer ID
+Application」の .p12 を `base64 -i cert.p12 | pbcopy` でエンコードしたもの。
 
 **手動検証** (タグを打たずにビルドだけ確認): Actions タブから `Release` ワークフローを
 `workflow_dispatch` で実行。**手動実行は常に dry-run** (ビルドと署名分岐までを検証、
