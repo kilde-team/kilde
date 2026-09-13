@@ -1,0 +1,20 @@
+Sources/KildeCore/Support/StopTrace.swift
+  s_35faeec28b4c4b::t_690573ff7e9586 56-57
+  s_35faeec28b4c4b::t_ebe062c7ee8c28 63-75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "ff43354b30bf7e2874b9dea765c9dbd5ba91a5e9",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
