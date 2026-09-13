@@ -129,8 +129,19 @@ public enum SCKStartupLock {
     public static func acquire(timeout: TimeInterval = 15,
                                isCancelled: @escaping () -> Bool = { false }) async throws -> Token {
         // **単調時計で測る。** `Date` だとシステム時刻が後戻りしたときに期限も後戻りし、
-        // ハングした保持者を相手に上限を超えて待ち続ける
-        let deadline = DispatchTime.now() + .milliseconds(Int(timeout * 1000))
+        // ハングした保持者を相手に上限を超えて待ち続ける。
+        //
+        // 変換の前に値を検める — `Int(timeout * 1000)` は NaN や無限大で**トラップする**
+        // (KilError にならずプロセスが落ちる)。呼び出し元が既定値を使う限り起きないが、
+        // KildeCore はライブラリなので外から任意の値が来うる
+        let milliseconds = timeout * 1000
+        guard milliseconds.isFinite, milliseconds >= 0 else {
+            throw KilError.failed("ロックの待機時間が不正です: \(timeout)")
+        }
+        // 上限も切る — Int に収まっても DispatchTime の加算が飽和して
+        // 「事実上無期限に待つ」状態になる。1 時間あれば起動区間 (0.31 秒) には十分
+        let cappedMilliseconds = Int(min(milliseconds, 3_600_000))
+        let deadline = DispatchTime.now() + .milliseconds(cappedMilliseconds)
         // `Task.isCancelled` も見る — 見ないと、構造化キャンセルされたときに
         // `try?` が sleep のキャンセル例外を握り潰し、open + flock を無遅延で回す
         // busy-spin が期限まで続く (`Recorder.awaitOrStop` が同じ罠を避けているのと同じ)
@@ -194,7 +205,13 @@ public enum SCKStartupLock {
         let url = fileURL
         return url.withUnsafeFileSystemRepresentation { path -> Attempt in
             guard let path else { return .unavailable(errno: EINVAL) }
-            let fd = open(path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR)
+            // **`O_NOFOLLOW` でシンボリックリンクを拒否する (CWE-59)。**
+            // `confstr` 失敗時のフォールバック先 `/tmp` は全ユーザーから書けるうえ、
+            // パスが `kilde-sck-startup-<uid>.lock` と予測可能なので、別 UID の
+            // プロセスがファイル作成前に symlink を置ける。追従すると下の
+            // `ftruncate` + `write` が**リンク先 (利用者の設定や録画ファイル) を破壊する**。
+            // `open` の失敗は既存の `.unavailable` が拾うので ELOOP 専用の分岐は要らない
+            let fd = open(path, O_WRONLY | O_CREAT | O_NOFOLLOW, S_IRUSR | S_IWUSR)
             guard fd >= 0 else { return .unavailable(errno: errno) }
             guard flock(fd, LOCK_EX | LOCK_NB) == 0 else {
                 let code = errno
