@@ -119,8 +119,9 @@ jobs:
           # p12 を消し、キーチェーンは always() の cleanup step に任せる
           KEYCHAIN="build-$(uuidgen).keychain-db"
           # この step が失敗したときだけキーチェーンごと消す (成功時は sign step が
-          # 使うので cleanup step に任せる)。p12 は常に消す
-          trap 'rm -f cert.p12; [ "$?" -ne 0 ] && security delete-keychain "$KEYCHAIN" 2>/dev/null || true' EXIT
+          # 使うので cleanup step に任せる)。p12 は常に消す。
+          # trap 内の $? は先頭の rm で上書きされるため、step の終了コードを先退避する
+          trap 'rc=$?; rm -f cert.p12; [ "$rc" -ne 0 ] && security delete-keychain "$KEYCHAIN" 2>/dev/null; exit $rc' EXIT
           PASSWORD="$(uuidgen)"
           echo "keychain=$KEYCHAIN" >> "$GITHUB_OUTPUT"
           echo -n "$MACOS_CERTIFICATE" | base64 --decode -o cert.p12
