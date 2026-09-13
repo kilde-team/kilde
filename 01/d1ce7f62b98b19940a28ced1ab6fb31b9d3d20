@@ -1,0 +1,38 @@
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_7f1ff2f7239e3a 1546,1557-1558,1560-1566
+  s_35faeec28b4c4b::t_4e65b470a70a0c 1600,1604
+  s_35faeec28b4c4b::t_1a88bd99c11c58 69-73,79,81-89
+  s_35faeec28b4c4b::t_b25de4cf03b14d 1547-1556,1559
+  s_35faeec28b4c4b::t_54ad02c2397f67 74-78,80
+  s_35faeec28b4c4b::t_8430daac3695c5 1594-1599,1601-1602
+Sources/kilde/RecCommand.swift
+  s_35faeec28b4c4b::t_587a1477bbff5a 450-453,456
+  s_35faeec28b4c4b::t_fff54bb58edffc 53
+  s_35faeec28b4c4b::t_ea58efeaef3da9 78
+README.md
+  s_35faeec28b4c4b::t_341dd305faa570 180-188
+  s_35faeec28b4c4b::t_15f312bbbefc06 208-209
+docs/DEVELOPMENT.md
+  s_35faeec28b4c4b::t_19084e32892214 302
+  s_35faeec28b4c4b::t_a0d17c3aff51af 303-304
+README.ja.md
+  s_35faeec28b4c4b::t_ce9e59d533d183 113-120
+docs/DESIGN.md
+  s_35faeec28b4c4b::t_6286fdaf5aa585 410-412
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "01d1ce7f62b98b19940a28ced1ab6fb31b9d3d20",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
