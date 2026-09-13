@@ -204,7 +204,8 @@ EDR の上限」で、SDR ディスプレイでは 1.0 のままになる。**�
 色情報を書かないと再生側が SDR と解釈する)。
 
 ~~**`captureHDRRecordingPreservedSDRHDR10` (macOS 26、HDR10 メタデータ付き (静的メタデータ ST 2086 / MaxCLL・MaxFALL の付与は SCK プリセットの責務 — kilde 側では設定しておらず、実機での確認手順は DEVELOPMENT.md)) は使っていない。**~~ → **#76 で使用開始** (CI を macos-26 に上げて解消)
-CI が `macos-15` ランナーで動いており、**その SDK にシンボルが存在しないためコンパイルできない**:
+~~CI が `macos-15` ランナーで動いており、**その SDK にシンボルが存在しないためコンパイルできない**~~
+(過去の制約。PR #81 でランナーを `macos-26` に上げて解消):
 
 ```
 error: type 'SCStreamConfiguration.Preset' has no member 'captureHDRRecordingPreservedSDRHDR10'

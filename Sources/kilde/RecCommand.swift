@@ -66,7 +66,7 @@ struct RecCommand: ParsableCommand {
     @Flag(inversion: .prefixedNo, help: "カーソルを写り込む / 写り込まない (既定: 写り込む。設定 showsCursor で変更可、--cursor は false をその回だけ打ち消す)")
     var cursor: Bool?
 
-    @Flag(help: "HDR で収録する (macOS 15 以降 + HDR ディスプレイ + --codec hevc。条件を満たさない環境では警告して SDR で録る)")
+    @Flag(help: "HDR で収録する (macOS 15 以降 + HDR ディスプレイ + --codec hevc。macOS 26 は HDR10 メタデータ付き、15 は Display P3。条件を満たさない環境では HDR: … の理由行つきで SDR で録る)")
     var hdr: Bool = false
 
     @Option(help: "開始前カウントダウン (秒)")

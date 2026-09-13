@@ -28,7 +28,7 @@ QuickTime Player では録れない**システム音声を含む録画・録音*
 | M1 CLI MVP | ✅ 実装済み — `rec` / `devices` / `doctor` / `audio monitor` / `inspect` |
 | 統合テスト | `scripts/integration-test.sh` (T1–T12)。ローカル実録画、全 PASS 実績あり。T11 (GUI) は xcodegen・kilde-dev 証明書が無い環境や KildeGUI 起動中は SKIP |
 | 単体テスト (`Tests/`) | ✅ KildeCoreTests (権限不要、CI で実行 — issue #5 完了) |
-| CI (`.github/`) | ✅ swift build / swift test (macos-15) — issue #6 完了 |
+| CI (`.github/`) | ✅ swift build / swift test (macos-26 ランナー — PR #81 で移行) — issue #6 完了 |
 | GUI (`gui/`) | 骨格 ✅ (issue #17: NSStatusItem + NSPopover + KildeCore 参照 — macOS 26 の MenuBarExtra 不具合を回避)。録画 UI ✅ (issue #18)。オンボーディング・通知は #19 / #20 |
 | ライセンス / OSS 整備 | ✅ `LICENSE` (MIT)、`CONTRIBUTING.md`、`.github/` の Issue・PR テンプレート (issue #21) |
 | 残タスク全体 | GitHub issue #2〜#25 (4 マイルストーン)。§8 の役割分担・依存順を参照 |
