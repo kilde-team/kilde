@@ -1,0 +1,23 @@
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_519232acf1cdfb 55-64
+  s_35faeec28b4c4b::t_1ccb8ab745843c 1455-1471
+  s_35faeec28b4c4b::t_8ddf4a8c434a0b 1422-1439
+Sources/KildeCore/Support/SCKStartupLock.swift
+  s_35faeec28b4c4b::t_ff5670f121dbee 53-64,67-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "86c9fc4967dd6a64074fa02356b6735b88f1a61d",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
