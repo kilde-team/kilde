@@ -1,0 +1,26 @@
+docs/DESIGN.md
+  s_35faeec28b4c4b::t_41f0eb1b079271 306-314
+  s_35faeec28b4c4b::t_b0045b36e4c771 299-302
+Sources/KildeCore/Support/SCKStartupLock.swift
+  s_35faeec28b4c4b::t_9743eee9f305cf 25-45,59-61,63,66-67,70,74-75,81,84-85,125,127-129,139,144-147,151,153-154,157-162
+docs/DEVELOPMENT.md
+  s_35faeec28b4c4b::t_56cc749431745d 393
+Tests/KildeCoreTests/SCKStartupLockTests.swift
+  s_35faeec28b4c4b::t_52da1d374e476d 5-6,11-12,33-35,38,40,47,52-60,63-67,69-73,76-83,86-95,98-113,146-157
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "58611dbac66cebe508fd9972a3070cc86472b1ad",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
