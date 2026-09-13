@@ -50,7 +50,7 @@ struct RecCommand: ParsableCommand {
     @Argument(help: "出力先パス (--output と同じ。kilde rec demo.mov のように使える)")
     var outputPositional: String?
 
-    @Option(help: "自動停止までの時間 (例: 30s, 5m)")
+    @Option(help: "自動停止までの時間 (例: 30s, 5m)。hotkey 待機中は解除後から数える (設定 hotkey と併用すると警告)")
     var duration: String?
 
     @Option(help: "映像コーデック: h264 (既定) / hevc / prores (設定 codec で変更可)")
@@ -75,7 +75,7 @@ struct RecCommand: ParsableCommand {
     @Option(help: "プリセット: meeting = ウィンドウ対話選択 + system + mic + ミックス")
     var preset: String?
 
-    @Option(help: "グローバルホットキーで開始 / 停止 (例: cmd+shift+r。未指定時は設定 hotkey を使用)")
+    @Option(help: "グローバルホットキーで開始 / 停止 (例: cmd+shift+r。未指定時は設定 hotkey を使用)。待機中の Ctrl+C は exit 0")
     var hotkey: String?
 
     func validate() throws {
@@ -447,9 +447,13 @@ struct RecCommand: ParsableCommand {
             // 設定次第で挙動が変わる**のが実害だから (GUI が設定を書くこともある)。
             // #80 の縮退警告と同じ考え方
             if resolution.origin == .config, duration != nil {
+                // **「キーが押されるまで終了しません」だけでは誤り。** 待機中の Ctrl+C /
+                // SIGTERM / SIGHUP は `controller.requestStop()` を通って **exit 0 で抜ける**
+                // (DESIGN.md の `--hotkey` 行の契約)。無人実行で詰まった人がまず知りたいのは
+                // 脱出手段なので、必ず併記する
                 let warning = "WARNING: 設定の hotkey \"\(source)\" により待機モードで起動します。"
                     + "--duration は待機の解除後 (録画開始後) から数えるため、"
-                    + "キーが押されるまで終了しません "
+                    + "キーを押すか Ctrl+C (SIGTERM / SIGHUP も可) で中止するまで終了しません "
                     + "(無人で録るなら設定の hotkey を外すか kilde config unset hotkey)\n"
                 FileHandle.standardError.write(Data(warning.utf8))
             }

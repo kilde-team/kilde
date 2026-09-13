@@ -66,9 +66,27 @@ T22_PID=""
     T24_DEVICES_PID=""
     # T25 の待機役も残さない。**ホットキーを握ったまま残ると次回以降のスイートが壊れる** —
     # T23 の占有役と同じ理由 (排他登録なので孤児が同じキーを持つと登録できない)。
-    # 録画には入っていないので安全停止の猶予は要らず、KILL してから回収する
-    if [ -n "${T25_PID:-}" ]; then
-        kill -KILL "$T25_PID" 2>/dev/null
+    #
+    # **KILL で済ませてはいけない。** 他プロセスが f8 を握っていると #80 の縮退で
+    # **即時録画に入る**ので、この PID が AVAssetWriter を書いている最中でありうる。
+    # そこへ SIGKILL を送ると安全停止とファイナライズを飛ばし、**未完了ファイルを残す**
+    # (「Ctrl+C でも必ずファイナライズ」= DESIGN.md §5 の最重要要件に反する)。
+    # 終了を確認するまで SIGINT を送り直してから強制する。
+    # **回数は T23 の「占有役」(seq 1 10) ではなく「サブ実行」(T23_RUN_PID, seq 1 20) に
+    # 揃える。** 占有役は待機しているだけだが、こちらは縮退して**録画している**可能性が
+    # あり、ファイナライズには時間がかかる。10 回 (5 秒) で TERM/KILL に進むと、
+    # 上のコメントが防ぐと言っている未完了ファイルがまさに残る
+    if [ -n "${T25_PID:-}" ] && kill -0 "$T25_PID" 2>/dev/null; then
+        for _ in $(seq 1 20); do
+            kill -INT "$T25_PID" 2>/dev/null
+            kill -0 "$T25_PID" 2>/dev/null || break
+            sleep 0.5
+        done
+        if kill -0 "$T25_PID" 2>/dev/null; then
+            kill -TERM "$T25_PID" 2>/dev/null
+            sleep 1
+            kill -0 "$T25_PID" 2>/dev/null && kill -KILL "$T25_PID" 2>/dev/null
+        fi
         wait "$T25_PID" 2>/dev/null
     fi
     T25_PID=""
@@ -1525,11 +1543,27 @@ for _ in $(seq 1 30); do
 done
 if kill -0 "$T25_PID" 2>/dev/null; then
     T25_STILL_WAITING=1
-    kill -INT "$T25_PID" 2>/dev/null
-    sleep 1
-    kill -0 "$T25_PID" 2>/dev/null && kill -TERM "$T25_PID" 2>/dev/null
-    sleep 1
-    kill -0 "$T25_PID" 2>/dev/null && kill -KILL "$T25_PID" 2>/dev/null
+    # **SIGINT を 1 回送って 1 秒で TERM へ進めない。** 下で exit=0 を必須にしている以上、
+    # ここの猶予が判定の土台になる。同じ契約を見る T13 は 5 秒、EXIT trap の回収は
+    # 20×0.5 秒なので、そちらに揃える。installStopSignalHandler の設置前に届いた
+    # SIGINT は失われうるので送り直す。
+    #
+    # **INT のループ内で終わったかを記録する (T25_STOPPED_BY_INT)。** 終了コードだけでは
+    # SIGINT の回帰を検出できない — **SIGTERM も SIGINT と同じ安全停止ハンドラに繋がる**
+    # ので (KildeCommand.installStopSignalHandler)、INT だけが壊れても TERM への昇格で
+    # exit 0 になり、`T25_EXIT != 0` のゲートを素通りしてしまう。終了コードで捕まるのは
+    # シグナル経路が丸ごと死んだ場合 (KILL → 137) だけ
+    T25_STOPPED_BY_INT=0
+    for _ in $(seq 1 20); do
+        kill -INT "$T25_PID" 2>/dev/null
+        if ! kill -0 "$T25_PID" 2>/dev/null; then T25_STOPPED_BY_INT=1; break; fi
+        sleep 0.5
+    done
+    if kill -0 "$T25_PID" 2>/dev/null; then
+        kill -TERM "$T25_PID" 2>/dev/null
+        sleep 1
+        kill -0 "$T25_PID" 2>/dev/null && kill -KILL "$T25_PID" 2>/dev/null
+    fi
 else
     T25_STILL_WAITING=0
 fi
@@ -1557,8 +1591,17 @@ elif [ "$T25_WAITING_SHOWN" != "1" ]; then
     bad "T25 hotkey+duration: WARNING は出たが「待機中」の表示がない (登録に失敗している) — $WORK/t25.log"
 elif [ "$T25_FILES" != "0" ]; then
     bad "T25 hotkey+duration: 待機中なのに出力ファイルが $T25_FILES 個ある — $T25_DIR"
+elif [ "$T25_STOPPED_BY_INT" != "1" ]; then
+    # **終了コードだけでは SIGINT の回帰を捕まえられない。** `installStopSignalHandler` は
+    # SIGINT / SIGTERM / SIGHUP を**同じ handler** に繋ぐので、INT だけが壊れても
+    # TERM への昇格で exit 0 になり、`$T25_EXIT` を見るだけでは緑になってしまう。
+    # **INT のループ内で終了したか**を見て初めて、T13 が守る契約の回帰を検出できる
+    bad "T25 hotkey+duration: 待機中の SIGINT で終了しなかった (TERM/KILL への昇格が必要だった。exit=$T25_EXIT)。待機中 Ctrl+C = exit 0 の契約 (DESIGN.md §6) の回帰を疑う — $WORK/t25.log"
+elif [ "$T25_EXIT" != "0" ]; then
+    # INT で終わったのに非ゼロ = ファイナライズや後始末の失敗
+    bad "T25 hotkey+duration: SIGINT で終了したが exit=$T25_EXIT (0 が契約) — $WORK/t25.log"
 else
-    ok "T25 hotkey+duration: 非対話でも待機に入り、WARNING を出し、ファイルを作らない"
+    ok "T25 hotkey+duration: 非対話でも待機に入り、WARNING を出し、ファイルを作らず、SIGINT で exit=0"
 fi
 
 # ---- サマリ -------------------------------------------------------------------
