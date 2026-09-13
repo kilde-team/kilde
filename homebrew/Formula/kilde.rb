@@ -10,9 +10,10 @@ class Kilde < Formula
 
   head do
     url "https://github.com/takezou621/kilde.git", branch: "main"
-    # swift-tools-version:5.10 のマニフェストを解釈できるのは Swift 5.10 ツールチェーン
-    # (Xcode 15.3 以降)。15.0〜15.2 は Swift 5.9 で "not supported" になり失敗する
-    depends_on xcode: ["15.3", :build]
+    # macOS 26 の SCStreamConfiguration.Preset (captureHDRRecordingPreservedSDRHDR10)
+    # を参照するため Xcode 26 SDK が必須。実行は macOS 14+ のまま (Package.swift の
+    # .platforms 宣言による)。旧 OS ユーザーはバイナリ (bottle) を使う
+    depends_on xcode: ["26.0", :build]
   end
 
   def install
