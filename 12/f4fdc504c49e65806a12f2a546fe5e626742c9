@@ -1,0 +1,38 @@
+Sources/KildeCore/Capture/ScreenAudioStream.swift
+  s_35faeec28b4c4b::t_8b7c1eb72a512e 21-29
+  s_35faeec28b4c4b::t_a499063f341001 129-140
+  s_35faeec28b4c4b::t_13633d1a075132 143
+  s_35faeec28b4c4b::t_7fa6fd045b7637 112-117
+  s_35faeec28b4c4b::t_c0792d1fbe9e67 161-169
+  s_35faeec28b4c4b::t_ed587c15e502a4 62
+gui/Sources/ContentView.swift
+  s_35faeec28b4c4b::t_f7a4449877f471 407-424
+docs/DESIGN.md
+  s_35faeec28b4c4b::t_2aa303451ac8d8 359
+  s_35faeec28b4c4b::t_8e4156b77cffad 386-396
+  s_35faeec28b4c4b::t_80b8fd72aded72 576
+  s_35faeec28b4c4b::t_b6a7e445b15512 356-358
+Sources/KildeCore/Recording/Recorder.swift
+  s_35faeec28b4c4b::t_7f9b009a1fa9fe 383-387,389
+  s_35faeec28b4c4b::t_bd082957447207 352-363
+  s_35faeec28b4c4b::t_b7f9f93b15cc59 1159-1166
+  s_35faeec28b4c4b::t_010f0fab63dc08 1205-1213
+  s_35faeec28b4c4b::t_8d8cf402fa3345 1231
+  s_35faeec28b4c4b::t_43988beab8a78a 371-382,388,390
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "12f4fdc504c49e65806a12f2a546fe5e626742c9",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
