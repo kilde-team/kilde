@@ -390,7 +390,7 @@ SCK / AVCapture / CoreAudio の実デバイスには触れません。
 | `KilErrorTests` | `KilError.exitCode` の 1/2/3 契約 |
 | `ConfigTests` | `~/.kilde/config.json` の入出力と不正値 (壊れた JSON・未知のキー・型違い・範囲外)、`rec` 既定値の優先順位 (CLI > プリセット > `KILDE_OUTPUT_DIR` > 設定 > 既定)、存在しない保存先の事前検出 (`ConfigStore.directory` を一時ディレクトリに差し替える) |
 | `FileInspectionTests` | 生成した正弦波ファイルに対し、`FileInspection.report(url:)` の同期版と async 版 (issue #35) が同じ RMS / peak / 長さを返す |
-| `SCKStartupLockTests` | SCK 起動区間ロック (issue #70) の排他・孤児検出 (死んだ保持者 / 古すぎるロック / 壊れた中身)・inode 照合による誤削除の防止・ロックの場所が `KILDE_CONFIG_DIR` に依存しないこと。**実際の SCK は使わない** (SCK との組み合わせは T18b が見る) |
+| `SCKStartupLockTests` | SCK 起動区間ロック (issue #70) の排他 (`flock`)・解放の冪等性・Token 破棄での解放・ロックファイルを消さないこと・取得時の PID 書き換え・待機のタイムアウトと停止要求での中断・ロックの場所が `KILDE_CONFIG_DIR` と `$TMPDIR` に依存しないこと。**実際の SCK は使わない** (SCK との組み合わせは T18b が見る)。保持者の異常終了で解放されることは `flock` のカーネル保証で、実測で確認済み (単体テストでは別プロセスを殺さない) |
 | `AudioSampleBufferTestHelper` | テスト用の Float32 / Int16 `CMSampleBuffer` 生成 |
 
 `RecCommand.validate()` は CLI ターゲット (実行ファイル) 側にあるため対象外です。
