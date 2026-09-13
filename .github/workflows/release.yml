@@ -25,7 +25,7 @@ jobs:
     # macos-26: kilde は Xcode 26 SDK 必須 (issue #76。macos-15 の SDK には
     # captureHDRRecordingPreservedSDRHDR10 が無い)。CI と同じ理由
     runs-on: macos-26
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     steps:
       - name: Checkout
@@ -130,11 +130,15 @@ jobs:
           security unlock-keychain -p "$PASSWORD" "$KEYCHAIN"
           security import cert.p12 -k "$KEYCHAIN" \
             -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          # -t rw は macOS 26 の set-key-partition-list に無いフラグで失敗する。
-          # 失敗しても codesign が触れるかは次の find-identity で検査する
+          # set-key-partition-list は OS 版で成否が揺れる。失敗を握る代わりに、
+          # 直後の find-identity で「codesign が証明書を実際に見つけられるか」を
+          # 検査して失敗を伝える (これが落ちないなら partition-list は不要だった)
           security set-key-partition-list -S apple-tool:,apple: \
-            -k "$PASSWORD" "$KEYCHAIN" || true
-          security find-identity -v -p codesigning "$KEYCHAIN"
+            -k "$PASSWORD" "$KEYCHAIN" || \
+            echo "warn: set-key-partition-list 失敗 — find-identity で検証します"
+          security find-identity -v -p codesigning "$KEYCHAIN" \
+            | grep -q "Developer ID Application" \
+            || { echo "キーチェーンに署名用 identity が見つかりません"; exit 1; }
           rm cert.p12
           echo "skip=false" >> "$GITHUB_OUTPUT"
 
@@ -197,7 +201,8 @@ jobs:
           TAG="v$VERSION"
           # 成果物の zip は実ファイルから取る (ブランチで名前が変わるため。
           # 現在はどちらも kilde-<ver>-macos.zip)
-          ARTIFACT="$(ls dist/*.zip | head -1)"
+          ARTIFACT="$(ls dist/*.zip 2>/dev/null | head -1)"
+          [ -n "$ARTIFACT" ] || { echo "dist/ に zip が無い — ビルド/署名 step を確認"; exit 1; }
           NOTES="$(mktemp)"
           {
             echo "## kilde $VERSION"

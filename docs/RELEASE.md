@@ -105,12 +105,11 @@ release workflow は issue #25 で追加します。workflow から `sign.sh` �
 (旧稿の `KEYCHAIN_PASSWORD` は廃止)。ローカルで `sign.sh` を直接使う場合も
 `--identity` 等の引数で渡すため、設定は不要です。
 
-バージョンと出力先は秘密情報ではないため、workflow の値または GitHub Actions Variables として
-次を使えます。
-
-| workflow 変数 | 用途 |
-|---------------|------|
-| `KILDE_RELEASE_VERSION` | 通常は release tag から `v` を除いた値を設定 |
+バージョンと出力先は秘密情報ではないため、設定は不要です。release workflow
+(`.github/workflows/release.yml`) はバージョンを**タグから解決**し、出力先は
+`sign.sh` の既定 (`dist/`) を使います (旧稿の `KILDE_RELEASE_VERSION` /
+`KILDE_RELEASE_OUTPUT_DIR` の Variables 設定は廃止 — まとめて設定しない方が
+シンプルなため)。
 | `KILDE_RELEASE_OUTPUT_DIR` | workflow の artifact staging directory。未指定なら `dist/` |
 
 GitHub のログに秘密値を表示しないでください。workflow 終了時は一時 Keychain と API キーの
