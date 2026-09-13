@@ -31,11 +31,11 @@ with a menu bar app in development.
 
 ### Homebrew
 
-The Homebrew tap will become available after the v0.1.0 release. Once it is
-published, install kilde with either form:
+The Homebrew tap is available (v0.1.0+). Install kilde with either form:
 
 ```sh
 brew tap takezou621/kilde
+brew trust --formula takezou621/kilde/kilde   # one-time, newer Homebrew only
 brew install kilde
 
 # Or install directly from the tap

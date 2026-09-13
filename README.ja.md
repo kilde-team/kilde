@@ -27,11 +27,12 @@ QuickTime Player の画面収録では録れない**システム音声を含め�
 
 ### Homebrew
 
-Homebrew tap は v0.1.0 のリリース後に利用可能になります。公開後は、次のどちらかで
+Homebrew tap は v0.1.0 以降で利用できます。次のどちらかで
 インストールできます。
 
 ```sh
 brew tap takezou621/kilde
+brew trust --formula takezou621/kilde/kilde   # 初回 1 回のみ (新しい Homebrew で必要)
 brew install kilde
 
 # tap から直接インストールする場合
