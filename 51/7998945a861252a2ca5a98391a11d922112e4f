@@ -1,0 +1,25 @@
+Sources/KildeCore/Recording/Recorder.swift
+  s_35faeec28b4c4b::t_c046828f8af6ea 712-717
+Tests/KildeCoreTests/SCKStartupLockTests.swift
+  s_35faeec28b4c4b::t_f3abbe9f488d22 122-135,137-138,140-141,143-155
+  s_35faeec28b4c4b::t_669232eec88a67 6-12,15-17,20-24,28-29,47-48,100-106,120-121,136,139,142,158-160,162-176
+Sources/KildeCore/Support/SCKStartupLock.swift
+  s_35faeec28b4c4b::t_6aaa43acbbb380 190-194
+  s_35faeec28b4c4b::t_972f52be6909bf 31-35,55,62-70,81-86,88-89,95-97,106-108,133-138,141-142,149,156-184,188-189,195-199
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "517998945a861252a2ca5a98391a11d922112e4f",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
