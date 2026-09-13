@@ -1135,19 +1135,24 @@ for T18B_ROUND in $(seq 1 "$T18B_ROUNDS"); do
         # という失敗を見逃す。3 秒録画なので 1 秒を下限にすれば、
         # 起動の揺らぎで短くなった回を誤判定せずに空振りだけ捕まえられる
         T18B_DUR=$(printf '%s' "$T18B_INSPECT" | grep -o 'duration=[0-9.]*' | head -1 | cut -d= -f2)
-        # **`rms` がゼロなら落とす (CodeRabbit の指摘)。** `rms=` の有無だけだと、
-        # **音声トラックはあるがサンプルが 1 つも無い**ファイルが通る
-        # (`FileInspection.analyzeAudioTrack` はサンプル 0 で rms=0 を返し、
-        #  `InspectCommand` は `%.4f` なので `rms=0.0000` と出る)。
+        # **`rms` は存在だけを見る。正値は要求しない (cubic の指摘で撤回)。**
         #
-        # **閾値は置かない。ゼロちょうどだけを弾く。** この機体は無音環境だが、
-        # 実測では T18b の出力 24 ファイルすべてが **0.0011〜0.0012** で、
-        # ゼロにはならなかった。0.001 のような閾値を置くと、静かな時間帯に
-        # 環境由来で赤くなる (T17 が同じ理由で揺れている)
+        # 一度 CodeRabbit の指摘に従って `rms > 0` を課したが、**それは誤りだった**。
+        # `InspectCommand` は `%.4f` で出すので、**実測で 0.00005 までが `0.0000` に
+        # 丸まる**。つまり**無音に近い正常な録音**が壊れたファイル扱いで FAIL になる。
+        # この機体は無音環境で録っており、まさにその条件に当たる。
+        #
+        # CodeRabbit の懸念 (サンプルが 1 つも無いファイルが通る) は残る。ただし
+        # `FileInspection` は**「サンプル 0」と「完全な無音」を同じ `rms=0` にする**うえ、
+        # `AudioStats` は duration / rms / peak しか持たずサンプル数を出せないので、
+        # **`rms` では原理的に区別できない**。区別するなら `FileInspection` に
+        # サンプル数を足す必要があり、それは本 PR (停止シーケンスの順序) の範囲外。
+        #
+        # T18b が守りたいのは #95 の回帰 — ファイナライズ前のハングで moov が壊れること。
+        # それは下のサイズ・`inspect` の成功・`duration >= 1.0` で捕まえられる
         T18B_RMS=$(printf '%s' "$T18B_INSPECT" | grep -o 'rms=[0-9.]*' | head -1 | cut -d= -f2)
         if [ "$(stat -f%z "$T18B_F" 2>/dev/null || echo 0)" -lt 1024 ] \
            || [ -z "$T18B_RMS" ] \
-           || ! awk -v r="$T18B_RMS" 'BEGIN { exit !(r > 0) }' \
            || [ -z "$T18B_DUR" ] \
            || ! awk -v d="$T18B_DUR" 'BEGIN { exit !(d >= 1.0) }'; then
             T18B_FILE_NG_R=$((T18B_FILE_NG_R+1))
