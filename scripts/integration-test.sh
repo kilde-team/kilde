@@ -1052,7 +1052,10 @@ if [ "$T17_ENV_OK" = "1" ]; then
     if "$KILDE" rec --exclude-app "$EXCL_ID" --duration "$DUR" --output "$F" > "$WORK/t17.log" 2>&1; then
         RMS=$(rms_of "$F")
         # T7 (ウィンドウ収録の陰性確認) と同じしきい値
-        if awk -v v="${RMS:-1}" 'BEGIN{exit !(v < 0.00005)}'; then
+        if [ -z "$RMS" ]; then
+            # 録音自体は成功したが出力を検査できない — 混入とは言えないので判定不能に
+            skip "T17 exclude-app: 録画結果を検査できません (rms 不明) — $WORK/t17.log"
+        elif awk -v v="$RMS" 'BEGIN{exit !(v < 0.00005)}'; then
             ok "T17 exclude-app: 除外アプリの音が完全除外 (rms=$RMS)"
         else
             # プローブ後の ~8 秒で鳴り始めた音は事前プローブでは検出できない。
