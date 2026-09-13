@@ -1,0 +1,28 @@
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_8c600b518d0625 1459-1462
+  s_35faeec28b4c4b::t_2d24d17c37d9ba 105-109
+  s_35faeec28b4c4b::t_6c5b3a75c5bf54 1469,1476
+  s_35faeec28b4c4b::t_ffd8f088d7752e 1470-1475
+  s_35faeec28b4c4b::t_e365b0e7b3a5eb 600-605,607-610,613
+  s_35faeec28b4c4b::t_9681cefa21d687 611
+  s_35faeec28b4c4b::t_9a3a0621db32d6 132-134
+docs/DEVELOPMENT.md
+  s_35faeec28b4c4b::t_3926c977b1a9ab 290
+  s_35faeec28b4c4b::t_967d0df999892c 302
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "3011c88d0b5c8883a1b20acc6c6af76141000f6f",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
