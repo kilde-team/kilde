@@ -61,3 +61,22 @@ jobs:
 
       # 統合テストは画面収録・マイク権限、スピーカー音量、実録画デバイスが必要なため
       # CI では実行しない。ローカルの scripts/integration-test.sh で実行する。
+
+  old-os-build:
+    name: Swift build (macos-15, deployment check)
+    # issue #4 の自動化できる側: 実行は macOS 14+ を宣言しているが、ビルド SDK を
+    # Xcode 26 に上げた (#76/#81) ことで旧 SDK でのビルド可能性は見えなくなった。
+    # この job は macos-15 ランナー (旧 Xcode) で swift build が通ることを保証し、
+    # 「ビルドに新 SDK が要るが旧 OS での実行は 14+」の後半が壊れたら即座に分かるようにする。
+    # 旧 OS での実挙動 (統合テスト) は引き続き手動検証 (issue #4) の対象。
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Show toolchain
+        run: swift --version
+      - name: Swift build (debug)
+        run: swift build
+      - name: Swift build (release)
+        run: swift build -c release
