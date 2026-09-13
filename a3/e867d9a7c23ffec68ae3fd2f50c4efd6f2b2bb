@@ -1,0 +1,21 @@
+README.md
+  s_8c80461e71c199::t_305e4b8223c026 280
+docs/MONETIZATION.md
+  s_8c80461e71c199::t_39b63a237c1dcf 1-124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "a3e867d9a7c23ffec68ae3fd2f50c4efd6f2b2bb",
+  "prompts": {},
+  "sessions": {
+    "s_8c80461e71c199": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d345635f-8299-48c7-845b-669e71a22f6f",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
