@@ -96,18 +96,21 @@ release workflow は issue #25 で追加します。workflow から `sign.sh` �
 |---------------|-----------------------------------------|
 | `DEVELOPER_ID_CERTIFICATE_BASE64` | Developer ID 証明書と秘密鍵を含む `.p12` の Base64。workflow が一時 Keychain に import |
 | `DEVELOPER_ID_CERTIFICATE_PASSWORD` | `.p12` の書き出しパスワード |
-| `KEYCHAIN_PASSWORD` | CI で作る一時 Keychain のパスワード |
 | `DEVELOPER_ID_APPLICATION` | `sign.sh` の `--identity` / 同名環境変数 |
 | `AC_API_KEY_ID` | `sign.sh` の `--key-id` / 同名環境変数 |
 | `AC_API_ISSUER` | `sign.sh` の `--issuer` / 同名環境変数 |
-| `AC_API_KEY` | `.p8` の内容。`sign.sh` が権限 600 の一時ファイルにして `--key` へ渡す |
+| `AC_API_KEY` | `.p8` の内容。workflow が権限 600 の一時ファイルにして `--key` へ渡す |
 
-バージョンと出力先は秘密情報ではないため、workflow の値または GitHub Actions Variables として
-次を使えます。
+一時 Keychain のパスワードは workflow が実行ごとに生成するため secret は不要です
+(旧稿の `KEYCHAIN_PASSWORD` は廃止)。ローカルで `sign.sh` を直接使う場合も
+`--identity` 等の引数で渡すため、設定は不要です。
 
-| workflow 変数 | 用途 |
-|---------------|------|
-| `KILDE_RELEASE_VERSION` | 通常は release tag から `v` を除いた値を設定 |
+バージョンと出力先は秘密情報ではないため、設定は不要です。release workflow
+(`.github/workflows/release.yml`) はバージョンを**タグから解決**し、出力先は
+`sign.sh` の既定 (`dist/`) を使います (旧稿の `KILDE_RELEASE_VERSION` /
+`KILDE_RELEASE_OUTPUT_DIR` / `KILDE_RELEASE_VERSION` の Variables 設定は
+どちらも廃止 — workflow 側は引数を渡さず sign.sh の既定 (dist/ とタグ由来の
+バージョン) に任せるため)。上の表はローカルで sign.sh を直に使うときの対応)。
 | `KILDE_RELEASE_OUTPUT_DIR` | workflow の artifact staging directory。未指定なら `dist/` |
 
 GitHub のログに秘密値を表示しないでください。workflow 終了時は一時 Keychain と API キーの
@@ -126,3 +129,39 @@ xcrun stapler validate "dist/KildeGUI-0.1.0.dmg"
 CLI は zip を展開して `codesign --verify --strict --verbose=2 kilde` と
 `codesign -d --entitlements :- kilde` を実行し、別の macOS ユーザー環境で初回起動時の
 Gatekeeper と TCC (画面収録・マイク) の動作も確認してください。
+
+
+## GitHub でのリリース自動化 (issue #25)
+
+`.github/workflows/release.yml` が `v*` タグの push で起動します:
+
+```sh
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+フロー: タグからバージョンを解決 → `Info.plist` と `KildeCommand` の version に
+差し込み (ビルド限り、コミットはしない) → `swift build -c release` → 埋め込み
+Info.plist の生存とバージョンを検証 → 署名 → Release を作成して zip を添付。
+
+**署名は secrets の有無で自動分岐**:
+
+| secrets | 動作 |
+|---------|------|
+| §4 の 6 secret がすべて設定済み (`DEVELOPER_ID_CERTIFICATE_BASE64` + `DEVELOPER_ID_CERTIFICATE_PASSWORD` + `DEVELOPER_ID_APPLICATION` + `AC_API_KEY` + `AC_API_KEY_ID` + `AC_API_ISSUER`) | 証明書を一時キーチェーンに import → `sign.sh` で署名・notarization・staple まで実行 |
+| 未設定 (現在) | **unsigned zip** でリリース。Release Notes に「未署名」の注意と `xattr -d` の回避方法を明記 |
+
+証明書を取得したら §4 の 6 つの secrets を足すだけで署名に切り替わります
+(ワークフロー側の変更は不要)。`DEVELOPER_ID_CERTIFICATE_BASE64` は「Developer ID
+Application」の .p12 を `base64 -i cert.p12 | pbcopy` でエンコードしたもの。
+
+**手動検証** (タグを打たずにビルドだけ確認): Actions タブから `Release` ワークフローを
+`workflow_dispatch` で実行。**手動実行は常に dry-run** (ビルドと署名分岐までを検証、
+Release は作成しない) — タグが無いと Info.plist 由来の現在値でリリースを作りかねないため、
+Release の作成は `v*` タグの push に限定しています。
+
+### 未実装 (follow-up)
+
+- **tap リポジトリ (`takezou621/homebrew-kilde`) への formula 自動更新** —
+  tap 自体が未作成のため、tap 作成 (#24 のフォロー) 後に `url` / `sha256` を
+  更新する PR を送るジョブを追加する
+- **Release Notes の自動生成 (PR タイトル由来)** — 初回リリース後に手順を確定させる

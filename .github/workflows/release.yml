@@ -1,0 +1,241 @@
+name: Release
+
+# issue #25: v* タグの push で署名付き (可能なら) リリースを作る。
+# 証明書 (Developer ID) はまだ取得済みではないため、secrets の有無で分岐する:
+#   - DEVELOPER_ID_CERTIFICATE_BASE64 + DEVELOPER_ID_CERTIFICATE_PASSWORD (証明書の
+#     import 用) と DEVELOPER_ID_APPLICATION + AC_API_KEY / AC_API_KEY_ID /
+#     AC_API_ISSUER (署名・notarization 用) がすべてあれば sign.sh まで行う
+#   - 無ければ unsigned zip でリリースし、caveats に「未署名」を明記する
+# 証明書を取得したら RELEASE.md §4 の 6 secrets を足すだけで署名に切り替わる。
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and release (macOS, arm64)
+    # macos-26: kilde は Xcode 26 SDK 必須 (issue #76。macos-15 の SDK には
+    # captureHDRRecordingPreservedSDRHDR10 が無い)。CI と同じ理由
+    runs-on: macos-26
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version from tag
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            # 手動実行 (検証用): Info.plist の現在値を使う
+            VERSION="$(plutil -extract CFBundleShortVersionString raw -o - Sources/kilde/Info.plist)"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version: $VERSION"
+
+      - name: Stamp the version into Info.plist and the CLI
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # タグ由来の値を式展開で run に直接入れない (env 経由)。区切り文字に
+          # よってはシェルインジェクションになるため、先に書式を検証する
+          echo "$VERSION" | grep -EqE '^[0-9A-Za-z][0-9A-Za-z._-]*$' \
+            || { echo "バージョンに使えない文字が含まれます: $VERSION"; exit 1; }
+          # バージョンの真実の源はタグ。Info.plist と KildeCommand の既定値を
+          # ビルド前に差し込む (コミットはせず、このビルド限り)
+          for PLIST in Sources/kilde/Info.plist gui/Resources/Info.plist; do
+            [ -f "$PLIST" ] || continue
+            plutil -replace CFBundleShortVersionString -string "$VERSION" "$PLIST"
+            plutil -replace CFBundleVersion -string "$GITHUB_RUN_NUMBER" "$PLIST"
+          done
+          # macOS の sed (BSD) は -i '' が必要。version: "x.y.z" の形式をタグの値に。
+          # 差し込みが成功したことを grep で確認する (sed の失敗は黙って通るため)
+          sed -i '' "s/version: \"[^\"]*\"/version: \"$VERSION\"/" Sources/kilde/KildeCommand.swift
+          grep -q "version: \"$VERSION\"" Sources/kilde/KildeCommand.swift \
+            || { echo "KildeCommand へのバージョン差し込みに失敗"; exit 1; }
+
+      - name: Build release binary
+        run: swift build -c release
+
+      - name: Verify embedded Info.plist survived the build
+        run: |
+          # リンカの -sectcreate で Info.plist が埋め込まれていること (CLAUDE.md §5-7)。
+          # バージョン差し込みが実行ファイルに届いているかもここで確認する
+          otool -P .build/release/kilde | grep -q "NSMicrophoneUsageDescription" \
+            || { echo "Info.plist の埋め込みが失敗"; exit 1; }
+          PLIST="$(otool -P .build/release/kilde | awk '/^<\?xml/ {f=1} f' \
+            | plutil -extract CFBundleShortVersionString raw -o - -)"
+          [ "$PLIST" = "${{ steps.version.outputs.version }}" ] \
+            || { echo "埋め込みバージョンが不一致: $PLIST"; exit 1; }
+          .build/release/kilde --version
+
+      - name: Import signing certificate (when credentials exist)
+        id: cert
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.DEVELOPER_ID_CERTIFICATE_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+          IDENTITY: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+          CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+          API_KEY: ${{ secrets.AC_API_KEY }}
+          API_KEY_ID: ${{ secrets.AC_API_KEY_ID }}
+          API_ISSUER: ${{ secrets.AC_API_ISSUER }}
+        run: |
+          # 証明書だけ設定して他が欠けている「部分的な設定」は、黙って未署名リリースに
+          # 落ちるのではなくジョブを失敗させる — 設定ミスに気付けないため。
+          # secrets は env 経由で読む (run 内での式展開はしない)
+          # §4 の 6 secret のうち、workflow が直接読む 5 つで判定する
+          # (DEVELOPER_ID_CERTIFICATE_PASSWORD は sign.sh の中でだけ要るが、
+          #  設定漏れはここで弾きたいので env に足して数に含める)
+          SET_COUNT=0
+          [ -n "$MACOS_CERTIFICATE" ] && SET_COUNT=$((SET_COUNT+1))
+          [ -n "$CERT_PASSWORD" ] && SET_COUNT=$((SET_COUNT+1))
+          [ -n "$IDENTITY" ] && SET_COUNT=$((SET_COUNT+1))
+          [ -n "$API_KEY" ] && SET_COUNT=$((SET_COUNT+1))
+          [ -n "$API_KEY_ID" ] && SET_COUNT=$((SET_COUNT+1))
+          [ -n "$API_ISSUER" ] && SET_COUNT=$((SET_COUNT+1))
+          if [ "$SET_COUNT" -eq 0 ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$SET_COUNT" -ne 6 ]; then
+            echo "署名用 secrets が部分的にしか設定されていません (RELEASE.md §4 の 6 つを確認。全部揃えるか全部外すかしてください)"
+            exit 1
+          fi
+          # Developer ID 証明書 (p12, base64) を一時キーチェーンに import する。
+          # sign.sh の security find-identity はこのキーチェーンを見る。
+          # 成功時のキーチェーンは sign step の後の cleanup step で消す — ここで
+          # trap EXIT を置くと sign step の前に消えてしまう。この step の失敗時のみ
+          # p12 を消し、キーチェーンは always() の cleanup step に任せる
+          KEYCHAIN="build-$(uuidgen).keychain-db"
+          # この step が失敗したときだけキーチェーンごと消す (成功時は sign step が
+          # 使うので cleanup step に任せる)。p12 は常に消す。
+          # trap 内の $? は先頭の rm で上書きされるため、step の終了コードを先退避する
+          trap 'rc=$?; rm -f cert.p12; [ "$rc" -ne 0 ] && security delete-keychain "$KEYCHAIN" 2>/dev/null; exit $rc' EXIT
+          PASSWORD="$(uuidgen)"
+          echo "keychain=$KEYCHAIN" >> "$GITHUB_OUTPUT"
+          echo -n "$MACOS_CERTIFICATE" | base64 --decode -o cert.p12
+          security create-keychain -p "$PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" login
+          security unlock-keychain -p "$PASSWORD" "$KEYCHAIN"
+          security import cert.p12 -k "$KEYCHAIN" \
+            -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          # set-key-partition-list は OS 版で成否が揺れる。失敗を握る代わりに、
+          # 直後の find-identity で「codesign が証明書を実際に見つけられるか」を
+          # 検査して失敗を伝える (これが落ちないなら partition-list は不要だった)
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "$PASSWORD" "$KEYCHAIN" || \
+            echo "warn: set-key-partition-list 失敗 — find-identity で検証します"
+          security find-identity -v -p codesigning "$KEYCHAIN" \
+            | grep -q "Developer ID Application" \
+            || { echo "キーチェーンに署名用 identity が見つかりません"; exit 1; }
+          rm cert.p12
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Sign and notarize (when credentials exist)
+        id: sign
+        env:
+          DEVELOPER_ID_APPLICATION: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+          AC_API_KEY: ${{ secrets.AC_API_KEY }}
+          AC_API_KEY_ID: ${{ secrets.AC_API_KEY_ID }}
+          AC_API_ISSUER: ${{ secrets.AC_API_ISSUER }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # notarization の鍵ファイルはどの経路で抜けても消す
+          trap 'rm -rf "$HOME/.signing"' EXIT
+          if [ -n "$DEVELOPER_ID_APPLICATION" ] && [ -n "$AC_API_KEY" ] \
+              && [ "${{ steps.cert.outputs.skip }}" = "false" ]; then
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+            # sign.sh は GUI を xcodegen + xcodebuild でビルドする。unsigned 分岐は
+            # CLI の zip しか作らないため、インストールは署名ブランチの中だけでよい
+            brew install xcodegen
+            mkdir -p "$HOME/.signing"
+            # AC_API_KEY は .p8 ファイルの内容 (生)。sign.sh はファイルパスを
+            # 受け取るので、権限 600 の一時ファイルに書いて渡す
+            umask 077
+            printf '%s\n' "$AC_API_KEY" > "$HOME/.signing/AuthKey.p8"
+            scripts/release/sign.sh \
+              --identity "$DEVELOPER_ID_APPLICATION" \
+              --key "$HOME/.signing/AuthKey.p8" \
+              --key-id "$AC_API_KEY_ID" --issuer "$AC_API_ISSUER" \
+              --version "$VERSION"
+            rm -rf "$HOME/.signing"
+          else
+            # 証明書が未取得: unsigned zip でリリースし、利用者に伝える。
+            # 成果物名は sign.sh と同じ kilde-<ver>-macos.zip に揃える — Homebrew
+            # formula (#24) の url がこの名前を指す想定のため
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            mkdir -p dist
+            ditto -c -k --sequesterRsrc --keepParent \
+              .build/release/kilde "dist/kilde-$VERSION-macos.zip"
+          fi
+
+      - name: Clean up the signing keychain
+        if: ${{ always() && steps.cert.outputs.skip == 'false' }}
+        env:
+          KEYCHAIN: ${{ steps.cert.outputs.keychain }}
+        run: |
+          security delete-keychain "$KEYCHAIN" || true
+
+      # Release の作成はタグ起動時のみ。手動実行 (workflow_dispatch) は dry-run 固定 —
+      # タグが無いと Info.plist 由来の現在値で v タグを作りかねないため
+      - name: Create GitHub Release and upload artifacts
+        # event が push (タグ) であることも条件に含める — dispatch は ref を偽装できないが、
+        # 判定を独立させて「手動実行は Release を作らない」を二重に保証する
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SIGNED: ${{ steps.sign.outputs.signed }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          TAG="v$VERSION"
+          # 成果物の zip は実ファイルから取る (ブランチで名前が変わるため。
+          # 現在はどちらも kilde-<ver>-macos.zip)
+          ARTIFACT="$(ls dist/*.zip 2>/dev/null | head -1)"
+          [ -n "$ARTIFACT" ] || { echo "dist/ に zip が無い — ビルド/署名 step を確認"; exit 1; }
+          NOTES="$(mktemp)"
+          {
+            echo "## kilde $VERSION"
+            echo
+            echo "- ビルド: arm64 (Apple Silicon)。Intel / universal は今後のリリースで提供予定"
+            echo
+            if [ "$SIGNED" = "true" ]; then
+              echo "- 署名・notarization 済み (Developer ID)"
+            else
+              echo "- **このバイナリは未署名です** (Developer ID 証明書未取得のため)。"
+              echo "  初回実行時はGatekeeper の警告が出ます (\`xattr -d com.apple.quarantine kilde\` で回避可能)。"
+              echo "  ソースからのビルド (\`swift build -c release\`) も利用できます。"
+            fi
+            echo
+            echo "### インストール"
+            echo '```sh'
+            echo "unzip $(basename "$ARTIFACT") && sudo cp kilde /usr/local/bin/"
+            echo '```'
+            echo
+            echo "### Homebrew"
+            echo "tap は今後のリリースで提供予定です。それまでは上記の手動インストールか \`--HEAD\` ビルドを利用してください。"
+          } > "$NOTES"
+          # 署名ブランチでは sign.sh が GUI の DMG も作るので、存在すれば一緒に添付する
+          ARGS=("$ARTIFACT")
+          [ "$SIGNED" = "true" ] && for extra in dist/KildeGUI-*.dmg; do
+            [ -e "$extra" ] && ARGS+=("$extra")
+          done
+          # 同じタグで再実行した場合、既存 Release の資産を差し替える (作り直しはしない)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${ARGS[@]}" --clobber
+          else
+            gh release create "$TAG" "${ARGS[@]}" \
+              --title "kilde $VERSION" \
+              --notes-file "$NOTES" \
+              --latest
+          fi
