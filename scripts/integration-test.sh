@@ -1022,21 +1022,42 @@ stop_excl_app() {
     EXCL_PID=""
 }
 
-log "T17: rec --exclude-app — 除外したアプリの音が出力に入らない (${DUR}s)"
-start_excl_app
-F="$WORK/t17-exclude.mov"
-if "$KILDE" rec --exclude-app "$EXCL_ID" --duration "$DUR" --output "$F" > "$WORK/t17.log" 2>&1; then
-    RMS=$(rms_of "$F")
-    # T7 (ウィンドウ収録の陰性確認) と同じしきい値
-    if awk -v v="${RMS:-1}" 'BEGIN{exit !(v < 0.00005)}'; then
-        ok "T17 exclude-app: 除外アプリの音が完全除外 (rms=$RMS)"
-    else
-        bad "T17 exclude-app: 除外したアプリの音が混入 (rms=$RMS) — SCK の除外が映像だけになった可能性。docs/SPIKE-NOTES.md F-F を参照"
+# T17 だけはディスプレイ全体のシステム音声を録るため、マシン上で他の音が鳴っていると
+# 除外対象以外の音が出力に混入する (issue #83: 並行実行のスイートが起動する soundapp /
+# afplay が実際に混入した。--exclude-app は bundleID を持たない音源を除外できない)。
+# 判定の前に 1 秒の無音プローブを録って環境が静かであることを確認し、鳴っていたら
+# 「判定不能」として SKIP する — 偽陰性を偽陰性として扱うため。T17b/b2 はウィンドウ
+# スコープなので他の音が入らず、この確認の外で続行する
+T17_ENV_OK=1
+PROBE="$WORK/t17-silence-probe.m4a"
+if "$KILDE" rec --no-video --duration 1s --output "$PROBE" > "$WORK/t17-probe.log" 2>&1; then
+    PROBE_RMS=$(rms_of "$PROBE")
+    if ! awk -v v="${PROBE_RMS:-1}" 'BEGIN{exit !(v < 0.00005)}'; then
+        skip "T17 exclude-app: 環境が無音でないため判定不能 (probe rms=$PROBE_RMS — 他の音源が鳴っています。issue #83 を参照)"
+        T17_ENV_OK=0
     fi
 else
-    bad "T17 exclude-app: コマンド失敗 — $WORK/t17.log"
+    skip "T17 exclude-app: 無音プローブの録音に失敗 — $WORK/t17-probe.log"
+    T17_ENV_OK=0
 fi
-stop_excl_app
+if [ "$T17_ENV_OK" = "1" ]; then
+    log "T17: rec --exclude-app — 除外したアプリの音が出力に入らない (${DUR}s)"
+    start_excl_app
+    F="$WORK/t17-exclude.mov"
+    if "$KILDE" rec --exclude-app "$EXCL_ID" --duration "$DUR" --output "$F" > "$WORK/t17.log" 2>&1; then
+        RMS=$(rms_of "$F")
+        # T7 (ウィンドウ収録の陰性確認) と同じしきい値。プローブで無音を確認済みなので、
+        # ここでの混入は除外経路の退行を疑える (issue #83 の環境起因と区別できる)
+        if awk -v v="${RMS:-1}" 'BEGIN{exit !(v < 0.00005)}'; then
+            ok "T17 exclude-app: 除外アプリの音が完全除外 (rms=$RMS)"
+        else
+            bad "T17 exclude-app: 除外したアプリの音が混入 (rms=$RMS、環境は無音確認済み) — SCK の除外が映像だけになった可能性。docs/SPIKE-NOTES.md F-F を参照"
+        fi
+    else
+        bad "T17 exclude-app: コマンド失敗 — $WORK/t17.log"
+    fi
+    stop_excl_app
+fi
 
 log "T17b: rec --window 複数指定 — ウィンドウ群をまとめて 1 本に録れる"
 start_excl_app
