@@ -18,6 +18,15 @@ public final class ScreenAudioStream: NSObject, SCStreamOutput {
     private let outQueue = DispatchQueue(label: "kilde.sck.out")
     /// stop() 以降のコールバックを捨てるためのゲート。outQueue 上でだけ読み書きする (ロック不要)
     private var stopped = false
+    /// `start()` が成功したか (issue #107)。
+    ///
+    /// **未起動のストリームに `stopCapture()` を投げると `-3808`
+    /// (`SCStreamErrorAttemptToStopStreamState`) が返る。** それを「停止に失敗した」と
+    /// 報告すると、**契約上 exit 0 であるべき準備中キャンセル** (DESIGN.md §6 / issue #56)
+    /// が exit 1 になり、しかも「kilde を再起動してください」という無関係な案内が出る。
+    /// `cancelBeforeRecording` は `sck.start()` の前後どちらからも呼ばれるので、
+    /// **呼び出し側では起動済みかを判別できない** — ここで持つ
+    private var started = false
 
     init(filter: SCContentFilter, configuration: SCStreamConfiguration, mode: Mode,
          handler: @escaping (CMSampleBuffer, SCStreamOutputType) -> Void) throws {
@@ -50,6 +59,7 @@ public final class ScreenAudioStream: NSObject, SCStreamOutput {
     func start() async throws {
         guard let stream else { return }
         try await stream.startCapture()
+        started = true
     }
 
     /// **サンプルの配送だけを止める (replayd とは話さない)。** issue #95 の対処の要。
@@ -86,21 +96,51 @@ public final class ScreenAudioStream: NSObject, SCStreamOutput {
 
     /// **replayd にキャプチャの停止を伝える。** ここがハングしうる区間 (issue #95)。
     /// `suspendDelivery()` を先に済ませてある前提なので、ここで固まっても
-    /// 出力ファイルは既にファイナライズ済みで、壊れたファイルは残らない
-    func stopCapture() async {
-        guard let stream else { return }
+    /// 出力ファイルは既にファイナライズ済みで、壊れたファイルは残らない。
+    ///
+    /// - Returns: 失敗した場合そのエラー。成功なら `nil` (issue #107)。
+    ///
+    /// **投げずに返す。** 投げると呼び出し側が `finish()` を飛ばしかねず、
+    /// 「Ctrl+C でも必ずファイナライズする」(DESIGN.md §5) を壊す事故を招く —
+    /// それが元々 `try?` で握り潰していた理由だった。かといって捨ててしまうと、
+    /// **停止できていないのに成功として扱われ**、replayd 側でキャプチャが走り続ける
+    /// (画面収録インジケータが点いたまま、次の録画と重なりうる)。
+    /// 戻り値なら呼び出し側が「ファイナライズを終えた後で」判断できる
+    @discardableResult
+    func stopCapture() async -> Error? {
+        guard let stream else { return nil }
+        // **一度も起動していないなら何もしない (issue #107)。** 呼ぶと `-3808` が返り、
+        // それを失敗として報告すると準備中キャンセルが exit 1 に化ける (`started` の doc 参照)
+        guard started else {
+            StopTrace.mark("sck.stopCapture 省略 (未起動)")
+            return nil
+        }
         StopTrace.mark("sck.stopCapture 呼び出し前")
-        try? await stream.stopCapture()
-        StopTrace.mark("sck.stopCapture 戻り")
+        do {
+            try await stream.stopCapture()
+            StopTrace.mark("sck.stopCapture 戻り")
+            return nil
+        } catch {
+            StopTrace.mark("sck.stopCapture 失敗: \(error.localizedDescription)")
+            return error
+        }
     }
 
-    func stop() async {
-        // 旧来の順序 (replayd に伝えてから配送を止める) を保つ呼び出し口。
-        // **#95 の対処を入れる前の比較対照として残す** — 修正前後を同じ実験装置で
-        // 測るために、両方の順序を選べる必要がある
-        await stopCapture()
+    /// 旧来の順序 (replayd に伝えてから配送を止める) を保つ呼び出し口。
+    /// **#95 の対処を入れる前の比較対照として残す** — 修正前後を同じ実験装置で
+    /// 測るために、両方の順序を選べる必要がある。
+    ///
+    /// - Returns: `stopCapture()` が失敗した場合そのエラー (issue #107)。
+    ///   **呼び出し側が経路ごとに扱いを決める** — `KILDE_STOP_ORDER=legacy` の
+    ///   録画経路はファイナライズ前なので捨ててよいが、準備中キャンセル
+    ///   (`cancelBeforeRecording`) は**その後 `finish()` が走らない**ので、
+    ///   拾って `cleanupWarnings` に積む必要がある (cubic の指摘)
+    @discardableResult
+    func stop() async -> Error? {
+        let failure = await stopCapture()
         await suspendDelivery()
         StopTrace.mark("sck.stop 完了")
+        return failure
     }
 
     public func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer,
@@ -118,6 +158,13 @@ public final class ScreenAudioStream: NSObject, SCStreamOutput {
     }
 }
 
-// stop() の drain で self を outQueue.async に渡すため Sendable が要る。可変状態の `stopped` は
-// outQueue 上でだけ読み書きし、`stream` は init でしか設定しないので、実質的にデータ競合はない
+// stop() の drain で self を outQueue.async に渡すため Sendable が要る。可変状態のアクセス規約:
+//
+// - `stream`: init でしか設定しない
+// - `stopped`: `outQueue` 上でだけ読み書きする (`suspendDelivery` の積んだブロックと
+//   `didOutputSampleBuffer`。シリアルキューなので順序も保証される)
+// - `started`: **セッションのタスク上でだけ** 読み書きする (`start()` で立て、
+//   `stopCapture()` で読む)。`outQueue` からは触らない。`Recorder` が start → stop を
+//   逐次に呼ぶ前提で成り立っており、**別タスクから並行に `stopCapture()` を呼ぶ変更を
+//   入れるならここが破れる** — そのときは `outQueue` か専用ロックに寄せること (cubic の指摘)
 extension ScreenAudioStream: @unchecked Sendable {}
