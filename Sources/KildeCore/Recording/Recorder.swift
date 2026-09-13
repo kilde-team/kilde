@@ -709,7 +709,12 @@ public final class Recorder {
         // release() は冪等なので二重解放にならない
         defer { sckStartupLock?.release() }
         if options.usesScreenCapture {
-            sckStartupLock = try SCKStartupLock.acquire()
+            // **待っている間も停止要求に応じる。** 同期の Thread.sleep で待つと協調プールの
+            // スレッドを塞ぐうえ (issue #35)、待機中に Ctrl+C や GUI の Stop が来ても
+            // 反応できない。他の準備フェーズ (checkCancelledDuringPreparation /
+            // awaitOrStop) と揃えて、停止要求で抜けられる形にする
+            sckStartupLock = try await SCKStartupLock.acquire(
+                isCancelled: { [weak self] in self?.isStopRequested ?? false })
             // 収録対象を先に解決する — HDR 可否は「実際にどの画面に写るか」で決まるので、
             // ウィンドウ収録では --display ではなくそのウィンドウが載っている画面を見る。
             // 複数ウィンドウ (issue #13) はディスプレイ座標系へ合成するので、

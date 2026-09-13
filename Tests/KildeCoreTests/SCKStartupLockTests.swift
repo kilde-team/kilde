@@ -3,16 +3,30 @@ import XCTest
 
 /// SCK 起動区間ロック (issue #70) の単体テスト。
 /// **実際の SCK は使わない** — ここで検証するのは「排他が成立するか」「孤児を片付けられるか」
-/// というファイル操作の論理だけ。SCK との組み合わせは統合テスト (T18b) が見る
+/// というファイル操作の論理だけ。SCK との組み合わせは統合テスト (T18b) が見る。
+///
+/// **実運用の共有ロックパスは絶対に触らない。** このリポジトリは複数セッションの
+/// worktree 並行実行 (AGENTS.md §2) なので、同じユーザーで `swift test` が同時に走ると
+/// 1 つのロックを取り合ってフレークする。さらに実録画の起動区間と重なると、
+/// テストが**生きたロックを削除してプロセス間排他を壊し**、この仕組みが防ぐはずの
+/// 固まりをテスト自身が起こしうる。テストごとに一意なパスへ差し替える
 final class SCKStartupLockTests: XCTestCase {
+
+    private var tempDirectory: URL!
+    private var savedFileURL: URL!
 
     override func setUp() {
         super.setUp()
-        try? FileManager.default.removeItem(at: SCKStartupLock.fileURL)
+        savedFileURL = SCKStartupLock.fileURL
+        tempDirectory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("kilde-lock-test-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: tempDirectory, withIntermediateDirectories: true)
+        SCKStartupLock.fileURL = tempDirectory.appendingPathComponent("sck-startup.lock")
     }
 
     override func tearDown() {
-        try? FileManager.default.removeItem(at: SCKStartupLock.fileURL)
+        SCKStartupLock.fileURL = savedFileURL
+        try? FileManager.default.removeItem(at: tempDirectory)
         super.tearDown()
     }
 
@@ -30,7 +44,8 @@ final class SCKStartupLockTests: XCTestCase {
         let token = try XCTUnwrap(SCKStartupLock.tryAcquire())
         token.release()
         token.release()   // 2 回目は何もしない
-        XCTAssertNotNil(SCKStartupLock.tryAcquire().map { $0.release() })
+        let again = try XCTUnwrap(SCKStartupLock.tryAcquire())
+        again.release()
     }
 
     /// **保持者が死んでいたら片付けて取り直せること。** これが無いと、異常終了した
@@ -82,6 +97,13 @@ final class SCKStartupLockTests: XCTestCase {
         token.release()
     }
 
+    /// 中身が壊れていても**新しければ**残す (書き込み中の他プロセスを追い出さない)
+    func testCorruptButFreshLockIsKept() throws {
+        try "かきこみちゅう".write(to: SCKStartupLock.fileURL, atomically: true, encoding: .utf8)
+        SCKStartupLock.reapIfStale()
+        XCTAssertNil(SCKStartupLock.tryAcquire(), "新しい壊れたロックは残すはず")
+    }
+
     /// **解放は自分のロックだけを消す。** 孤児として掃除された後に別プロセスが
     /// 取り直したロックを消してしまうと、排他が黙って壊れる
     func testReleaseDoesNotRemoveSomeoneElsesLock() throws {
@@ -95,11 +117,62 @@ final class SCKStartupLockTests: XCTestCase {
         theirs.release()
     }
 
-    /// **ロックの場所は KILDE_CONFIG_DIR に依存しない。** 依存すると、統合テストが
-    /// 作業ディレクトリを分離しているため排他が効かず、T18b が直らない
+    /// **掃除も自分が読んだロックだけを消す。** 「孤児」と判定した後・削除する前に
+    /// 別プロセスが先に片付けて取り直した場合、その**生きているロック**を消すと
+    /// 3 つ目のプロセスまで取得できてしまい、防ぎたい同時起動が起きる。
+    ///
+    /// `reapIfStale` は「読む」と「消す」を連続して行うため、その隙間に外から割り込めない。
+    /// 防御が入っているのは `removeIfInodeMatches` なので、そこを直接確かめる。
+    /// **`reapIfStale` 経由で書いた最初の版はこの欠陥を検出できなかった** —
+    /// 取り直した後のファイルは「生きている保持者」なので孤児と判定されず、
+    /// 削除に到達しないまま通っていた (inode 照合を外しても落ちなかった)
+    func testRemoveIgnoresFileReplacedAfterInspection() throws {
+        // 掃除対象として読み取った (と想定する) ロックの inode を控える
+        let doomed = try XCTUnwrap(SCKStartupLock.tryAcquire())
+        let staleInode = try inodeOfLockFile()
+
+        // 別プロセスが先に片付けて取り直した状況を作る (実体が入れ替わり inode が変わる)
+        try FileManager.default.removeItem(at: SCKStartupLock.fileURL)
+        let theirs = try XCTUnwrap(SCKStartupLock.tryAcquire())
+        let liveInode = try inodeOfLockFile()
+        XCTAssertNotEqual(staleInode, liveInode, "実体が入れ替わっていないとこのテストは無意味")
+
+        // 古い inode で消しにいっても、今あるのは別物なので消してはいけない
+        SCKStartupLock.removeIfInodeMatches(url: SCKStartupLock.fileURL, inode: staleInode)
+        XCTAssertNil(SCKStartupLock.tryAcquire(), "取り直された生きたロックを消してはいけない")
+
+        // 一致する inode なら消える (消せない実装になっていないことの確認)
+        SCKStartupLock.removeIfInodeMatches(url: SCKStartupLock.fileURL, inode: liveInode)
+        let after = try XCTUnwrap(SCKStartupLock.tryAcquire(), "一致する inode なら消えるはず")
+        after.release()
+
+        theirs.release()
+        doomed.release()
+    }
+
+    private func inodeOfLockFile() throws -> ino_t {
+        let attrs = try FileManager.default.attributesOfItem(atPath: SCKStartupLock.fileURL.path)
+        return ino_t(try XCTUnwrap(attrs[.systemFileNumber] as? UInt64))
+    }
+
+    /// **ロックの場所は `KILDE_CONFIG_DIR` に依存しない。** 依存すると、統合テストが
+    /// 作業ディレクトリを分離しているため排他が効かず、T18b が直らない。
+    /// 環境変数を実際に変えて前後で一致することを確かめる
     func testLockPathIsIndependentOfConfigDirectory() {
-        let path = SCKStartupLock.fileURL.path
-        XCTAssertFalse(path.contains(".kilde"), "設定ディレクトリ配下に置いてはいけない: \(path)")
-        XCTAssertEqual(SCKStartupLock.fileURL, SCKStartupLock.fileURL, "パスは安定している")
+        let saved = SCKStartupLock.fileURL
+        defer { SCKStartupLock.fileURL = saved }
+        SCKStartupLock.fileURL = SCKStartupLock.defaultFileURL
+
+        let before = SCKStartupLock.defaultFileURL
+        setenv("KILDE_CONFIG_DIR", "/tmp/kilde-config-dir-a", 1)
+        let withA = SCKStartupLock.defaultFileURL
+        setenv("KILDE_CONFIG_DIR", "/tmp/kilde-config-dir-b", 1)
+        let withB = SCKStartupLock.defaultFileURL
+        unsetenv("KILDE_CONFIG_DIR")
+
+        XCTAssertEqual(before, withA, "KILDE_CONFIG_DIR を変えてもロックの場所は変わらない")
+        XCTAssertEqual(withA, withB, "別の KILDE_CONFIG_DIR でも同じ場所を指す")
+        XCTAssertFalse(before.path.contains(".kilde"),
+                       "設定ディレクトリ配下に置いてはいけない: \(before.path)")
     }
 }
