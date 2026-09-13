@@ -282,6 +282,30 @@ final class SCKStartupLockTests: XCTestCase {
                              "SCK 起動区間 (実測 0.31 秒) より長く待てること")
     }
 
+    /// **待機秒数を切り捨てて表示しない。** `Int` へ丸めると 0.5 秒の待機が
+    /// 「0 秒以内に空きませんでした」になり、意味の通らない案内になる。
+    /// **この誤りは 2 度作り込んでいる** (文字列生成時と、`Failure.timedOut` を
+    /// `Int` で持たせたとき) ので、テストで留める
+    func testTimedOutMessageKeepsFractionalSeconds() {
+        let fractional = SCKStartupLock.Failure.timedOut(seconds: 0.5).description
+        XCTAssertTrue(fractional.contains("0.5 秒"), fractional)
+        XCTAssertFalse(fractional.contains("0 秒以内"), "切り捨てて 0 秒にしてはいけない: \(fractional)")
+
+        // 整数はそのまま整数で見せる ("3.0 秒" にしない)
+        let whole = SCKStartupLock.Failure.timedOut(seconds: 3).description
+        XCTAssertTrue(whole.contains("3 秒"), whole)
+        XCTAssertFalse(whole.contains("3.0 秒"), whole)
+    }
+
+    /// **表示のための変換でトラップしない。** エラーを報告している最中にプロセスが
+    /// 落ちるのが最悪の壊れ方なので、`acquire` が弾くはずの値でも書式化は生き延びる
+    func testTimedOutMessageSurvivesNonFiniteSeconds() {
+        for value in [TimeInterval.infinity, -TimeInterval.infinity, TimeInterval.nan] {
+            let message = SCKStartupLock.Failure.timedOut(seconds: value).description
+            XCTAssertTrue(message.contains("他の kilde が録画の準備中"), message)
+        }
+    }
+
     /// **指定した上限より前に諦めない。** `testAcquireTimesOutWhileHeld` は「諦めること」と
     /// エラー文言を見るが、**待ち時間が指定どおりかは見ていない**。期限の計算が壊れて
     /// 即座に諦めると、危険区間 (0.31 秒) を待てば通るはずの列挙が毎回警告を出す。

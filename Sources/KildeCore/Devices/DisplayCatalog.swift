@@ -38,20 +38,16 @@ public struct WindowInfo: CustomStringConvertible {
 ///   (呼び出しスレッドをブロック) するため noasync にしてあり、async コンテキストから呼ぶと警告になる
 public enum DisplayCatalog {
 
-    /// ディスプレイと (任意の) ウィンドウ一覧を取得する (同期コンテキスト専用)。
-    ///
-    /// 同期版は `awaitSync` で呼び出しスレッドを塞ぐので、ロックの待機上限は
-    /// 録画用の 15 秒ではなく `enumerationTimeout` (3 秒) を使う — `devices` /
-    /// `doctor` が一覧を出すだけで長時間無反応になるのを避けるため (issue #90)
+    /// ディスプレイと (任意の) ウィンドウ一覧を取得する (同期コンテキスト専用)
     @available(*, noasync, message: "async コンテキストでは try await DisplayCatalog.snapshot() を使ってください")
     public static func snapshot() throws -> (displays: [DisplayInfo], windows: [WindowInfo]) {
-        try awaitSync { try await snapshot(lockTimeout: SCKStartupLock.enumerationTimeout) }
+        try awaitSync { try await snapshot() }
     }
 
     /// ディスプレイと (任意の) ウィンドウ一覧を取得する。
     /// `usesStartupLock` の意味は `shareableContent(_:usesStartupLock:lockTimeout:)` を参照
     public static func snapshot(usesStartupLock: Bool = true,
-                                lockTimeout: TimeInterval = SCKStartupLock.defaultTimeout)
+                                lockTimeout: TimeInterval = SCKStartupLock.enumerationTimeout)
         async throws -> (displays: [DisplayInfo], windows: [WindowInfo]) {
         let content = try await shareableContent("画面の一覧を取得できません (画面収録権限を確認してください)",
                                                  usesStartupLock: usesStartupLock,
@@ -71,16 +67,15 @@ public enum DisplayCatalog {
         return (displays, windows)
     }
 
-    /// on-screen ウィンドウのうちアプリに属するものを返す (同期コンテキスト専用)。
-    /// 待機上限が `enumerationTimeout` なのは `snapshot()` と同じ理由 (issue #90)
+    /// on-screen ウィンドウのうちアプリに属するものを返す (同期コンテキスト専用)
     @available(*, noasync, message: "async コンテキストでは try await DisplayCatalog.listOnScreenWindows() を使ってください")
     public static func listOnScreenWindows() throws -> [WindowInfo] {
-        try awaitSync { try await listOnScreenWindows(lockTimeout: SCKStartupLock.enumerationTimeout) }
+        try awaitSync { try await listOnScreenWindows() }
     }
 
     /// on-screen ウィンドウのうちアプリに属するものを返す
     public static func listOnScreenWindows(usesStartupLock: Bool = true,
-                                           lockTimeout: TimeInterval = SCKStartupLock.defaultTimeout)
+                                           lockTimeout: TimeInterval = SCKStartupLock.enumerationTimeout)
         async throws -> [WindowInfo] {
         try await snapshot(usesStartupLock: usesStartupLock, lockTimeout: lockTimeout)
             .windows.filter { $0.isOnScreen && $0.bundleIdentifier != nil }
@@ -218,7 +213,7 @@ public enum DisplayCatalog {
     /// 呼び出し箇所ごとの明示指定ならその穴ができない
     private static func shareableContent(_ what: String,
                                          usesStartupLock: Bool = true,
-                                         lockTimeout: TimeInterval = SCKStartupLock.defaultTimeout)
+                                         lockTimeout: TimeInterval = SCKStartupLock.enumerationTimeout)
         async throws -> SCShareableContent {
         var token: SCKStartupLock.Token?
         // 列挙が throw しても必ず手放す。release() は冪等なので二重解放にならない
@@ -231,14 +226,34 @@ public enum DisplayCatalog {
             do {
                 token = try await SCKStartupLock.acquire(timeout: lockTimeout)
             } catch {
-                // **秒数は切り捨てない。** `Int(0.5)` は 0 になり「0 秒以内に空きませんでした」
-                // という意味の通らない文言になる。`lockTimeout` は公開 API の引数なので
-                // 任意の値が来うる (同じ誤りを SCKStartupLock 側で一度指摘されている)
-                let seconds = lockTimeout == lockTimeout.rounded()
-                    ? String(Int(lockTimeout))
-                    : String(format: "%.1f", lockTimeout)
-                let warning = "WARNING: 他の kilde が録画を開始中のため待機しましたが、"
-                    + "\(seconds) 秒以内に空きませんでした。"
+                // **`Failure` 以外も必ずここで受け止める。** `catch let ... as Failure` に
+                // 限定すると、想定外のエラーが `shareableContent` の外へ伝播し、
+                // 「取れなくても列挙は続ける」という上の設計が黙って破れる
+                let failure = error as? SCKStartupLock.Failure
+                // **理由ごとに文言を変える。** 全部を「他の kilde が録画開始中」と報せると、
+                // ロックが使えないだけ (排他がまったく成立していない) の場合に
+                // 「先の録画を待ってください」という無関係な復旧手順へ誘導してしまう。
+                //
+                // **秒数は `lockTimeout` から組み立てない。** `Int(lockTimeout)` は
+                // 無限大でトラップし、**待機時間の検証エラーを報告している最中に
+                // プロセスを落とす**。`Failure.timedOut` が実際に待った秒数を持っているので
+                // それを使う (上限で丸めた場合も実効値になる)
+                let reason: String
+                switch failure {
+                case .timedOut(let seconds):
+                    reason = "他の kilde が録画を開始中のため待機しましたが、"
+                        + "\(SCKStartupLock.Failure.formatSeconds(seconds)) 秒以内に空きませんでした"
+                case .unavailable(let path, let errorNumber):
+                    reason = "録画の排他ロックを使えません: \(path) (errno=\(errorNumber))"
+                case .invalidTimeout(let value):
+                    reason = "ロックの待機時間が不正です (\(value))"
+                case .cancelled:
+                    reason = "ロックの待機が中止されました"
+                case nil:
+                    // 想定外のエラー。原因が読めるよう原文をそのまま出す
+                    reason = "録画の排他ロックを取得できません (\(error))"
+                }
+                let warning = "WARNING: \(reason)。"
                     + "列挙を続行します (同時に録画を開始すると双方が失敗することがあります — issue #90)\n"
                 FileHandle.standardError.write(Data(warning.utf8))
             }
