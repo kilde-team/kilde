@@ -1,0 +1,135 @@
+name: Release
+
+# issue #25: v* タグの push で署名付き (可能なら) リリースを作る。
+# 証明書 (Developer ID) はまだ取得済みではないため、secrets の有無で分岐する:
+#   - DEVELOPER_ID_APPLICATION + AC_API_KEY / AC_API_KEY_ID / AC_API_ISSUER があれば
+#     scripts/release/sign.sh で署名・notarization まで行う
+#   - 無ければ unsigned zip でリリースし、caveats に「未署名」を明記する
+# 証明書を取得したらリポジトリの secrets に 4 つ足すだけで署名に切り替わる。
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: "Release の publish を行わず成果物のビルドだけ検証する"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build and release (macOS, arm64)
+    # macos-26: kilde は Xcode 26 SDK 必須 (issue #76。macos-15 の SDK には
+    # captureHDRRecordingPreservedSDRHDR10 が無い)。CI と同じ理由
+    runs-on: macos-26
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version from tag
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            # 手動実行 (検証用): Info.plist の現在値を使う
+            VERSION="$(plutil -extract CFBundleShortVersionString raw -o - Sources/kilde/Info.plist)"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version: $VERSION"
+
+      - name: Stamp the version into Info.plist and the CLI
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # バージョンの真実の源はタグ。Info.plist と KildeCommand の既定値を
+          # ビルド前に差し込む (コミットはせず、このビルド限り)
+          plutil -replace CFBundleShortVersionString -string "$VERSION" Sources/kilde/Info.plist
+          plutil -replace CFBundleVersion -string "$GITHUB_RUN_NUMBER" Sources/kilde/Info.plist
+          # macOS の sed (BSD) は -i '' が必要。version: "x.y.z" の形式をタグの値に
+          sed -i '' "s/version: \"[^\"]*\"/version: \"$VERSION\"/" Sources/kilde/KildeCommand.swift
+          grep -n 'version:' Sources/kilde/KildeCommand.swift | head -1
+
+      - name: Build release binary
+        run: swift build -c release
+
+      - name: Verify embedded Info.plist survived the build
+        run: |
+          # リンカの -sectcreate で Info.plist が埋め込まれていること (CLAUDE.md §5-7)。
+          # バージョン差し込みが実行ファイルに届いているかもここで確認する
+          otool -P .build/release/kilde | grep -q "NSMicrophoneUsageDescription" \
+            || { echo "Info.plist の埋め込みが失敗"; exit 1; }
+          PLIST="$(otool -P .build/release/kilde | awk '/^<\?xml/ {f=1} f' \
+            | plutil -extract CFBundleShortVersionString raw -o - -)"
+          [ "$PLIST" = "${{ steps.version.outputs.version }}" ] \
+            || { echo "埋め込みバージョンが不一致: $PLIST"; exit 1; }
+          .build/release/kilde --version
+
+      - name: Sign and notarize (when credentials exist)
+        id: sign
+        env:
+          DEVELOPER_ID_APPLICATION: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+          AC_API_KEY: ${{ secrets.AC_API_KEY }}
+          AC_API_KEY_ID: ${{ secrets.AC_API_KEY_ID }}
+          AC_API_ISSUER: ${{ secrets.AC_API_ISSUER }}
+        run: |
+          if [ -n "$DEVELOPER_ID_APPLICATION" ] && [ -n "$AC_API_KEY" ]; then
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+            mkdir -p "$HOME/.signing"
+            # AC_API_KEY は .p8 の内容 (base64 または生) を想定。ファイルにして渡す
+            printf '%s\n' "$AC_API_KEY" > "$HOME/.signing/AuthKey.p8"
+            scripts/release/sign.sh \
+              --identity "$DEVELOPER_ID_APPLICATION" \
+              --key "$HOME/.signing/AuthKey.p8" \
+              --key-id "$AC_API_KEY_ID" --issuer "$AC_API_ISSUER" \
+              --version "${{ steps.version.outputs.version }}"
+            rm -rf "$HOME/.signing"
+          else
+            # 証明書が未取得: unsigned zip でリリースし、利用者に伝える
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            mkdir -p dist
+            ditto -c -k --sequesterRsrc --keepParent \
+              .build/release/kilde "dist/kilde-${{ steps.version.outputs.version }}-macos-arm64.zip"
+          fi
+
+      - name: Create GitHub Release and upload artifacts
+        if: ${{ !inputs.dry-run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SIGNED: ${{ steps.sign.outputs.signed }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="v$VERSION"
+          NOTES="$(mktemp)"
+          {
+            echo "## kilde $VERSION"
+            echo
+            if [ "$SIGNED" = "true" ]; then
+              echo "- 署名・notarization 済み (Developer ID)"
+            else
+              echo "- **このバイナリは未署名です** (Developer ID 証明書未取得のため)。"
+              echo "  初回実行時はGatekeeper の警告が出ます (\`xattr -d com.apple.quarantine kilde\` で回避可能)。"
+              echo "  ソースからのビルド (\`swift build -c release\`) も利用できます。"
+            fi
+            echo
+            echo "### インストール"
+            echo '```sh'
+            echo "unzip kilde-$VERSION-macos-arm64.zip && sudo cp kilde /usr/local/bin/"
+            echo '```'
+            echo
+            echo "### Homebrew"
+            echo "tap は今後のリリースで提供予定です。それまでは上記の手動インストールか \`--HEAD\` ビルドを利用してください。"
+          } > "$NOTES"
+          gh release create "$TAG" dist/* \
+            --title "kilde $VERSION" \
+            --notes-file "$NOTES" \
+            --latest

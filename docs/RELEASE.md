@@ -126,3 +126,37 @@ xcrun stapler validate "dist/KildeGUI-0.1.0.dmg"
 CLI は zip を展開して `codesign --verify --strict --verbose=2 kilde` と
 `codesign -d --entitlements :- kilde` を実行し、別の macOS ユーザー環境で初回起動時の
 Gatekeeper と TCC (画面収録・マイク) の動作も確認してください。
+
+
+## GitHub でのリリース自動化 (issue #25)
+
+`.github/workflows/release.yml` が `v*` タグの push で起動します:
+
+```sh
+git tag v0.1.0 && git push origin v0.1.0
+```
+
+フロー: タグからバージョンを解決 → `Info.plist` と `KildeCommand` の version に
+差し込み (ビルド限り、コミットはしない) → `swift build -c release` → 埋め込み
+Info.plist の生存とバージョンを検証 → 署名 → Release を作成して zip を添付。
+
+**署名は secrets の有無で自動分岐**:
+
+| secrets | 動作 |
+|---------|------|
+| `DEVELOPER_ID_APPLICATION` + `AC_API_KEY` / `AC_API_KEY_ID` / `AC_API_ISSUER` がすべて設定済み | `sign.sh` で署名・notarization・staple まで実行 |
+| 未設定 (現在) | **unsigned zip** でリリース。Release Notes に「未署名」の注意と `xattr -d` の回避方法を明記 |
+
+証明書を取得したらリポジトリ設定で 4 つの secrets を足すだけで署名に切り替わります
+(ワークフロー側の変更は不要)。
+
+**手動検証** (タグを打たずにビルドだけ確認): Actions タブから `Release` ワークフローを
+`workflow_dispatch` で実行。既定は **dry-run** (`dry-run: true`) で、Release の作成は
+行わずビルドと署名分岐までを検証します。
+
+### 未実装 (follow-up)
+
+- **tap リポジトリ (`takezou621/homebrew-kilde`) への formula 自動更新** —
+  tap 自体が未作成のため、tap 作成 (#24 のフォロー) 後に `url` / `sha256` を
+  更新する PR を送るジョブを追加する
+- **Release Notes の自動生成 (PR タイトル由来)** — 初回リリース後に手順を確定させる
