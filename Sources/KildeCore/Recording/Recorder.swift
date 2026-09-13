@@ -692,7 +692,24 @@ public final class Recorder {
         var videoSize: CGSize?
         // capturesAudio の設定にも使うので、条件とは別に残す
         let captureAudio = options.audioSources.contains(.system)
+
+        // **SCK の起動区間は他プロセスと重ねない** (issue #70)。
+        // 2 プロセスが同時に SCK のキャプチャを開始すると、双方が replayd との XPC から
+        // 戻らなくなる (100% 再現)。一度そうなると片方を SIGKILL しても相手は 60 秒経っても
+        // 回復しないので、「詰まってから諦める」では救えない — 重ねないことでしか防げない。
+        //
+        // 危険なのは起動処理が重なる瞬間だけ (実測 0.31 秒) で、**録画中の重複は無害**
+        // (1 つ目が録画に入った後なら 2 つ目を起動しても両方完走することを実測済み)。
+        // そのため `sck.start()` を終えた時点で手放す — ここを関数末尾の defer にすると
+        // 録画全体を排他することになり、2 本目が待機タイムアウトで失敗して
+        // 「ずらせば両方録れる」という利点を自分で潰してしまう。
+        // SCK を使わない構成 (マイクのみ) は無関係なので取らない
+        var sckStartupLock: SCKStartupLock.Token?
+        // 起動前に throw した場合の保険。正常経路では start 直後に release 済みで、
+        // release() は冪等なので二重解放にならない
+        defer { sckStartupLock?.release() }
         if options.usesScreenCapture {
+            sckStartupLock = try SCKStartupLock.acquire()
             // 収録対象を先に解決する — HDR 可否は「実際にどの画面に写るか」で決まるので、
             // ウィンドウ収録では --display ではなくそのウィンドウが載っている画面を見る。
             // 複数ウィンドウ (issue #13) はディスプレイ座標系へ合成するので、
@@ -953,7 +970,13 @@ public final class Recorder {
         for m in micStreams { m.start() }
         do {
             try await sck?.start()
+            // **危険区間はここまで。** 録画中の重複は無害なので、待っている 2 本目を
+            // すぐ通す (関数末尾の defer まで持つと録画全体を排他してしまう)
+            sckStartupLock?.release()
         } catch {
+            // 失敗経路でも即座に手放す。ここで持ち続けると、起動に失敗した 1 本目の
+            // 後始末が終わるまで他プロセスが待たされる
+            sckStartupLock?.release()
             // 停止を要求された後に SCK の起動が失敗した場合は、通常の失敗ではなく
             // 準備中キャンセルとして畳む。この経路を分けないと SCK が起動したまま残り、
             // 出力も削除されない (`w.cancel()` は既定ではファイルを消さない)
