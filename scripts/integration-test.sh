@@ -28,6 +28,7 @@ GUI_PID=""
 T21_PID=""
 T23_HOLDER_PID=""
 T23_RUN_PID=""
+T24_DEVICES_PID=""
 
 cleanup() {
     if [ "$MONITOR_SET_UP" = "1" ]; then
@@ -51,6 +52,10 @@ T22_PID=""
     # T21 の self-test はバックグラウンド起動なので、スイートを途中で止めたときに
     # KildeGUI が残る。録画はしていないので安全停止の待ちは要らない
     [ -n "$T21_PID" ] && kill "$T21_PID" 2>/dev/null
+    # T24 の併走役 (devices の列挙) も残さない。録画はしていないので待ちは要らないが、
+    # 残すと次のテストの SCK 起動と重なって無関係なテストを落としうる (issue #90 そのもの)
+    [ -n "${T24_DEVICES_PID:-}" ] && kill "$T24_DEVICES_PID" 2>/dev/null
+    T24_DEVICES_PID=""
     # T23 の占有役 (rec --hotkey の待機) も残さない。**残すと次回以降のスイートが壊れる** —
     # ホットキーは排他登録なので、孤児が同じキーを握ったままだと T23 の占有役が登録できず、
     # 以後ずっと「占有役が待機に入れませんでした」で落ち続ける (開発中に実際に踏んだ)。
@@ -1362,6 +1367,52 @@ if [ "$T22_EXIT" = "0" ]; then
     fi
 else
     bad "T22 準備中 SIGINT: exit=$T22_EXIT — $WORK/t22.log"
+fi
+
+# ---- T24: devices を併走させても rec が失敗しない (issue #90)
+# `SCShareableContent` の列挙と SCK の起動が重なると、**起動側が
+# `SCStream.startCapture()` で -3801 (TCC 拒否) を受けて即座に失敗する**。
+# **権限拒否ではない** — Recorder は startCapture() の手前で
+# Permissions.hasScreenCapture を確認済みで、権限が無ければそこで終了コード 2 になる。
+# 修正前の実測 (条件を交互に各 10 回): **devices 併走で 7/10 失敗、単独では 0/10**。
+#
+# **1 組では足りない。** 修正前でも 3/10 は成功するので、1 回通っても回帰が無い証拠に
+# ならない。5 組なら修正前を見逃す確率は 0.3^5 ≈ 0.2% で、門として機能する。
+# #70 (T18b) と違って**固まらない**ので、期限つきの待ちは要らない (失敗は即座に返る)。
+
+log "T24: devices 併走 — 列挙と SCK 起動が重なっても rec が失敗しない"
+T24_ROUNDS=5
+T24_NG=0
+T24_TCC=0
+T24_DETAIL=""
+T24_DIR="$WORK/t24"
+mkdir -p "$T24_DIR"
+for T24_ROUND in $(seq 1 "$T24_ROUNDS"); do
+    # 列挙を先に出してから録画を始める — 危険なのは列挙と**起動**が重なる瞬間なので、
+    # devices (実測 0.2 秒) が rec の起動区間 (実測 0.31 秒) に被る順序にする
+    "$KILDE" devices > "$WORK/t24-devices-$T24_ROUND.log" 2>&1 &
+    T24_DEVICES_PID=$!
+    "$KILDE" rec --no-video --duration 2 --output "$T24_DIR/t24-$T24_ROUND.m4a" \
+        > "$WORK/t24-rec-$T24_ROUND.log" 2>&1
+    T24_EXIT=$?
+    wait "$T24_DEVICES_PID" 2>/dev/null
+    T24_DEVICES_PID=""
+    # -3801 かどうかを分けて数える。他の理由の失敗 (環境起因の -3818 など) と
+    # 混ぜると、#90 の回帰なのか環境なのかが判定から読み取れなくなる
+    if grep -q "Code=-3801" "$WORK/t24-rec-$T24_ROUND.log" 2>/dev/null; then
+        T24_TCC=$((T24_TCC+1))
+    fi
+    if [ "$T24_EXIT" != "0" ]; then
+        T24_NG=$((T24_NG+1))
+        T24_DETAIL="$T24_DETAIL [組$T24_ROUND exit=$T24_EXIT]"
+    fi
+done
+if [ "$T24_TCC" != "0" ]; then
+    bad "T24 devices 併走: ${T24_ROUNDS} 組中 $T24_TCC 組で -3801 (列挙が SCK 起動ロックの外に出ている。issue #90)$T24_DETAIL"
+elif [ "$T24_NG" != "0" ]; then
+    bad "T24 devices 併走: ${T24_ROUNDS} 組中 $T24_NG 組で rec が失敗 (-3801 以外の理由) — $WORK/t24-rec-*.log$T24_DETAIL"
+else
+    ok "T24 devices 併走: ${T24_ROUNDS}/${T24_ROUNDS} 組で rec が exit=0 (-3801 なし)"
 fi
 
 # ---- サマリ -------------------------------------------------------------------

@@ -119,6 +119,16 @@ public enum SCKStartupLock {
         "kilde-sck-startup-\(getuid()).lock"
     }
 
+    /// 録画の起動が待つ既定の上限。**録画は待てば成功する**ので長めに取る
+    /// (危険区間は実測 0.31 秒なので、通常はほとんど待たない)
+    public static let defaultTimeout: TimeInterval = 15
+
+    /// 列挙 (`devices` / `doctor` / GUI のウィンドウ一覧) が待つ上限 (issue #90)。
+    /// **録画より短くする** — 列挙は 0.2 秒で終わる操作 (実測: `devices` 0.16〜0.19 秒、
+    /// `doctor` 0.20〜0.21 秒) で、待たせすぎると「一覧を見たいだけなのに固まった」に見える。
+    /// 危険区間 0.31 秒に対して十分な余裕があり、かつ人が待てる長さとして 3 秒にしている
+    public static let enumerationTimeout: TimeInterval = 3
+
     /// ロックを取る。取れるまで待ち、`timeout` を超えたら諦めて throw する。
     /// SCK を使わない構成 (マイクのみ) では呼ばないこと — 無関係な録画まで直列化してしまう。
     ///
@@ -126,7 +136,7 @@ public enum SCKStartupLock {
     /// 同期 `Thread.sleep` で待つと協調プールのスレッドを最長 `timeout` 秒占有し、
     /// さらに待機中は停止要求を観測できないので Ctrl+C への応答が遅れる。
     /// `isCancelled` を渡せば、待っている間も停止要求で抜けられる
-    public static func acquire(timeout: TimeInterval = 15,
+    public static func acquire(timeout: TimeInterval = defaultTimeout,
                                isCancelled: @escaping () -> Bool = { false }) async throws -> Token {
         // **単調時計で測る。** `Date` だとシステム時刻が後戻りしたときに期限も後戻りし、
         // ハングした保持者を相手に上限を超えて待ち続ける。
