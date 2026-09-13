@@ -159,10 +159,15 @@ public enum DisplayCatalog {
     /// 撮れなかったウィンドウ (最小化・権限不足・撮影中に閉じた等) は結果に含めない。
     /// サムネイルは補助表示なので、失敗しても例外にせず空の結果で返す
     ///
-    /// **列挙はここも `SCKStartupLock` で直列化する (issue #90)。** GUI のサムネイル取得は
-    /// `SCShareableContent.current` を直接呼ぶ経路なので、塞がないとここだけ穴が残る。
-    /// 補助表示なので待ちは短く (`enumerationTimeout`)、取れなくても続行する
-    /// (`shareableContent` と同じ判断 — 失敗させるより競合の危険を取る)。
+    /// **列挙はここも `SCKStartupLock` で直列化する (issue #90)** — `shareableContent` 経由に
+    /// することで、ロックの取得・解放と失敗時の文言をそこ 1 箇所に集約する。
+    ///
+    /// **ロックを握るのは列挙の間だけ。** 以前はトークンを `defer` で持っていたが、
+    /// それだと**下のキャプチャループ全体を保持したまま**になる。GUI は一覧更新のたびに
+    /// 最大 24 枚を順に撮るので、同じ GUI の録画開始がそのロックを待ち、
+    /// `defaultTimeout` (15 秒) で失敗しうる — **この修正が防ごうとした事故を、
+    /// この修正自身が作る**形だった (CodeRabbit の指摘)。
+    /// 撮影は `SCShareableContent` の列挙ではないので、直列化する必要もない。
     ///
     /// **他の列挙と違って `usesStartupLock` を持たない。** サムネイルは GUI のウィンドウ選択
     /// 専用で、**ロックを保持している録画経路からは呼ばれない**ため opt-out する相手がいない。
@@ -170,9 +175,10 @@ public enum DisplayCatalog {
     /// (自分のロックに阻まれて `enumerationTimeout` ぶん待たされ、警告が出る)
     public static func windowThumbnails(windowIDs: [UInt32], maxDimension: Int = 160) async -> [UInt32: CGImage] {
         guard !windowIDs.isEmpty else { return [:] }
-        let token = try? await SCKStartupLock.acquire(timeout: SCKStartupLock.enumerationTimeout)
-        defer { token?.release() }
-        guard let content = try? await SCShareableContent.current else { return [:] }
+        // 補助表示なので、列挙に失敗しても例外にせず空で返す (呼び出し元は GUI の一覧)
+        guard let content = try? await shareableContent("ウィンドウの一覧を取得できません") else {
+            return [:]
+        }
         var images: [UInt32: CGImage] = [:]
         for id in windowIDs {
             guard let window = content.windows.first(where: { $0.windowID == id }) else { continue }

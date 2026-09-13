@@ -1388,14 +1388,33 @@ T24_DETAIL=""
 T24_DIR="$WORK/t24"
 mkdir -p "$T24_DIR"
 for T24_ROUND in $(seq 1 "$T24_ROUNDS"); do
+    T24_DEV_LOG="$WORK/t24-devices-$T24_ROUND.log"
+    : > "$T24_DEV_LOG"
     # 列挙を先に出してから録画を始める — 危険なのは列挙と**起動**が重なる瞬間なので、
     # devices (実測 0.2 秒) が rec の起動区間 (実測 0.31 秒) に被る順序にする
-    "$KILDE" devices > "$WORK/t24-devices-$T24_ROUND.log" 2>&1 &
+    "$KILDE" devices > "$T24_DEV_LOG" 2>&1 &
     T24_DEVICES_PID=$!
+    # **同期信号は入れない (CodeRabbit の指摘を実測のうえ一部見送り)。**
+    #
+    # 「devices が rec の起動前に終わる経路を防げない」という指摘は理屈としては正しい。
+    # だが実装できる同期が無く、無理に入れると門が弱くなる:
+    #
+    #   - `devices` は**列挙が終わってから** "== displays ==" を出す
+    #     (実測: 全体 0.17 秒 / 起動のみ 0.02 秒 → 列挙は約 0.15 秒)。
+    #     この行を待ってから rec を起動すると devices は終了間際で、**重なりが減る**
+    #   - `devices` を回し続けて確実に重ねる案は、**rec がハングした** (issue #95。
+    #     修正前バイナリで 1 回目から `Recorder.swift:494` の completionCondition 待ちで
+    #     65 秒停止)。スイートが無言で止まるので採れない
+    #
+    # **同期なしで門になることを実測で確認した**: #90 修正前のバイナリ (5b22465) に
+    # この形で 5 回当てて **4/5 が -3801 で失敗**。回帰は捕まる
     "$KILDE" rec --no-video --duration 2 --output "$T24_DIR/t24-$T24_ROUND.m4a" \
         > "$WORK/t24-rec-$T24_ROUND.log" 2>&1
     T24_EXIT=$?
+    # **devices の終了コードも見る。** 捨てると、列挙側が落ちても rec さえ成功すれば
+    # T24 が通ってしまう (このテストは両者が併走して**双方無事**であることを見る)
     wait "$T24_DEVICES_PID" 2>/dev/null
+    T24_DEV_EXIT=$?
     T24_DEVICES_PID=""
     # -3801 かどうかを分けて数える。他の理由の失敗 (環境起因の -3818 など) と
     # 混ぜると、#90 の回帰なのか環境なのかが判定から読み取れなくなる
@@ -1404,7 +1423,11 @@ for T24_ROUND in $(seq 1 "$T24_ROUNDS"); do
     fi
     if [ "$T24_EXIT" != "0" ]; then
         T24_NG=$((T24_NG+1))
-        T24_DETAIL="$T24_DETAIL [組$T24_ROUND exit=$T24_EXIT]"
+        T24_DETAIL="$T24_DETAIL [組$T24_ROUND rec exit=$T24_EXIT]"
+    fi
+    if [ "$T24_DEV_EXIT" != "0" ]; then
+        T24_NG=$((T24_NG+1))
+        T24_DETAIL="$T24_DETAIL [組$T24_ROUND devices exit=$T24_DEV_EXIT — $T24_DEV_LOG]"
     fi
 done
 if [ "$T24_TCC" != "0" ]; then
