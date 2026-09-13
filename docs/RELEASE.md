@@ -96,11 +96,14 @@ release workflow は issue #25 で追加します。workflow から `sign.sh` �
 |---------------|-----------------------------------------|
 | `DEVELOPER_ID_CERTIFICATE_BASE64` | Developer ID 証明書と秘密鍵を含む `.p12` の Base64。workflow が一時 Keychain に import |
 | `DEVELOPER_ID_CERTIFICATE_PASSWORD` | `.p12` の書き出しパスワード |
-| `KEYCHAIN_PASSWORD` | CI で作る一時 Keychain のパスワード |
 | `DEVELOPER_ID_APPLICATION` | `sign.sh` の `--identity` / 同名環境変数 |
 | `AC_API_KEY_ID` | `sign.sh` の `--key-id` / 同名環境変数 |
 | `AC_API_ISSUER` | `sign.sh` の `--issuer` / 同名環境変数 |
-| `AC_API_KEY` | `.p8` の内容。`sign.sh` が権限 600 の一時ファイルにして `--key` へ渡す |
+| `AC_API_KEY` | `.p8` の内容。workflow が権限 600 の一時ファイルにして `--key` へ渡す |
+
+一時 Keychain のパスワードは workflow が実行ごとに生成するため secret は不要です
+(旧稿の `KEYCHAIN_PASSWORD` は廃止)。ローカルで `sign.sh` を直接使う場合も
+`--identity` 等の引数で渡すため、設定は不要です。
 
 バージョンと出力先は秘密情報ではないため、workflow の値または GitHub Actions Variables として
 次を使えます。

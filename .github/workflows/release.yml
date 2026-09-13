@@ -2,10 +2,11 @@ name: Release
 
 # issue #25: v* タグの push で署名付き (可能なら) リリースを作る。
 # 証明書 (Developer ID) はまだ取得済みではないため、secrets の有無で分岐する:
-#   - DEVELOPER_ID_APPLICATION + AC_API_KEY / AC_API_KEY_ID / AC_API_ISSUER があれば
-#     scripts/release/sign.sh で署名・notarization まで行う
+#   - DEVELOPER_ID_CERTIFICATE_BASE64 + DEVELOPER_ID_CERTIFICATE_PASSWORD (証明書の
+#     import 用) と DEVELOPER_ID_APPLICATION + AC_API_KEY / AC_API_KEY_ID /
+#     AC_API_ISSUER (署名・notarization 用) がすべてあれば sign.sh まで行う
 #   - 無ければ unsigned zip でリリースし、caveats に「未署名」を明記する
-# 証明書を取得したらリポジトリの secrets に 4 つ足すだけで署名に切り替わる。
+# 証明書を取得したら RELEASE.md §4 の 6 secrets を足すだけで署名に切り替わる。
 on:
   push:
     tags: ["v*"]
@@ -105,9 +106,6 @@ jobs:
           rm cert.p12
           echo "skip=false" >> "$GITHUB_OUTPUT"
 
-      - name: Install xcodegen for the GUI build
-        run: brew install xcodegen
-
       - name: Sign and notarize (when credentials exist)
         id: sign
         env:
@@ -120,6 +118,9 @@ jobs:
           if [ -n "$DEVELOPER_ID_APPLICATION" ] && [ -n "$AC_API_KEY" ] \
               && [ "${{ steps.cert.outputs.skip }}" = "false" ]; then
             echo "signed=true" >> "$GITHUB_OUTPUT"
+            # sign.sh は GUI を xcodegen + xcodebuild でビルドする。unsigned 分岐は
+            # CLI の zip しか作らないため、インストールは署名ブランチの中だけでよい
+            brew install xcodegen
             mkdir -p "$HOME/.signing"
             # AC_API_KEY は .p8 ファイルの内容 (生)。sign.sh はファイルパスを
             # 受け取るので、権限 600 の一時ファイルに書いて渡す
@@ -151,7 +152,9 @@ jobs:
       # Release の作成はタグ起動時のみ。手動実行 (workflow_dispatch) は dry-run 固定 —
       # タグが無いと Info.plist 由来の現在値で v タグを作りかねないため
       - name: Create GitHub Release and upload artifacts
-        if: startsWith(github.ref, 'refs/tags/v')
+        # event が push (タグ) であることも条件に含める — dispatch は ref を偽装できないが、
+        # 判定を独立させて「手動実行は Release を作らない」を二重に保証する
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
           SIGNED: ${{ steps.sign.outputs.signed }}
