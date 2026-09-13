@@ -1066,13 +1066,19 @@ if [ "$T17_ENV_OK" = "1" ]; then
             POST="$WORK/t17-post-probe.m4a"
             POST_QUIET=0
             POST_RMS=""
+            POST_OK=0
             if "$KILDE" rec --no-video --duration 1s --output "$POST" > "$WORK/t17-post-probe.log" 2>&1; then
+                POST_OK=1
                 POST_RMS=$(rms_of "$POST")
                 if [ -n "$POST_RMS" ] && awk -v v="$POST_RMS" 'BEGIN{exit !(v < 0.00005)}'; then
                     POST_QUIET=1
                 fi
             fi
-            if [ "$POST_QUIET" = "1" ]; then
+            if [ "$POST_OK" != "1" ]; then
+                # 再プローブ自体が失敗 (例: -3818) — ここで「環境ノイズ」扱いにすると、
+                # 本物の退行を過小評価する逆方向の誤帰属になる。失敗は失敗として出す
+                bad "T17 exclude-app: 除外したアプリの音が混入 (rms=$RMS、再プローブ失敗で環境は確認できず) — $WORK/t17-post-probe.log"
+            elif [ "$POST_QUIET" = "1" ]; then
                 bad "T17 exclude-app: 除外したアプリの音が混入 (rms=$RMS、録画前後のプローブは無音) — SCK の除外が映像だけになった可能性。docs/SPIKE-NOTES.md F-F を参照"
             else
                 skip "T17 exclude-app: 録画中に他の音源が鳴り始めたため判定不能 (probe rms=$PROBE_RMS→post rms=${POST_RMS:-不明}。issue #83 を参照)"
