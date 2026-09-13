@@ -144,10 +144,10 @@ Info.plist の生存とバージョンを検証 → 署名 → Release を作成
 
 | secrets | 動作 |
 |---------|------|
-| §4 の 6 secret がすべて設定済み (`DEVELOPER_ID_CERTIFICATE_BASE64` + `DEVELOPER_ID_CERTIFICATE_PASSWORD` + `DEVELOPER_ID_APPLICATION` + `AC_API_KEY` / `AC_API_KEY_ID` / `AC_API_ISSUER`) | 証明書を一時キーチェーンに import → `sign.sh` で署名・notarization・staple まで実行 |
+| §4 の 6 secret がすべて設定済み (`DEVELOPER_ID_CERTIFICATE_BASE64` + `DEVELOPER_ID_CERTIFICATE_PASSWORD` + `DEVELOPER_ID_APPLICATION` + `AC_API_KEY` + `AC_API_KEY_ID` + `AC_API_ISSUER`) | 証明書を一時キーチェーンに import → `sign.sh` で署名・notarization・staple まで実行 |
 | 未設定 (現在) | **unsigned zip** でリリース。Release Notes に「未署名」の注意と `xattr -d` の回避方法を明記 |
 
-証明書を取得したらリポジトリ設定で 6 つの secrets を足すだけで署名に切り替わります
+証明書を取得したら §4 の 6 つの secrets を足すだけで署名に切り替わります
 (ワークフロー側の変更は不要)。`DEVELOPER_ID_CERTIFICATE_BASE64` は「Developer ID
 Application」の .p12 を `base64 -i cert.p12 | pbcopy` でエンコードしたもの。
 

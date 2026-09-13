@@ -24,7 +24,7 @@ jobs:
     # macos-26: kilde は Xcode 26 SDK 必須 (issue #76。macos-15 の SDK には
     # captureHDRRecordingPreservedSDRHDR10 が無い)。CI と同じ理由
     runs-on: macos-26
-    timeout-minutes: 30
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -53,7 +53,7 @@ jobs:
             || { echo "バージョンに使えない文字が含まれます: $VERSION"; exit 1; }
           # バージョンの真実の源はタグ。Info.plist と KildeCommand の既定値を
           # ビルド前に差し込む (コミットはせず、このビルド限り)
-          for PLIST in Sources/kilde/Info.plist gui/Resources/KildeGUI-Info.plist; do
+          for PLIST in Sources/kilde/Info.plist gui/Resources/Info.plist; do
             [ -f "$PLIST" ] || continue
             plutil -replace CFBundleShortVersionString -string "$VERSION" "$PLIST"
             plutil -replace CFBundleVersion -string "$GITHUB_RUN_NUMBER" "$PLIST"
@@ -93,15 +93,20 @@ jobs:
           # sign.sh の security find-identity はこのキーチェーンを見る
           KEYCHAIN="build-$(uuidgen).keychain-db"
           PASSWORD="$(uuidgen)"
+          echo "keychain=$KEYCHAIN" >> "$GITHUB_OUTPUT"
           echo -n "$MACOS_CERTIFICATE" | base64 --decode -o cert.p12
           security create-keychain -p "$PASSWORD" "$KEYCHAIN"
-          security default-keychain -s "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" login
           security unlock-keychain -p "$PASSWORD" "$KEYCHAIN"
           security import cert.p12 -k "$KEYCHAIN" \
             -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple: -k "$PASSWORD" "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: \
+            -k "$PASSWORD" -t rw "$KEYCHAIN"
           rm cert.p12
           echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Install xcodegen for the GUI build
+        run: brew install xcodegen
 
       - name: Sign and notarize (when credentials exist)
         id: sign
@@ -135,6 +140,13 @@ jobs:
             ditto -c -k --sequesterRsrc --keepParent \
               .build/release/kilde "dist/kilde-$VERSION-macos.zip"
           fi
+
+      - name: Clean up the signing keychain
+        if: ${{ always() && steps.cert.outputs.skip == 'false' }}
+        env:
+          KEYCHAIN: ${{ steps.cert.outputs.keychain }}
+        run: |
+          security delete-keychain "$KEYCHAIN" || true
 
       # Release の作成はタグ起動時のみ。手動実行 (workflow_dispatch) は dry-run 固定 —
       # タグが無いと Info.plist 由来の現在値で v タグを作りかねないため
