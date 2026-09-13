@@ -48,9 +48,10 @@ To build the latest `main` branch from source through Homebrew, add `--HEAD`:
 brew install --HEAD takezou621/kilde/kilde
 ```
 
-The HEAD build requires the Xcode 26 SDK or later — the code references
-`captureHDRRecordingPreservedSDRHDR10` (macOS 26 API), which older SDKs
-lack, so Xcode 15.x toolchains fail with `has no member`. Runtime still
+The HEAD build requires a toolchain with the macOS 26 SDK (Xcode 26 or
+later). The code references `captureHDRRecordingPreservedSDRHDR10`
+(macOS 26 API), which older SDKs lack, so **any pre-26 toolchain —
+Xcode 15 and 16 alike — fails with `has no member`**. Runtime still
 supports macOS 14+; users on older OSes should use the release binaries.
 
 ### Build from source
