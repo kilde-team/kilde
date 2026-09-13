@@ -353,9 +353,10 @@ kilde config [show|set|unset|path]        設定ファイル ~/.kilde/config.jso
 **停止に失敗したら黙って成功にしない (issue #107)。** `ScreenAudioStream.stopCapture()`
 は**投げずに `Error?` を返す** — 投げると呼び出し側が `finish()` を飛ばしかねず
 §5 の最重要要件を壊すが、捨ててしまうと**停止できていないのに成功として扱われる**。
-`Recorder` はファイナライズを終えた後でこれを受け取り、失敗なら `cleanupWarnings`
-に積む。**CLI は stderr の `WARNING:` 行 + 終了コード 1、GUI は結果と併せて表示**
-(既存の `cleanupWarning` 経路。上の終了コード表の「`1` = その他の失敗」に該当)。
+`Recorder` は**ファイナライズを終えた後** (`notifyReplaydStopIfNeeded`) と
+**準備中キャンセル** (`cancelBeforeRecording`) の 2 経路でこれを受け取り、失敗なら
+`cleanupWarnings` に積む。**CLI は stderr の `WARNING:` 行 + 終了コード 1、GUI は結果と併せて表示**
+(既存の `cleanupWarning` 経路。**§6 の終了コード表**の「`1` = その他の失敗」に該当)。
 
 録画自体は成立しているので**失敗扱いにはしない** — `cleanupWarning` の定義
 「録画自体は成立したが後始末に問題があった」がそのまま当てはまる。
@@ -382,8 +383,17 @@ kilde config [show|set|unset|path]        設定ファイル ~/.kilde/config.jso
 (`HotkeyRecordingController.finishMonitoring()` も 1 回きり)。**ワンショットである。**
 
 **準備中キャンセル (`cancelBeforeRecording`) はこの順序の例外**で、いまも
-writer の後始末より**前**に `sck?.stop()` を呼ぶ。録画に入る前なので守るファイルが
-無く、既存の挙動 (T22 が見ている「準備中の停止は exit 0」) を変えないため据え置く。
+writer の後始末より**前**に `sck?.stop()` を呼ぶ。ここでも停止の失敗は拾って
+`cleanupWarnings` に積む — 軸は「守るファイルがあるか」ではなく
+**「replayd にキャプチャが残るか」**で、後者はこの経路でも起こるため
+(この判断は issue #107 で改めた)。
+
+ただし**キャプチャに入る前のキャンセルでは何も報告しない**。`cancelBeforeRecording`
+は `sck.start()` の前後どちらからも呼ばれ、未起動のストリームに `stopCapture()` を
+投げると `-3808` (`SCStreamErrorAttemptToStopStreamState`) が返る。これを失敗として
+扱うと**契約上 exit 0 であるべき準備中キャンセル** (§6 / issue #56、T22 が見ている)
+が exit 1 に化ける。そこで `ScreenAudioStream` が起動済みかを持ち、未起動なら
+`stopCapture()` ごと省略する。**起動前に止めるべきキャプチャはそもそも無い。**
 
 **プロセスが終わらないこと自体はこれでは直らない** (replayd 側の状態で、kilde からは
 触れない)。停止区間の直列化は issue #103 で扱う。
@@ -563,7 +573,7 @@ kilde rec --hotkey cmd+shift+r out.mov
 
 | コード | 意味 |
 |-------|------|
-| `0` | 成功。**Ctrl+C / SIGTERM / SIGHUP / `--duration` による停止も、ファイナライズが完了すれば 0**。**録画が始まる前 (準備中) の停止も 0** — ファイルは作られず「録画は開始されませんでした」とだけ出す (issue #56) |
+| `0` | 成功。**Ctrl+C / SIGTERM / SIGHUP / `--duration` による停止も、ファイナライズが完了すれば 0**。**録画が始まる前 (準備中) の停止も 0** — ファイルは作られず「録画は開始されませんでした」とだけ出す (issue #56)。**ただし `cleanupWarnings` が空でない場合は 1** — monitor の既定出力を復元できなかった場合や、**replayd に停止を伝えられなかった場合** (issue #107) が該当する。停止操作そのものは成功していても、後始末に問題が残っているので 0 で隠さない |
 | `1` | その他の失敗 (`KilError.failed`: ファイナライズ失敗、映像ありモードの 0 フレーム、monitor の復元失敗、meeting の選択中止など) |
 | `2` | 権限不足 (画面収録 / マイク) |
 | `3` | デバイス・ウィンドウ・ディスプレイが見つからない (BlackHole 未導入を含む) |

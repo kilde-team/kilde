@@ -404,10 +404,24 @@ struct ContentView: View {
                 }
             }
         case .failed(let message):
-            Label(message, systemImage: "xmark.octagon.fill")
-                .font(.caption)
-                .foregroundStyle(.red)
-                .fixedSize(horizontal: false, vertical: true)
+            // **失敗時も warnings を出す (CodeRabbit の指摘。issue #107)。**
+            // ファイナライズと `stopCapture()` が**両方**失敗すると、`Recorder` は
+            // `cleanupWarnings` を積んでから `.failed` を出す。ここで `message` しか
+            // 見せないと、**停止が replayd に届かなかったことが GUI では一切分からない** —
+            // 画面収録インジケータが点いたままの理由も、次の録画が重なりうることも
+            // 伝わらない。成功時 (`.finished`) と同じ形で並べる
+            VStack(alignment: .leading, spacing: 2) {
+                Label(message, systemImage: "xmark.octagon.fill")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+                ForEach(recording.warnings, id: \.self) { warning in
+                    Label(warning, systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
         default:
             EmptyView()
         }

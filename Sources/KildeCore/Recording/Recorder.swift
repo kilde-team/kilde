@@ -349,6 +349,18 @@ public final class Recorder {
     public static let cancelledDuringPreparationMessage =
         "録画は開始されませんでした (準備中に停止しました)"
 
+    /// replayd に停止を伝えられなかったときの警告文 (issue #107)。
+    ///
+    /// **1 箇所で述べる。** 準備中キャンセル (`cancelBeforeRecording`) と
+    /// ファイナライズ後 (`notifyReplaydStopIfNeeded`) の両方が同じ状況を報告するので、
+    /// 復旧手順の書き換えで片方だけ古くなることがないよう関数にまとめる
+    /// (`tearDownMonitorOnce` と同じ流儀。cubic の指摘)
+    static func replaydStopWarning(_ failure: Error) -> String {
+        "録画の停止を replayd に伝えられませんでした: \(failure.localizedDescription)。"
+            + "画面収録インジケータが点いたままの場合は、次の録画を始める前に"
+            + "少し待つか kilde を再起動してください"
+    }
+
     /// writer を作った後の中断を畳む。開始済みのストリームを止め、出力を消してから抜ける。
     /// **削除に失敗してファイルが残ったときは「正常な停止」にしない** — 部分ファイルを
     /// 残したまま exit 0 にすると、壊れたファイルを残さないという最重要要件と、
@@ -356,7 +368,26 @@ public final class Recorder {
     private func cancelBeforeRecording(writer w: MovieWriter, url: URL,
                                        sck: ScreenAudioStream?,
                                        micStreams: [MicStream]) async throws -> Never {
-        await sck?.stop()
+        // **ここでも停止の失敗を拾う (cubic の指摘)。**
+        //
+        // 一度は「録画前なので守るファイルが無い」として据え置いたが、**判断の軸が
+        // 違っていた**。問題は「ファイルを守るか」ではなく「**replayd にキャプチャが
+        // 残るか**」で、SCK が起動した後に停止要求が来た場合はここを通る。
+        // 捨てると**停止できていないのに exit 0 で終わり**、GUI は次の録画を受け付ける —
+        // issue #107 が直そうとしている状況そのもの。
+        //
+        // `stop()` に書いた据え置き理由 (「後続の `finish()` の失敗に埋もれる」) は
+        // **この経路には当てはまらない** — 下を見れば分かるとおり `finish()` は走らず
+        // `throw` で抜ける。CLI は結果分岐より前に `cleanupWarnings` を全部出すので
+        // (`RecCommand.swift`)、ここで積んだ警告は確実に表面化する
+        //
+        // **起動前のキャンセルでは警告は出ない。** この関数は `sck.start()` の前後
+        // どちらからも呼ばれるが、未起動のストリームは `stopCapture()` 自体が
+        // 省略されて `nil` を返す (`ScreenAudioStream.started`)。起動前に `-3808` を
+        // 拾って**契約上 exit 0 の準備中キャンセルを exit 1 に化けさせない**ため
+        if let failure = await sck?.stop() {
+            cleanupWarnings.append(Self.replaydStopWarning(failure))
+        }
         for m in micStreams { m.stop() }
         w.cancel(removingOutput: true)
         if fileExists(url) {
@@ -1125,6 +1156,14 @@ public final class Recorder {
         let usesLegacyStopOrder =
             ProcessInfo.processInfo.environment["KILDE_STOP_ORDER"] == "legacy"
         if usesLegacyStopOrder {
+            // **ここは戻り値を捨てる。拾い忘れではない (issue #107)。**
+            // 旧順序では `stopCapture()` が**ファイナライズより前**に走るので、
+            // ここで警告を積んでも、その後 `finish()` が失敗すれば録画自体が
+            // 失敗になって警告は埋もれる。停止失敗を報告するのは新順序の
+            // `notifyReplaydStopIfNeeded` (ファイルが完成した後に呼ぶ) の責任。
+            //
+            // なお準備中キャンセル (`cancelBeforeRecording`) は同じ `stop()` を
+            // 呼びつつ**拾う** — あちらは後続の `finish()` が無いので埋もれない
             await sck?.stop()
         } else {
             await sck?.suspendDelivery()
@@ -1163,7 +1202,15 @@ public final class Recorder {
         // 走り続け、画面収録インジケータが点いたままになり、SCStream も解放されない。
         //
         // `defer` には `await` を書けないため、`do`/`catch` で包んで両経路から呼ぶ。
-        // `stopCapture()` は投げず冪等なので、二重に呼んでも害はない
+        // `stopCapture()` は投げないので、`do` / `catch` のどちらから来ても安全に呼べる。
+        //
+        // **ただし「何度呼んでも無害」ではない (issue #107 で変わった。cubic の指摘)。**
+        // `try?` で握り潰していた頃と違い、いまは失敗が `cleanupWarnings` +
+        // 終了コード 1 として表面化する。`started` は停止しても false に戻さない
+        // (戻すと「止めたのに未起動扱い」になって本物の失敗を取りこぼす) ので、
+        // **停止済みのストリームにもう一度 `stopCapture()` を呼ぶ経路を足すと
+        // `-3808` が偽の警告に化ける**。いま二重に呼ぶ経路が無いのは、この関数と
+        // `stop()` が `usesLegacyStopOrder` で排他になっているから。**その排他を崩さないこと。**
         func notifyReplaydStopIfNeeded() async {
             guard !usesLegacyStopOrder else { return }   // 旧順序は stop() の中で呼び済み
             let failure = await sck?.stopCapture()
@@ -1181,11 +1228,7 @@ public final class Recorder {
             // CLI は stderr の `WARNING:` + 終了コード 1、GUI は結果と併せて表示と、
             // **既存の経路がそのまま使える** (消費者の変更が要らない)
             if let failure {
-                cleanupWarnings.append(
-                    "録画の停止を replayd に伝えられませんでした: \(failure.localizedDescription)。"
-                        + "画面収録インジケータが点いたままの場合は、次の録画を始める前に"
-                        + "少し待つか kilde を再起動してください"
-                )
+                cleanupWarnings.append(Self.replaydStopWarning(failure))
             }
         }
         do {
