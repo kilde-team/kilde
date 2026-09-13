@@ -1080,8 +1080,10 @@ if [ "$T17_ENV_OK" = "1" ]; then
                 bad "T17 exclude-app: 除外したアプリの音が混入 (rms=$RMS、再プローブ失敗で環境は確認できず) — $WORK/t17-post-probe.log"
             elif [ "$POST_QUIET" = "1" ]; then
                 bad "T17 exclude-app: 除外したアプリの音が混入 (rms=$RMS、録画前後のプローブは無音) — SCK の除外が映像だけになった可能性。docs/SPIKE-NOTES.md F-F を参照"
+            elif [ -z "$POST_RMS" ]; then
+                skip "T17 exclude-app: 混入を検出したが事後プローブの結果を検査できません (rms 不明) — $WORK/t17-post-probe.log"
             else
-                skip "T17 exclude-app: 録画中に他の音源が鳴り始めたため判定不能 (probe rms=$PROBE_RMS→post rms=${POST_RMS:-不明}。issue #83 を参照)"
+                skip "T17 exclude-app: 録画中に他の音源が鳴り始めたため判定不能 (probe rms=$PROBE_RMS→post rms=$POST_RMS。issue #83 を参照)"
             fi
         fi
     else
