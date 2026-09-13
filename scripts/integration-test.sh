@@ -102,7 +102,11 @@ stop_kilde() {  # stop_kilde <pid> <recording|waiting> — INT を送り直し�
         done
         force_stop "$pid"
     else
-        STOP_BY_INT=1
+        # **ここで 1 を立てない (cubic P2 の指摘)。** この分岐は「呼んだ時点で既に
+        # 死んでいた」= **SIGINT を 1 通も送っていない**。1 にすると「INT で止まった」と
+        # 誤記録し、待機せず早期終了した回 (T25 の待機モード回帰) を緑に見せる。
+        # STOP_BY_INT の意味は**送った INT だけで止まったか**であり、送っていないなら 0
+        STOP_BY_INT=0
     fi
     # 既に死んでいても必ず `wait` する。**送っただけでは終了を確認できず、孤児 (PPID=1)
     # として残る。** 開発中に実際に踏んだ — 孤児の `devices` が `flock` を 8 分間握り、
@@ -125,6 +129,9 @@ await_stop() {  # await_stop <pid> <recording|waiting> — 自分で送った IN
     if kill -0 "$pid" 2>/dev/null; then
         force_stop "$pid"
     else
+        # **こちらは 1 でよい (stop_kilde の同じ位置とは意味が違う)。** await_stop は
+        # 呼び出し側が刺激として INT を 1 通送った直後に呼ばれる。猶予内に自力で
+        # 終了した = **その 1 通で止まった**ということなので、門の成功条件に使える
         STOP_BY_INT=1
     fi
     wait "$pid" 2>/dev/null
@@ -590,11 +597,20 @@ kill -INT $T13_PID 2>/dev/null
 # 「待機中の SIGINT で止まる」というこのテストの門が緑のまま素通りする
 await_stop "$T13_PID" waiting
 T13_EXIT=$STOP_EXIT
+# **exit=0 だけでは門にならない (cubic P2 の指摘。T25 と同じ穴だった)。**
+# 初回の SIGINT が失われても、await_stop が猶予超過後に送る SIGTERM は
+# installStopSignalHandler で **INT と同じ安全停止ハンドラ**に繋がるため、
+# ファイナライズが走って exit 0 になる。つまり「INT が効かない」回帰が緑になる。
+# **INT だけで止まったか (STOP_BY_INT) を成功条件に入れて初めて門として働く**
+T13_BY_INT=$STOP_BY_INT
 T13_FILES=$(ls "$T13_DIR" 2>/dev/null | wc -l | tr -d ' ')
-if [ "$T13_READY" = "1" ] && [ "$T13_EXIT" = "0" ] && [ "$T13_FILES" = "0" ]; then
-    ok "T13 hotkey 待機中止: exit=0・出力ファイルなし"
+if [ "$T13_READY" = "1" ] && [ "$T13_EXIT" = "0" ] && [ "$T13_FILES" = "0" ] \
+   && [ "$T13_BY_INT" = "1" ]; then
+    ok "T13 hotkey 待機中止: SIGINT のみで exit=0・出力ファイルなし"
+elif [ "$T13_READY" = "1" ] && [ "$T13_EXIT" = "0" ] && [ "$T13_FILES" = "0" ]; then
+    bad "T13 hotkey 待機中止: exit=0 だが SIGINT 後 5 秒以内に終了せず TERM/KILL への昇格が必要だった。待機中 Ctrl+C = exit 0 の契約 (DESIGN.md §6) の回帰を疑う (待機中は書き込みがないので遅延の線は薄い) — $WORK/t13.log"
 else
-    bad "T13 hotkey 待機中止: ready=$T13_READY exit=$T13_EXIT files=$T13_FILES — $WORK/t13.log"
+    bad "T13 hotkey 待機中止: ready=$T13_READY exit=$T13_EXIT files=$T13_FILES by_int=$T13_BY_INT — $WORK/t13.log"
 fi
 
 # ---- T23: ホットキーの排他と縮退 (issue #80) -------------------------------------
@@ -1440,13 +1456,24 @@ kill -INT $T22_PID 2>/dev/null
 # 役割は recording — 準備中に間に合わなければ通常録画に解け、ファイナライズを待つ
 await_stop "$T22_PID" recording
 T22_EXIT=$STOP_EXIT
+# **T13 と同じ理由で STOP_BY_INT も見る (cubic P2 の指摘)。** #67 が保証するのは
+# 「起動直後に届いた 1 通目の SIGINT が失われない」ことなので、TERM への昇格で
+# exit 0 になった回はこの契約を満たしていない
+T22_BY_INT=$STOP_BY_INT
 # **回収済みの PID を trap に残さない。** スイートの残りで数百のプロセスが起動するため、
 # PID が一周して再利用されると無関係なプロセスに signal を送る。しかもヘルパ化で
 # 後始末は「TERM+KILL を 1 発ずつ」から「最大 20 発の SIGINT を 10 秒 + TERM/KILL」に
 # 変わっており、取り違えたときの被害が増えている (T23 / T25 と同じ理由・同じ作法)
 T22_PID=""
 T22_FILES=$(ls "$T22_DIR" 2>/dev/null | wc -l | tr -d ' ')
-if [ "$T22_EXIT" = "0" ]; then
+if [ "$T22_EXIT" = "0" ] && [ "$T22_BY_INT" != "1" ]; then
+    # **診断を断定しない (cubic P3 の指摘)。** STOP_BY_INT=0 は「猶予 10 秒を超えた」
+    # ことしか意味せず、原因は 2 つありうる — (a) 起動直後の SIGINT が失われた (#67 の
+    # 回帰)、(b) INT は効いたがファイナライズが 10 秒超に伸びた。後者なら TERM 送信から
+    # KILL までの 1 秒窓で終了して exit=0・STOP_BY_INT=0 になる。窓は狭いが、
+    # 「#67 の回帰」と断定すると調査を誤らせるので、観測した事実だけを書く
+    bad "T22 準備中 SIGINT: exit=0 だが SIGINT 後 10 秒以内に終了せず TERM/KILL への昇格が必要だった (issue #67 の回帰か、ファイナライズの異常な遅延。$WORK/t22.log を見て切り分けること)"
+elif [ "$T22_EXIT" = "0" ]; then
     if [ "$T22_FILES" = "0" ]; then
         ok "T22 準備中 SIGINT: exit=0・出力ファイルなし (準備フェーズを中断)"
     else
