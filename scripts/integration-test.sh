@@ -1280,9 +1280,16 @@ stop_excl_app() {
 # 0.005 はフロアの約 4 倍・実音声の約 1/12 に置き、両者を分離する。
 # ウィンドウスコープ (T7 / T17b2) にはフロアが乗らないため従来どおり 0.00005。
 T17_QUIET=0.005
+# **プローブは 5 秒取る (cubic レビュー)。** 1 秒だと、本録音の直前に鳴ってすぐ終わる
+# 短い外来音 (並行スイートの ~4 秒 afplay・通知音) がプローブに載らず素通りする。
+# 5 秒なら本録音 (6 秒) と同じオーダーの持続まで捕まる。ただし**本録音の中で
+# 始まって終わる音は前後どちらのプローブにも載らない** — この窓は消えず、
+# 「録画前後のプローブは無音」の FAIL が環境起因である可能性を排除できない。
+# そのため FAIL メッセージには断定を和らげる注記を付けている
+T17_PROBE_DURATION=5s
 T17_ENV_OK=1
 PROBE="$WORK/t17-silence-probe.m4a"
-if "$KILDE" rec --no-video --duration 1s --output "$PROBE" > "$WORK/t17-probe.log" 2>&1; then
+if "$KILDE" rec --no-video --duration "$T17_PROBE_DURATION" --output "$PROBE" > "$WORK/t17-probe.log" 2>&1; then
     PROBE_RMS=$(rms_of "$PROBE")
     if [ -z "$PROBE_RMS" ]; then
         skip "T17 exclude-app: 無音プローブの結果を検査できません (rms 不明) — $WORK/t17-probe.log"
@@ -1327,7 +1334,7 @@ if [ "$T17_ENV_OK" = "1" ]; then
             POST_QUIET=0
             POST_RMS=""
             POST_OK=0
-            if "$KILDE" rec --no-video --duration 1s --output "$POST" > "$WORK/t17-post-probe.log" 2>&1; then
+            if "$KILDE" rec --no-video --duration "$T17_PROBE_DURATION" --output "$POST" > "$WORK/t17-post-probe.log" 2>&1; then
                 POST_OK=1
                 POST_RMS=$(rms_of "$POST")
                 if [ -n "$POST_RMS" ] && awk -v v="$POST_RMS" -v q="$T17_QUIET" 'BEGIN{exit !(v < q)}'; then
@@ -1335,11 +1342,17 @@ if [ "$T17_ENV_OK" = "1" ]; then
                 fi
             fi
             if [ "$POST_OK" != "1" ]; then
-                # 再プローブ自体が失敗 (例: -3818) — ここで「環境ノイズ」扱いにすると、
-                # 本物の退行を過小評価する逆方向の誤帰属になる。失敗は失敗として出す
-                bad "T17 exclude-app: 除外したアプリの音が混入 (rms=${RMS:-不明}、再プローブ失敗で環境は確認できず) — $WORK/t17-post-probe.log"
+                # **再プローブ自体の失敗は skip に落とす (cubic レビュー)。** プローブ失敗は
+                # 「環境を確認できなかった」ことであり、除外の退行と断定する証拠にならない。
+                # DEVELOPMENT.md の契約 (プローブ失敗 = 判定不能) とも整合する。
+                # 退行を見逃すリスクは再発で回収される — 除外が壊れていれば次回以降も
+                # 混入が起き、プローブが成功した回には FAIL になる。混入値とログパスは
+                # メッセージに残すので、人間が個別に調査することはできる
+                skip "T17 exclude-app: 混入を検出したが再プローブに失敗し環境を確認できず (rms=${RMS:-不明}。除外の退行とは断定できない) — $WORK/t17-post-probe.log"
             elif [ "$POST_QUIET" = "1" ]; then
-                bad "T17 exclude-app: 除外したアプリの音が混入 (rms=${RMS:-不明}、録画前後のプローブは無音) — SCK の除外が映像だけになった可能性。docs/SPIKE-NOTES.md F-F を参照"
+                # 断定を避ける: 本録音の中で始まって終わった短い外来音も、前後プローブが
+                # 無音の同じ見え方になる (上の T17_PROBE_DURATION のコメント参照)
+                bad "T17 exclude-app: 除外したアプリの音が混入 (rms=${RMS:-不明}、録画前後のプローブは無音) — SCK の除外が映像だけになった可能性 (録画中に始まり終わった短い外来音の可能性は排除できない)。docs/SPIKE-NOTES.md F-F を参照"
             elif [ -z "$POST_RMS" ]; then
                 skip "T17 exclude-app: 混入を検出したが事後プローブの結果を検査できません (rms 不明) — $WORK/t17-post-probe.log"
             else
