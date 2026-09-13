@@ -48,7 +48,7 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
-          # タグ由来の値を ${{ }} 展開で run に直接入れない (env 経由)。区切り文字に
+          # タグ由来の値を式展開で run に直接入れない (env 経由)。区切り文字に
           # よってはシェルインジェクションになるため、先に書式を検証する
           echo "$VERSION" | grep -EqE '^[0-9A-Za-z][0-9A-Za-z._-]*$' \
             || { echo "バージョンに使えない文字が含まれます: $VERSION"; exit 1; }
@@ -93,7 +93,7 @@ jobs:
         run: |
           # 証明書だけ設定して他が欠けている「部分的な設定」は、黙って未署名リリースに
           # 落ちるのではなくジョブを失敗させる — 設定ミスに気付けないため。
-          # secrets は env 経由で読む (${{ }} の直接展開はしない)
+          # secrets は env 経由で読む (run 内での式展開はしない)
           # §4 の 6 secret のうち、workflow が直接読む 5 つで判定する
           # (DEVELOPER_ID_CERTIFICATE_PASSWORD は sign.sh の中でだけ要るが、
           #  設定漏れはここで弾きたいので env に足して数に含める)
