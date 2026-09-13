@@ -277,6 +277,7 @@ recording with exit status `1`.
   [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
 - Architecture and behavior: [docs/DESIGN.md](docs/DESIGN.md)
 - M0 spike results: [docs/SPIKE-NOTES.md](docs/SPIKE-NOTES.md)
+- Monetization strategy survey (Japanese): [docs/MONETIZATION.md](docs/MONETIZATION.md)
 - Local integration tests with real recording: `scripts/integration-test.sh`
   (requires permissions and audible speaker output; takes about two minutes)
 
