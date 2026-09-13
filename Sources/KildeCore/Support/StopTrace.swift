@@ -53,16 +53,26 @@ public enum StopTrace {
     /// SCK のコールバックが止まり、`suspendDelivery()` の完了待ちごと
     /// ファイナライズが止まる (CodeRabbit の指摘。issue #95 が直している症状そのもの)。
     ///
-    /// 開き直しに失敗したら診断を諦める (`-1` = 無効)
+    /// **開き直しか `F_SETNOSIGPIPE` のどちらかに失敗したら診断を諦める** (`-1` = 無効)。
+    /// 中途半端に有効な診断は、守ろうとしている録画を壊しうる
     private static let descriptor: Int32 = {
         guard ProcessInfo.processInfo.environment["KILDE_TRACE_STOP"] == "1" else { return -1 }
         // **`O_NONBLOCK` を立てない** (上記 2)。記述を共有するので元の stderr を壊す
         let fd = open("/dev/stderr", O_WRONLY | O_APPEND)
         guard fd >= 0 else { return -1 }
-        // **SIGPIPE はこの fd でだけ抑止する** (上記 3)。失敗しても診断は続ける —
-        // その場合 `2>&1 | head` のような使い方で死にうるが、既定では無効なので
-        // 通常の録画には影響しない
-        _ = fcntl(fd, F_SETNOSIGPIPE, 1)
+        // **SIGPIPE はこの fd でだけ抑止する** (上記 3)。
+        //
+        // **立てられなかったら診断ごと諦める (cubic の指摘)。** 一度は
+        // 「失敗しても続ける。既定では無効なので通常の録画には影響しない」と書いたが、
+        // それは**診断を有効にした人の録画が壊れてよい理由にならない**。抑止が
+        // 効かないまま生の `write` を使うと、`2>&1 | head` のように読み手が消えた
+        // 瞬間に SIGPIPE でプロセスが死に、**ファイナライズ前の録画が残る**。
+        // このファイルの原則は「診断コードがプロダクトをクラッシュさせることは、
+        // どんな理由があっても許容しない」であって、例外を作る場所ではない
+        guard fcntl(fd, F_SETNOSIGPIPE, 1) == 0 else {
+            close(fd)
+            return -1
+        }
         return fd
     }()
 
