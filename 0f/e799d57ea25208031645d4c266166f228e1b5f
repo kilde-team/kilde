@@ -1,0 +1,38 @@
+docs/DESIGN.md
+  s_35faeec28b4c4b::t_ef33612d69c853 343-345,350-354
+Sources/KildeCore/Devices/DisplayCatalog.swift
+  s_35faeec28b4c4b::t_c033aac341bee0 233-244,246-251,255-256
+  s_35faeec28b4c4b::t_d84d6a83129561 245
+  s_35faeec28b4c4b::t_b872d8b873ba20 252-254
+  s_35faeec28b4c4b::t_8ec556ee839812 41,44,50
+  s_35faeec28b4c4b::t_33fbcb0b7db7d5 70,73,78
+  s_35faeec28b4c4b::t_c7caaf323e72da 216
+  s_35faeec28b4c4b::t_2d30eea7d5f00f 229-232
+Sources/KildeCore/Support/SCKStartupLock.swift
+  s_35faeec28b4c4b::t_7a5a0f9c5c2947 160
+  s_35faeec28b4c4b::t_c12f4f1694ff24 132-143,148-159,161-169,189-190,192-193
+  s_35faeec28b4c4b::t_47455ffe3bfb4b 170-173
+  s_35faeec28b4c4b::t_994f605e18a9ff 219-221
+  s_35faeec28b4c4b::t_68574b4504e3b0 210
+  s_35faeec28b4c4b::t_39e8ce097938c9 234,241,248,251,256
+  s_35faeec28b4c4b::t_925a5db1038442 144-147
+  s_35faeec28b4c4b::t_72d86b9dde7784 174-188
+Tests/KildeCoreTests/SCKStartupLockTests.swift
+  s_35faeec28b4c4b::t_4c96e057df960a 285-308
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "0fe799d57ea25208031645d4c266166f228e1b5f",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
