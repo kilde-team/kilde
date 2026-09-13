@@ -68,8 +68,28 @@ public enum SCKStartupLock {
     static var fileURL: URL = defaultFileURL
 
     static var defaultFileURL: URL {
-        URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+        URL(fileURLWithPath: userTemporaryDirectory, isDirectory: true)
             .appendingPathComponent("kilde-sck-startup.lock")
+    }
+
+    /// ユーザー単位の一時ディレクトリ。**`NSTemporaryDirectory()` は使わない** —
+    /// あれは `$TMPDIR` を見るので、`TMPDIR` を差し替えたラッパー経由で起動した
+    /// kilde と通常の kilde が**別々のロックを見る**恐れがある。そうなると排他が
+    /// 黙って無効になり、回復不能な二重固まりが再発する。
+    ///
+    /// 念のため実測したところ、macOS 26 では `TMPDIR=/tmp/fake` を渡しても
+    /// `NSTemporaryDirectory()` は `confstr` と同じ値を返した (つまりこの環境では
+    /// 両者に差が出ない)。**それでも `confstr` を使う** — 環境変数を見ないことが
+    /// 仕様として保証されている方を選ぶ。「今の環境で同じだった」は根拠として弱い
+    static var userTemporaryDirectory: String {
+        var buf = [CChar](repeating: 0, count: Int(PATH_MAX))
+        let n = confstr(_CS_DARWIN_USER_TEMP_DIR, &buf, buf.count)
+        guard n > 0, n <= buf.count else {
+            // confstr が使えない環境 (サンドボックス等) では NSTemporaryDirectory に落ちる。
+            // 排他が弱まる可能性はあるが、ロックを置けずに素通りするよりはよい
+            return NSTemporaryDirectory()
+        }
+        return String(cString: buf)
     }
 
     /// 孤児とみなすまでの経過時間。危険区間は実測 0.31 秒なので、これを超えて

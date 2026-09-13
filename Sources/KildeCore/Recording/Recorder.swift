@@ -713,8 +713,18 @@ public final class Recorder {
             // スレッドを塞ぐうえ (issue #35)、待機中に Ctrl+C や GUI の Stop が来ても
             // 反応できない。他の準備フェーズ (checkCancelledDuringPreparation /
             // awaitOrStop) と揃えて、停止要求で抜けられる形にする
-            sckStartupLock = try await SCKStartupLock.acquire(
-                isCancelled: { [weak self] in self?.isStopRequested ?? false })
+            do {
+                sckStartupLock = try await SCKStartupLock.acquire(
+                    isCancelled: { [weak self] in self?.isStopRequested ?? false })
+            } catch {
+                // **停止要求で待つのをやめた場合は「失敗」ではなく準備中キャンセル。**
+                // ここを通さないと cancelledBeforeRecording が立たず、CLI が exit 1 にする
+                // (準備中の停止は exit 0 が契約 — DESIGN.md §6)。他の準備中キャンセル
+                // (権限待ち・対象解決) と同じ経路に合流させる
+                try checkCancelledDuringPreparation()
+                // 停止要求ではない = 本当に待っても空かなかった。こちらは失敗
+                throw error
+            }
             // 収録対象を先に解決する — HDR 可否は「実際にどの画面に写るか」で決まるので、
             // ウィンドウ収録では --display ではなくそのウィンドウが載っている画面を見る。
             // 複数ウィンドウ (issue #13) はディスプレイ座標系へ合成するので、

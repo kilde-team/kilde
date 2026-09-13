@@ -163,12 +163,22 @@ final class SCKStartupLockTests: XCTestCase {
         defer { SCKStartupLock.fileURL = saved }
         SCKStartupLock.fileURL = SCKStartupLock.defaultFileURL
 
+        // **元の環境を復元する。** 落としたままにすると、KILDE_CONFIG_DIR が
+        // 設定された環境 (CI やラッパー) では同プロセス内の後続テストから消える
+        let savedConfigDir = ProcessInfo.processInfo.environment["KILDE_CONFIG_DIR"]
+        defer {
+            if let savedConfigDir {
+                setenv("KILDE_CONFIG_DIR", savedConfigDir, 1)
+            } else {
+                unsetenv("KILDE_CONFIG_DIR")
+            }
+        }
+
         let before = SCKStartupLock.defaultFileURL
         setenv("KILDE_CONFIG_DIR", "/tmp/kilde-config-dir-a", 1)
         let withA = SCKStartupLock.defaultFileURL
         setenv("KILDE_CONFIG_DIR", "/tmp/kilde-config-dir-b", 1)
         let withB = SCKStartupLock.defaultFileURL
-        unsetenv("KILDE_CONFIG_DIR")
 
         XCTAssertEqual(before, withA, "KILDE_CONFIG_DIR を変えてもロックの場所は変わらない")
         XCTAssertEqual(withA, withB, "別の KILDE_CONFIG_DIR でも同じ場所を指す")
