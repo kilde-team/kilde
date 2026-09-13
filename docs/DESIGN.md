@@ -341,7 +341,11 @@ kilde config [show|set|unset|path]        設定ファイル ~/.kilde/config.jso
   SCK の API を呼ばないので**ハングしえない**
 - ファイナライズ後に遅れて届くサンプルは `MovieWriter` の
   `guard input.isReadyForMoreMediaData` が弾く (`markAsFinished()` 直後に
-  false になることを実測で確認)。**例外は飛ばず `Dropped` に計上される**
+  false になることを実測で確認)。**例外は飛ばない。**
+  ただし実際には `suspendDelivery()` を先に済ませてあるため、
+  `ScreenAudioStream` の `stopped` ゲートが `MovieWriter` へ渡す前に捨てており、
+  **`Dropped` にも計上されない** (計上したいなら `ScreenAudioStream` 側に
+  カウンタが要る)。writer 側の guard はその取りこぼしに対する二重の備え
 - 実測: 旧順序ではハングした 9 プロセスすべてが未完了ファイルを残したが、
   新順序では**ハングした 10 プロセスすべてが再生可能なファイルを残した**。
   40 組の受け入れ確認でも出力 80/80 が再生可能

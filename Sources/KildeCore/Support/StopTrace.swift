@@ -19,19 +19,51 @@ public enum StopTrace {
 
     /// 有効かどうかは 1 度だけ決める。コールバック経路 (handleAudio) からも
     /// 呼ばれるため、毎回 environment を引くと録画中のホットパスに辞書引きが乗る
-    public static let isEnabled: Bool = {
-        let on = ProcessInfo.processInfo.environment["KILDE_TRACE_STOP"] == "1"
-        // **SIGPIPE を無視する (cubic の指摘)。** 下で生の `write(2)` を使うため、
-        // stderr が**読み手の消えた pipe** (`kilde rec … 2>&1 | head` など) だと
-        // SIGPIPE が飛び、既定の処理は**プロセス終了**。`mark()` はサンプルごとに
-        // 呼ばれるので、録画中にファイナライズを飛ばして死ぬ — このファイル自身が
-        // 掲げる「診断コードがプロダクトをクラッシュさせない」原則と、
-        // 「Ctrl+C でも必ずファイナライズ」(DESIGN.md §5) の両方に反する。
-        //
-        // 旧実装の `FileHandle.standardError.write` は Foundation が SIGPIPE を
-        // 無視する前提に乗っていた。`FileHandle` をやめた以上、自分で無視する
-        if on { signal(SIGPIPE, SIG_IGN) }
-        return on
+    public static let isEnabled: Bool = { descriptor >= 0 }()
+
+    /// 診断専用の出力先。**`/dev/stderr` を開き直し、`F_SETNOSIGPIPE` だけを立てた fd**。
+    ///
+    /// ここに辿り着くまでに 3 つ外したので、**実測した事実**を残す
+    /// (macOS 26 / Apple Silicon で `fcntl` の戻り値を直接確認):
+    ///
+    /// 1. **`signal(SIGPIPE, SIG_IGN)` は使えない。** プロセス全体のシグナル処理を
+    ///    書き換えてしまう。`KildeCore` はライブラリで、GUI や将来の埋め込み先の
+    ///    シグナル状態を勝手に触ってよい立場にない (cubic の指摘)
+    /// 2. **`O_NONBLOCK` は使えない。** `dup` でも `/dev/stderr` の開き直しでも、
+    ///    **開いたファイル記述は fd 2 と共有される** — 実測で再オープンした fd と
+    ///    元の stderr が**どちらも `flags=0xd`** になった。つまり非ブロッキングを
+    ///    立てると**プロセスの stderr そのもの**が非ブロッキングになり、
+    ///    `FileHandle.standardError.write` が `EAGAIN` で ObjC 例外を投げて
+    ///    **録画が 0 バイトで壊れる** (実際に壊した)
+    /// 3. **`O_NONBLOCK` は SIGPIPE を抑えない。** 読み手が消えた pipe では
+    ///    フラグに関係なく SIGPIPE が飛ぶ。fd 単位の抑止は **`F_SETNOSIGPIPE`**
+    ///
+    /// 残った手は `F_SETNOSIGPIPE`。実測: 読み手を閉じた pipe への `write` が
+    /// SIGPIPE を飛ばさず `EPIPE` (errno 32) を返した。
+    ///
+    /// **これも記述を共有するので、元の stderr にも及ぶ** — 実測で診断 fd を開いた後、
+    /// 元 stderr の `F_GETNOSIGPIPE` が 0 から 1 に変わった。ただし影響の向きは
+    /// **安全側**で (SIGPIPE で落ちにくくなるだけ)、`O_NONBLOCK` のように
+    /// `write` が `EAGAIN` で失敗して ObjC 例外を投げる類の害は無い。
+    /// **診断が有効なときだけ**の変化であり、既定では `open` 自体を行わない。
+    ///
+    /// **満杯の pipe でブロックしうることは解消できていない。** 非ブロッキングにする
+    /// 手段が上記 2 の理由で使えないため。診断を有効にするときは
+    /// **stderr をファイルへ向けるか、読み続けられる先へ繋ぐこと** — 詰まると
+    /// SCK のコールバックが止まり、`suspendDelivery()` の完了待ちごと
+    /// ファイナライズが止まる (CodeRabbit の指摘。issue #95 が直している症状そのもの)。
+    ///
+    /// 開き直しに失敗したら診断を諦める (`-1` = 無効)
+    private static let descriptor: Int32 = {
+        guard ProcessInfo.processInfo.environment["KILDE_TRACE_STOP"] == "1" else { return -1 }
+        // **`O_NONBLOCK` を立てない** (上記 2)。記述を共有するので元の stderr を壊す
+        let fd = open("/dev/stderr", O_WRONLY | O_APPEND)
+        guard fd >= 0 else { return -1 }
+        // **SIGPIPE はこの fd でだけ抑止する** (上記 3)。失敗しても診断は続ける —
+        // その場合 `2>&1 | head` のような使い方で死にうるが、既定では無効なので
+        // 通常の録画には影響しない
+        _ = fcntl(fd, F_SETNOSIGPIPE, 1)
+        return fd
     }()
 
     /// 最初の `mark()` を基準にした相対秒。`Date` ではなく単調時計を使う。
@@ -64,27 +96,21 @@ public enum StopTrace {
         // 複数のキュー (SCK の outQueue / マイクの queue / セッション Task) から
         // 同時に呼ばれるので、行が混ざらないよう直列化する。
         //
-        // **`write(2)` を直接使い、FileHandle を使わない (cubic の指摘)。**
-        // `handleAudio` はサンプルごとに呼ばれる (実測 3 秒で約 160 回)。stderr が
-        // **誰も読んでいない pipe** だと、満杯になった時点で書き込みがブロックし、
-        // **キャプチャのコールバックがそこで止まる**。すると `suspendDelivery()` が
-        // その完了を待ち続け、**ファイナライズまで止まる** — 診断コードが
-        // issue #95 で直そうとしている症状そのものを作ってしまう。
+        // **書き込み先はブロッキングな fd** (`descriptor` の doc 参照 —
+        // `O_NONBLOCK` は記述を共有するせいで使えず、立てると元の stderr まで
+        // 非ブロッキングになって録画を壊す)。したがって **`EAGAIN` は起きない**。
         //
-        // 戻り値は捨てる (部分書き込みで診断の 1 行が欠けても、録画を止めるよりは軽い)。
-        // `FileHandle.write` は失敗時に ObjC 例外を投げる (Swift では捕まえられず落ちる)
-        // という別の問題もあり、そちらも同時に避けられる。
+        // `handleAudio` はサンプルごとに呼ばれるため、**stderr が詰まればここで
+        // ブロックし、SCK のコールバックごとファイナライズが止まる** — 診断を
+        // 有効にするときは stderr をファイルへ向けること。読み手が消えた場合だけは
+        // `F_SETNOSIGPIPE` により `EPIPE` が返るので、死なずに 1 行落とすだけで済む。
         //
-        // **満杯の pipe でブロックすること自体は避けられない (cubic の指摘)。**
-        // ブロッキング fd では戻り値を捨ててもブロックし続ける (部分書き込みが起きるのは
-        // 実質 EINTR のとき)。**誰も読まない pipe へ大量に出せば、ここで止まる** —
-        // その場合キャプチャのコールバックが止まり、`suspendDelivery()` がその完了を
-        // 待ってファイナライズまで止まる。診断を有効にするときは
-        // **stderr をファイルへ向けるか、読み続けられる先へ繋ぐこと**
+        // `FileHandle.write` を使わないのは、失敗時に ObjC 例外を投げるため
+        // (Swift では捕まえられず落ちる)
         lock.lock()
         let bytes = Array(line.utf8)
         _ = bytes.withUnsafeBufferPointer { buffer in
-            write(STDERR_FILENO, buffer.baseAddress, buffer.count)
+            write(descriptor, buffer.baseAddress, buffer.count)
         }
         lock.unlock()
     }
