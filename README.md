@@ -56,7 +56,9 @@ supports macOS 14+; users on older OSes should use the release binaries.
 
 ### Build from source
 
-Building from source requires Swift Package Manager.
+Building from source requires Swift Package Manager and a toolchain
+with the macOS 26 SDK (Xcode 26 or later; pre-26 SDKs fail to compile —
+see the note under Homebrew above).
 
 ```sh
 git clone https://github.com/takezou621/kilde.git

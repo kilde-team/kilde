@@ -51,7 +51,9 @@ HEAD ビルドには macOS 26 SDK を持つツールチェーン (Xcode 26 以�
 
 ### ソースからビルド
 
-ソースからのビルドには Swift Package Manager が必要です。
+ソースからのビルドには Swift Package Manager と、macOS 26 SDK を持つ
+ツールチェーン (Xcode 26 以降) が必要です (26 未満の SDK ではコンパイルできません —
+上の Homebrew の注記を参照)。
 
 ```sh
 git clone https://github.com/takezou621/kilde.git
