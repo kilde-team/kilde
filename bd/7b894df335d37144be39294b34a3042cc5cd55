@@ -1,0 +1,37 @@
+Sources/KildeCore/Recording/Recorder.swift
+  s_35faeec28b4c4b::t_80d24a5bf6e7ba 735-737
+  s_35faeec28b4c4b::t_d0497919b6572c 720-723
+  s_35faeec28b4c4b::t_dfb67d1964013b 1201,1204-1205
+  s_35faeec28b4c4b::t_6d2e8d16322999 734
+  s_35faeec28b4c4b::t_41976f75d06625 745-754
+  s_35faeec28b4c4b::t_14c6df711c95a5 693-703
+  s_35faeec28b4c4b::t_c75b293a5e8ab3 708-719
+  s_35faeec28b4c4b::t_4e6bf3dbcf57b1 688-692
+  s_35faeec28b4c4b::t_a9b589e2cab72d 1221-1223,1229-1231
+  s_35faeec28b4c4b::t_b9f9b565e363c2 742-744,755-756
+Sources/KildeCore/Capture/ScreenAudioStream.swift
+  s_35faeec28b4c4b::t_9aa7e3e11b5dbe 57-63
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_4fecda225d3430 1085-1098
+Sources/KildeCore/Support/StopTrace.swift
+  s_35faeec28b4c4b::t_60347361f21416 65-73,75,86-88
+  s_35faeec28b4c4b::t_b5971702ef71da 85
+  s_35faeec28b4c4b::t_4e40601810c791 74,76-83
+  s_35faeec28b4c4b::t_1b0dae8d833e5a 23-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "bd7b894df335d37144be39294b34a3042cc5cd55",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
