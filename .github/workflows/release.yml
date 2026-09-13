@@ -89,6 +89,7 @@ jobs:
           CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
           API_KEY: ${{ secrets.AC_API_KEY }}
           API_KEY_ID: ${{ secrets.AC_API_KEY_ID }}
+          API_ISSUER: ${{ secrets.AC_API_ISSUER }}
         run: |
           # 証明書だけ設定して他が欠けている「部分的な設定」は、黙って未署名リリースに
           # 落ちるのではなくジョブを失敗させる — 設定ミスに気付けないため。
@@ -102,11 +103,12 @@ jobs:
           [ -n "$IDENTITY" ] && SET_COUNT=$((SET_COUNT+1))
           [ -n "$API_KEY" ] && SET_COUNT=$((SET_COUNT+1))
           [ -n "$API_KEY_ID" ] && SET_COUNT=$((SET_COUNT+1))
+          [ -n "$API_ISSUER" ] && SET_COUNT=$((SET_COUNT+1))
           if [ "$SET_COUNT" -eq 0 ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if [ "$SET_COUNT" -ne 5 ]; then
+          if [ "$SET_COUNT" -ne 6 ]; then
             echo "署名用 secrets が部分的にしか設定されていません (RELEASE.md §4 の 6 つを確認。全部揃えるか全部外すかしてください)"
             exit 1
           fi
@@ -116,7 +118,9 @@ jobs:
           # trap EXIT を置くと sign step の前に消えてしまう。この step の失敗時のみ
           # p12 を消し、キーチェーンは always() の cleanup step に任せる
           KEYCHAIN="build-$(uuidgen).keychain-db"
-          trap 'rm -f cert.p12' EXIT
+          # この step が失敗したときだけキーチェーンごと消す (成功時は sign step が
+          # 使うので cleanup step に任せる)。p12 は常に消す
+          trap 'rm -f cert.p12; [ "$?" -ne 0 ] && security delete-keychain "$KEYCHAIN" 2>/dev/null || true' EXIT
           PASSWORD="$(uuidgen)"
           echo "keychain=$KEYCHAIN" >> "$GITHUB_OUTPUT"
           echo -n "$MACOS_CERTIFICATE" | base64 --decode -o cert.p12
@@ -129,7 +133,7 @@ jobs:
           # 失敗しても codesign が触れるかは次の find-identity で検査する
           security set-key-partition-list -S apple-tool:,apple: \
             -k "$PASSWORD" "$KEYCHAIN" || true
-          security find-identity -v -p codesign "$KEYCHAIN"
+          security find-identity -v -p codesigning "$KEYCHAIN"
           rm cert.p12
           echo "skip=false" >> "$GITHUB_OUTPUT"
 
@@ -142,6 +146,8 @@ jobs:
           AC_API_ISSUER: ${{ secrets.AC_API_ISSUER }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
+          # notarization の鍵ファイルはどの経路で抜けても消す
+          trap 'rm -rf "$HOME/.signing"' EXIT
           if [ -n "$DEVELOPER_ID_APPLICATION" ] && [ -n "$AC_API_KEY" ] \
               && [ "${{ steps.cert.outputs.skip }}" = "false" ]; then
             echo "signed=true" >> "$GITHUB_OUTPUT"
