@@ -84,8 +84,8 @@ jobs:
       - name: Import signing certificate (when credentials exist)
         id: cert
         env:
-          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
-          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_CERTIFICATE: ${{ secrets.DEVELOPER_ID_CERTIFICATE_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
         run: |
           if [ -z "$MACOS_CERTIFICATE" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -118,7 +118,9 @@ jobs:
               && [ "${{ steps.cert.outputs.skip }}" = "false" ]; then
             echo "signed=true" >> "$GITHUB_OUTPUT"
             mkdir -p "$HOME/.signing"
-            # AC_API_KEY は .p8 の内容 (base64 または生) を想定。ファイルにして渡す
+            # AC_API_KEY は .p8 ファイルの内容 (生)。sign.sh はファイルパスを
+            # 受け取るので、権限 600 の一時ファイルに書いて渡す
+            umask 077
             printf '%s\n' "$AC_API_KEY" > "$HOME/.signing/AuthKey.p8"
             scripts/release/sign.sh \
               --identity "$DEVELOPER_ID_APPLICATION" \
@@ -127,15 +129,19 @@ jobs:
               --version "$VERSION"
             rm -rf "$HOME/.signing"
           else
-            # 証明書が未取得: unsigned zip でリリースし、利用者に伝える
+            # 証明書が未取得: unsigned zip でリリースし、利用者に伝える。
+            # 成果物名は sign.sh と同じ kilde-<ver>-macos.zip に揃える — Homebrew
+            # formula (#24) の url がこの名前を指す想定のため
             echo "signed=false" >> "$GITHUB_OUTPUT"
             mkdir -p dist
             ditto -c -k --sequesterRsrc --keepParent \
-              .build/release/kilde "dist/kilde-${{ steps.version.outputs.version }}-macos-arm64.zip"
+              .build/release/kilde "dist/kilde-$VERSION-macos.zip"
           fi
 
+      # Release の作成はタグ起動時のみ。手動実行 (workflow_dispatch) は dry-run 固定 —
+      # タグが無いと Info.plist 由来の現在値で v タグを作りかねないため
       - name: Create GitHub Release and upload artifacts
-        if: ${{ !inputs.dry-run }}
+        if: startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
           SIGNED: ${{ steps.sign.outputs.signed }}
@@ -165,7 +171,12 @@ jobs:
             echo "### Homebrew"
             echo "tap は今後のリリースで提供予定です。それまでは上記の手動インストールか \`--HEAD\` ビルドを利用してください。"
           } > "$NOTES"
-          gh release create "$TAG" "$ARTIFACT" \
+          # 署名ブランチでは sign.sh が GUI の DMG も作るので、存在すれば一緒に添付する
+          ARGS=("$ARTIFACT")
+          [ "$SIGNED" = "true" ] && for extra in dist/KildeGUI-*.dmg; do
+            [ -e "$extra" ] && ARGS+=("$extra")
+          done
+          gh release create "$TAG" "${ARGS[@]}" \
             --title "kilde $VERSION" \
             --notes-file "$NOTES" \
             --latest
