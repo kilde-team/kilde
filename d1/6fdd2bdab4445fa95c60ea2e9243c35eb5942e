@@ -1,0 +1,21 @@
+README.md
+  s_ce33c373535d70::t_67dc60ce519b11 323-337
+README.ja.md
+  s_ce33c373535d70::t_68cdc7c66ea094 193-205
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d16fdd2bdab4445fa95c60ea2e9243c35eb5942e",
+  "prompts": {},
+  "sessions": {
+    "s_ce33c373535d70": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ad18148a-fb26-4d6b-bc06-dde37576db2e",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
