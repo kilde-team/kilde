@@ -86,28 +86,37 @@ jobs:
           MACOS_CERTIFICATE: ${{ secrets.DEVELOPER_ID_CERTIFICATE_BASE64 }}
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
           IDENTITY: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+          CERT_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
           API_KEY: ${{ secrets.AC_API_KEY }}
+          API_KEY_ID: ${{ secrets.AC_API_KEY_ID }}
         run: |
           # 証明書だけ設定して他が欠けている「部分的な設定」は、黙って未署名リリースに
           # 落ちるのではなくジョブを失敗させる — 設定ミスに気付けないため。
           # secrets は env 経由で読む (${{ }} の直接展開はしない)
+          # §4 の 6 secret のうち、workflow が直接読む 5 つで判定する
+          # (DEVELOPER_ID_CERTIFICATE_PASSWORD は sign.sh の中でだけ要るが、
+          #  設定漏れはここで弾きたいので env に足して数に含める)
           SET_COUNT=0
           [ -n "$MACOS_CERTIFICATE" ] && SET_COUNT=$((SET_COUNT+1))
+          [ -n "$CERT_PASSWORD" ] && SET_COUNT=$((SET_COUNT+1))
           [ -n "$IDENTITY" ] && SET_COUNT=$((SET_COUNT+1))
           [ -n "$API_KEY" ] && SET_COUNT=$((SET_COUNT+1))
+          [ -n "$API_KEY_ID" ] && SET_COUNT=$((SET_COUNT+1))
           if [ "$SET_COUNT" -eq 0 ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if [ "$SET_COUNT" -ne 3 ]; then
-            echo "署名用 secrets が部分的にしか設定されていません (RELEASE.md §4 の 6 つのうち証明書系 3 つを確認)。全部揃えるか全部外すかしてください"
+          if [ "$SET_COUNT" -ne 5 ]; then
+            echo "署名用 secrets が部分的にしか設定されていません (RELEASE.md §4 の 6 つを確認。全部揃えるか全部外すかしてください)"
             exit 1
           fi
           # Developer ID 証明書 (p12, base64) を一時キーチェーンに import する。
           # sign.sh の security find-identity はこのキーチェーンを見る。
-          # import の途中で失敗しても p12 とキーチェーンを残さないよう、最初に trap を置く
+          # 成功時のキーチェーンは sign step の後の cleanup step で消す — ここで
+          # trap EXIT を置くと sign step の前に消えてしまう。この step の失敗時のみ
+          # p12 を消し、キーチェーンは always() の cleanup step に任せる
           KEYCHAIN="build-$(uuidgen).keychain-db"
-          trap 'security delete-keychain "$KEYCHAIN" 2>/dev/null || true; rm -f cert.p12' EXIT
+          trap 'rm -f cert.p12' EXIT
           PASSWORD="$(uuidgen)"
           echo "keychain=$KEYCHAIN" >> "$GITHUB_OUTPUT"
           echo -n "$MACOS_CERTIFICATE" | base64 --decode -o cert.p12
@@ -207,7 +216,12 @@ jobs:
           [ "$SIGNED" = "true" ] && for extra in dist/KildeGUI-*.dmg; do
             [ -e "$extra" ] && ARGS+=("$extra")
           done
-          gh release create "$TAG" "${ARGS[@]}" \
-            --title "kilde $VERSION" \
-            --notes-file "$NOTES" \
-            --latest
+          # 同じタグで再実行した場合、既存 Release の資産を差し替える (作り直しはしない)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${ARGS[@]}" --clobber
+          else
+            gh release create "$TAG" "${ARGS[@]}" \
+              --title "kilde $VERSION" \
+              --notes-file "$NOTES" \
+              --latest
+          fi
