@@ -48,8 +48,10 @@ To build the latest `main` branch from source through Homebrew, add `--HEAD`:
 brew install --HEAD takezou621/kilde/kilde
 ```
 
-The HEAD build requires Xcode 15.3 or later (the manifest needs a Swift
-5.10 toolchain; Xcode 15.0–15.2 ship Swift 5.9 and cannot build it).
+The HEAD build requires the Xcode 26 SDK or later — the code references
+`captureHDRRecordingPreservedSDRHDR10` (macOS 26 API), which older SDKs
+lack, so Xcode 15.x toolchains fail with `has no member`. Runtime still
+supports macOS 14+; users on older OSes should use the release binaries.
 
 ### Build from source
 

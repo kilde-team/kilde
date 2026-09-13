@@ -15,7 +15,7 @@
 | S4 | マルチ出力デバイス | ✅ | `stacked` フラグ必須。作成/既定切替/復元/削除 + BlackHole ループバック録音 (RMS 0.088) まで動作 |
 | S5 | シグナル処理 | ✅ | SIGINT → graceful finalize、有効なファイル、exit 0 |
 | S6 | 権限の実挙動 | ✅* | 権限は事前付与済みだったため画面・マイクとも SCK/AVCapture が正常動作。未許可時のエラーの形は未観察 |
-| S7 | 環境差異 | ⚠️ | macOS 26 のみ実挙動を検証。**旧 SDK (macOS 15 / Xcode 15.x) ではソースビルド不可** — #76 の設計判断 (`captureHDRRecordingPreservedSDRHDR10` 参照のため Xcode 26 SDK 必須) の帰結として、macos-15 ランナーでの `swift build` が `has no member` で失敗することを実測確認 (2026-09-13、PR #94)。旧 OS ユーザーはリリースバイナリ (#25 の workflow、実行は macOS 14+ のまま) を使う。実挙動 (統合テスト T5〜T8) は引き続き実機検証が残る |
+| S7 | 環境差異 | ⚠️ | macOS 26 のみ実挙動を検証。**旧 SDK (macOS 15 SDK — macos-15 ランナーの既定 Xcode 16.4) ではソースビルド不可** — #76 の設計判断 (`captureHDRRecordingPreservedSDRHDR10` 参照のため Xcode 26 SDK 必須) の帰結として、macos-15 ランナーでの `swift build` が `has no member` で失敗することを実測確認 (2026-09-13、PR #94)。旧 OS ユーザーはリリースバイナリ (#25 の workflow、実行は macOS 14+ のまま) を使う。実挙動 (統合テスト T5〜T8) は引き続き実機検証が残る |
 | S8 | SCK 音声のみ | ✅ **設計変更** | `.audio` 出力のみ登録で音声のみ取得可 → **録音モードに BlackHole 不要** |
 | S9 | ウィンドウ音声スコープ | ✅ **設計変更** | 対象ウィンドウの音は入り (RMS 0.057)、他アプリの音は完全除外 (RMS 0.0000)。S8 との組み合わせ (特定アプリの音声のみ録音) も成功 |
 | S10 | 会議アプリ実地 | ✅* | Google Meet (Chrome) で実測 (2026-09-12)。`--preset meeting` がウィンドウ選択から system+mic ミックス録画まで正常動作。Zoom / Teams は追加検証歓迎 (注記参照) |

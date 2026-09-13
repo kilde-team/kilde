@@ -21,7 +21,7 @@ brew install takezou621/kilde/kilde
 ## HEAD 版
 
 最新の `main` ブランチをソースからビルドする場合は `--HEAD` を指定します。
-Xcode 15.3 以降が必要です (swift-tools-version 5.10 のマニフェストを解釈できるのは Swift 5.10 ツールチェーンを含む 15.3 以降のため)。
+Xcode 26 SDK 以降が必要です (macOS 26 の `captureHDRRecordingPreservedSDRHDR10` を参照するため、旧 SDK ではビルドできません。実行は macOS 14+ に対応します)。
 
 ```sh
 brew install --HEAD takezou621/kilde/kilde

@@ -44,8 +44,9 @@ Homebrew で最新の `main` ブランチをソースからビルドする場合
 brew install --HEAD takezou621/kilde/kilde
 ```
 
-HEAD ビルドには Xcode 15.3 以降が必要です (マニフェストが Swift 5.10
-ツールチェーンを要求するため。Xcode 15.0〜15.2 は Swift 5.9 でビルドできません)。
+HEAD ビルドには Xcode 26 SDK 以降が必要です — `captureHDRRecordingPreservedSDRHDR10`
+(macOS 26 の API) を参照するため旧 SDK では `has no member` で失敗します。
+実行は引き続き macOS 14+ に対応します。旧 OS ユーザーはリリースバイナリを使ってください。
 
 ### ソースからビルド
 
