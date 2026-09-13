@@ -155,8 +155,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SIGNED: ${{ steps.sign.outputs.signed }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
           TAG="v$VERSION"
           # 成果物の zip は実ファイルから取る (ブランチで名前が変わるため。
           # 現在はどちらも kilde-<ver>-macos.zip)
