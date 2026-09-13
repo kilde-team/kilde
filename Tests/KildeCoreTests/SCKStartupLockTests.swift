@@ -171,6 +171,39 @@ final class SCKStartupLockTests: XCTestCase {
         }
     }
 
+    /// **取得できた瞬間にキャンセル済みなら、握らずに中止する。**
+    /// 取得と停止要求が競合したとき、トークンを返してしまうと呼び出し元が
+    /// `SCShareableContent` の列挙や `startCapture()` へ進み、Ctrl+C / Stop への
+    /// 応答が遅れる。**ロックを握ったまま放置しないこと**も要件。
+    ///
+    /// 待機側の最初の `isCancelled()` を false にしてから true に切り替え、その間に
+    /// 保持者を解放することで「待機 → 取得できた、しかしキャンセル済み」を作る
+    func testAcquireReleasesAndFailsWhenCancelledAtAcquisition() async throws {
+        let holder = try acquiredToken()
+        var polls = 0
+        var released = false
+        do {
+            _ = try await SCKStartupLock.acquire(timeout: 10, isCancelled: {
+                polls += 1
+                // 1 回目は「まだキャンセルされていない」。この後に保持者を解放するので、
+                // 次の周回で取得が成功し、そのときにはキャンセル済みになっている
+                if polls == 1 {
+                    holder.release()
+                    released = true
+                    return false
+                }
+                return true
+            })
+            XCTFail("取得時にキャンセル済みなら中止するはず")
+        } catch {
+            XCTAssertTrue("\(error)".contains("待機を中止"), "\(error)")
+        }
+        XCTAssertTrue(released, "保持者を解放していないと、この経路を通っていない")
+        // **握ったままにしない** — 中止したのにロックが残ると、以後の録画が開始できない
+        let after = try acquiredToken("中止時にロックを解放していないと取得できない")
+        after.release()
+    }
+
     /// **構造化キャンセルでも抜ける。** `try? await Task.sleep` はキャンセル例外を
     /// 握り潰すので、`Task.isCancelled` を見ないと busy-spin が期限まで続く
     /// (`Recorder.awaitOrStop` が同じ罠を避けているのと同じ理由)

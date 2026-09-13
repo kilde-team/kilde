@@ -87,7 +87,7 @@ public enum SCKStartupLock {
 
     static var defaultFileURL: URL {
         URL(fileURLWithPath: userTemporaryDirectory, isDirectory: true)
-            .appendingPathComponent("kilde-sck-startup.lock")
+            .appendingPathComponent(lockFileName)
     }
 
     /// ユーザー単位の一時ディレクトリ。**`NSTemporaryDirectory()` は使わない** —
@@ -103,11 +103,20 @@ public enum SCKStartupLock {
         var buf = [CChar](repeating: 0, count: Int(PATH_MAX))
         let n = confstr(_CS_DARWIN_USER_TEMP_DIR, &buf, buf.count)
         guard n > 0, n <= buf.count else {
-            // confstr が使えない環境 (サンドボックス等) では NSTemporaryDirectory に落ちる。
-            // 排他が弱まる可能性はあるが、ロックを置けずに素通りするよりはよい
-            return NSTemporaryDirectory()
+            // **`NSTemporaryDirectory()` へは落とさない。** あれは `$TMPDIR` を見るので、
+            // フォールバックが「環境変数に依存しない」という要件を自分で破ってしまう
+            // (2 プロセスが別々のロックを取り、防ぎたい二重起動が再発する)。
+            // 代わりに uid で固定したパスを使う — 環境変数の影響を受けず、
+            // ユーザー単位で共有される
+            return "/tmp"
         }
         return String(cString: buf)
+    }
+
+    /// フォールバック時のファイル名に uid を混ぜる (`/tmp` は全ユーザー共有なので、
+    /// 混ぜないと他ユーザーのロックと衝突して互いの録画を止め合う)
+    private static var lockFileName: String {
+        "kilde-sck-startup-\(getuid()).lock"
     }
 
     /// ロックを取る。取れるまで待ち、`timeout` を超えたら諦めて throw する。
@@ -118,15 +127,24 @@ public enum SCKStartupLock {
     /// さらに待機中は停止要求を観測できないので Ctrl+C への応答が遅れる。
     /// `isCancelled` を渡せば、待っている間も停止要求で抜けられる
     public static func acquire(timeout: TimeInterval = 15,
-                               isCancelled: @escaping () -> Bool = { false },
-                               now: @escaping () -> Date = Date.init) async throws -> Token {
-        let deadline = now().addingTimeInterval(timeout)
+                               isCancelled: @escaping () -> Bool = { false }) async throws -> Token {
+        // **単調時計で測る。** `Date` だとシステム時刻が後戻りしたときに期限も後戻りし、
+        // ハングした保持者を相手に上限を超えて待ち続ける
+        let deadline = DispatchTime.now() + .milliseconds(Int(timeout * 1000))
         // `Task.isCancelled` も見る — 見ないと、構造化キャンセルされたときに
         // `try?` が sleep のキャンセル例外を握り潰し、open + flock を無遅延で回す
         // busy-spin が期限まで続く (`Recorder.awaitOrStop` が同じ罠を避けているのと同じ)
         while !Task.isCancelled {
             switch tryAcquire() {
             case .acquired(let token):
+                // **取れた直後にもキャンセルを見る。** 取得と停止要求が競合すると、
+                // キャンセル済みなのにトークンを返して `SCShareableContent` の列挙や
+                // `startCapture()` へ進んでしまい、Ctrl+C / Stop への応答が遅れる。
+                // 握ったままにしないよう解放してから中止する
+                if Task.isCancelled || isCancelled() {
+                    token.release()
+                    throw KilError.failed("ロックの待機を中止しました")
+                }
                 return token
             case .unavailable(let errorNumber):
                 // **待っても解決しない失敗を待たない。** 一時ディレクトリが書けない等を
@@ -144,7 +162,7 @@ public enum SCKStartupLock {
                 // ここで cancelledBeforeRecording を立てないと exit 1 になる
                 throw KilError.failed("ロックの待機を中止しました")
             }
-            if now() >= deadline {
+            if DispatchTime.now() >= deadline {
                 throw KilError.failed(
                     "他の kilde が録画の準備中のため開始できません "
                     + "(同時に SCK のキャプチャを開始するとどちらも復帰しないため待機しましたが、"

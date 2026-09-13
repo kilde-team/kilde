@@ -917,24 +917,31 @@ while [ "$(date +%s)" -lt "$T18B_DEADLINE" ] \
 done
 for pid in $T18B_PID1 $T18B_PID2; do
     if kill -0 $pid 2>/dev/null; then
-        kill -TERM $pid 2>/dev/null
-        sleep 1
-        kill -0 $pid 2>/dev/null && kill -KILL $pid 2>/dev/null
+        # **SIGTERM を挟まず直接 SIGKILL する。** 期限まで終わらなかった時点で異常だが、
+        # TERM を送ると「準備中の停止は exit 0」の契約 (DESIGN.md §6) に沿って
+        # graceful に 0 で終わりうる — つまり**ハングしたのに exit 0 になり、
+        # 下の判定がすり抜ける**。KILL なら 137 で残るので回帰を捕まえられる
+        kill -KILL $pid 2>/dev/null
     fi
 done
 wait $T18B_PID1 2>/dev/null; T18B_EXIT1=$?
 wait $T18B_PID2 2>/dev/null; T18B_EXIT2=$?
-# 検証は 2 本立て:
+# 検証は 3 本立て:
 #   (1) 予約の取り合いで「先に確保した名前のファイルが他方に削除されない」こと (issue #59)
-#   (2) **両プロセスが exit 0 で完了すること** (issue #70) — 固まれば上のタイムアウトで
-#       KILL され exit が 0 以外になるので、ここが同時起動ハングの回帰を捕まえる門になる
+#   (2) **両プロセスが exit 0 で完了すること** (issue #70) — 期限超過なら上で KILL され
+#       137 になるので、ここが同時起動ハングの回帰を捕まえる門になる
+#   (3) **両方のファイルが非空であること** — exit だけ見ると、録画が成立していなくても
+#       通る形が残る (issue #95 の残存ハングは片方が完走・片方が停止する形なので、
+#       ファイルの中身まで見ないと「片方だけ録れた」を見逃す)
 T18B_NAMES=$(ls "$T18B_DIR" 2>/dev/null | wc -l | tr -d ' ')
 if [ "$T18B_EXIT1" = "0" ] && [ "$T18B_EXIT2" = "0" ]; then
     T18B_EXIT_OK=1
 else
     T18B_EXIT_OK=0
 fi
-if [ "$T18B_NAMES" = "2" ] && [ "$T18B_EXIT_OK" = "1" ]; then
+# 1KB 未満は「開いただけで中身が無い」とみなす (正常な 2〜3 秒の録音は数 KB になる)
+T18B_EMPTY=$(find "$T18B_DIR" -name '*.m4a' -size -1k 2>/dev/null | wc -l | tr -d ' ')
+if [ "$T18B_NAMES" = "2" ] && [ "$T18B_EXIT_OK" = "1" ] && [ "$T18B_EMPTY" = "0" ]; then
     # 両者のタイムスタンプが同じ秒なら、片方が必ず -2 に退避しているはず。異なる秒に
     # 落ちた場合は起動の揺らぎで、名前の衝突自体が起きていない (同一秒の決定的検証は T18 が担う)
     T18B_SAME=$(cd "$T18B_DIR" && ls | sed -E 's/kilde-([0-9]{8}-[0-9]{6})(-2)?\..*/\1/' | sort -u | wc -l | tr -d ' ')
