@@ -1,0 +1,19 @@
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_89329834c46b40 1461-1462,1464-1471,1476
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "8996ac420884ba5140f1bbed76201c8805f7dd13",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
