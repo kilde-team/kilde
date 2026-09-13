@@ -1151,7 +1151,8 @@ public final class Recorder {
         // 既定 (CLI) は待たずに失敗を報告し、次の録画を受け付ける側だけが待つ。
         //
         // **この呼び出しが「成功した」ことを前提にした処理を後ろに足さないこと。**
-        // `stopCapture()` は内部で `try?` しており、失敗しても黙って返る
+        // `stopCapture()` は**投げずに `Error?` を返す** (issue #107)。失敗しても
+        // 制御は戻るので、後続の処理は「停止できた」前提で書かないこと。
         // 新順序は `stopCapture()` をファイナライズの後ろへ回すので、素直に書くと
         // **途中で throw したときに素通りしてしまう** — 旧順序は検証より前に
         // `sck.stop()` を呼んでいたので必ず通っていた。これは新順序が持ち込む巻き戻り。
@@ -1165,8 +1166,27 @@ public final class Recorder {
         // `stopCapture()` は投げず冪等なので、二重に呼んでも害はない
         func notifyReplaydStopIfNeeded() async {
             guard !usesLegacyStopOrder else { return }   // 旧順序は stop() の中で呼び済み
-            await sck?.stopCapture()
+            let failure = await sck?.stopCapture()
             StopTrace.mark("stopCapture から戻った (ファイナライズ後)")
+            // **停止に失敗したことを握り潰さない (issue #107)。**
+            //
+            // ここまで来ていれば**ファイルは完成済み**なので録画自体は成功で、
+            // 失敗扱いにはしない。だが replayd 側ではキャプチャが走り続けている
+            // 可能性があり、**画面収録インジケータが点いたまま**になったり、
+            // 次の録画の `startCapture()` と重なったりする (#70 / #95 が実測した
+            // 楔付けの条件)。黙って成功として返すと、利用者は何が起きたか分からない。
+            //
+            // `cleanupWarning` に乗せるのは、その定義が
+            // 「録画自体は成立したが後始末に問題があった」でまさにこの状態だから。
+            // CLI は stderr の `WARNING:` + 終了コード 1、GUI は結果と併せて表示と、
+            // **既存の経路がそのまま使える** (消費者の変更が要らない)
+            if let failure {
+                cleanupWarnings.append(
+                    "録画の停止を replayd に伝えられませんでした: \(failure.localizedDescription)。"
+                        + "画面収録インジケータが点いたままの場合は、次の録画を始める前に"
+                        + "少し待つか kilde を再起動してください"
+                )
+            }
         }
         do {
             do {

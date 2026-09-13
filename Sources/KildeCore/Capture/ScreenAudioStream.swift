@@ -86,18 +86,41 @@ public final class ScreenAudioStream: NSObject, SCStreamOutput {
 
     /// **replayd にキャプチャの停止を伝える。** ここがハングしうる区間 (issue #95)。
     /// `suspendDelivery()` を先に済ませてある前提なので、ここで固まっても
-    /// 出力ファイルは既にファイナライズ済みで、壊れたファイルは残らない
-    func stopCapture() async {
-        guard let stream else { return }
+    /// 出力ファイルは既にファイナライズ済みで、壊れたファイルは残らない。
+    ///
+    /// - Returns: 失敗した場合そのエラー。成功なら `nil` (issue #107)。
+    ///
+    /// **投げずに返す。** 投げると呼び出し側が `finish()` を飛ばしかねず、
+    /// 「Ctrl+C でも必ずファイナライズする」(DESIGN.md §5) を壊す事故を招く —
+    /// それが元々 `try?` で握り潰していた理由だった。かといって捨ててしまうと、
+    /// **停止できていないのに成功として扱われ**、replayd 側でキャプチャが走り続ける
+    /// (画面収録インジケータが点いたまま、次の録画と重なりうる)。
+    /// 戻り値なら呼び出し側が「ファイナライズを終えた後で」判断できる
+    @discardableResult
+    func stopCapture() async -> Error? {
+        guard let stream else { return nil }
         StopTrace.mark("sck.stopCapture 呼び出し前")
-        try? await stream.stopCapture()
-        StopTrace.mark("sck.stopCapture 戻り")
+        do {
+            try await stream.stopCapture()
+            StopTrace.mark("sck.stopCapture 戻り")
+            return nil
+        } catch {
+            StopTrace.mark("sck.stopCapture 失敗: \(error.localizedDescription)")
+            return error
+        }
     }
 
     func stop() async {
         // 旧来の順序 (replayd に伝えてから配送を止める) を保つ呼び出し口。
         // **#95 の対処を入れる前の比較対照として残す** — 修正前後を同じ実験装置で
-        // 測るために、両方の順序を選べる必要がある
+        // 測るために、両方の順序を選べる必要がある。
+        //
+        // **ここでは停止の失敗を報告しない (issue #107)。** この順序では
+        // `stopCapture()` が**ファイナライズより前**に走るため、警告を積んでも
+        // その後の `finish()` が失敗すれば録画自体が失敗になり、警告は埋もれる。
+        // 失敗を伝えるのは新順序 (`Recorder.notifyReplaydStopIfNeeded`) の責任で、
+        // あちらは**ファイルが完成した後**に呼ぶので「録画は成功・後始末に問題」
+        // という `cleanupWarning` の定義にぴったり合う
         await stopCapture()
         await suspendDelivery()
         StopTrace.mark("sck.stop 完了")
