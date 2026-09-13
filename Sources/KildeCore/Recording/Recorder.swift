@@ -87,6 +87,28 @@ public struct RecordOptions {
     /// 録音セッションに BlackHole マルチ出力デバイスの setup/teardown を紐付ける
     public var autoMonitor = false
 
+    /// **呼び出し側がセッションより長生きするか (issue #95)。呼び出し側が埋める。**
+    ///
+    /// 失敗経路で `SCStream.stopCapture()` を待つかどうかだけを決める。
+    /// この区間は 2 プロセスの停止が重なると replayd から戻らないことがあり (issue #103)、
+    /// **待つ / 待たないのどちらにも実害がある**ため、呼び出し側の性質で選ぶ:
+    ///
+    /// - `false` (既定。CLI の 1 回こっきりの録画) — **待たない**。失敗を即座に報告し、
+    ///   終了コードと monitor 復元を先に済ませる。停止通知が届かなくても、
+    ///   **プロセス終了で XPC 接続が切れれば replayd 側が掃除する**ので実害がない。
+    ///   待つと `--duration 0.5s` や最初の映像フレーム前の Ctrl+C といった日常的な失敗で
+    ///   CLI が固まり、SIGKILL でしか殺せなくなる
+    /// - `true` (GUI のように、失敗後も生きて次の録画を受け付ける側) — **待つ**。
+    ///   待たずに次の録画を始めると、前セッションの未完了 `stopCapture()` が
+    ///   次の `startCapture()` と重なる。これは #70 / #95 が「replayd ごと楔付けになり
+    ///   SIGKILL でも 60 秒回復しない」と実測した当の重なりで、**以後の録画をすべて壊す**
+    ///
+    /// **判断の軸は「次の録画を同じプロセスで受け付けるか」。**
+    /// `rec --hotkey` は待機するので長生きに見えるが、録画が 1 回終わると
+    /// `CFRunLoopStop` で抜けてプロセスごと終了する — **ワンショットなので `false`**。
+    /// ここを取り違えると、日常的な失敗で CLI が固まって SIGKILL でしか殺せなくなる
+    public var callerOutlivesSession = false
+
     public init() {}
 
     /// ScreenCaptureKit を使う構成か (映像を録るか、システム音声を録るか)。
@@ -1072,28 +1094,90 @@ public final class Recorder {
             }
             StopTrace.mark("mixer.flush 完了")
         }
-        do {
-            try Self.validateVideoFrameCount(
-                wantsVideo: options.wantsVideo,
-                videoAppended: w.countersSnapshot().videoAppended,
-                elapsed: recordedElapsed
-            )
-        } catch {
-            // 映像アンカーが立たない空振りを成功扱いせず、空の出力も残さない。
-            // finishWriting ではなく cancel 経路にすることで未成立セッションを閉じる
-            w.cancel(removingOutput: true)
-            throw error
-        }
-        StopTrace.mark("writer.finish 呼び出し前")
-        try await w.finish()
-        StopTrace.mark("writer.finish 完了")
-        // **ファイルが完成してから replayd に停止を伝える (issue #95)。**
-        // ここがハングしても残るのは完成したファイルで、最重要要件は守られる。
-        // 旧順序では既に `stop()` の中で呼び済みなので二重には呼ばない
-        if !usesLegacyStopOrder {
+        // **失敗経路でも replayd に停止を伝える (cubic の指摘)。**
+        //
+        // **成功経路は必ず待つ。** `Summary` を返す前に停止を確定させたいので、
+        // `storeCompletion` も終了コードも停止通知が返った後になる。
+        // つまりここがハングすれば `.failed` も exit も出ないが、そのときには
+        // **ファイルは完成済み**なので最重要要件は守られている。
+        //
+        // **失敗経路は `options.callerOutlivesSession` で分かれる** (下の catch 参照) —
+        // 既定 (CLI) は待たずに失敗を報告し、次の録画を受け付ける側だけが待つ。
+        //
+        // **この呼び出しが「成功した」ことを前提にした処理を後ろに足さないこと。**
+        // `stopCapture()` は内部で `try?` しており、失敗しても黙って返る
+        // 新順序は `stopCapture()` をファイナライズの後ろへ回すので、素直に書くと
+        // **途中で throw したときに素通りしてしまう** — 旧順序は検証より前に
+        // `sck.stop()` を呼んでいたので必ず通っていた。これは新順序が持ち込む巻き戻り。
+        //
+        // CLI は直後に終了するので実害は一瞬だが、**GUI は失敗後も生き続ける**
+        // (`RecordingController` は `.failed` を受けても終了せず、`recorder = nil` に
+        // 戻して次の録画を受け付ける)。停止を伝えないままだと replayd 側でキャプチャが
+        // 走り続け、画面収録インジケータが点いたままになり、SCStream も解放されない。
+        //
+        // `defer` には `await` を書けないため、`do`/`catch` で包んで両経路から呼ぶ。
+        // `stopCapture()` は投げず冪等なので、二重に呼んでも害はない
+        func notifyReplaydStopIfNeeded() async {
+            guard !usesLegacyStopOrder else { return }   // 旧順序は stop() の中で呼び済み
             await sck?.stopCapture()
             StopTrace.mark("stopCapture から戻った (ファイナライズ後)")
         }
+        do {
+            do {
+                try Self.validateVideoFrameCount(
+                    wantsVideo: options.wantsVideo,
+                    videoAppended: w.countersSnapshot().videoAppended,
+                    elapsed: recordedElapsed
+                )
+            } catch {
+                // 映像アンカーが立たない空振りを成功扱いせず、空の出力も残さない。
+                // finishWriting ではなく cancel 経路にすることで未成立セッションを閉じる
+                w.cancel(removingOutput: true)
+                throw error
+            }
+            StopTrace.mark("writer.finish 呼び出し前")
+            try await w.finish()
+            StopTrace.mark("writer.finish 完了")
+        } catch {
+            // **失敗経路でも待って停止を伝える。切り離した Task にはしない。**
+            //
+            // 一度 `Task { await sck.stopCapture() }` に逃がしたが、**それは間違いだった**。
+            // 待たない停止は `SCKStartupLock` の排他に参加しないので、GUI が `.failed` 後
+            // すぐ次の録画を始めると (`RecordingController` は `recorder = nil` に戻して
+            // 受け付ける)、**前セッションの未完了 stopCapture が次セッションの
+            // `startCapture()` と重なる**。これは #70 / #95 が「重なると replayd ごと
+            // 楔付けになり SIGKILL でも 60 秒回復しない」と実測した当の重なりで、
+            // 旧順序にも修正前にも無かった**新しい窓**を開けることになる。
+            // しかも `stopCapture()` がハングした場合、その Task は戻らず SCStream を
+            // 掴み続けるので、**この分割が直そうとしている症状そのものが残る**。
+            //
+            // 代わりに待つ。**待つ側の代償は正直に書いておく** — ここでハングすると
+            // `.failed` イベントも `storeCompletion` も `teardownMonitorIfNeeded` も
+            // 動かず、既定出力が kilde Monitor のまま残りうる。それでも、replayd を
+            // 楔付けにして**以後の録画をすべて壊す**よりは軽い。
+            //
+            // **この catch に来る 2 経路でファイルの状態は違う。揃っていると思わないこと**
+            // (cubic の指摘):
+            //   * 検証失敗 (映像 0 フレーム) — `w.cancel(removingOutput: true)` 済みで
+            //     出力は消えている
+            //   * `w.finish()` の失敗 — **cancel は通っておらず、部分ファイルが残る**
+            //     (`storeCompletion` の失敗イベントが `partialFileExists` で伝える)
+            // どちらも「これ以上 writer に触らない」状態ではあるので停止通知へ進んでよいが、
+            // 「全経路で後始末済み」を前提にした処理をここへ足さないこと
+            //
+            // **待つかどうかは呼び出し側の性質で決める (options.callerOutlivesSession)。**
+            // 失敗経路では「ファイルは完成済みだからハングしても良い」という #95 の
+            // 安全論が**成立しない** — 検証失敗の経路は出力を消しており、守るものが無い。
+            // CLI のように 1 回で終わる側は待たずに失敗を報告し (プロセス終了で XPC が
+            // 切れれば replayd 側は掃除される)、次の録画を受け付ける側だけが待つ
+            if options.callerOutlivesSession {
+                await notifyReplaydStopIfNeeded()
+            }
+            throw error
+        }
+        // **ファイルが完成してから replayd に停止を伝える (issue #95)。**
+        // ここがハングしても残るのは完成したファイルで、最重要要件は守られる
+        await notifyReplaydStopIfNeeded()
 
         // 一時停止したまま停止された場合も、その区間を合計に含める。
         // async 文脈で NSLock を直接触ると警告になるため同期ヘルパ経由で読む (countersSnapshot と同じ)

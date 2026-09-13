@@ -346,6 +346,25 @@ kilde config [show|set|unset|path]        設定ファイル ~/.kilde/config.jso
   新順序では**ハングした 10 プロセスすべてが再生可能なファイルを残した**。
   40 組の受け入れ確認でも出力 80/80 が再生可能
 
+**この不変条件が成り立つのは成功経路だけ。** 録画が失敗した経路 (映像 0 フレームの
+検証失敗、`writer.finish()` の失敗) では、そもそも守るべき完成ファイルが無い —
+前者は `cancel(removingOutput:)` で消えており、後者は部分ファイルが残る。
+そのため失敗経路で `stopCapture()` を待つかどうかは、**呼び出し側が
+セッションより長生きするか** (`RecordOptions.callerOutlivesSession`) で分ける:
+
+| 呼び出し側 | 待つか | 理由 |
+|---|---|---|
+| CLI の録画 (既定)。**`rec --hotkey` も含む** | 待たない | 失敗を即座に報告する。停止通知が届かなくても**プロセス終了で XPC が切れれば replayd 側が掃除する**。待つと `--duration 0.5s` や最初のフレーム前の Ctrl+C で CLI が固まり SIGKILL でしか殺せない |
+| GUI | 待つ | 失敗後も生きて次の録画を受け付けるため。待たずに次を始めると前セッションの未完了 `stopCapture()` が次の `startCapture()` と重なり、**replayd ごと楔付けになって以後の録画をすべて壊す** |
+
+**`rec --hotkey` を「長生きする側」に分類しないこと。** 待機するので長生きに見えるが、
+録画が 1 回終わると `onFinished` が `CFRunLoopStop` を呼んでプロセスごと終了する
+(`HotkeyRecordingController.finishMonitoring()` も 1 回きり)。**ワンショットである。**
+
+**準備中キャンセル (`cancelBeforeRecording`) はこの順序の例外**で、いまも
+writer の後始末より**前**に `sck?.stop()` を呼ぶ。録画に入る前なので守るファイルが
+無く、既存の挙動 (T22 が見ている「準備中の停止は exit 0」) を変えないため据え置く。
+
 **プロセスが終わらないこと自体はこれでは直らない** (replayd 側の状態で、kilde からは
 触れない)。停止区間の直列化は issue #103 で扱う。
 
