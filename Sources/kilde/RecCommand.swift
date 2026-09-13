@@ -658,7 +658,12 @@ struct RecCommand: ParsableCommand {
                 print(String(format: "duration=%.2fs", report.duration))
             }
             for (i, a) in report.audioTracks.enumerated() {
-                print(String(format: "audio[%d]: rms=%.4f peak=%.4f", i, a.rms, a.peak))
+                // `inspect` と同じく末尾に `values=` を足す (issue #108)。
+                // 録り終えた直後に「本当にサンプルが入ったか」が見える
+                // `%ld` で出す理由は `InspectCommand` 側のコメント参照
+                // (64 ビットの Int を `%d` で読むと 6.2 時間超で負数になる)
+                print(String(format: "audio[%d]: rms=%.4f peak=%.4f values=%ld",
+                             i, a.rms, a.peak, a.valueCount))
             }
         }
     }

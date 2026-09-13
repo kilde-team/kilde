@@ -1135,28 +1135,25 @@ for T18B_ROUND in $(seq 1 "$T18B_ROUNDS"); do
         # という失敗を見逃す。3 秒録画なので 1 秒を下限にすれば、
         # 起動の揺らぎで短くなった回を誤判定せずに空振りだけ捕まえられる
         T18B_DUR=$(printf '%s' "$T18B_INSPECT" | grep -o 'duration=[0-9.]*' | head -1 | cut -d= -f2)
-        # **`rms` は存在だけを見る。正値は要求しない (cubic の指摘で撤回)。**
+        # **`rms` は存在だけを見て、中身は `values=` で判定する (issue #108)。**
         #
-        # 一度 CodeRabbit の指摘に従って `rms > 0` を課したが、**それは誤りだった**。
-        # `InspectCommand` は `%.4f` で出すので、**実測で 0.00005 までが `0.0000` に
-        # 丸まる**。つまり**無音に近い正常な録音**が壊れたファイル扱いで FAIL になる。
-        # この機体は無音環境で録っており、まさにその条件に当たる。
+        # `rms` に閾値を置く案は PR #106 で 2 度とも失敗した。`InspectCommand` は
+        # `%.4f` で出すので **実測で 0.00005 までが `0.0000` に丸まり**、無音に近い
+        # 正常な録音が壊れたファイル扱いになる (この機体は無音環境なので実際に踏む)。
+        # かといって `rms=` の有無だけでは、**サンプルが 1 つも無いファイル**が通る。
         #
-        # CodeRabbit の懸念 (サンプルが 1 つも無いファイルが通る) は残る。ただし
-        # `FileInspection` は**「サンプル 0」と「完全な無音」を同じ `rms=0` にする**うえ、
-        # `AudioStats` は duration / rms / peak しか持たずサンプル数を出せないので、
-        # **`rms` では原理的に区別できない**。区別するなら `FileInspection` に
-        # サンプル数を足す必要があり、それは本 PR (停止シーケンスの順序) の範囲外。
-        #
-        # T18b が守りたいのは #95 の回帰 — ファイナライズ前のハングで moov が壊れること。
-        # それは下のサイズ・`inspect` の成功・`duration >= 1.0` で捕まえられる
+        # issue #108 で `inspect` に `values=` (デコードできた PCM 値の個数) を足した。
+        # **丸めの影響を受けず、「サンプルが来なかった」と「無音だった」を分ける唯一の値**。
+        # 0 かどうかだけを見るので、無音環境でも誤判定しない
         T18B_RMS=$(printf '%s' "$T18B_INSPECT" | grep -o 'rms=[0-9.]*' | head -1 | cut -d= -f2)
+        T18B_VALUES=$(printf '%s' "$T18B_INSPECT" | grep -o 'values=[0-9]*' | head -1 | cut -d= -f2)
         if [ "$(stat -f%z "$T18B_F" 2>/dev/null || echo 0)" -lt 1024 ] \
            || [ -z "$T18B_RMS" ] \
+           || [ -z "$T18B_VALUES" ] || [ "$T18B_VALUES" -le 0 ] \
            || [ -z "$T18B_DUR" ] \
            || ! awk -v d="$T18B_DUR" 'BEGIN { exit !(d >= 1.0) }'; then
             T18B_FILE_NG_R=$((T18B_FILE_NG_R+1))
-            T18B_DETAIL="$T18B_DETAIL [組$T18B_ROUND $(basename "$T18B_F") duration=${T18B_DUR:-なし} rms=${T18B_RMS:-なし}]"
+            T18B_DETAIL="$T18B_DETAIL [組$T18B_ROUND $(basename "$T18B_F") duration=${T18B_DUR:-なし} rms=${T18B_RMS:-なし} values=${T18B_VALUES:-なし}]"
         fi
     done
     if [ "$T18B_FILE_NG_R" != "0" ]; then
