@@ -3,8 +3,10 @@
 - Date: 2026-09-14
 - Status: draft (依頼者の「マネタイズのアイデアと成功事例の調査」依頼に対する
   調査結果を文書化したもの。意思決定はまだ未定)
-- 性質の注意: **本文中の価格・収益数値はすべて 2026-09-14 時点の Web 調査に基づく**。
-  SaaS の価格は頻繁に変わるため、意思決定のタイミングで公式ページを再確認すること
+- 性質の注意: **本文中の価格・収益数値 (SaaS 単価・買い切り価格・ARR・買収額・
+  転換率など) はすべて 2026-09-14 時点の Web 調査に基づく**。これらの数値は
+  頻繁に変わるため、意思決定のタイミングで一次情報 (公式ページ・公式ブログ) を
+  再確認すること
 
 ## 1. この文書について
 
@@ -19,7 +21,7 @@ kilde を個人開発として継続する上でのマネタイズ方針の判�
 | アプリ | 価格 (2026-09 時点) | モデル | 示唆 |
 |---|---|---|---|
 | Screen Studio | $29/月 or $108/年 | 元は買い切り → 完全サブスクに移行、lifetime は廃止 | 個人開発 (Adam Pietrasiak 氏) で**初月 $30k** と大成功したが、サブスク移行は大きな不評を買い、安価な競合 (Screen Charm、Matte 等) が乱立する口実を与えた |
-| CleanShot X | $29〜35 買い切り + 更新 $19/年 (任意) | 買い切り + 任意の更新プラン | 「永久に使えるが更新は継続課金」は Mac 圏で最も受けが良い妥協点。Setapp 収載でも二重に収益化 |
+| CleanShot X | $35 買い切り (公式購入ページ) + 更新 $19/年 (任意) | 買い切り + 任意の更新プラン | 「永久に使えるが更新は継続課金」は Mac 圏で最も受けが良い妥協点。Setapp 収載でも二重に収益化 |
 | Audio Hijack (Rogue Amoeba) | $69、メジャーアップグレード $29 | 買い切り、バージョンごとに課金 | **「Mac の任意の音声を録る」ニッチ utility が 20 年以上売れ続けている実証**。kilde の音声面に最も近い先例 |
 
 ### 2.2 コア無料 + AI / クラウド課金型 (2026 年の支配的パターン)
@@ -30,15 +32,15 @@ kilde を個人開発として継続する上でのマネタイズ方針の判�
 | Otter.ai | 月 300 分 | $8.33〜$19.99/ユーザー/月 | 会議 AI ノート市場の中堅 |
 | Fireflies.ai | 制限付き | $10〜$19/シート/月 | 会議ボット型の代表 |
 | tl;dv | 録画無制限 | Pro $18/月〜 | 無償層が最も太い |
-| Raycast | ランチャー全体 | Pro $8〜10/月 (AI クレジット制) | 「コアは永久無料、AI だけ課金」を明言 |
-| Warp | ターミナル全体 | $20/月 (AI 専用) | 有償プランを AI 機能のみに絞る方針 |
+| Raycast | ランチャー全体 | Pro $8〜10/月 (AI クレジットに加え Cloud Sync・Dictation 等も同梱) | 「コアは永久無料」で Pro の柱は AI |
+| Warp | ターミナル全体 | Build $20/月 (AI クレジットに加え Cloud Agents・コードベース索引・コラボ機能も同梱) | 有償プランの柱は AI。ターミナル本体は無料 |
 
 ### 2.3 OSS 由来の収益化 (kilde と同じ出発点)
 
 | 事例 | モデル | 結果 |
 |---|---|---|
-| Cap (OSS 画面録画) | **open core**: 録画は OSS 無償・セルフホスト可。商用利用権とクラウド/AI 機能が Cap Pro 約 $8/月 | OSS でありつつ Loom の半額で課金する、**kilde に最も近い構図** |
-| Plausible Analytics | OSS + ホステッド版 | 2 人で $1M ARR → 5 人で $3.1M ARR (外部資金なし) |
+| Cap (OSS 画面録画) | **open core**: 録画は OSS 無償・セルフホスト可。有償は 2 段構え — Desktop License $29/年 (商用利用権 + ローカル録画・編集) と Cap Pro $8.16/ユーザー/月 (クラウド・AI・チーム機能) | OSS でありつつ Loom の半額で課金する、**kilde に最も近い構図** |
+| Plausible Analytics | OSS + ホステッド版 | $1M ARR 到達を公式ブログが公表 (2022)。その後 $3.1M ARR・5 人規模との第三方の報告あり (founderventures)。外部資金なし |
 | Obsidian | コア無償 + Sync $4/月 + 商用ライセンス $50/年 (現在は任意) | 「本体は無料、便利さとサポートに課金」 |
 | Kap | 無償 OSS (MIT)、収益化なし | 19k star でも持続可能性の道がなく開発は緩慢 — **収益化しない場合の対照例** |
 
@@ -76,8 +78,8 @@ kilde が刺さる隙間 (Section 2 の事例との対応):
 
 ### Phase 3: Pro サブスク ($8〜12/月) — AI レイヤーで LTV を上げる
 
-- 録った会議の**文字起こし・要約・共有リンク**を Pro に。Raycast / Warp と同じ
-  「コア無料、AI だけ課金」の現行スタンダード
+- 録った会議の**文字起こし・要約・共有リンク**を Pro に。Raycast / Warp に見る
+  「コア無料、AI が課金の柱」の現行スタンダード
 - 売り文句は「**会議にボットを入れない。録音はローカル、AI 処理だけクラウド**」—
   Fireflies たちに対する明確な差別化
 - AI コストを避けたい下位プランには BYO API key (ユーザーの OpenAI/Anthropic キー)、
@@ -99,8 +101,10 @@ kilde が刺さる隙間 (Section 2 の事例との対応):
 
 ## 6. 現実的な期待値
 
-- フリーミアムの有償転換率は 2〜4% が相場。つまり収益は無償ユーザー数に比例し、
-  **Phase 1 (導線構築) の比重が実際は一番大きい**
+- フリーミアムの有償転換率 (無償ユーザーを分母とした、個人ユーザーのアップグレード率)
+  はセルフサーブ B2B SaaS で 2〜5% が中央値との調査 (OpenView/Pendo、1,000+ 製品) があり、
+  開発者向けツールはさらに 1〜3% 側に寄るという報告が複数ある。
+  つまり収益は無償ユーザー数に比例し、**Phase 1 (導線構築) の比重が実際は一番大きい**
 - 個人開発で生活が成り立つのは上位一握り。副業規模で始めて、M3 GUI の手応えで
   踏み込む深さを決めるのが現実的
 
@@ -114,11 +118,14 @@ kilde が刺さる隙間 (Section 2 の事例との対応):
 - 会議 AI ノート比較 (Otter / Fireflies / tl;dv):
   https://www.umevo.ai/blogs/ume-all-posts/otter-vs-notta-vs-fireflies-vs-tl-dv-the-ultimate-2026-comparison-for-meeting-transcription
 - Cap (OSS Loom alternative): https://cap.so/
-- Plausible ($1M ARR OSS SaaS): https://plausible.io/blog/open-source-saas
+- Plausible ($1M ARR OSS SaaS): https://plausible.io/blog/open-source-saas 、
+  その後の第三方による分析 ($3.1M ARR との報告): https://founderventures.io/cases/plausible
 - Obsidian 料金: https://obsidian.md/pricing
 - Raycast 料金: https://www.raycast.com/pricing
 - Warp 料金: https://www.warp.dev/pricing
 - Kap: https://getkap.co/
 - Setapp の効用: https://aicheatcode.substack.com/p/grow-your-mac-app-with-setapp-get
-- フリーミアム転換率 2-4%:
-  https://medium.com/@sohail_saifi/the-economics-of-developer-tools-why-everything-moved-to-freemium-a1a990eacbe8
+- フリーミアム転換率ベンチマーク (OpenView/Pendo 調査の引用を含む):
+  https://kirro.io/saas-conversion-rate-benchmarks 、
+  開発者ツールの転換率 (1〜3% 側に寄るという報告):
+  https://www.getmonetizely.com/articles/whats-the-right-ratio-of-free-to-paid-users-in-developer-saas
