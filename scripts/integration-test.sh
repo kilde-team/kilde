@@ -97,10 +97,20 @@ stop_kilde() {  # stop_kilde <pid> <recording|waiting> — INT を送り直し�
         tries=$(stop_grace_for "$role")
         for i in $(seq 1 "$tries"); do
             kill -INT "$pid" 2>/dev/null
-            if ! kill -0 "$pid" 2>/dev/null; then STOP_BY_INT=1; break; fi
+            kill -0 "$pid" 2>/dev/null || break
             sleep 0.5
         done
-        force_stop "$pid"
+        # **判定はループの外で行う (CodeRabbit の指摘)。** ループ内だけで見ていると、
+        # **最終試行の `sleep 0.5` 中に終了した場合を取りこぼす** — INT が効いたのに
+        # STOP_BY_INT=0 のまま抜け、続く force_stop も `kill -0` が失敗して何も送らない。
+        # 結果「exit 0 なのに TERM/KILL へ昇格した」と誤記録し、T25_STOPPED_BY_INT を
+        # 偽の FAIL にする。ループに入った時点で INT は最低 1 通送っているので、
+        # ここで生きているかどうかだけが昇格の有無を決める (await_stop と同じ形)
+        if kill -0 "$pid" 2>/dev/null; then
+            force_stop "$pid"
+        else
+            STOP_BY_INT=1
+        fi
     else
         # **ここで 1 を立てない (cubic P2 の指摘)。** この分岐は「呼んだ時点で既に
         # 死んでいた」= **SIGINT を 1 通も送っていない**。1 にすると「INT で止まった」と
