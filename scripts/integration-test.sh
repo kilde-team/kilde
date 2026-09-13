@@ -29,6 +29,7 @@ T21_PID=""
 T23_HOLDER_PID=""
 T23_RUN_PID=""
 T24_DEVICES_PID=""
+T25_PID=""
 
 cleanup() {
     if [ "$MONITOR_SET_UP" = "1" ]; then
@@ -63,6 +64,14 @@ T22_PID=""
         wait "$T24_DEVICES_PID" 2>/dev/null
     fi
     T24_DEVICES_PID=""
+    # T25 の待機役も残さない。**ホットキーを握ったまま残ると次回以降のスイートが壊れる** —
+    # T23 の占有役と同じ理由 (排他登録なので孤児が同じキーを持つと登録できない)。
+    # 録画には入っていないので安全停止の猶予は要らず、KILL してから回収する
+    if [ -n "${T25_PID:-}" ]; then
+        kill -KILL "$T25_PID" 2>/dev/null
+        wait "$T25_PID" 2>/dev/null
+    fi
+    T25_PID=""
     # T23 の占有役 (rec --hotkey の待機) も残さない。**残すと次回以降のスイートが壊れる** —
     # ホットキーは排他登録なので、孤児が同じキーを握ったままだと T23 の占有役が登録できず、
     # 以後ずっと「占有役が待機に入れませんでした」で落ち続ける (開発中に実際に踏んだ)。
@@ -1476,6 +1485,80 @@ elif [ "$T24_TCC" != "0" ]; then
     skip "T24 devices 併走: ${T24_ROUNDS} 組中 1 組で -3801 (issue #99 の残存。約 1.8% で起きる。#99 が閉じたらこの分岐を bad に上げること)$T24_DETAIL"
 else
     ok "T24 devices 併走: ${T24_ROUNDS}/${T24_ROUNDS} 組で rec が exit=0 (-3801 なし)"
+fi
+
+# ---- T25: 設定 hotkey + --duration は待機に入り、警告を出す (issue #97)
+# `--duration` は**待機の解除後**から数えるので、設定に hotkey があると
+# 「N 秒で終わるはずのコマンドが帰ってこない」ことになる。これは仕様だが、
+# **黙って待たれると無人実行が詰まる** (#90 の計測中に 8 分間ハングと誤認した)。
+# 設定由来のときだけ WARNING を出すことにしたので、それを固定する。
+#
+# **このテストが固定するのは「待ち続けること」**。#97 の受け入れ条件は
+# 「非対話実行で無期限に待ち続けることがない」だったが、**決めた挙動は
+# 「待機は維持し、WARNING で気づけるようにする」**なので、ここで assert するのは
+# **`< /dev/null` でも待機が終わらないこと**になる (DESIGN.md「`--duration` と待機モード」)。
+# 待機は RunLoop で待ち stdin を見ないため、`meeting` の対話選択が EOF で終了コード 1 に
+# なるのとは事情が違う (あちらは入力を要求している)。
+#
+# T23 と同じくキーを分ける — 取り違えると「実は誰も握っていない」状態を緑と誤認する
+
+log "T25: 設定 hotkey + --duration — 待機に入り警告を出す (非対話でも待ち続ける)"
+T25_KEY="cmd+opt+ctrl+shift+f8"
+T25_DIR="$WORK/t25"
+T25_CFG_DIR="$WORK/t25-config"
+mkdir -p "$T25_DIR" "$T25_CFG_DIR"
+printf '{"hotkey": "%s"}\n' "$T25_KEY" > "$T25_CFG_DIR/config.json"
+# **stdin を /dev/null にする** — 端末が無くても待機が終わらないことを見るため。
+# exec で置き換えるのは kill を kilde 本体に届かせるため (T13 と同じ)
+( cd "$T25_DIR" && exec env KILDE_CONFIG_DIR="$T25_CFG_DIR" "$KILDE" \
+    rec --no-video --duration 2 > "$WORK/t25.log" 2>&1 < /dev/null ) &
+T25_PID=$!
+# **猶予は T23 と揃えて 15 秒**。待機に入らず即時録画へ縮退した場合の所要は
+# 実測 4 秒前後 (SCK 起動 + 2 秒録画 + ファイナライズ) だが、**起動には
+# SCKStartupLock の待機が最大 15 秒乗りうる** (#70 / #90)。6 秒では、
+# 並行する録画とロックを取り合っただけで「待機に入っていない」と誤判定する
+T25_WAITED=0
+for _ in $(seq 1 30); do
+    kill -0 "$T25_PID" 2>/dev/null || break
+    T25_WAITED=$((T25_WAITED + 1))
+    sleep 0.5
+done
+if kill -0 "$T25_PID" 2>/dev/null; then
+    T25_STILL_WAITING=1
+    kill -INT "$T25_PID" 2>/dev/null
+    sleep 1
+    kill -0 "$T25_PID" 2>/dev/null && kill -TERM "$T25_PID" 2>/dev/null
+    sleep 1
+    kill -0 "$T25_PID" 2>/dev/null && kill -KILL "$T25_PID" 2>/dev/null
+else
+    T25_STILL_WAITING=0
+fi
+wait "$T25_PID" 2>/dev/null; T25_EXIT=$?
+T25_PID=""
+T25_FILES=$(ls "$T25_DIR" 2>/dev/null | wc -l | tr -d ' ')
+T25_WARN=0
+grep -q "WARNING:.*待機モード" "$WORK/t25.log" 2>/dev/null && T25_WARN=1
+T25_WAITING_SHOWN=0
+grep -q "待機中" "$WORK/t25.log" 2>/dev/null && T25_WAITING_SHOWN=1
+# **縮退したかを先に見る。** 他プロセスが f8 を握っていると #80 の縮退で即時録画になり、
+# そのとき #97 の WARNING は (待機しないので) 正しく出ない。これを「警告が失われている」と
+# 診断すると原因を取り違える — 実際はキーの取り合いで、このテストの前提が崩れている
+T25_DEGRADED=0
+grep -q "WARNING: ホットキー" "$WORK/t25.log" 2>/dev/null && T25_DEGRADED=1
+
+if [ "$T25_DEGRADED" = "1" ]; then
+    bad "T25 hotkey+duration: ホットキー $T25_KEY を他プロセスが握っており縮退した (このテストの前提が崩れている。孤児が残っていないか確認すること) — $WORK/t25.log"
+elif [ "$T25_STILL_WAITING" != "1" ]; then
+    # --duration で終わってしまった = 待機に入っていない。仕様が変わったか縮退した
+    bad "T25 hotkey+duration: 待機に入らず $((T25_WAITED / 2)) 秒で終了した (exit=$T25_EXIT)。設定の hotkey が効いていないか、待機の判定が変わった — $WORK/t25.log"
+elif [ "$T25_WARN" != "1" ]; then
+    bad "T25 hotkey+duration: 待機には入ったが WARNING が出ていない (issue #97 の警告が失われている) — $WORK/t25.log"
+elif [ "$T25_WAITING_SHOWN" != "1" ]; then
+    bad "T25 hotkey+duration: WARNING は出たが「待機中」の表示がない (登録に失敗している) — $WORK/t25.log"
+elif [ "$T25_FILES" != "0" ]; then
+    bad "T25 hotkey+duration: 待機中なのに出力ファイルが $T25_FILES 個ある — $T25_DIR"
+else
+    ok "T25 hotkey+duration: 非対話でも待機に入り、WARNING を出し、ファイルを作らない"
 fi
 
 # ---- サマリ -------------------------------------------------------------------
