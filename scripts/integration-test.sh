@@ -29,6 +29,7 @@ T21_PID=""
 T23_HOLDER_PID=""
 T23_RUN_PID=""
 T24_DEVICES_PID=""
+T25_PID=""
 
 cleanup() {
     if [ "$MONITOR_SET_UP" = "1" ]; then
@@ -63,6 +64,32 @@ T22_PID=""
         wait "$T24_DEVICES_PID" 2>/dev/null
     fi
     T24_DEVICES_PID=""
+    # T25 の待機役も残さない。**ホットキーを握ったまま残ると次回以降のスイートが壊れる** —
+    # T23 の占有役と同じ理由 (排他登録なので孤児が同じキーを持つと登録できない)。
+    #
+    # **KILL で済ませてはいけない。** 他プロセスが f8 を握っていると #80 の縮退で
+    # **即時録画に入る**ので、この PID が AVAssetWriter を書いている最中でありうる。
+    # そこへ SIGKILL を送ると安全停止とファイナライズを飛ばし、**未完了ファイルを残す**
+    # (「Ctrl+C でも必ずファイナライズ」= DESIGN.md §5 の最重要要件に反する)。
+    # 終了を確認するまで SIGINT を送り直してから強制する。
+    # **回数は T23 の「占有役」(seq 1 10) ではなく「サブ実行」(T23_RUN_PID, seq 1 20) に
+    # 揃える。** 占有役は待機しているだけだが、こちらは縮退して**録画している**可能性が
+    # あり、ファイナライズには時間がかかる。10 回 (5 秒) で TERM/KILL に進むと、
+    # 上のコメントが防ぐと言っている未完了ファイルがまさに残る
+    if [ -n "${T25_PID:-}" ] && kill -0 "$T25_PID" 2>/dev/null; then
+        for _ in $(seq 1 20); do
+            kill -INT "$T25_PID" 2>/dev/null
+            kill -0 "$T25_PID" 2>/dev/null || break
+            sleep 0.5
+        done
+        if kill -0 "$T25_PID" 2>/dev/null; then
+            kill -TERM "$T25_PID" 2>/dev/null
+            sleep 1
+            kill -0 "$T25_PID" 2>/dev/null && kill -KILL "$T25_PID" 2>/dev/null
+        fi
+        wait "$T25_PID" 2>/dev/null
+    fi
+    T25_PID=""
     # T23 の占有役 (rec --hotkey の待機) も残さない。**残すと次回以降のスイートが壊れる** —
     # ホットキーは排他登録なので、孤児が同じキーを握ったままだと T23 の占有役が登録できず、
     # 以後ずっと「占有役が待機に入れませんでした」で落ち続ける (開発中に実際に踏んだ)。
@@ -1465,10 +1492,11 @@ done
 # **閾値を「全組」ではなく「2 組以上」に置く。** 全組だけを bad にすると、
 # **修正前バイナリで実測した 4/5 の回帰が skip になって素通りします** (CodeRabbit の指摘)。
 # 一方 2 組以上なら:
-#   - 残存 1.8% で 5 組中 2 件以上が出る確率は **約 0.33%** (300 回に 1 回) — 誤検知は許容範囲
+#   - 残存 1.8% で 5 組中 2 件以上が出る確率は **約 0.31%** (320 回に 1 回) — 誤検知は許容範囲
+#     (二項分布で P(0)=91.32%, P(1)=8.37% なので P(>=2)=0.31%。実測の 2/110=1.82% でも 0.32%)
 #   - 修正前 (実測 70〜80%) なら 2 件以上はほぼ確実 — 回帰は捕まる
 if [ "$T24_TCC" -ge 2 ]; then
-    bad "T24 devices 併走: ${T24_ROUNDS} 組中 $T24_TCC 組で -3801 (列挙が SCK 起動ロックの外に出ている。issue #90 の回帰を疑う。残存 #99 なら 5 組中 2 件以上は約 0.33% でしか起きない)$T24_DETAIL"
+    bad "T24 devices 併走: ${T24_ROUNDS} 組中 $T24_TCC 組で -3801 (列挙が SCK 起動ロックの外に出ている。issue #90 の回帰を疑う。残存 #99 なら 5 組中 2 件以上は約 0.31% でしか起きない)$T24_DETAIL"
 elif [ "$T24_NG" != "$T24_TCC" ]; then
     # -3801 以外の理由でも落ちている (NG が TCC を上回る = devices 側の失敗を含む)
     bad "T24 devices 併走: ${T24_ROUNDS} 組中 $T24_NG 件が失敗 (うち -3801 は $T24_TCC 件)。-3801 以外の原因を調べること — $WORK/t24-rec-*.log$T24_DETAIL"
@@ -1476,6 +1504,111 @@ elif [ "$T24_TCC" != "0" ]; then
     skip "T24 devices 併走: ${T24_ROUNDS} 組中 1 組で -3801 (issue #99 の残存。約 1.8% で起きる。#99 が閉じたらこの分岐を bad に上げること)$T24_DETAIL"
 else
     ok "T24 devices 併走: ${T24_ROUNDS}/${T24_ROUNDS} 組で rec が exit=0 (-3801 なし)"
+fi
+
+# ---- T25: 設定 hotkey + --duration は待機に入り、警告を出す (issue #97)
+# `--duration` は**待機の解除後**から数えるので、設定に hotkey があると
+# 「N 秒で終わるはずのコマンドが帰ってこない」ことになる。これは仕様だが、
+# **黙って待たれると無人実行が詰まる** (#90 の計測中に 8 分間ハングと誤認した)。
+# 設定由来のときだけ WARNING を出すことにしたので、それを固定する。
+#
+# **このテストが固定するのは「待ち続けること」**。#97 の受け入れ条件は
+# 「非対話実行で無期限に待ち続けることがない」だったが、**決めた挙動は
+# 「待機は維持し、WARNING で気づけるようにする」**なので、ここで assert するのは
+# **`< /dev/null` でも待機が終わらないこと**になる (DESIGN.md「`--duration` と待機モード」)。
+# 待機は RunLoop で待ち stdin を見ないため、`meeting` の対話選択が EOF で終了コード 1 に
+# なるのとは事情が違う (あちらは入力を要求している)。
+#
+# T23 と同じくキーを分ける — 取り違えると「実は誰も握っていない」状態を緑と誤認する
+
+log "T25: 設定 hotkey + --duration — 待機に入り警告を出す (非対話でも待ち続ける)"
+T25_KEY="cmd+opt+ctrl+shift+f8"
+T25_DIR="$WORK/t25"
+T25_CFG_DIR="$WORK/t25-config"
+mkdir -p "$T25_DIR" "$T25_CFG_DIR"
+printf '{"hotkey": "%s"}\n' "$T25_KEY" > "$T25_CFG_DIR/config.json"
+# **stdin を /dev/null にする** — 端末が無くても待機が終わらないことを見るため。
+# exec で置き換えるのは kill を kilde 本体に届かせるため (T13 と同じ)
+# **stdout と stderr を分けて取る。** 結合すると「WARNING が stderr に出ている」ことを
+# 検証できず、stdout に出ても緑になる。実装と DESIGN.md は WARNING を stderr、
+# 「待機中」を stdout と定めているので、テストもその区別を見る (CodeRabbit の指摘)
+( cd "$T25_DIR" && exec env KILDE_CONFIG_DIR="$T25_CFG_DIR" "$KILDE" \
+    rec --no-video --duration 2 > "$WORK/t25-out.log" 2> "$WORK/t25-err.log" < /dev/null ) &
+T25_PID=$!
+# **猶予は T23 と揃えて 15 秒**。待機に入らず即時録画へ縮退した場合の所要は
+# 実測 4 秒前後 (SCK 起動 + 2 秒録画 + ファイナライズ) だが、**起動には
+# SCKStartupLock の待機が最大 15 秒乗りうる** (#70 / #90)。6 秒では、
+# 並行する録画とロックを取り合っただけで「待機に入っていない」と誤判定する
+T25_WAITED=0
+for _ in $(seq 1 30); do
+    kill -0 "$T25_PID" 2>/dev/null || break
+    T25_WAITED=$((T25_WAITED + 1))
+    sleep 0.5
+done
+if kill -0 "$T25_PID" 2>/dev/null; then
+    T25_STILL_WAITING=1
+    # **SIGINT を 1 回送って 1 秒で TERM へ進めない。** 下で exit=0 を必須にしている以上、
+    # ここの猶予が判定の土台になる。同じ契約を見る T13 は 5 秒、EXIT trap の回収は
+    # 20×0.5 秒なので、そちらに揃える。installStopSignalHandler の設置前に届いた
+    # SIGINT は失われうるので送り直す。
+    #
+    # **INT のループ内で終わったかを記録する (T25_STOPPED_BY_INT)。** 終了コードだけでは
+    # SIGINT の回帰を検出できない — **SIGTERM も SIGINT と同じ安全停止ハンドラに繋がる**
+    # ので (KildeCommand.installStopSignalHandler)、INT だけが壊れても TERM への昇格で
+    # exit 0 になり、`T25_EXIT != 0` のゲートを素通りしてしまう。終了コードで捕まるのは
+    # シグナル経路が丸ごと死んだ場合 (KILL → 137) だけ
+    T25_STOPPED_BY_INT=0
+    for _ in $(seq 1 20); do
+        kill -INT "$T25_PID" 2>/dev/null
+        if ! kill -0 "$T25_PID" 2>/dev/null; then T25_STOPPED_BY_INT=1; break; fi
+        sleep 0.5
+    done
+    if kill -0 "$T25_PID" 2>/dev/null; then
+        kill -TERM "$T25_PID" 2>/dev/null
+        sleep 1
+        kill -0 "$T25_PID" 2>/dev/null && kill -KILL "$T25_PID" 2>/dev/null
+    fi
+else
+    T25_STILL_WAITING=0
+fi
+wait "$T25_PID" 2>/dev/null; T25_EXIT=$?
+T25_PID=""
+T25_FILES=$(ls "$T25_DIR" 2>/dev/null | wc -l | tr -d ' ')
+T25_WARN=0
+# WARNING は **stderr** から見る (実装が FileHandle.standardError に書く契約)
+grep -q "WARNING:.*待機モード" "$WORK/t25-err.log" 2>/dev/null && T25_WARN=1
+T25_WAITING_SHOWN=0
+# 「待機中」は **stdout** から見る (print で出る。T13 も stdout のこの行を待っている)
+grep -q "待機中" "$WORK/t25-out.log" 2>/dev/null && T25_WAITING_SHOWN=1
+# **縮退したかを先に見る。** 他プロセスが f8 を握っていると #80 の縮退で即時録画になり、
+# そのとき #97 の WARNING は (待機しないので) 正しく出ない。これを「警告が失われている」と
+# 診断すると原因を取り違える — 実際はキーの取り合いで、このテストの前提が崩れている
+T25_DEGRADED=0
+# 縮退の警告 (#80) も stderr
+grep -q "WARNING: ホットキー" "$WORK/t25-err.log" 2>/dev/null && T25_DEGRADED=1
+
+if [ "$T25_DEGRADED" = "1" ]; then
+    bad "T25 hotkey+duration: ホットキー $T25_KEY を他プロセスが握っており縮退した (このテストの前提が崩れている。孤児が残っていないか確認すること) — $WORK/t25-out.log と $WORK/t25-err.log"
+elif [ "$T25_STILL_WAITING" != "1" ]; then
+    # --duration で終わってしまった = 待機に入っていない。仕様が変わったか縮退した
+    bad "T25 hotkey+duration: 待機に入らず $((T25_WAITED / 2)) 秒で終了した (exit=$T25_EXIT)。設定の hotkey が効いていないか、待機の判定が変わった — $WORK/t25-out.log と $WORK/t25-err.log"
+elif [ "$T25_WARN" != "1" ]; then
+    bad "T25 hotkey+duration: 待機には入ったが WARNING が出ていない (issue #97 の警告が失われている) — $WORK/t25-out.log と $WORK/t25-err.log"
+elif [ "$T25_WAITING_SHOWN" != "1" ]; then
+    bad "T25 hotkey+duration: WARNING は出たが「待機中」の表示がない (登録に失敗している) — $WORK/t25-out.log と $WORK/t25-err.log"
+elif [ "$T25_FILES" != "0" ]; then
+    bad "T25 hotkey+duration: 待機中なのに出力ファイルが $T25_FILES 個ある — $T25_DIR"
+elif [ "$T25_STOPPED_BY_INT" != "1" ]; then
+    # **終了コードだけでは SIGINT の回帰を捕まえられない。** `installStopSignalHandler` は
+    # SIGINT / SIGTERM / SIGHUP を**同じ handler** に繋ぐので、INT だけが壊れても
+    # TERM への昇格で exit 0 になり、`$T25_EXIT` を見るだけでは緑になってしまう。
+    # **INT のループ内で終了したか**を見て初めて、T13 が守る契約の回帰を検出できる
+    bad "T25 hotkey+duration: 待機中の SIGINT で終了しなかった (TERM/KILL への昇格が必要だった。exit=$T25_EXIT)。待機中 Ctrl+C = exit 0 の契約 (DESIGN.md §6) の回帰を疑う — $WORK/t25-out.log と $WORK/t25-err.log"
+elif [ "$T25_EXIT" != "0" ]; then
+    # INT で終わったのに非ゼロ = ファイナライズや後始末の失敗
+    bad "T25 hotkey+duration: SIGINT で終了したが exit=$T25_EXIT (0 が契約) — $WORK/t25-out.log と $WORK/t25-err.log"
+else
+    ok "T25 hotkey+duration: 非対話でも待機に入り、WARNING を出し、ファイルを作らず、SIGINT で exit=0"
 fi
 
 # ---- サマリ -------------------------------------------------------------------

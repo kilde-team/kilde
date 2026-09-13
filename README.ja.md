@@ -110,6 +110,14 @@ kilde は ScreenCaptureKit のネイティブなシステム音声キャプチ�
 # 待機中の Ctrl+C はファイルを作らず終了 (--countdown との併用は不可)
 kilde rec --hotkey cmd+shift+r 会議.mov
 
+# --duration は hotkey と併用できるが、**待機の解除後**から数える (起動時からではない)。
+# つまり設定ファイルに hotkey があると `kilde rec --duration 30s` でも待機に入り、
+# 無人スクリプトはキーが押されるまで止まったままになる
+# (Ctrl+C / SIGTERM / SIGHUP はいずれも待機を中止して終了コード 0)。
+# **設定由来の hotkey が --duration を持ち越すときは stderr に警告を出す** —
+# --hotkey を明示したときは待機が目的なので出さない。
+# 無人で録るなら kilde config unset hotkey で設定のキーを外す
+
 # 既定値を設定ファイル (~/.kilde/config.json) で変更
 #   KILDE_CONFIG_DIR で config.json と monitor-state.json の保存先を差し替え可能
 #   (絶対パスか ~ 始まりのみ。相対パスはエラー)
