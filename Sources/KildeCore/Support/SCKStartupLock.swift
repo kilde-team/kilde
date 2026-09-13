@@ -50,10 +50,22 @@ import Darwin
 /// `KILDE_CONFIG_DIR` を作業ディレクトリへ分離するため、そこにロックを置くと
 /// **テスト同士で排他が効かず T18b が直らない**。ユーザー単位で固定の一時ディレクトリを使う。
 ///
+/// ## 対象の範囲
+///
+/// **`rec` の SCK 起動と、`SCShareableContent` の列挙の両方**を直列化する。
+///
+/// 列挙 (`devices` / `doctor` / GUI のウィンドウ一覧・サムネイル) は当初対象外だったが、
+/// **列挙と `rec` の起動が重なると起動側が `SCStream.startCapture()` で `-3801`
+/// (TCC 拒否) を受けて失敗する**ことが分かったため、issue #90 で対象に加えた
+/// (実測: `devices` 併走で 7/10 失敗 → 1.8%)。固まりはしないが録画が即座に落ちる。
+///
+/// 待機上限は用途で分ける — 録画は `defaultTimeout` (15 秒)、列挙は
+/// `enumerationTimeout` (3 秒)。列挙は 0.2 秒で終わる操作なので長く待たせない。
+///
 /// ## 既知の範囲
 ///
-/// 対象は `rec` の SCK 起動だけで、`devices` / `doctor` / GUI のウィンドウ列挙は含まない。
-/// 列挙との併走は固まりを起こさないが、別の失敗 (TCC -3801) を招くことがある — issue #90。
+/// **列挙を直列化しても約 1.8% は `-3801` で失敗する** (issue #99)。機序は未特定で、
+/// 6 つの仮説が実測で否定されている。詳細と調査の注意点は #99 を参照。
 public enum SCKStartupLock {
 
     /// ロックの保持者。`release()` を呼ぶか deinit で解放される。
@@ -119,14 +131,85 @@ public enum SCKStartupLock {
         "kilde-sck-startup-\(getuid()).lock"
     }
 
+    /// 録画の起動が待つ既定の上限。**録画は待てば成功する**ので長めに取る
+    /// (危険区間は実測 0.31 秒なので、通常はほとんど待たない)
+    public static let defaultTimeout: TimeInterval = 15
+
+    /// 列挙 (`devices` / `doctor` / GUI のウィンドウ一覧) が待つ上限 (issue #90)。
+    /// **録画より短くする** — 列挙は 0.2 秒で終わる操作 (実測: `devices` 0.16〜0.19 秒、
+    /// `doctor` 0.20〜0.21 秒) で、待たせすぎると「一覧を見たいだけなのに固まった」に見える。
+    /// 危険区間 0.31 秒に対して十分な余裕があり、かつ人が待てる長さとして 3 秒にしている
+    public static let enumerationTimeout: TimeInterval = 3
+
+    /// 取得できなかった理由。**呼び出し側が対処を変えられるように種別で分ける。**
+    ///
+    /// `KilError.failed` に畳んで投げていたが、それだと呼び出し側から区別できない。
+    /// 列挙 (issue #90) は「他プロセスが録画開始中で待ち切れなかった」なら続行してよいが、
+    /// 「ロックファイルが開けない」は**排他がまったく成立していない**状態で、
+    /// 同じ文言で報告すると利用者を無関係な復旧手順 (先の録画を待つ) へ誘導してしまう。
+    ///
+    /// **文言は `KilError.failed` 時代のものを維持する** — 既存テストと利用者向けの
+    /// メッセージを変える必要はなく、変えるのは「呼び出し側が種別を見分けられること」だけ
+    public enum Failure: Error, CustomStringConvertible {
+        /// 停止要求 (Ctrl+C / GUI の Stop / 構造化キャンセル) で待機をやめた
+        case cancelled
+        /// 他プロセスが保持したまま期限が来た。**待てば取れる見込みはある**。
+        /// **`Int` ではなく `TimeInterval` で運ぶ** — 整数で持つと `lockTimeout: 0.5` が
+        /// 0 に丸まり「0 秒以内に空きませんでした」という意味の通らない文言になる
+        case timedOut(seconds: TimeInterval)
+        /// ロックファイルを開けない。**待っても解決せず、排他が成立していない**
+        case unavailable(path: String, errorNumber: Int32)
+        /// `timeout` に NaN / 無限大 / 負値が渡された
+        case invalidTimeout(TimeInterval)
+
+        public var description: String {
+            switch self {
+            case .cancelled:
+                return "ロックの待機を中止しました"
+            case .timedOut(let seconds):
+                return "他の kilde が録画の準備中のため開始できません "
+                    + "(同時に SCK のキャプチャを開始するとどちらも復帰しないため待機しましたが、"
+                    + "\(Self.formatSeconds(seconds)) 秒以内に空きませんでした)。"
+                    + "先の録画の開始を待ってから実行してください"
+            case .unavailable(let path, let errorNumber):
+                return "録画の排他ロックを作成できません: \(path) "
+                    + "(errno=\(errorNumber): \(String(cString: strerror(errorNumber))))"
+            case .invalidTimeout(let timeout):
+                return "ロックの待機時間が不正です: \(timeout)"
+            }
+        }
+
+        // **`KilError` への変換は用意しない。** `Recorder.asKilError` が
+        // 「`KilError` でなければ `.failed(String(describing:))`」で畳んでおり、
+        // `description` を持つこの型はそれで正しい文言と終了コード 1 になる。
+        // ここに専用の変換を足すと同じ写像が 2 つ並び、片方だけ変わって静かに食い違う
+
+        /// 待機秒数の表示。**`Int(...)` で切り捨てない** — 0.5 秒が「0 秒」になると
+        /// 意味が通らない。整数なら "3"、小数なら "0.5" にする。
+        ///
+        /// 表示だけのために変換で落ちないよう、`Int` に収まらない値は書式化に回す
+        /// (`acquire` は NaN / 無限大を `invalidTimeout` で弾くのでここには来ないが、
+        /// **エラーを報告している最中にトラップする**のが最悪の壊れ方なので念を入れる)
+        static func formatSeconds(_ seconds: TimeInterval) -> String {
+            guard seconds.isFinite,
+                  seconds == seconds.rounded(),
+                  seconds.magnitude < 1e15 else {
+                return String(format: "%.1f", seconds)
+            }
+            return String(Int(seconds))
+        }
+    }
+
     /// ロックを取る。取れるまで待ち、`timeout` を超えたら諦めて throw する。
+    /// **投げるのは `Failure`** — 呼び出し側が理由で対処を変えられるようにするため
+    /// (issue #90 の列挙は `timedOut` なら続行し、`unavailable` は別の文言で報せる)。
     /// SCK を使わない構成 (マイクのみ) では呼ばないこと — 無関係な録画まで直列化してしまう。
     ///
     /// **async にしているのは待ちでスレッドを塞がないため** (issue #35 と同じ理由)。
     /// 同期 `Thread.sleep` で待つと協調プールのスレッドを最長 `timeout` 秒占有し、
     /// さらに待機中は停止要求を観測できないので Ctrl+C への応答が遅れる。
     /// `isCancelled` を渡せば、待っている間も停止要求で抜けられる
-    public static func acquire(timeout: TimeInterval = 15,
+    public static func acquire(timeout: TimeInterval = defaultTimeout,
                                isCancelled: @escaping () -> Bool = { false }) async throws -> Token {
         // **単調時計で測る。** `Date` だとシステム時刻が後戻りしたときに期限も後戻りし、
         // ハングした保持者を相手に上限を超えて待ち続ける。
@@ -136,7 +219,7 @@ public enum SCKStartupLock {
         // KildeCore はライブラリなので外から任意の値が来うる
         let milliseconds = timeout * 1000
         guard milliseconds.isFinite, milliseconds >= 0 else {
-            throw KilError.failed("ロックの待機時間が不正です: \(timeout)")
+            throw Failure.invalidTimeout(timeout)
         }
         // 上限も切る — Int に収まっても DispatchTime の加算が飽和して
         // 「事実上無期限に待つ」状態になる。1 時間あれば起動区間 (0.31 秒) には十分。
@@ -145,8 +228,9 @@ public enum SCKStartupLock {
         let cappedMilliseconds = Int(min(milliseconds, 3_600_000))
         let deadline = DispatchTime.now() + .milliseconds(cappedMilliseconds)
         // エラー文にはこの**実効値**を使う。元の `timeout` を出すと、上限で丸めたときに
-        // 「7200 秒以内に空きませんでした」と実際の待機 (1 時間) と違う値を伝えてしまう
-        let effectiveSeconds = cappedMilliseconds / 1000
+        // 「7200 秒以内に空きませんでした」と実際の待機 (1 時間) と違う値を伝えてしまう。
+        // **整数除算にしない** — 0.5 秒の待機が 0 秒と表示される
+        let effectiveSeconds = Double(cappedMilliseconds) / 1000
         // `Task.isCancelled` も見る — 見ないと、構造化キャンセルされたときに
         // `try?` が sleep のキャンセル例外を握り潰し、open + flock を無遅延で回す
         // busy-spin が期限まで続く (`Recorder.awaitOrStop` が同じ罠を避けているのと同じ)
@@ -159,37 +243,29 @@ public enum SCKStartupLock {
                 // 握ったままにしないよう解放してから中止する
                 if Task.isCancelled || isCancelled() {
                     token.release()
-                    throw KilError.failed("ロックの待機を中止しました")
+                    throw Failure.cancelled
                 }
                 return token
             case .unavailable(let errorNumber):
                 // **待っても解決しない失敗を待たない。** 一時ディレクトリが書けない等を
                 // 「他プロセスが保持中」と同じ扱いにすると、15 秒待たせた挙句に
                 // 誤った原因を示し、利用者を無関係な復旧手順へ誘導する
-                throw KilError.failed(
-                    "録画の排他ロックを作成できません: \(fileURL.path) "
-                    + "(errno=\(errorNumber): \(String(cString: strerror(errorNumber))))"
-                )
+                throw Failure.unavailable(path: fileURL.path, errorNumber: errorNumber)
             case .heldByOther:
                 break   // 待つ
             }
             if isCancelled() {
                 // 呼び出し元 (Recorder) が準備中キャンセルとして畳み直す。
                 // ここで cancelledBeforeRecording を立てないと exit 1 になる
-                throw KilError.failed("ロックの待機を中止しました")
+                throw Failure.cancelled
             }
             if DispatchTime.now() >= deadline {
-                throw KilError.failed(
-                    "他の kilde が録画の準備中のため開始できません "
-                    + "(同時に SCK のキャプチャを開始するとどちらも復帰しないため待機しましたが、"
-                    + "\(effectiveSeconds) 秒以内に空きませんでした)。"
-                    + "先の録画の開始を待ってから実行してください"
-                )
+                throw Failure.timedOut(seconds: effectiveSeconds)
             }
             // 危険区間は 0.3 秒程度なので、短い間隔で見に行けばほとんど待たない
             try? await Task.sleep(nanoseconds: 50_000_000)
         }
-        throw KilError.failed("ロックの待機を中止しました")
+        throw Failure.cancelled
     }
 
     /// `tryAcquire` の結果。**「取れない」を 1 つに畳まない** —

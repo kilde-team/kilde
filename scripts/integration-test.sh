@@ -28,6 +28,7 @@ GUI_PID=""
 T21_PID=""
 T23_HOLDER_PID=""
 T23_RUN_PID=""
+T24_DEVICES_PID=""
 
 cleanup() {
     if [ "$MONITOR_SET_UP" = "1" ]; then
@@ -51,6 +52,17 @@ T22_PID=""
     # T21 の self-test はバックグラウンド起動なので、スイートを途中で止めたときに
     # KildeGUI が残る。録画はしていないので安全停止の待ちは要らない
     [ -n "$T21_PID" ] && kill "$T21_PID" 2>/dev/null
+    # T24 の併走役 (devices の列挙) も残さない。**kill して終わりにせず `wait` する** —
+    # 送っただけでは終了を確認できず、孤児 (PPID=1) として残る。孤児の devices は
+    # `flock` を保持し続けるので、以後の `rec` がすべて「15 秒以内に空きませんでした」で
+    # 失敗する。**開発中に実際に踏んだ** — 孤児が 8 分間ロックを握り、その間の計測
+    # 25 回がすべてロック待ちで詰まって無意味になった。
+    # 録画はしていないので安全停止の猶予は要らず、KILL してから回収する
+    if [ -n "${T24_DEVICES_PID:-}" ]; then
+        kill -KILL "$T24_DEVICES_PID" 2>/dev/null
+        wait "$T24_DEVICES_PID" 2>/dev/null
+    fi
+    T24_DEVICES_PID=""
     # T23 の占有役 (rec --hotkey の待機) も残さない。**残すと次回以降のスイートが壊れる** —
     # ホットキーは排他登録なので、孤児が同じキーを握ったままだと T23 の占有役が登録できず、
     # 以後ずっと「占有役が待機に入れませんでした」で落ち続ける (開発中に実際に踏んだ)。
@@ -1362,6 +1374,108 @@ if [ "$T22_EXIT" = "0" ]; then
     fi
 else
     bad "T22 準備中 SIGINT: exit=$T22_EXIT — $WORK/t22.log"
+fi
+
+# ---- T24: devices を併走させても rec が失敗しない (issue #90)
+# `SCShareableContent` の列挙と SCK の起動が重なると、**起動側が
+# `SCStream.startCapture()` で -3801 (TCC 拒否) を受けて即座に失敗する**。
+# **権限拒否ではない** — Recorder は startCapture() の手前で
+# Permissions.hasScreenCapture を確認済みで、権限が無ければそこで終了コード 2 になる。
+# 修正前の実測 (条件を交互に各 10 回): **devices 併走で 7/10 失敗、単独では 0/10**。
+#
+# **1 組では足りない。** 修正前でも 3/10 は成功するので、1 回通っても回帰が無い証拠に
+# ならない。5 組なら修正前を見逃す確率は 0.3^5 ≈ 0.2% で、門として機能する。
+# #70 (T18b) と違って**固まらない**ので、期限つきの待ちは要らない (失敗は即座に返る)。
+
+log "T24: devices 併走 — 列挙と SCK 起動が重なっても rec が失敗しない"
+T24_ROUNDS=5
+T24_NG=0
+T24_TCC=0
+T24_DETAIL=""
+T24_DIR="$WORK/t24"
+mkdir -p "$T24_DIR"
+for T24_ROUND in $(seq 1 "$T24_ROUNDS"); do
+    T24_DEV_LOG="$WORK/t24-devices-$T24_ROUND.log"
+    : > "$T24_DEV_LOG"
+    # 列挙を先に出してから録画を始める — 危険なのは列挙と**起動**が重なる瞬間なので、
+    # devices (実測 0.2 秒) が rec の起動区間 (実測 0.31 秒) に被る順序にする
+    "$KILDE" devices > "$T24_DEV_LOG" 2>&1 &
+    T24_DEVICES_PID=$!
+    # **同期信号は入れない (CodeRabbit の指摘を実測のうえ一部見送り)。**
+    #
+    # 「devices が rec の起動前に終わる経路を防げない」という指摘は理屈としては正しい。
+    # だが実装できる同期が無く、無理に入れると門が弱くなる:
+    #
+    #   - `devices` は**列挙が終わってから** "== displays ==" を出す
+    #     (実測: 全体 0.17 秒 / 起動のみ 0.02 秒 → 列挙は約 0.15 秒)。
+    #     この行を待ってから rec を起動すると devices は終了間際で、**重なりが減る**
+    #   - `devices` を回し続けて確実に重ねる案は、**rec がハングした** (issue #95。
+    #     修正前バイナリで 1 回目から `Recorder.swift:494` の completionCondition 待ちで
+    #     65 秒停止)。スイートが無言で止まるので採れない
+    #
+    # **同期なしで門になることを実測で確認した**: #90 修正前のバイナリ (5b22465) に
+    # この形で 5 回当てて **4/5 が -3801 で失敗**。回帰は捕まる
+    "$KILDE" rec --no-video --duration 2 --output "$T24_DIR/t24-$T24_ROUND.m4a" \
+        > "$WORK/t24-rec-$T24_ROUND.log" 2>&1
+    T24_EXIT=$?
+    # **devices の終了コードも見る。** 捨てると、列挙側が落ちても rec さえ成功すれば
+    # T24 が通ってしまう (このテストは両者が併走して**双方無事**であることを見る)。
+    #
+    # **期限つきで待つ (T22 と同じ段階的強制)。** 無期限の `wait` だと、`devices` が
+    # 固まったときにスイート全体が無言で止まる。列挙は実測 0.2 秒、ロック待ちを含めても
+    # 3 秒 (enumerationTimeout) なので、10 秒あれば正常時は必ず終わる
+    T24_DEV_DEADLINE=$(( $(date +%s) + 10 ))
+    while [ "$(date +%s)" -lt "$T24_DEV_DEADLINE" ] && kill -0 "$T24_DEVICES_PID" 2>/dev/null; do
+        sleep 0.2
+    done
+    if kill -0 "$T24_DEVICES_PID" 2>/dev/null; then
+        kill -KILL "$T24_DEVICES_PID" 2>/dev/null
+        wait "$T24_DEVICES_PID" 2>/dev/null
+        T24_DEV_EXIT=137
+        T24_DETAIL="$T24_DETAIL [組$T24_ROUND devices が 10 秒で終わらず KILL]"
+    else
+        wait "$T24_DEVICES_PID" 2>/dev/null
+        T24_DEV_EXIT=$?
+    fi
+    T24_DEVICES_PID=""
+    # -3801 かどうかを分けて数える。他の理由の失敗 (環境起因の -3818 など) と
+    # 混ぜると、#90 の回帰なのか環境なのかが判定から読み取れなくなる
+    if grep -q "Code=-3801" "$WORK/t24-rec-$T24_ROUND.log" 2>/dev/null; then
+        T24_TCC=$((T24_TCC+1))
+    fi
+    if [ "$T24_EXIT" != "0" ]; then
+        T24_NG=$((T24_NG+1))
+        T24_DETAIL="$T24_DETAIL [組$T24_ROUND rec exit=$T24_EXIT]"
+    fi
+    if [ "$T24_DEV_EXIT" != "0" ]; then
+        T24_NG=$((T24_NG+1))
+        T24_DETAIL="$T24_DETAIL [組$T24_ROUND devices exit=$T24_DEV_EXIT — $T24_DEV_LOG]"
+    fi
+done
+# **判定を 3 つに分ける (T18b が #95 に対して取っている形と同じ)。**
+#
+# 列挙を直列化しても **約 1.8% が -3801 で残る** (issue #99。修正後 110 試行中 2 件)。
+# 全組を必須にすると、5 組がすべて通る確率は 91.3% なので **約 8.7% の頻度で
+# 無関係な PR まで赤くなる**。一方で緩めすぎると回帰を見逃す。そこで:
+#
+#   - **2 組以上で -3801** → #90 の回帰。`bad`
+#   - **1 組だけ -3801** → #99 の残存。`skip` (#99 が閉じたらこの分岐を bad に上げること)
+#   - **-3801 以外の失敗** → 環境かコードの別の問題。従来どおり `bad`
+#
+# **閾値を「全組」ではなく「2 組以上」に置く。** 全組だけを bad にすると、
+# **修正前バイナリで実測した 4/5 の回帰が skip になって素通りします** (CodeRabbit の指摘)。
+# 一方 2 組以上なら:
+#   - 残存 1.8% で 5 組中 2 件以上が出る確率は **約 0.33%** (300 回に 1 回) — 誤検知は許容範囲
+#   - 修正前 (実測 70〜80%) なら 2 件以上はほぼ確実 — 回帰は捕まる
+if [ "$T24_TCC" -ge 2 ]; then
+    bad "T24 devices 併走: ${T24_ROUNDS} 組中 $T24_TCC 組で -3801 (列挙が SCK 起動ロックの外に出ている。issue #90 の回帰を疑う。残存 #99 なら 5 組中 2 件以上は約 0.33% でしか起きない)$T24_DETAIL"
+elif [ "$T24_NG" != "$T24_TCC" ]; then
+    # -3801 以外の理由でも落ちている (NG が TCC を上回る = devices 側の失敗を含む)
+    bad "T24 devices 併走: ${T24_ROUNDS} 組中 $T24_NG 件が失敗 (うち -3801 は $T24_TCC 件)。-3801 以外の原因を調べること — $WORK/t24-rec-*.log$T24_DETAIL"
+elif [ "$T24_TCC" != "0" ]; then
+    skip "T24 devices 併走: ${T24_ROUNDS} 組中 1 組で -3801 (issue #99 の残存。約 1.8% で起きる。#99 が閉じたらこの分岐を bad に上げること)$T24_DETAIL"
+else
+    ok "T24 devices 併走: ${T24_ROUNDS}/${T24_ROUNDS} 組で rec が exit=0 (-3801 なし)"
 fi
 
 # ---- サマリ -------------------------------------------------------------------

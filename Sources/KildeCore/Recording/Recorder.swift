@@ -731,14 +731,21 @@ public final class Recorder {
             // 単一ウィンドウと違って合成先ディスプレイの解決が要る
             let resolvedWindows: [SCWindow]
             let resolvedDisplay: SCDisplay?
+            //
+            // **ここから先の列挙は `usesStartupLock: false` で呼ぶ (issue #90)。**
+            // 列挙も既定でロックを取るようになったが、この経路は**すぐ上で同じロックを
+            // 取得済み**。`flock` は同一プロセスの別 fd でも排他される (実測で `EWOULDBLOCK`)
+            // ため、既定のまま呼ぶと自分のロックに阻まれて待機上限まで待ち、録画が失敗する
             if !options.windowMatches.isEmpty {
-                resolvedWindows = try await DisplayCatalog.resolveWindows(matching: options.windowMatches)
+                resolvedWindows = try await DisplayCatalog.resolveWindows(
+                    matching: options.windowMatches, usesStartupLock: false)
                 resolvedDisplay = resolvedWindows.count == 1
                     ? nil   // desktopIndependentWindow で切り出すのでディスプレイは要らない
-                    : try await DisplayCatalog.display(at: options.displayIndex)
+                    : try await DisplayCatalog.display(at: options.displayIndex, usesStartupLock: false)
             } else {
                 resolvedWindows = []
-                resolvedDisplay = try await DisplayCatalog.display(at: options.displayIndex)
+                resolvedDisplay = try await DisplayCatalog.display(at: options.displayIndex,
+                                                                   usesStartupLock: false)
             }
             // HDR 可否はここで 1 回だけ決めて持ち回す。都度評価すると SCShareableContent を
             // 引き直すことになり、ストリーム側と書き出し側で答えが割れうる (issue #16)
@@ -885,7 +892,9 @@ public final class Recorder {
                         videoSize = CGSize(width: w, height: h)
                     }
                 }
-                let excluded = try await DisplayCatalog.resolveApplications(bundleIDs: options.excludedBundleIDs)
+                // 上の対象解決と同じく、ロックは既に保持しているので取りにいかない (issue #90)
+                let excluded = try await DisplayCatalog.resolveApplications(
+                    bundleIDs: options.excludedBundleIDs, usesStartupLock: false)
                 filter = SCContentFilter(display: display,
                                          excludingApplications: excluded,
                                          exceptingWindows: [])
