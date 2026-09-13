@@ -1,0 +1,22 @@
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_616cfc86fbd95d 1391-1392,1395,1398,1414-1415,1417,1426-1430
+  s_35faeec28b4c4b::t_d79d0eae1732f1 1397,1399-1410
+Sources/KildeCore/Devices/DisplayCatalog.swift
+  s_35faeec28b4c4b::t_6ce28d64cf25d6 162-170,178-181
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "9f78a3b50156a5e858942e7f9df3813407d08b64",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
