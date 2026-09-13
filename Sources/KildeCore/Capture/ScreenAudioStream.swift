@@ -60,17 +60,47 @@ public final class ScreenAudioStream: NSObject, SCStreamOutput {
     /// 「Ctrl+C でも必ずファイナライズする」最重要要件に反するため。代わりに、停止に失敗して
     /// SCK がコールバックを送り続けても handler へ届かないよう、outQueue 上で stopped を立てて
     /// 以降のコールバックを捨てる
-    func stop() async {
-        guard let stream else { return }
-        try? await stream.stopCapture()
-        // シリアルキューなので、ここで積んだブロックの実行時点で積み残しのコールバックは処理済み。
-        // 同じブロックで stopped を立てるので、これより後に届いたコールバックは handler を呼ばない
+    /// **サンプルの配送だけを止める (replayd とは話さない)。** issue #95 の対処の要。
+    ///
+    /// 停止シーケンスは `stopCapture()` が replayd との XPC から戻らないことがあり
+    /// (2 プロセスの停止が重なると実測 8/10)、そこで固まるとファイナライズに辿り着けず
+    /// **未完了ファイルが残る**。そこで「配送を止める」と「replayd に停止を伝える」を
+    /// 分け、**前者だけを先に済ませてからファイナライズする**。
+    /// こうすれば `stopCapture()` がハングしても、そのときには**ファイルは完成済み**になる。
+    ///
+    /// ここは `outQueue` にブロックを積んで `stopped` を立てるだけで、SCK の API を
+    /// 一切呼ばない。シリアルキューなので、このブロックが走る時点で積み残しの
+    /// コールバックは処理済みになっている
+    func suspendDelivery() async {
+        guard stream != nil else { return }
+        StopTrace.mark("sck.drain 開始 (stopCapture は呼ばない)")
         await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
             outQueue.async {
+                StopTrace.mark("sck.outQueue drain 実行")
                 self.stopped = true
                 done.resume()
             }
         }
+        StopTrace.mark("sck.drain 完了")
+    }
+
+    /// **replayd にキャプチャの停止を伝える。** ここがハングしうる区間 (issue #95)。
+    /// `suspendDelivery()` を先に済ませてある前提なので、ここで固まっても
+    /// 出力ファイルは既にファイナライズ済みで、壊れたファイルは残らない
+    func stopCapture() async {
+        guard let stream else { return }
+        StopTrace.mark("sck.stopCapture 呼び出し前")
+        try? await stream.stopCapture()
+        StopTrace.mark("sck.stopCapture 戻り")
+    }
+
+    func stop() async {
+        // 旧来の順序 (replayd に伝えてから配送を止める) を保つ呼び出し口。
+        // **#95 の対処を入れる前の比較対照として残す** — 修正前後を同じ実験装置で
+        // 測るために、両方の順序を選べる必要がある
+        await stopCapture()
+        await suspendDelivery()
+        StopTrace.mark("sck.stop 完了")
     }
 
     public func stream(_ stream: SCStream, didOutputSampleBuffer sampleBuffer: CMSampleBuffer,

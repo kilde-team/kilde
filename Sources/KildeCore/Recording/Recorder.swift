@@ -558,6 +558,8 @@ public final class Recorder {
     /// NSCondition の操作を async コンテキストで直接行うと警告になるため
     /// (待つのは既に結果が出た後の短区間で、長時間のブロックは無い)
     private func storeCompletion(_ result: Result<Summary, Error>) {
+        // ここに到達すれば run() の待ちは解ける。4 例すべてで到達していなかった地点 (issue #95)
+        StopTrace.mark("storeCompletion 到達")
         completionCondition.lock()
         completionResult = result
         completionCondition.broadcast()
@@ -1023,7 +1025,11 @@ public final class Recorder {
         // 進捗イベントの定期配信 (同期 run() 経由では無効)
         let progressTask = startProgressEmissionIfNeeded()
         // 停止要求と duration のどちらか早い方を待つ
+        StopTrace.mark("waitForStopOrDuration 入り")
         await waitForStopOrDuration()
+        // ここを抜けていれば --duration の Task.sleep は正常に起きている。
+        // 「--duration を過ぎても止まらない」の原因が待ち側か停止処理側かを分ける (issue #95)
+        StopTrace.mark("waitForStopOrDuration 抜け")
         // 録画経過はこの時点で確定させる — 以降のファイナライズ (SCK の drain、
         // mixer の flush) に時間がかかると elapsed が伸び、短時間録画を誤って
         // 消灯・ロック扱いの案内にしてしまうため
@@ -1038,14 +1044,33 @@ public final class Recorder {
         // SCK のコールバックを吐き切ってから writer を閉じる (stop() が drain まで待つ)。
         // 一時停止のまま停止された場合、排出中のサンプルも捨てたいので、
         // 一時停止の解除は排出が終わってから行う
-        await sck?.stop()
+        // **配送の停止とファイナライズを先に、replayd への停止通知を後に (issue #95)。**
+        // `stopCapture()` は 2 プロセスの停止が重なると replayd から戻らない
+        // (実測: 同時停止で 8/10、0.5 秒ずらして 1/10、1 秒ずらして 0/10)。
+        // 旧来の順序ではそこで固まるとファイナライズに辿り着けず、**未完了ファイルが残る**。
+        //
+        // 配送の停止 (`suspendDelivery`) は replayd と話さないので安全に先行でき、
+        // これで新しいサンプルが混ざらなくなる。以降 `mixer.flush()` →
+        // `validateVideoFrameCount` → `w.finish()` までを済ませてから、最後に
+        // `stopCapture()` を呼ぶ。**そこで固まってもファイルは完成済み**になる
+        // (`KILDE_STOP_ORDER=legacy` で旧順序に戻せる — 修正前後を同じ装置で測るため)
+        let usesLegacyStopOrder =
+            ProcessInfo.processInfo.environment["KILDE_STOP_ORDER"] == "legacy"
+        if usesLegacyStopOrder {
+            await sck?.stop()
+        } else {
+            await sck?.suspendDelivery()
+        }
+        StopTrace.mark("sck 配送停止から戻った (legacy=\(usesLegacyStopOrder))")
         for m in micStreams { m.stop() }
+        StopTrace.mark("mic.stop 完了 (\(micStreams.count) 本)")
         finalizePauseIfNeeded()
         if let mixer {
             // チャンク境界に満たない末尾を含め、残データを吐き切ってから完了する
             for chunk in mixer.flush() {
                 w.appendAudio(chunk, label: "mixed")
             }
+            StopTrace.mark("mixer.flush 完了")
         }
         do {
             try Self.validateVideoFrameCount(
@@ -1059,7 +1084,16 @@ public final class Recorder {
             w.cancel(removingOutput: true)
             throw error
         }
+        StopTrace.mark("writer.finish 呼び出し前")
         try await w.finish()
+        StopTrace.mark("writer.finish 完了")
+        // **ファイルが完成してから replayd に停止を伝える (issue #95)。**
+        // ここがハングしても残るのは完成したファイルで、最重要要件は守られる。
+        // 旧順序では既に `stop()` の中で呼び済みなので二重には呼ばない
+        if !usesLegacyStopOrder {
+            await sck?.stopCapture()
+            StopTrace.mark("stopCapture から戻った (ファイナライズ後)")
+        }
 
         // 一時停止したまま停止された場合も、その区間を合計に含める。
         // async 文脈で NSLock を直接触ると警告になるため同期ヘルパ経由で読む (countersSnapshot と同じ)
@@ -1383,5 +1417,10 @@ public final class Recorder {
             }
             writer?.appendAudio(sb, label: label)
         }
+        // **サンプルが最後に届いた時刻を残す (issue #95)。** 進捗表示の凍結が
+        // 「SCK がサンプルを送らなくなった」のか「表示側が止まった」のかは、
+        // ログからは区別できなかった。ここが途絶えれば前者と確定する。
+        // 録画中のホットパスなので、無効時に文字列を組み立てないよう @autoclosure に渡す
+        StopTrace.mark("handleAudio \(label)")
     }
 }

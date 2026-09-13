@@ -294,7 +294,7 @@ scripts/integration-test.sh
 | T16 | `rec --format mp4` — ISO Media コンテナで録れる / 出力パスの拡張子から自動判定 / 既定は MOV のまま / ProRes・`--no-video`・不正値との組合せは録画前に exit 64 (設定ファイル由来の codec は exit 1) |
 | T17 | `rec --exclude-app` — 除外したアプリの音が出力に入らない / `--window` 複数指定でディスプレイ全体の大きさで録れ、音声スコープも効く (含めたアプリの音は入り、含めなかったアプリの音は入らない) / 実行中でない bundleID は exit 3 / 併用不可の組合せは録画前に exit 64 |
 | T18 | 既定出力名の原子的予約 — 同名の 0 バイトがあれば `-2` に退避して元を保護 |
-| T18b | 同秒の 2 本同時起動で互いのファイルを消さない (共存を検証。固まる場合は #70 をタイムアウトで回収) |
+| T18b | 同秒の 2 本同時起動で互いのファイルを消さない (共存を検証)。**判定は 3 軸に分かれる** — 名前が 2 つ残らなければ FAIL (予約の保護 = issue #59)、**出力が再生可能でなければ FAIL** (`inspect` で `rms` が読めること。停止シーケンスの順序を誤ると未完了ファイルが残る = issue #95)、**プロセスが自力で終わらないだけなら SKIP** (`SCStream.stopCapture()` が replayd から戻らない = issue #103。kilde 側では解消できないため、これで無関係な PR を赤くしない)。#103 が閉じたら SKIP の分岐を FAIL に上げる |
 | T19 | `rec --codec prores` — ProRes (BGRA 経路) で録れる |
 | T19b | `rec --codec hevc` — HEVC (420v 経路) で録れる。`SCStreamConfiguration` は単体テストから触れないため、両経路をここで通す |
 | T21 | GUI 通知・最近の録画・ホットキー (issue #20) — `KILDE_GUI_SELFTEST_NOTIFY=1` で UI を操作せずに検証する。最近の録画の走査 (上限 5 件・更新時刻の新しい順・接頭辞/拡張子/ディレクトリ/隠しファイルの除外)、Finder に渡す URL (実在ファイルはそれ自身、消えていれば親ディレクトリ)、ホットキーの登録可否。**通知バナーの表示とクリック、他アプリ前面でのキー押下は自動化できない** (Notification Center と TCC の状態に依存) ので目視確認。T11 と同じく xcodegen 未導入 / kilde-dev 証明書なし / KildeGUI 起動中は SKIP |
