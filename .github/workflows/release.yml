@@ -49,15 +49,22 @@ jobs:
           echo "version: $VERSION"
 
       - name: Stamp the version into Info.plist and the CLI
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
+          # タグ由来の値を ${{ }} 展開で run に直接入れない (env 経由)。区切り文字に
+          # よってはシェルインジェクションになるため、先に書式を検証する
+          echo "$VERSION" | grep -EqE '^[0-9A-Za-z][0-9A-Za-z._-]*$' \
+            || { echo "バージョンに使えない文字が含まれます: $VERSION"; exit 1; }
           # バージョンの真実の源はタグ。Info.plist と KildeCommand の既定値を
           # ビルド前に差し込む (コミットはせず、このビルド限り)
           plutil -replace CFBundleShortVersionString -string "$VERSION" Sources/kilde/Info.plist
           plutil -replace CFBundleVersion -string "$GITHUB_RUN_NUMBER" Sources/kilde/Info.plist
-          # macOS の sed (BSD) は -i '' が必要。version: "x.y.z" の形式をタグの値に
+          # macOS の sed (BSD) は -i '' が必要。version: "x.y.z" の形式をタグの値に。
+          # 差し込みが成功したことを grep で確認する (sed の失敗は黙って通るため)
           sed -i '' "s/version: \"[^\"]*\"/version: \"$VERSION\"/" Sources/kilde/KildeCommand.swift
-          grep -n 'version:' Sources/kilde/KildeCommand.swift | head -1
+          grep -q "version: \"$VERSION\"" Sources/kilde/KildeCommand.swift \
+            || { echo "KildeCommand へのバージョン差し込みに失敗"; exit 1; }
 
       - name: Build release binary
         run: swift build -c release
@@ -74,6 +81,30 @@ jobs:
             || { echo "埋め込みバージョンが不一致: $PLIST"; exit 1; }
           .build/release/kilde --version
 
+      - name: Import signing certificate (when credentials exist)
+        id: cert
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -z "$MACOS_CERTIFICATE" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Developer ID 証明書 (p12, base64) を一時キーチェーンに import する。
+          # sign.sh の security find-identity はこのキーチェーンを見る
+          KEYCHAIN="build-$(uuidgen).keychain-db"
+          PASSWORD="$(uuidgen)"
+          echo -n "$MACOS_CERTIFICATE" | base64 --decode -o cert.p12
+          security create-keychain -p "$PASSWORD" "$KEYCHAIN"
+          security default-keychain -s "$KEYCHAIN"
+          security unlock-keychain -p "$PASSWORD" "$KEYCHAIN"
+          security import cert.p12 -k "$KEYCHAIN" \
+            -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -k "$PASSWORD" "$KEYCHAIN"
+          rm cert.p12
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
       - name: Sign and notarize (when credentials exist)
         id: sign
         env:
@@ -81,8 +112,10 @@ jobs:
           AC_API_KEY: ${{ secrets.AC_API_KEY }}
           AC_API_KEY_ID: ${{ secrets.AC_API_KEY_ID }}
           AC_API_ISSUER: ${{ secrets.AC_API_ISSUER }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          if [ -n "$DEVELOPER_ID_APPLICATION" ] && [ -n "$AC_API_KEY" ]; then
+          if [ -n "$DEVELOPER_ID_APPLICATION" ] && [ -n "$AC_API_KEY" ] \
+              && [ "${{ steps.cert.outputs.skip }}" = "false" ]; then
             echo "signed=true" >> "$GITHUB_OUTPUT"
             mkdir -p "$HOME/.signing"
             # AC_API_KEY は .p8 の内容 (base64 または生) を想定。ファイルにして渡す
@@ -91,7 +124,7 @@ jobs:
               --identity "$DEVELOPER_ID_APPLICATION" \
               --key "$HOME/.signing/AuthKey.p8" \
               --key-id "$AC_API_KEY_ID" --issuer "$AC_API_ISSUER" \
-              --version "${{ steps.version.outputs.version }}"
+              --version "$VERSION"
             rm -rf "$HOME/.signing"
           else
             # 証明書が未取得: unsigned zip でリリースし、利用者に伝える
@@ -109,6 +142,9 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           TAG="v$VERSION"
+          # 成果物の zip 名はブランチで変わる (sign.sh は kilde-<ver>-macos.zip、
+          # unsigned は kilde-<ver>-macos-arm64.zip)。実ファイルから取る
+          ARTIFACT="$(ls dist/*.zip | head -1)"
           NOTES="$(mktemp)"
           {
             echo "## kilde $VERSION"
@@ -123,13 +159,13 @@ jobs:
             echo
             echo "### インストール"
             echo '```sh'
-            echo "unzip kilde-$VERSION-macos-arm64.zip && sudo cp kilde /usr/local/bin/"
+            echo "unzip $(basename "$ARTIFACT") && sudo cp kilde /usr/local/bin/"
             echo '```'
             echo
             echo "### Homebrew"
             echo "tap は今後のリリースで提供予定です。それまでは上記の手動インストールか \`--HEAD\` ビルドを利用してください。"
           } > "$NOTES"
-          gh release create "$TAG" dist/* \
+          gh release create "$TAG" "$ARTIFACT" \
             --title "kilde $VERSION" \
             --notes-file "$NOTES" \
             --latest
