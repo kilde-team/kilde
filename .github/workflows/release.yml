@@ -9,12 +9,7 @@ name: Release
 on:
   push:
     tags: ["v*"]
-  workflow_dispatch:
-    inputs:
-      dry-run:
-        description: "Release の publish を行わず成果物のビルドだけ検証する"
-        type: boolean
-        default: true
+  workflow_dispatch: {}
 
 permissions:
   contents: write
@@ -58,8 +53,11 @@ jobs:
             || { echo "バージョンに使えない文字が含まれます: $VERSION"; exit 1; }
           # バージョンの真実の源はタグ。Info.plist と KildeCommand の既定値を
           # ビルド前に差し込む (コミットはせず、このビルド限り)
-          plutil -replace CFBundleShortVersionString -string "$VERSION" Sources/kilde/Info.plist
-          plutil -replace CFBundleVersion -string "$GITHUB_RUN_NUMBER" Sources/kilde/Info.plist
+          for PLIST in Sources/kilde/Info.plist gui/Resources/KildeGUI-Info.plist; do
+            [ -f "$PLIST" ] || continue
+            plutil -replace CFBundleShortVersionString -string "$VERSION" "$PLIST"
+            plutil -replace CFBundleVersion -string "$GITHUB_RUN_NUMBER" "$PLIST"
+          done
           # macOS の sed (BSD) は -i '' が必要。version: "x.y.z" の形式をタグの値に。
           # 差し込みが成功したことを grep で確認する (sed の失敗は黙って通るため)
           sed -i '' "s/version: \"[^\"]*\"/version: \"$VERSION\"/" Sources/kilde/KildeCommand.swift
@@ -148,8 +146,8 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           TAG="v$VERSION"
-          # 成果物の zip 名はブランチで変わる (sign.sh は kilde-<ver>-macos.zip、
-          # unsigned は kilde-<ver>-macos-arm64.zip)。実ファイルから取る
+          # 成果物の zip は実ファイルから取る (ブランチで名前が変わるため。
+          # 現在はどちらも kilde-<ver>-macos.zip)
           ARTIFACT="$(ls dist/*.zip | head -1)"
           NOTES="$(mktemp)"
           {
