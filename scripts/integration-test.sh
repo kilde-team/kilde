@@ -961,8 +961,13 @@ T18B_DIR="$WORK/t18b-$T18B_ROUNDS"
 T18B_NAMES=$(ls "$T18B_DIR" 2>/dev/null | wc -l | tr -d ' ')
 if [ "$T18B_NAME_NG" != "0" ]; then
     bad "T18b 同時起動: ${T18B_ROUNDS} 組中 $T18B_NAME_NG 組で名前が 2 つ残らなかった (予約の保護が壊れている。issue #59)$T18B_DETAIL"
+elif [ "$T18B_LIVE_NG" = "$T18B_ROUNDS" ]; then
+    # **全組が落ちたらロック自体の回帰。** #95 の残存は約 10% なので、3 組連続で
+    # 引く確率は 0.1% 未満。全滅は「たまたま」では説明できず、SCKStartupLock が
+    # 効いていない (= issue #70 の回帰) と見るべきなので、ここは skip にしない
+    bad "T18b 同時起動: ${T18B_ROUNDS}/${T18B_ROUNDS} 組すべてで両者が完走しなかった (SCK 起動ロックの回帰を疑う。issue #70)$T18B_DETAIL"
 elif [ "$T18B_LIVE_NG" != "0" ]; then
-    # #95 が残る間はここで落とさない (約 10% で起きるため無関係な PR まで赤くなる)
+    # 一部だけなら #95 の残存。ここで落とさない (約 10% で起きるため無関係な PR まで赤くなる)
     skip "T18b 同時起動: 名前の保護は ${T18B_ROUNDS}/${T18B_ROUNDS} 組で成立。ただし $T18B_LIVE_NG 組で両者が完走しなかった (issue #95 の残存ハング。#95 が閉じたらこの分岐を bad に上げること)$T18B_DETAIL"
 elif [ "$T18B_NAMES" = "2" ]; then
     # 両者のタイムスタンプが同じ秒なら、片方が必ず -2 に退避しているはず。異なる秒に

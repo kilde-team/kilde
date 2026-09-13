@@ -139,9 +139,14 @@ public enum SCKStartupLock {
             throw KilError.failed("ロックの待機時間が不正です: \(timeout)")
         }
         // 上限も切る — Int に収まっても DispatchTime の加算が飽和して
-        // 「事実上無期限に待つ」状態になる。1 時間あれば起動区間 (0.31 秒) には十分
+        // 「事実上無期限に待つ」状態になる。1 時間あれば起動区間 (0.31 秒) には十分。
+        // **`min` を取ってから Int にする。** 先に `Int(timeout)` すると、有限でも
+        // Int の表現範囲を超える値でトラップする (isFinite の検査だけでは防げない)
         let cappedMilliseconds = Int(min(milliseconds, 3_600_000))
         let deadline = DispatchTime.now() + .milliseconds(cappedMilliseconds)
+        // エラー文にはこの**実効値**を使う。元の `timeout` を出すと、上限で丸めたときに
+        // 「7200 秒以内に空きませんでした」と実際の待機 (1 時間) と違う値を伝えてしまう
+        let effectiveSeconds = cappedMilliseconds / 1000
         // `Task.isCancelled` も見る — 見ないと、構造化キャンセルされたときに
         // `try?` が sleep のキャンセル例外を握り潰し、open + flock を無遅延で回す
         // busy-spin が期限まで続く (`Recorder.awaitOrStop` が同じ罠を避けているのと同じ)
@@ -177,7 +182,7 @@ public enum SCKStartupLock {
                 throw KilError.failed(
                     "他の kilde が録画の準備中のため開始できません "
                     + "(同時に SCK のキャプチャを開始するとどちらも復帰しないため待機しましたが、"
-                    + "\(Int(timeout)) 秒以内に空きませんでした)。"
+                    + "\(effectiveSeconds) 秒以内に空きませんでした)。"
                     + "先の録画の開始を待ってから実行してください"
                 )
             }
