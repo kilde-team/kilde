@@ -75,4 +75,19 @@ final class HDRDecisionTests: XCTestCase {
         }
         XCTAssertNil(summary.hdrFallback, "HDR を要求していないのに理由が載っている")
     }
+    /// SDR へ落ちる経路では Summary.hdrPreset が nil であること (issue #76)。
+    /// HDR で録れたときだけ方式名 (HDR10 / Stream Local Display) が載る契約 —
+    /// フォールバックに方式名が混入すると「HDR で録れた」と誤読させる
+    func testFallbackSummaryHasNoHDRPreset() async throws {
+        let url = tempURL()
+        defer { try? FileManager.default.removeItem(at: url) }
+        let events = await collect(Recorder(options: audioOnlyHDROptions(url: url)))
+        guard case .completed(let summary) = events.last else {
+            return XCTFail("完了していません: \(events)")
+        }
+        XCTAssertNil(summary.hdrPreset,
+                     "SDR フォールバックに方式名 (\(String(describing: summary.hdrPreset))) が混入しています")
+        XCTAssertNotNil(summary.hdrFallback)
+    }
+
 }

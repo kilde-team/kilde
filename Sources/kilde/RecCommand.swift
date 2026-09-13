@@ -66,7 +66,7 @@ struct RecCommand: ParsableCommand {
     @Flag(inversion: .prefixedNo, help: "カーソルを写り込む / 写り込まない (既定: 写り込む。設定 showsCursor で変更可、--cursor は false をその回だけ打ち消す)")
     var cursor: Bool?
 
-    @Flag(help: "HDR で収録する (macOS 15 以降 + HDR ディスプレイ + --codec hevc。条件を満たさない環境では警告して SDR で録る)")
+    @Flag(help: "HDR で収録する (macOS 15 以降 + HDR ディスプレイ + --codec hevc。macOS 26 は HDR10 メタデータ付き、15 は Display P3。条件を満たさない環境では HDR: … の理由行つきで SDR で録る)")
     var hdr: Bool = false
 
     @Option(help: "開始前カウントダウン (秒)")
@@ -615,6 +615,11 @@ struct RecCommand: ParsableCommand {
             // 録画は成功しているので終了コードは 0 のまま。ただし黙って SDR にすると
             // 「HDR で録れたつもりのファイル」ができるので、結果に必ず出す (issue #16)
             print("⚠ HDR: \(reason)")
+        }
+        if let preset = s.hdrPreset {
+            // HDR で録れたときは「どの方式か」を結果に出す (issue #76)。HDR10 (SDR 保護付き)
+            // と Stream Local Display はメタデータの有無が違い、再生環境での見え方に効く
+            print("HDR: \(preset) で録画しました")
         }
         if let report = try? FileInspection.report(url: s.outputURL) {
             if let size = report.videoSize {

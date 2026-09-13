@@ -1102,7 +1102,7 @@ if "$KILDE" rec --hdr --codec hevc --duration 3s --output "$F" > "$WORK/t20.log"
     if grep -q "⚠ HDR:" "$WORK/t20.log"; then
         T20_MODE="SDR フォールバック ($(grep -o '⚠ HDR:.*' "$WORK/t20.log" | head -1 | cut -c1-40)…)"
     else
-        T20_MODE="HDR 経路 (このディスプレイは HDR 対応)"
+        T20_MODE="HDR 経路 (このディスプレイは HDR 対応。方式は OS 依存: 26=HDR10 / 15=Stream Local Display)"
     fi
     if num_between "${VD:-0}" 2 5; then
         ok "T20 hdr: exit=0・映像あり (${VD}s) — $T20_MODE"

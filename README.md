@@ -148,7 +148,8 @@ kilde rec --window zoom --window notes demo.mov
 kilde rec --exclude-app com.1password.1password --exclude-app com.tinyspeck.slackmacgap demo.mov
 
 # HDR capture, which needs macOS 15 or later, an HDR display, and HEVC.
-# Output is HEVC Main10 in Display P3 with the PQ transfer function
+# Output is HEVC Main10 with PQ; primaries follow the OS preset
+#   (macOS 26: BT.2020 with HDR10 metadata, 15: Display P3)
 #   Where any of that is missing, kilde records SDR, says why, and still exits 0 --
 #   it will not hand you a file you believe is HDR when it is not
 kilde rec --hdr --codec hevc demo.mov

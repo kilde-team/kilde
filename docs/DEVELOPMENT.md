@@ -317,16 +317,28 @@ HDR ディスプレイのある環境では、次を手動で確認してくだ�
 kilde rec --hdr --codec hevc --duration 10s hdr.mov
 ```
 
-- 結果に `⚠ HDR:` の行が**出ない**こと (出ていれば SDR に落ちています)
+- 結果に `⚠ HDR:` の行が**出ない**こと (出ていれば SDR に落ちています) と、
+  **`HDR: …` の行に方式が出る**こと — macOS 26 では「HDR10 (SDR 保護付き)」、
+  15 では「HDR (Stream Local Display)」(issue #76)
 - QuickTime Player でファイルを開き、インスペクタ (⌘I) で色空間が PQ
   (HLG ではない) になっていること
-- `ffprobe -show_streams hdr.mov` なら `color_primaries=smpte432` (Display P3),
-  `color_transfer=smpte2084` (PQ), `color_space=bt2020nc`, `profile=Main 10`
-
-  色域が Display P3 なのは、使うプリセットが `captureHDRStreamLocalDisplay` だからです
-  (HDR10 メタデータ付きの `captureHDRRecordingPreservedSDRHDR10` は CI の SDK に
-  シンボルが無く使えていません — issue #76)。**PQ と組み合わせる YCbCr マトリクスは、
-  色域が P3 でも BT.2020 を使います** (709 を使うと広色域が範囲外に出てクランプされる)。
+- `ffprobe -show_streams hdr.mov` で `color_transfer=smpte2084` (PQ),
+  `color_space=bt2020nc`, `profile=Main 10` であること。**色域 (primaries) は
+  プリセットで変わります**: macOS 26 の HDR10 プリセット
+  (`captureHDRRecordingPreservedSDRHDR10`) は `bt2020`、15 の
+  `captureHDRStreamLocalDisplay` は `smpte432` (Display P3)。
+- macOS 26 では HDR10 の静的メタデータも確認: `ffprobe -show_streams` では
+  ST 2086 (Mastering Display) は `side_data_list` 配下の
+  `side_data_type=Mastering display metadata` (red_x / green_x / blue_x /
+  white_point_x / max_luminance 等)、コンテンツ光レベル (MaxCLL/MaxFALL) は同じく
+  `side_data_list` の `max_content` / `max_average` として出る (単一の
+  `mastering_display` フィールドは存在しない)。**これらは SCK のプリセットが
+  バッファとともに渡すもの**で、kilde 側では追加の設定をしていない — 付与は
+  プリセットの責務 (Apple の API 文書に基づく主張であり、HDR 実機での確認が必須。
+  ffprobe の版で出力の並びが変わるため、確認時の版と出力を記録すること)。
+  無ければプリセットの挙動が文書と異なるため、issue を起票してください。
+  **PQ と組み合わせる YCbCr マトリクスは、色域が P3 でも BT.2020 を使います**
+  (709 を使うと広色域が範囲外に出てクランプされる)。
 
 SDR ディスプレイでは逆に、**SDR へのフォールバックが働くこと**を確認できます
 (`⚠ HDR: 収録対象のディスプレイが HDR に対応していないため SDR で録画します

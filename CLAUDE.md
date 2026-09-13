@@ -28,7 +28,7 @@ QuickTime Player では録れない**システム音声を含む録画・録音*
 | M1 CLI MVP | ✅ 実装済み — `rec` / `devices` / `doctor` / `audio monitor` / `inspect` |
 | 統合テスト | `scripts/integration-test.sh` (T1–T12)。ローカル実録画、全 PASS 実績あり。T11 (GUI) は xcodegen・kilde-dev 証明書が無い環境や KildeGUI 起動中は SKIP |
 | 単体テスト (`Tests/`) | ✅ KildeCoreTests (権限不要、CI で実行 — issue #5 完了) |
-| CI (`.github/`) | ✅ swift build / swift test (macos-15) — issue #6 完了 |
+| CI (`.github/`) | ✅ swift build / swift test (macos-26 ランナー — PR #81 で移行) — issue #6 完了 |
 | GUI (`gui/`) | 骨格 ✅ (issue #17: NSStatusItem + NSPopover + KildeCore 参照 — macOS 26 の MenuBarExtra 不具合を回避)。録画 UI ✅ (issue #18)。オンボーディング・通知は #19 / #20 |
 | ライセンス / OSS 整備 | ✅ `LICENSE` (MIT)、`CONTRIBUTING.md`、`.github/` の Issue・PR テンプレート (issue #21) |
 | 残タスク全体 | GitHub issue #2〜#25 (4 マイルストーン)。§8 の役割分担・依存順を参照 |
@@ -154,13 +154,14 @@ swift build                       # ビルド (バイナリは .build/debug/kild
    `NSMicrophoneUsageDescription` を持たせるため。`unsafeFlags` はルートパッケージでのみ
    許可されるので、**kilde をライブラリとして他パッケージから参照できない**点に注意
 8. **新しい OS の API を使うときは、CI の SDK にシンボルがあるかを先に確認する。**
-   CI は `macos-15` ランナー (`.github/workflows/ci.yml`) で、ローカルの Xcode 26.5 より
-   古い SDK を使う。**`#available` はコンパイル時の不在を救わない** — `if #available(macOS 26, *)`
-   は「実行時にその OS か」を見るだけで、可用性ブロックの中身も型チェックされるため、
-   **SDK に無いシンボルはそこでコンパイルエラーになる** (`@available` も同じ)。
-   ローカルで通っても CI で落ちる。実例: issue #16 で
+   CI は `macos-26` ランナー (`.github/workflows/ci.yml`、PR #81 で移行) で、ローカルの
+   Xcode 26.5 と同じ世代の SDK を使う。**`#available` はコンパイル時の不在を救わない** —
+   `if #available(macOS 26, *)` は「実行時にその OS か」を見るだけで、可用性ブロックの
+   中身も型チェックされるため、**SDK に無いシンボルはそこでコンパイルエラーになる**
+   (`@available` も同じ)。ローカルで通っても CI で落ちる。実例: issue #16 で
    `SCStreamConfiguration.Preset.captureHDRRecordingPreservedSDRHDR10` (macOS 26) を
-   `#available` で囲んで使い、CI が `has no member` で失敗した (対応は issue #76)
+   `#available` で囲んで使い、当時の macos-15 ランナーの CI が `has no member` で失敗した
+   (→ CI を macos-26 に上げて解消、HDR10 プリセットは issue #76 で使用開始)
 
 ## 6. 並行性の規約
 
