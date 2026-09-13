@@ -30,33 +30,54 @@ final class SCKStartupLockTests: XCTestCase {
         super.tearDown()
     }
 
+    // MARK: - ヘルパ
+
+    private func acquiredToken(_ message: String = "取得できるはず",
+                               file: StaticString = #filePath,
+                               line: UInt = #line) throws -> SCKStartupLock.Token {
+        guard case .acquired(let token) = SCKStartupLock.tryAcquire() else {
+            XCTFail(message, file: file, line: line)
+            throw XCTSkip("取得できなかったため以降を打ち切る")
+        }
+        return token
+    }
+
+    private func assertHeldByOther(_ message: String,
+                                   file: StaticString = #filePath, line: UInt = #line) {
+        guard case .heldByOther = SCKStartupLock.tryAcquire() else {
+            return XCTFail("\(message) (結果: \(SCKStartupLock.tryAcquire()))", file: file, line: line)
+        }
+    }
+
+    // MARK: - 排他
+
     /// **保持中は 2 つ目が取れない。** これが成立しないと同時起動を防げない。
     /// `flock` は開いたファイル記述に対するロックなので、同一プロセスの別 fd でも
     /// 排他される (実測で確認済み — 2 つ目は EWOULDBLOCK)
     func testSecondAcquisitionFailsWhileHeld() throws {
-        let first = try XCTUnwrap(SCKStartupLock.tryAcquire())
-        XCTAssertNil(SCKStartupLock.tryAcquire(), "保持中に 2 つ目が取れてはいけない")
+        let first = try acquiredToken()
+        assertHeldByOther("保持中に 2 つ目が取れてはいけない")
         first.release()
-        let second = try XCTUnwrap(SCKStartupLock.tryAcquire(), "解放後は取れるはず")
+        let second = try acquiredToken("解放後は取れるはず")
         second.release()
     }
 
     func testReleaseIsIdempotent() throws {
-        let token = try XCTUnwrap(SCKStartupLock.tryAcquire())
+        let token = try acquiredToken()
         token.release()
         token.release()   // 2 回目は何もしない (fd の二重 close をしない)
-        let again = try XCTUnwrap(SCKStartupLock.tryAcquire())
+        let again = try acquiredToken()
         again.release()
     }
 
     /// Token を捨てるだけでも解放される (deinit で close する)
     func testLockIsReleasedWhenTokenIsDiscarded() throws {
         do {
-            let token = try XCTUnwrap(SCKStartupLock.tryAcquire())
-            XCTAssertNil(SCKStartupLock.tryAcquire(), "保持中は取れない")
+            let token = try acquiredToken()
+            assertHeldByOther("保持中は取れない")
             _ = token
         }
-        let after = try XCTUnwrap(SCKStartupLock.tryAcquire(), "Token を捨てたら解放されるはず")
+        let after = try acquiredToken("Token を捨てたら解放されるはず")
         after.release()
     }
 
@@ -64,28 +85,66 @@ final class SCKStartupLockTests: XCTestCase {
     /// ロックなので、残っていても無害。消すと unlink の競合 (別プロセスが取り直した
     /// ロックを誤って消す) を自分で作ることになる
     func testLockFileIsNotRemovedOnRelease() throws {
-        let token = try XCTUnwrap(SCKStartupLock.tryAcquire())
+        let token = try acquiredToken()
         token.release()
         XCTAssertTrue(FileManager.default.fileExists(atPath: SCKStartupLock.fileURL.path),
                       "ロックファイルは残す (消すと unlink 競合を作る)")
-        // 残っていても次の取得を妨げない
-        let next = try XCTUnwrap(SCKStartupLock.tryAcquire(), "残ったファイルでも取得できるはず")
+        let next = try acquiredToken("残ったファイルでも取得できるはず")
         next.release()
     }
 
     /// 前の保持者が書いた内容が残らない (診断用の PID が古いままにならない)
     func testHolderPIDIsRewrittenOnAcquire() throws {
         try "999999\n".write(to: SCKStartupLock.fileURL, atomically: true, encoding: .utf8)
-        let token = try XCTUnwrap(SCKStartupLock.tryAcquire())
+        let token = try acquiredToken()
         defer { token.release() }
         let text = try String(contentsOf: SCKStartupLock.fileURL, encoding: .utf8)
         XCTAssertEqual(text.trimmingCharacters(in: .whitespacesAndNewlines), "\(getpid())",
                        "取得時に自分の PID へ書き換えるはず (前の保持者の PID が残らない)")
     }
 
+    // MARK: - 失敗の区別
+
+    /// **「他が保持中」と「そもそも開けない」を混同しない。** 混同すると、
+    /// 一時ディレクトリが書けないだけなのに 15 秒待たされた挙句
+    /// 「他の kilde が録画の準備中」という誤った原因が出て、無関係な復旧手順へ誘導する
+    func testUnopenableLockIsReportedAsUnavailableNotHeld() throws {
+        // パスをディレクトリにすると open(O_WRONLY) が EISDIR で失敗する
+        // setUp はロックファイルを作らないので、無い場合がある (無条件の removeItem は throw する)
+        try? FileManager.default.removeItem(at: SCKStartupLock.fileURL)
+        try FileManager.default.createDirectory(at: SCKStartupLock.fileURL,
+                                                withIntermediateDirectories: true)
+        guard case .unavailable(let code) = SCKStartupLock.tryAcquire() else {
+            return XCTFail("開けないケースを heldByOther に畳んではいけない: \(SCKStartupLock.tryAcquire())")
+        }
+        XCTAssertEqual(code, EISDIR, "errno=\(code)")
+    }
+
+    /// 開けないときは**待たずに**、原因の分かるエラーで失敗する
+    func testAcquireFailsImmediatelyWhenLockCannotBeOpened() async throws {
+        // setUp はロックファイルを作らないので、無い場合がある (無条件の removeItem は throw する)
+        try? FileManager.default.removeItem(at: SCKStartupLock.fileURL)
+        try FileManager.default.createDirectory(at: SCKStartupLock.fileURL,
+                                                withIntermediateDirectories: true)
+        let started = Date()
+        do {
+            _ = try await SCKStartupLock.acquire(timeout: 10)
+            XCTFail("開けないのに取得できてしまいました")
+        } catch {
+            let message = "\(error)"
+            XCTAssertTrue(message.contains("排他ロックを作成できません"), message)
+            XCTAssertFalse(message.contains("他の kilde が録画の準備中"),
+                           "待っても解決しない失敗に、待機の理由を出してはいけない: \(message)")
+            XCTAssertLessThan(Date().timeIntervalSince(started), 5,
+                              "待たずに失敗するはず (待つと誤った原因で 10 秒待たせる)")
+        }
+    }
+
+    // MARK: - 待機
+
     /// 待機が期限で諦め、理由の分かるエラーになる
     func testAcquireTimesOutWhileHeld() async throws {
-        let holder = try XCTUnwrap(SCKStartupLock.tryAcquire())
+        let holder = try acquiredToken()
         defer { holder.release() }
         do {
             _ = try await SCKStartupLock.acquire(timeout: 0.2)
@@ -98,11 +157,10 @@ final class SCKStartupLockTests: XCTestCase {
     /// **待機中に停止要求が来たら抜ける。** 抜けられないと Ctrl+C に反応できない
     /// (issue #70 の cubic レビュー P1 — 修正前は SIGINT に応答しなかった)
     func testAcquireStopsWhenCancelled() async throws {
-        let holder = try XCTUnwrap(SCKStartupLock.tryAcquire())
+        let holder = try acquiredToken()
         defer { holder.release() }
         var cancelled = false
         do {
-            // 1 周目は待たせ、2 周目でキャンセル済みにする
             _ = try await SCKStartupLock.acquire(timeout: 30, isCancelled: {
                 defer { cancelled = true }
                 return cancelled
@@ -112,6 +170,27 @@ final class SCKStartupLockTests: XCTestCase {
             XCTAssertTrue("\(error)".contains("待機を中止"), "\(error)")
         }
     }
+
+    /// **構造化キャンセルでも抜ける。** `try? await Task.sleep` はキャンセル例外を
+    /// 握り潰すので、`Task.isCancelled` を見ないと busy-spin が期限まで続く
+    /// (`Recorder.awaitOrStop` が同じ罠を避けているのと同じ理由)
+    func testAcquireExitsOnStructuredCancellation() async throws {
+        let holder = try acquiredToken()
+        defer { holder.release() }
+        let task = Task {
+            try await SCKStartupLock.acquire(timeout: 30)
+        }
+        // 待機に入らせてからキャンセルする
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        task.cancel()
+        let started = Date()
+        let result = await task.result
+        XCTAssertThrowsError(try result.get(), "キャンセルされたら取得しない")
+        XCTAssertLessThan(Date().timeIntervalSince(started), 5,
+                          "キャンセル後すぐ抜けるはず (期限まで回り続けない)")
+    }
+
+    // MARK: - ロックの場所
 
     /// **ロックの場所は `KILDE_CONFIG_DIR` に依存しない。** 依存すると、統合テストが
     /// 作業ディレクトリを分離しているため排他が効かず、T18b が直らない。

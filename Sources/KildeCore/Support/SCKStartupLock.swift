@@ -121,8 +121,24 @@ public enum SCKStartupLock {
                                isCancelled: @escaping () -> Bool = { false },
                                now: @escaping () -> Date = Date.init) async throws -> Token {
         let deadline = now().addingTimeInterval(timeout)
-        while true {
-            if let token = tryAcquire() { return token }
+        // `Task.isCancelled` も見る — 見ないと、構造化キャンセルされたときに
+        // `try?` が sleep のキャンセル例外を握り潰し、open + flock を無遅延で回す
+        // busy-spin が期限まで続く (`Recorder.awaitOrStop` が同じ罠を避けているのと同じ)
+        while !Task.isCancelled {
+            switch tryAcquire() {
+            case .acquired(let token):
+                return token
+            case .unavailable(let errorNumber):
+                // **待っても解決しない失敗を待たない。** 一時ディレクトリが書けない等を
+                // 「他プロセスが保持中」と同じ扱いにすると、15 秒待たせた挙句に
+                // 誤った原因を示し、利用者を無関係な復旧手順へ誘導する
+                throw KilError.failed(
+                    "録画の排他ロックを作成できません: \(fileURL.path) "
+                    + "(errno=\(errorNumber): \(String(cString: strerror(errorNumber))))"
+                )
+            case .heldByOther:
+                break   // 待つ
+            }
             if isCancelled() {
                 // 呼び出し元 (Recorder) が準備中キャンセルとして畳み直す。
                 // ここで cancelledBeforeRecording を立てないと exit 1 になる
@@ -139,27 +155,41 @@ public enum SCKStartupLock {
             // 危険区間は 0.3 秒程度なので、短い間隔で見に行けばほとんど待たない
             try? await Task.sleep(nanoseconds: 50_000_000)
         }
+        throw KilError.failed("ロックの待機を中止しました")
     }
 
-    /// 1 回だけ取得を試みる。取れなければ nil。
+    /// `tryAcquire` の結果。**「取れない」を 1 つに畳まない** —
+    /// 「他が保持中 (待てば解決する)」と「そもそも開けない (待っても無駄)」は
+    /// 対処が正反対なので、呼び出し側が区別できる形で返す
+    enum Attempt {
+        case acquired(Token)
+        /// 他プロセスが保持中 (`flock` が `EWOULDBLOCK`)。待てば取れる見込み
+        case heldByOther
+        /// ロックファイルを開けない (書けないディレクトリ等)。待っても解決しない
+        case unavailable(errno: Int32)
+    }
+
+    /// 1 回だけ取得を試みる。
     /// **ファイルは消さない** — `flock` はファイル名ではなく開いたファイル記述に対する
     /// ロックなので、残っていても無害。消すと unlink の競合を自分で作ることになる
-    static func tryAcquire() -> Token? {
+    static func tryAcquire() -> Attempt {
         let url = fileURL
-        return url.withUnsafeFileSystemRepresentation { path -> Token? in
-            guard let path else { return nil }
+        return url.withUnsafeFileSystemRepresentation { path -> Attempt in
+            guard let path else { return .unavailable(errno: EINVAL) }
             let fd = open(path, O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR)
-            guard fd >= 0 else { return nil }
+            guard fd >= 0 else { return .unavailable(errno: errno) }
             guard flock(fd, LOCK_EX | LOCK_NB) == 0 else {
+                let code = errno
                 close(fd)
-                return nil
+                // EWOULDBLOCK (= EAGAIN) だけが「他が持っている」。それ以外は環境側の問題
+                return code == EWOULDBLOCK ? .heldByOther : .unavailable(errno: code)
             }
             // 保持者を診断できるようにしておく (排他そのものには使わない)。
             // 前の保持者の内容が残らないよう切り詰めてから書く
             ftruncate(fd, 0)
             let body = "\(getpid())\n"
             _ = body.withCString { write(fd, $0, strlen($0)) }
-            return Token(descriptor: fd)
+            return .acquired(Token(descriptor: fd))
         }
     }
 }
