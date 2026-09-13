@@ -11,6 +11,18 @@ public enum FileInspection {
         public let duration: Double
         public let rms: Double
         public let peak: Double
+        /// デコードできた **PCM 値の個数** (issue #108)。
+        ///
+        /// **フレーム数ではない。** ステレオなら 1 フレームで 2 増える — `rms` を
+        /// 求めるときの分母そのもので、意味を変えずに外へ出すためこの定義にしている。
+        ///
+        /// **なぜ要るか**: `rms` だけでは「サンプルが 1 つも無い」と「完全な無音」が
+        /// 区別できない (どちらも 0)。さらに `inspect` は `%.4f` で出すため、
+        /// **実測で 0.00005 までが `0.0000` に丸まる** — 無音に近い正常な録音と
+        /// 空のファイルが同じ見た目になる。統合テスト T18b は
+        /// 「ファイナライズ済みだが中身が無い」出力を弾きたいので、
+        /// 丸めの影響を受けないこの値で判定する
+        public let valueCount: Int
     }
 
     public struct Report {
@@ -106,6 +118,8 @@ public enum FileInspection {
             trackDuration = max(0, e.seconds - f.seconds)
         }
         let rms = count > 0 ? sqrt(sum / Double(count)) : 0
-        return AudioStats(duration: trackDuration, rms: rms, peak: peak)
+        // `count` は rms の分母。捨てずに外へ出す — これが 0 かどうかだけが
+        // 「サンプルが来なかった」と「無音だった」を分ける (issue #108)
+        return AudioStats(duration: trackDuration, rms: rms, peak: peak, valueCount: count)
     }
 }

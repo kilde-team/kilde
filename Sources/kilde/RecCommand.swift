@@ -50,7 +50,7 @@ struct RecCommand: ParsableCommand {
     @Argument(help: "出力先パス (--output と同じ。kilde rec demo.mov のように使える)")
     var outputPositional: String?
 
-    @Option(help: "自動停止までの時間 (例: 30s, 5m)")
+    @Option(help: "自動停止までの時間 (例: 30s, 5m)。hotkey 待機中は解除後から数える (設定 hotkey と併用すると警告)")
     var duration: String?
 
     @Option(help: "映像コーデック: h264 (既定) / hevc / prores (設定 codec で変更可)")
@@ -75,7 +75,7 @@ struct RecCommand: ParsableCommand {
     @Option(help: "プリセット: meeting = ウィンドウ対話選択 + system + mic + ミックス")
     var preset: String?
 
-    @Option(help: "グローバルホットキーで開始 / 停止 (例: cmd+shift+r。未指定時は設定 hotkey を使用)")
+    @Option(help: "グローバルホットキーで開始 / 停止 (例: cmd+shift+r。未指定時は設定 hotkey を使用)。待機中の Ctrl+C は exit 0")
     var hotkey: String?
 
     func validate() throws {
@@ -301,7 +301,7 @@ struct RecCommand: ParsableCommand {
         }
 
         if let resolvedHotkey, shouldWaitForHotkey(resolvedHotkey) {
-            waitForHotkey(resolvedHotkey.source, options: options,
+            waitForHotkey(resolvedHotkey, options: options,
                           overrides: overrides, config: config)
         } else {
             var options = options
@@ -382,8 +382,9 @@ struct RecCommand: ParsableCommand {
 
     /// Carbon イベントを受け取るためメイン RunLoop を維持し、Recorder.run() の
     /// 長時間ブロックだけをワーカーへ逃がす。状態の変更はすべてメインキュー上で行う。
-    private func waitForHotkey(_ source: String, options: RecordOptions,
+    private func waitForHotkey(_ resolution: HotkeySettings.Resolution, options: RecordOptions,
                                overrides: RecordOverrides, config: KildeConfig) {
+        let source = resolution.source
         var ticker: DispatchSourceTimer?
         var outcome: HotkeyRecordingController.Outcome?
         // 待機モードでも SIGUSR1 を掴む。既定の動作 (即時終了) のままだと
@@ -427,6 +428,35 @@ struct RecCommand: ParsableCommand {
             pauseKeyWatcher = startPauseKeyWatcher(toggle)
             defer { stopPauseKeyWatcher(pauseKeyWatcher); pauseKeyWatcher = nil }
             try controller.start()
+            // **登録が確定してから警告を出す (issue #97)。** `controller.start()` より前に
+            // 出すと、`.probeStuck` や「判定から本登録までの間に他プロセスがキーを奪った」
+            // ケースで**直後に終了コード 1 で失敗するのに「キーが押されるまで終了しません」**
+            // と告げることになる。ここまで来ていれば文言は常に真になる。
+            //
+            // `--duration` は**待機の解除後**から数える。待機そのものは打ち切らないので、
+            // ホットキーが押されるまで終了しない。これは待機モードの仕様として正しいが、
+            // **`--duration` を指定する典型的な用途は「決まった長さを無人で録る」こと**なので、
+            // 黙って待機に入ると「N 秒で終わるはずのコマンドが帰ってこない」ように見える。
+            //
+            // **`--countdown` のように拒否はしない。** あちらは待機開始前にカウントが
+            // 消費されて意味を失うが、`--duration` は待機解除後に正しく効くので拒否する
+            // 理由がない。「ホットキーで開始して N 秒で自動停止」は筋の通った使い方。
+            //
+            // **`--hotkey` 明示のときは出さない。** 待機そのものが目的だと分かっているので
+            // 雑音になる。設定ファイル由来だけに出すのは、**CLI 側で何も変えていないのに
+            // 設定次第で挙動が変わる**のが実害だから (GUI が設定を書くこともある)。
+            // #80 の縮退警告と同じ考え方
+            if resolution.origin == .config, duration != nil {
+                // **「キーが押されるまで終了しません」だけでは誤り。** 待機中の Ctrl+C /
+                // SIGTERM / SIGHUP は `controller.requestStop()` を通って **exit 0 で抜ける**
+                // (DESIGN.md の `--hotkey` 行の契約)。無人実行で詰まった人がまず知りたいのは
+                // 脱出手段なので、必ず併記する
+                let warning = "WARNING: 設定の hotkey \"\(source)\" により待機モードで起動します。"
+                    + "--duration は待機の解除後 (録画開始後) から数えるため、"
+                    + "キーを押すか Ctrl+C (SIGTERM / SIGHUP も可) で中止するまで終了しません "
+                    + "(無人で録るなら設定の hotkey を外すか kilde config unset hotkey)\n"
+                FileHandle.standardError.write(Data(warning.utf8))
+            }
             print("⏳ 待機中 — \(controller.normalizedHotkey) で開始 / Ctrl+C で終了")
             // stdout がファイルにリダイレクトされていると C stdio はフルバッファになり、
             // この後 RunLoop で無期限にブロックするため「待機中」が exit まで出ない。
@@ -628,7 +658,12 @@ struct RecCommand: ParsableCommand {
                 print(String(format: "duration=%.2fs", report.duration))
             }
             for (i, a) in report.audioTracks.enumerated() {
-                print(String(format: "audio[%d]: rms=%.4f peak=%.4f", i, a.rms, a.peak))
+                // `inspect` と同じく末尾に `values=` を足す (issue #108)。
+                // 録り終えた直後に「本当にサンプルが入ったか」が見える
+                // `%ld` で出す理由は `InspectCommand` 側のコメント参照
+                // (64 ビットの Int を `%d` で読むと 6.2 時間超で負数になる)
+                print(String(format: "audio[%d]: rms=%.4f peak=%.4f values=%ld",
+                             i, a.rms, a.peak, a.valueCount))
             }
         }
     }

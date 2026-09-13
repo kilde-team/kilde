@@ -177,6 +177,15 @@ stop recording. Pressing Ctrl+C while waiting exits without creating a file.
 kilde rec --hotkey cmd+shift+r meeting.mov
 ```
 
+`--duration` *can* be combined with a hotkey, but it is counted from the moment
+the wait ends — not from launch. A `hotkey` in the configuration file therefore
+turns even `kilde rec --duration 30s` into a command that waits for the key, so
+an unattended script would sit there until someone presses it (Ctrl+C, SIGTERM
+and SIGHUP all exit cleanly). kilde prints a warning to stderr when a
+*configured* hotkey defers a `--duration` you asked for; an explicit `--hotkey`
+stays quiet, since waiting is then what you asked for. To record unattended,
+remove the configured key with `kilde config unset hotkey`.
+
 ### Why is BlackHole not required?
 
 kilde uses ScreenCaptureKit's native system-audio capture, so ordinary screen
@@ -196,8 +205,8 @@ Common options include:
 - `--display NUMBER` or `--window MATCH` to select the capture target
 - repeatable `--audio system|mic|device:NAME_OR_UID|none` to select audio sources
 - `--audio-tracks mixed|separate` to mix sources or preserve separate tracks
-- `--no-video`, `--monitor`, `--duration 30s`, `--codec h264|hevc|prores`, and
-  `--fps NUMBER`
+- `--no-video`, `--monitor`, `--duration 30s` (counted from the end of a hotkey
+  wait, not from launch), `--codec h264|hevc|prores`, and `--fps NUMBER`
 - `--cursor` or `--no-cursor`, `--countdown SECONDS`, `--preset meeting`, and
   `--hotkey SHORTCUT`
 - `-o PATH` or `--output PATH` as an alternative to the positional output path
@@ -268,6 +277,7 @@ recording with exit status `1`.
   [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
 - Architecture and behavior: [docs/DESIGN.md](docs/DESIGN.md)
 - M0 spike results: [docs/SPIKE-NOTES.md](docs/SPIKE-NOTES.md)
+- Monetization strategy survey (Japanese): [docs/MONETIZATION.md](docs/MONETIZATION.md)
 - Local integration tests with real recording: `scripts/integration-test.sh`
   (requires permissions and audible speaker output; takes about two minutes)
 

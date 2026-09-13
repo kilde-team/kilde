@@ -118,6 +118,19 @@ public final class HotkeyRecordingController {
             return
         }
 
+        // **`callerOutlivesSession` は立てない (issue #95)。**
+        // 「ホットキー待機は録画のあと待機へ戻るから長生きする」と考えて一度 `true` に
+        // したが、**それは誤りだった** — `RecCommand.waitForHotkey` の `onFinished` は
+        // `CFRunLoopStop` でランループを止め、そのまま `finish()` / `cliError()` で
+        // プロセスが終わる。`finishMonitoring()` も 1 回きりで、**待機へは戻らない**。
+        //
+        // ワンショットなのに `true` にすると、失敗経路で `stopCapture()` の完了を待つ
+        // ことになり、`--duration 0.5s` や最初の映像フレーム前の Ctrl+C
+        // (どちらも `validateVideoFrameCount` の日常的な失敗) で CLI が固まって
+        // SIGKILL でしか殺せなくなる。得るものは無い — プロセスが終われば XPC が切れ、
+        // replayd 側は掃除される。
+        //
+        // **将来ここを待機へ戻るように変えるなら、そのときに `true` にすること。**
         let recorder = Recorder(options: options)
         state = .recording(recorder)
         onStarted(recorder, options, normalizedHotkey)

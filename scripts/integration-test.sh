@@ -28,6 +28,126 @@ GUI_PID=""
 T21_PID=""
 T23_HOLDER_PID=""
 T23_RUN_PID=""
+T24_DEVICES_PID=""
+T25_PID=""
+
+# ---- 停止ヘルパ (issue #101) --------------------------------------------------
+# 「SIGINT を送り直す → SIGTERM → SIGKILL」の梯子は、このスクリプトの 8 箇所に
+# コピーされていた。猶予の回数だけが違い、**理由のある違いと、単にコピー元が違った
+# だけの違いが混ざっていた**ため、理由のあるほうを型にしてまとめる。
+#
+# 呼び出し側が決めるのは「その kilde が録画しているかどうか」だけにする:
+#
+#   recording — 録画中でありうる (#80 の縮退による即時録画も含む)。SIGKILL すると
+#               安全停止とファイナライズを飛ばして**未完了ファイルを残す** —
+#               「Ctrl+C でもファイルは必ずファイナライズされる」(DESIGN.md §5 の
+#               最重要要件) に正面から反するので、INT の猶予を長く取る
+#   waiting   — ホットキー待機など、まだ 1 バイトも書いていない。取りこぼして困るのは
+#               ホットキーの排他登録を孤児が握り続けることだけなので、猶予は半分で足りる
+#
+# **2 つの関数に分けてあるのは意味がある。一方に寄せないこと:**
+#
+#   stop_kilde — INT を終了まで**送り直す**。停止は非同期なうえ、
+#                installStopSignalHandler の設置前に届いた SIGINT は失われうるため。
+#                判定に使われない後始末 (EXIT trap・異常路の回収) 専用
+#   await_stop — INT を**送らない**。テスト自身が刺激として INT を 1 回だけ送った門
+#                (T13 / T22) 用。ここで送り直すと、**「最初の SIGINT が失われる」
+#                回帰 (issue #67) を 2 通目が救ってしまい、門が緑のまま素通りする**。
+#                終了を待ち、猶予を超えたぶんだけ TERM → KILL で回収する
+#
+# **T10 は意図的に寄せていない (issue #101)。** あそこは梯子を持たず
+# `kill -INT` + `wait` の 3 行で、そもそも重複の当事者ではない。ヘルパを当てると
+# 現在安定している門に 10 秒の期限が新たに乗り、ファイナライズが伸びた回を
+# KILL (137) で落とす — 直したい重複と引き換えに新種の flake を作ることになる
+#
+# どちらも `wait` まで済ませ、結果を STOP_EXIT / STOP_BY_INT に置く
+# (bash 3.2 には連想配列も nameref も無いのでグローバルで返す)。
+STOP_GRACE_RECORDING=20   # ×0.5 秒 = 10 秒。ファイナライズを待ち切るための猶予
+STOP_GRACE_WAITING=10     # ×0.5 秒 = 5 秒
+STOP_EXIT=-1              # 直前の停止で回収した終了コード
+STOP_BY_INT=0             # TERM/KILL へ昇格せずに終わったか (門の判定に使う)
+
+stop_grace_for() {  # stop_grace_for <recording|waiting>
+    case "$1" in
+        recording) echo "$STOP_GRACE_RECORDING" ;;
+        waiting)   echo "$STOP_GRACE_WAITING" ;;
+        # 役割名の打ち間違いを黙って「短いほう」に倒すと、録画中のプロセスを
+        # 早すぎる KILL で潰して未完了ファイルを残す。長いほうへ倒して警告する
+        *) echo "WARNING: stop: 未知の役割 '$1' — recording として扱います" >&2
+           echo "$STOP_GRACE_RECORDING" ;;
+    esac
+}
+
+force_stop() {  # force_stop <pid> — INT で終わらなかったものを TERM → KILL で回収
+    local pid="${1:-}"
+    [ -n "$pid" ] || return 0
+    kill -0 "$pid" 2>/dev/null || return 0
+    kill -TERM "$pid" 2>/dev/null
+    sleep 1
+    kill -0 "$pid" 2>/dev/null && kill -KILL "$pid" 2>/dev/null
+    return 0
+}
+
+stop_kilde() {  # stop_kilde <pid> <recording|waiting> — INT を送り直して確実に止める
+    local pid="${1:-}" role="${2:-recording}" tries i
+    STOP_EXIT=-1
+    STOP_BY_INT=0
+    [ -n "$pid" ] || return 0
+    if kill -0 "$pid" 2>/dev/null; then
+        tries=$(stop_grace_for "$role")
+        for i in $(seq 1 "$tries"); do
+            kill -INT "$pid" 2>/dev/null
+            kill -0 "$pid" 2>/dev/null || break
+            sleep 0.5
+        done
+        # **判定はループの外で行う (CodeRabbit の指摘)。** ループ内だけで見ていると、
+        # **最終試行の `sleep 0.5` 中に終了した場合を取りこぼす** — INT が効いたのに
+        # STOP_BY_INT=0 のまま抜け、続く force_stop も `kill -0` が失敗して何も送らない。
+        # 結果「exit 0 なのに TERM/KILL へ昇格した」と誤記録し、T25_STOPPED_BY_INT を
+        # 偽の FAIL にする。ループに入った時点で INT は最低 1 通送っているので、
+        # ここで生きているかどうかだけが昇格の有無を決める (await_stop と同じ形)
+        if kill -0 "$pid" 2>/dev/null; then
+            force_stop "$pid"
+        else
+            STOP_BY_INT=1
+        fi
+    else
+        # **ここで 1 を立てない (cubic P2 の指摘)。** この分岐は「呼んだ時点で既に
+        # 死んでいた」= **SIGINT を 1 通も送っていない**。1 にすると「INT で止まった」と
+        # 誤記録し、待機せず早期終了した回 (T25 の待機モード回帰) を緑に見せる。
+        # STOP_BY_INT の意味は**送った INT だけで止まったか**であり、送っていないなら 0
+        STOP_BY_INT=0
+    fi
+    # 既に死んでいても必ず `wait` する。**送っただけでは終了を確認できず、孤児 (PPID=1)
+    # として残る。** 開発中に実際に踏んだ — 孤児の `devices` が `flock` を 8 分間握り、
+    # その間の計測 25 回がすべてロック待ちで詰まって無意味になった
+    wait "$pid" 2>/dev/null
+    STOP_EXIT=$?
+    return 0
+}
+
+await_stop() {  # await_stop <pid> <recording|waiting> — 自分で送った INT の結果を待つ
+    local pid="${1:-}" role="${2:-recording}" tries i
+    STOP_EXIT=-1
+    STOP_BY_INT=0
+    [ -n "$pid" ] || return 0
+    tries=$(stop_grace_for "$role")
+    for i in $(seq 1 "$tries"); do
+        kill -0 "$pid" 2>/dev/null || break
+        sleep 0.5
+    done
+    if kill -0 "$pid" 2>/dev/null; then
+        force_stop "$pid"
+    else
+        # **こちらは 1 でよい (stop_kilde の同じ位置とは意味が違う)。** await_stop は
+        # 呼び出し側が刺激として INT を 1 通送った直後に呼ばれる。猶予内に自力で
+        # 終了した = **その 1 通で止まった**ということなので、門の成功条件に使える
+        STOP_BY_INT=1
+    fi
+    wait "$pid" 2>/dev/null
+    STOP_EXIT=$?
+    return 0
+}
 
 cleanup() {
     if [ "$MONITOR_SET_UP" = "1" ]; then
@@ -41,61 +161,67 @@ cleanup() {
     fi
     # T11 の GUI プロセスもどの分岐で失敗しても残さない
     [ -n "$GUI_PID" ] && kill "$GUI_PID" 2>/dev/null
-    # T22 の録画プロセスも同様に残さない (待ってから段階的に強制)
-    if [ -n "${T22_PID:-}" ] && kill -0 "$T22_PID" 2>/dev/null; then
-        kill -TERM "$T22_PID" 2>/dev/null
-        sleep 1
-        kill -0 "$T22_PID" 2>/dev/null && kill -KILL "$T22_PID" 2>/dev/null
-    fi
-T22_PID=""
+    # T22 の録画プロセスも同様に残さない。**録画中でありうる** — 準備中の SIGINT が
+    # 間に合わなければ T10 と同じ通常録画に解けるので、ファイナライズを待つ側で止める
+    # (以前はここだけ INT を挟まず TERM から始めていた。同じ安全停止ハンドラに繋がる
+    #  ので結果は同じだが、猶予 1 秒ではファイナライズを待ち切れなかった)
+    stop_kilde "${T22_PID:-}" recording
+    T22_PID=""
     # T21 の self-test はバックグラウンド起動なので、スイートを途中で止めたときに
     # KildeGUI が残る。録画はしていないので安全停止の待ちは要らない
     [ -n "$T21_PID" ] && kill "$T21_PID" 2>/dev/null
+    # T24 の併走役 (devices の列挙) も残さない。**kill して終わりにせず `wait` する** —
+    # 送っただけでは終了を確認できず、孤児 (PPID=1) として残る。孤児の devices は
+    # `flock` を保持し続けるので、以後の `rec` がすべて「15 秒以内に空きませんでした」で
+    # 失敗する。**開発中に実際に踏んだ** — 孤児が 8 分間ロックを握り、その間の計測
+    # 25 回がすべてロック待ちで詰まって無意味になった。
+    # 録画はしていないので安全停止の猶予は要らず、KILL してから回収する。
+    #
+    # **ここは stop_kilde に寄せない (issue #101)。** ヘルパは「録画しているか」で
+    # 猶予を選ぶが、`devices` は録画もシグナル処理もしない — 安全停止ハンドラを
+    # 持たないので INT を送り直すだけ無駄に 5〜10 秒待つことになる。
+    # 失うものが無いぶん、即 KILL が正しい
+    if [ -n "${T24_DEVICES_PID:-}" ]; then
+        kill -KILL "$T24_DEVICES_PID" 2>/dev/null
+        wait "$T24_DEVICES_PID" 2>/dev/null
+    fi
+    T24_DEVICES_PID=""
+    # T25 の待機役も残さない。**ホットキーを握ったまま残ると次回以降のスイートが壊れる** —
+    # T23 の占有役と同じ理由 (排他登録なので孤児が同じキーを持つと登録できない)。
+    #
+    # **KILL で済ませてはいけない。** 他プロセスが f8 を握っていると #80 の縮退で
+    # **即時録画に入る**ので、この PID が AVAssetWriter を書いている最中でありうる。
+    # そこへ SIGKILL を送ると安全停止とファイナライズを飛ばし、**未完了ファイルを残す**
+    # (「Ctrl+C でも必ずファイナライズ」= DESIGN.md §5 の最重要要件に反する)。
+    # 終了を確認するまで SIGINT を送り直してから強制する。
+    # **役割は waiting ではなく recording。** 名前のうえでは「待機役」だが、
+    # 上のとおり縮退して**録画している**可能性があり、ファイナライズには時間がかかる。
+    # waiting の猶予 (5 秒) で TERM/KILL に進むと、このコメントが防ぐと言っている
+    # 未完了ファイルがまさに残る
+    stop_kilde "${T25_PID:-}" recording
+    T25_PID=""
     # T23 の占有役 (rec --hotkey の待機) も残さない。**残すと次回以降のスイートが壊れる** —
     # ホットキーは排他登録なので、孤児が同じキーを握ったままだと T23 の占有役が登録できず、
     # 以後ずっと「占有役が待機に入れませんでした」で落ち続ける (開発中に実際に踏んだ)。
     # **SIGINT を 1 回送って待たずに抜けない** — 停止は非同期なうえ、
     # installStopSignalHandler の設置前に届いた SIGINT は失われうるので、
-    # 終了を確認するまで送り直し、期限を超えたら TERM/KILL で強制する
-    if [ -n "$T23_HOLDER_PID" ] && kill -0 "$T23_HOLDER_PID" 2>/dev/null; then
-        for _ in $(seq 1 10); do
-            kill -INT "$T23_HOLDER_PID" 2>/dev/null
-            kill -0 "$T23_HOLDER_PID" 2>/dev/null || break
-            sleep 0.5
-        done
-        if kill -0 "$T23_HOLDER_PID" 2>/dev/null; then
-            kill -TERM "$T23_HOLDER_PID" 2>/dev/null
-            sleep 1
-            kill -0 "$T23_HOLDER_PID" 2>/dev/null && kill -KILL "$T23_HOLDER_PID" 2>/dev/null
-        fi
-        wait "$T23_HOLDER_PID" 2>/dev/null
-    fi
+    # 終了を確認するまで送り直し、期限を超えたら TERM/KILL で強制する。
+    # **こちらは waiting でよい** — 占有役はキーを握って待つだけで、何も書いていない
+    stop_kilde "${T23_HOLDER_PID:-}" waiting
     T23_HOLDER_PID=""
     # T23 のサブ実行 (rec 本体) も回収する。待機回帰なら同じキーを、録画中なら
     # 録画デバイスと未完了ファイルを残すため、占有役だけ止めても足りない
     # **占有役と同じく SIGINT を終了まで送り直す。** こちらは実際に録画しているので、
     # installStopSignalHandler の設置前に届いた SIGINT を取りこぼしたまま KILL すると
     # Recorder.stop() が走らず未完了ファイルが残る (「Ctrl+C でも必ずファイナライズ」に反する)
-    if [ -n "${T23_RUN_PID:-}" ] && kill -0 "$T23_RUN_PID" 2>/dev/null; then
-        for _ in $(seq 1 20); do
-            kill -INT "$T23_RUN_PID" 2>/dev/null
-            kill -0 "$T23_RUN_PID" 2>/dev/null || break
-            sleep 0.5
-        done
-        if kill -0 "$T23_RUN_PID" 2>/dev/null; then
-            kill -TERM "$T23_RUN_PID" 2>/dev/null
-            sleep 1
-            kill -0 "$T23_RUN_PID" 2>/dev/null && kill -KILL "$T23_RUN_PID" 2>/dev/null
-        fi
-        wait "$T23_RUN_PID" 2>/dev/null
-    fi
+    stop_kilde "${T23_RUN_PID:-}" recording
     T23_RUN_PID=""
     # T15 の録画は 12 秒走る。スイートを途中で止めたときに録画だけ残さない
-    # (安全停止を送ってファイナライズを待つ)
-    if [ -n "${T15_PID:-}" ] && kill -0 "$T15_PID" 2>/dev/null; then
-        kill -INT "$T15_PID" 2>/dev/null
-        wait "$T15_PID" 2>/dev/null
-    fi
+    # (安全停止を送ってファイナライズを待つ)。**以前はここだけ INT を 1 回送って
+    # 無期限に `wait` していた** — 停止しない回帰があると後始末そのものが固まり、
+    # スイートが無言で止まる。ヘルパなら猶予を超えた時点で TERM/KILL へ進む
+    stop_kilde "${T15_PID:-}" recording
+    T15_PID=""
     # ディスプレイのスリープ抑止を解除する
     [ -n "${CAFFEINATE_PID:-}" ] && kill "$CAFFEINATE_PID" 2>/dev/null
     echo ""
@@ -475,24 +601,26 @@ done
 sleep 1
 kill -INT $T13_PID 2>/dev/null
 # wait にタイムアウトがないと、待機中 SIGINT で終了しない回帰があったときに
-# スイート全体が無言でハングする — SIGINT 後 5 秒生きていたら段階的に強制する
-T13_EXIT=-1
-for _ in $(seq 1 10); do
-    if ! kill -0 $T13_PID 2>/dev/null; then break; fi
-    sleep 0.5
-done
-if kill -0 $T13_PID 2>/dev/null; then
-    kill -TERM $T13_PID 2>/dev/null
-    sleep 1
-    kill -0 $T13_PID 2>/dev/null && kill -KILL $T13_PID 2>/dev/null
-fi
-wait $T13_PID
-T13_EXIT=$?
+# スイート全体が無言でハングする — SIGINT 後 5 秒生きていたら段階的に強制する。
+# **INT を送り直す stop_kilde ではなく await_stop を使う (issue #101)。** ここで
+# 送り直すと、上の 1 通目が失われる回帰 (issue #67) を 2 通目が救ってしまい、
+# 「待機中の SIGINT で止まる」というこのテストの門が緑のまま素通りする
+await_stop "$T13_PID" waiting
+T13_EXIT=$STOP_EXIT
+# **exit=0 だけでは門にならない (cubic P2 の指摘。T25 と同じ穴だった)。**
+# 初回の SIGINT が失われても、await_stop が猶予超過後に送る SIGTERM は
+# installStopSignalHandler で **INT と同じ安全停止ハンドラ**に繋がるため、
+# ファイナライズが走って exit 0 になる。つまり「INT が効かない」回帰が緑になる。
+# **INT だけで止まったか (STOP_BY_INT) を成功条件に入れて初めて門として働く**
+T13_BY_INT=$STOP_BY_INT
 T13_FILES=$(ls "$T13_DIR" 2>/dev/null | wc -l | tr -d ' ')
-if [ "$T13_READY" = "1" ] && [ "$T13_EXIT" = "0" ] && [ "$T13_FILES" = "0" ]; then
-    ok "T13 hotkey 待機中止: exit=0・出力ファイルなし"
+if [ "$T13_READY" = "1" ] && [ "$T13_EXIT" = "0" ] && [ "$T13_FILES" = "0" ] \
+   && [ "$T13_BY_INT" = "1" ]; then
+    ok "T13 hotkey 待機中止: SIGINT のみで exit=0・出力ファイルなし"
+elif [ "$T13_READY" = "1" ] && [ "$T13_EXIT" = "0" ] && [ "$T13_FILES" = "0" ]; then
+    bad "T13 hotkey 待機中止: exit=0 だが SIGINT 後 5 秒以内に終了せず TERM/KILL への昇格が必要だった。待機中 Ctrl+C = exit 0 の契約 (DESIGN.md §6) の回帰を疑う (待機中は書き込みがないので遅延の線は薄い) — $WORK/t13.log"
 else
-    bad "T13 hotkey 待機中止: ready=$T13_READY exit=$T13_EXIT files=$T13_FILES — $WORK/t13.log"
+    bad "T13 hotkey 待機中止: ready=$T13_READY exit=$T13_EXIT files=$T13_FILES by_int=$T13_BY_INT — $WORK/t13.log"
 fi
 
 # ---- T23: ホットキーの排他と縮退 (issue #80) -------------------------------------
@@ -552,12 +680,9 @@ else
             sleep 0.5
         done
         if kill -0 "$T23_RUN_PID" 2>/dev/null; then
-            kill -INT "$T23_RUN_PID" 2>/dev/null
-            sleep 1
-            kill -0 "$T23_RUN_PID" 2>/dev/null && kill -TERM "$T23_RUN_PID" 2>/dev/null
-            sleep 1
-            kill -0 "$T23_RUN_PID" 2>/dev/null && kill -KILL "$T23_RUN_PID" 2>/dev/null
-            wait "$T23_RUN_PID" 2>/dev/null
+            # 15 秒で終わらなかった時点でこの回は失敗 (-2) と決まっているので、
+            # ここは判定ではなく回収。INT を送り直してよい
+            stop_kilde "$T23_RUN_PID" recording
             T23_RUN_PID=""
             T23_RUN_EXIT=-2
             return
@@ -591,18 +716,11 @@ else
     T23_EXP_FILES=$(ls "$T23_EXP_DIR" 2>/dev/null | wc -l | tr -d ' ')
 fi
 
-# 占有役を畳む (T13 と同じ段階的強制)
-kill -INT $T23_HOLDER_PID 2>/dev/null
-for _ in $(seq 1 10); do
-    if ! kill -0 $T23_HOLDER_PID 2>/dev/null; then break; fi
-    sleep 0.5
-done
-if kill -0 $T23_HOLDER_PID 2>/dev/null; then
-    kill -TERM $T23_HOLDER_PID 2>/dev/null
-    sleep 1
-    kill -0 $T23_HOLDER_PID 2>/dev/null && kill -KILL $T23_HOLDER_PID 2>/dev/null
-fi
-wait $T23_HOLDER_PID 2>/dev/null
+# 占有役を畳む。**待機しているだけなので waiting。** ここは判定に使わない回収なので
+# (占有役の終了コードは見ない)、確実さを優先して INT を送り直す stop_kilde でよい。
+# **引用符を外さない** — 占有に失敗した分岐 (T23_HELD != 1) を通ると空文字列になり、
+# 素で渡すと引数が消えて waiting が PID の位置にずれ込む
+stop_kilde "${T23_HOLDER_PID:-}" waiting
 # 回収済みの PID を trap に残さない — スイートの残りで数百のプロセスが起動するため、
 # PID が一周して再利用されると無関係なプロセスに SIGINT を送りうる (T22 が同じ理由で
 # kill 後に空へ戻している)
@@ -908,12 +1026,20 @@ else
 #     約 10% で落ちるものを必須にすると、**#70 と無関係な PR まで恒常的に赤くなる**。
 #     #95 が閉じたらここを `bad` に上げること
 T18B_ROUNDS=3
-T18B_NAME_NG=0      # #59 側で崩れた組
-T18B_LIVE_NG=0      # #70 側で崩れた組
+T18B_NAME_NG=0      # #59 側で崩れた組 (名前の予約が保護されなかった)
+T18B_FILE_NG=0      # **出力が再生可能でなかった組 (issue #95)。これは bad にする**
+T18B_COUNT_NG=0     # m4a が 2 本揃わなかった組 (欠落 / 別拡張子)。再生不能とは別の失敗
+T18B_SELF_FAIL=0    # watchdog 未介入で非ゼロ終了した組 (ハングではない本物の失敗)
+T18B_KILLED=""      # watchdog が KILL した PID の一覧 (組ごとに下で解釈する)
+T18B_LIVE_NG=0      # 両者が完走しなかった組 (ハングを含む。#103 が残る間は skip)
 T18B_DETAIL=""
 for T18B_ROUND in $(seq 1 "$T18B_ROUNDS"); do
     T18B_DIR="$WORK/t18b-$T18B_ROUND"
     mkdir -p "$T18B_DIR"
+    # **組ごとに空へ戻す。** 持ち越すと前の組の PID が残り、**PID の再利用**で
+    # 今の組のプロセスが「watchdog に撃たれた」と誤判定されうる
+    # (スイートは数百のプロセスを起動するので一周しえる)
+    T18B_KILLED=""
     # 次の秒の先頭まで待ってから同時に出す (date +%N は BSD date に無いため python3 で)
     T18B_WAIT=$(python3 -c 'import time; print(max(0.05, 1.02 - (time.time() % 1.0)))')
     sleep "$T18B_WAIT"
@@ -930,30 +1056,123 @@ for T18B_ROUND in $(seq 1 "$T18B_ROUNDS"); do
     done
     for pid in $T18B_PID1 $T18B_PID2; do
         if kill -0 $pid 2>/dev/null; then
+            # **ここは stop_kilde / await_stop に寄せない (issue #101)。**
+            # 両ヘルパは「確実に止めて回収する」ためのもので、必ず TERM を経由する。
+            # この回は逆に**止まらなかったこと自体が所見**なので、TERM で綺麗に
+            # 終わらせてはいけない (下記)。猶予 25 秒も役割ではなく duration 3s に
+            # 由来する値で、ヘルパの猶予表とは意味が違う。
+            #
             # **SIGTERM を挟まず直接 SIGKILL する。** 期限まで終わらなかった時点で異常だが、
             # TERM を送ると「準備中の停止は exit 0」の契約 (DESIGN.md §6) に沿って
             # graceful に 0 で終わりうる — つまり**ハングしたのに exit 0 になり、
             # 下の判定がすり抜ける**。KILL なら 137 で残るので回帰を捕まえられる
             kill -KILL $pid 2>/dev/null
+            # **KILL した事実を残す (CodeRabbit の指摘)。** これが無いと、下の判定で
+            # 「期限切れで撃たれた 137」と「自力で終わった非ゼロ」を区別できず、
+            # **本物の失敗まで #103 のハングとして skip に流してしまう**
+            T18B_KILLED="$T18B_KILLED $pid"
         fi
     done
     wait $T18B_PID1 2>/dev/null; T18B_EXIT1=$?
     wait $T18B_PID2 2>/dev/null; T18B_EXIT2=$?
+    # 各プロセスが watchdog に撃たれたか (自力終了なら 0)。
+    # **終了コードとも突き合わせる (cubic の指摘)。** `kill -0` と `kill -KILL` の間に
+    # 自力終了しうるので、PID を記録しただけでは「撃った」と誤認する。実際に
+    # SIGKILL で死んだなら 137 になるはずで、そうでなければ自力終了として扱う
+    case " $T18B_KILLED " in
+        *" $T18B_PID1 "*) [ "$T18B_EXIT1" = "137" ] && T18B_KILLED1=1 || T18B_KILLED1=0 ;;
+        *) T18B_KILLED1=0 ;;
+    esac
+    case " $T18B_KILLED " in
+        *" $T18B_PID2 "*) [ "$T18B_EXIT2" = "137" ] && T18B_KILLED2=1 || T18B_KILLED2=0 ;;
+        *) T18B_KILLED2=0 ;;
+    esac
 
     T18B_N=$(ls "$T18B_DIR" 2>/dev/null | wc -l | tr -d ' ')
-    # 1KB 未満は「開いただけで中身が無い」とみなす (正常な 3 秒の録音は数十 KB になる)
-    T18B_EMPTY_R=$(find "$T18B_DIR" -name '*.m4a' -size -1k 2>/dev/null | wc -l | tr -d ' ')
     if [ "$T18B_N" != "2" ]; then
         T18B_NAME_NG=$((T18B_NAME_NG+1))
         T18B_DETAIL="$T18B_DETAIL [組$T18B_ROUND 名前数=$T18B_N]"
     fi
-    if [ "$T18B_EXIT1" != "0" ] || [ "$T18B_EXIT2" != "0" ] || [ "$T18B_EMPTY_R" != "0" ]; then
+    # **「ファイルが壊れたか」と「プロセスが終わったか」を分けて数える (issue #95)。**
+    # 以前は `exit != 0` と「1KB 未満」を 1 つの判定に畳んでいたが、**#95 の調査で
+    # この 2 つは別の問題だと分かった**:
+    #
+    #   * ファイルが未完了 → **kilde の不具合**。停止シーケンスの順序を誤ると起きる
+    #     (旧順序では stopCapture() のハングでファイナライズに到達せず、実測 9/9 が未完了)
+    #   * プロセスが終わらない → **replayd 側**。`SCStream.stopCapture()` が XPC から
+    #     戻らないもので、kilde 側では解消できない (issue #103)
+    #
+    # 畳んだままだと、#103 が残る限り `exit=137` が消えないので**この判定は永久に skip**
+    # になり、ファイル健全性の回帰を検出できなくなる。**壊れたら bad、ハングだけなら skip**
+    T18B_FILE_NG_R=0
+    # **まず本数を数える (cubic の指摘)。** 下のループは `*.m4a` だけを見るので、
+    # 片方が別の拡張子で出た / そもそも作られなかった場合に**検査対象が 0〜1 本でも
+    # 「壊れ 0」で通ってしまう**。2 プロセスぶん揃っていることを先に確かめる
+    # (名前の予約が壊れた場合は上の T18B_NAME_NG が拾うが、あちらは `ls` の総数を
+    #  見るので、拡張子が違うケースはここでしか捕まらない)
+    # **本数不一致は「再生不能」とは別に数える (cubic の指摘)。** 同じカウンタに
+    # 混ぜると「出力が再生可能でない (stopCapture のハング疑い)」と報告され、
+    # **欠落や拡張子違いなのに停止順序の回帰を疑わせる** — 機序の切り分けを誤らせる
+    T18B_M4A_N=0
+    for T18B_COUNT_F in "$T18B_DIR"/*.m4a; do
+        [ -f "$T18B_COUNT_F" ] || continue
+        T18B_M4A_N=$((T18B_M4A_N+1))
+    done
+    if [ "$T18B_M4A_N" != "2" ]; then
+        T18B_COUNT_NG=$((T18B_COUNT_NG+1))
+        T18B_DETAIL="$T18B_DETAIL [組$T18B_ROUND m4a の本数=$T18B_M4A_N (2 が期待値)]"
+    fi
+    for T18B_F in "$T18B_DIR"/*.m4a; do
+        [ -f "$T18B_F" ] || continue
+        # 1KB 未満は「開いただけで中身が無い」(正常な 3 秒の録音は数十 KB)。
+        # サイズだけでなく **inspect が通ること**まで見る — ファイナライズを飛ばした
+        # ファイルはサイズがあっても moov が無く、再生できない。
+        # **`duration` も要求する (CodeRabbit の指摘)** — `rms=` だけだと、長さが
+        # 読めない (moov が壊れている) 出力を「再生可能」と誤判定しうる
+        T18B_INSPECT=$(inspect "$T18B_F")
+        # **長さが 1 秒未満なら落とす (cubic の指摘)。** `duration=` の存在だけを
+        # 見ると `duration=0.00s` が通り、**ファイナライズは済んでいるが中身が空**
+        # という失敗を見逃す。3 秒録画なので 1 秒を下限にすれば、
+        # 起動の揺らぎで短くなった回を誤判定せずに空振りだけ捕まえられる
+        T18B_DUR=$(printf '%s' "$T18B_INSPECT" | grep -o 'duration=[0-9.]*' | head -1 | cut -d= -f2)
+        # **`rms` は存在だけを見て、中身は `values=` で判定する (issue #108)。**
+        #
+        # `rms` に閾値を置く案は PR #106 で 2 度とも失敗した。`InspectCommand` は
+        # `%.4f` で出すので **実測で 0.00005 までが `0.0000` に丸まり**、無音に近い
+        # 正常な録音が壊れたファイル扱いになる (この機体は無音環境なので実際に踏む)。
+        # かといって `rms=` の有無だけでは、**サンプルが 1 つも無いファイル**が通る。
+        #
+        # issue #108 で `inspect` に `values=` (デコードできた PCM 値の個数) を足した。
+        # **丸めの影響を受けず、「サンプルが来なかった」と「無音だった」を分ける唯一の値**。
+        # 0 かどうかだけを見るので、無音環境でも誤判定しない
+        T18B_RMS=$(printf '%s' "$T18B_INSPECT" | grep -o 'rms=[0-9.]*' | head -1 | cut -d= -f2)
+        T18B_VALUES=$(printf '%s' "$T18B_INSPECT" | grep -o 'values=[0-9]*' | head -1 | cut -d= -f2)
+        if [ "$(stat -f%z "$T18B_F" 2>/dev/null || echo 0)" -lt 1024 ] \
+           || [ -z "$T18B_RMS" ] \
+           || [ -z "$T18B_VALUES" ] || [ "$T18B_VALUES" -le 0 ] \
+           || [ -z "$T18B_DUR" ] \
+           || ! awk -v d="$T18B_DUR" 'BEGIN { exit !(d >= 1.0) }'; then
+            T18B_FILE_NG_R=$((T18B_FILE_NG_R+1))
+            T18B_DETAIL="$T18B_DETAIL [組$T18B_ROUND $(basename "$T18B_F") duration=${T18B_DUR:-なし} rms=${T18B_RMS:-なし} values=${T18B_VALUES:-なし}]"
+        fi
+    done
+    if [ "$T18B_FILE_NG_R" != "0" ]; then
+        T18B_FILE_NG=$((T18B_FILE_NG+1))
+    fi
+    # **watchdog に撃たれた非ゼロだけを #103 扱いにする (CodeRabbit の指摘)。**
+    # 自力で終わった非ゼロは kilde が失敗を返したということで、ハングとは別物。
+    # skip に流すと**本物の失敗を見逃す**ので、専用カウンタで bad へ回す
+    if { [ "$T18B_EXIT1" != "0" ] && [ "$T18B_KILLED1" != "1" ]; } \
+       || { [ "$T18B_EXIT2" != "0" ] && [ "$T18B_KILLED2" != "1" ]; }; then
+        T18B_SELF_FAIL=$((T18B_SELF_FAIL+1))
+        T18B_DETAIL="$T18B_DETAIL [組$T18B_ROUND 自力終了で非ゼロ exit=$T18B_EXIT1/$T18B_EXIT2 (watchdog 未介入)]"
+    fi
+    if [ "$T18B_EXIT1" != "0" ] || [ "$T18B_EXIT2" != "0" ] || [ "$T18B_FILE_NG_R" != "0" ]; then
         T18B_LIVE_NG=$((T18B_LIVE_NG+1))
-        # **書き込み量も残す。** issue #95 の残存ハングは「片方が完走し、片方が途中で
-        # 止まる」形なので、サイズの非対称 (例: 2810 と 1425) が機序を絞る手がかりになる。
-        # skip で終わる回も観測として #95 に積み上がるよう、毎回この値を出す
+        # **書き込み量も残す。** 停止側のサイズが完走側とほぼ同じか大きく欠けるかは、
+        # 機序を絞る手がかりになる。skip で終わる回も観測として #103 に積み上がるよう毎回出す
         T18B_SIZES=$(ls -la "$T18B_DIR"/*.m4a 2>/dev/null | awk '{printf "%s ", $5}')
-        T18B_DETAIL="$T18B_DETAIL [組$T18B_ROUND exit=$T18B_EXIT1/$T18B_EXIT2 空=$T18B_EMPTY_R サイズ=${T18B_SIZES:-なし}]"
+        T18B_DETAIL="$T18B_DETAIL [組$T18B_ROUND exit=$T18B_EXIT1/$T18B_EXIT2 壊れ=$T18B_FILE_NG_R サイズ=${T18B_SIZES:-なし}]"
     fi
 done
 # 同一秒での -2 退避は最後の組で確認する (名前の衝突が起きた組でしか判定できないため)
@@ -961,14 +1180,34 @@ T18B_DIR="$WORK/t18b-$T18B_ROUNDS"
 T18B_NAMES=$(ls "$T18B_DIR" 2>/dev/null | wc -l | tr -d ' ')
 if [ "$T18B_NAME_NG" != "0" ]; then
     bad "T18b 同時起動: ${T18B_ROUNDS} 組中 $T18B_NAME_NG 組で名前が 2 つ残らなかった (予約の保護が壊れている。issue #59)$T18B_DETAIL"
-elif [ "$T18B_LIVE_NG" = "$T18B_ROUNDS" ]; then
-    # **全組が落ちたらロック自体の回帰。** #95 の残存は約 10% なので、3 組連続で
-    # 引く確率は 0.1% 未満。全滅は「たまたま」では説明できず、SCKStartupLock が
-    # 効いていない (= issue #70 の回帰) と見るべきなので、ここは skip にしない
-    bad "T18b 同時起動: ${T18B_ROUNDS}/${T18B_ROUNDS} 組すべてで両者が完走しなかった (SCK 起動ロックの回帰を疑う。issue #70)$T18B_DETAIL"
+elif [ "$T18B_FILE_NG" != "0" ]; then
+    # **出力が再生可能でないのは kilde の不具合 (issue #95)。ここは必ず落とす。**
+    # 停止シーケンスは「配送の停止 → ファイナライズ → replayd への通知」の順で、
+    # 最後がハングしてもファイルは完成済みになる (DESIGN.md の停止の節)。
+    # 順序を戻す変更が入るとここで落ちる — **この分岐が #95 の回帰の門**
+    bad "T18b 同時起動: ${T18B_ROUNDS} 組中 $T18B_FILE_NG 組で出力が再生可能でない (停止シーケンスの順序が壊れ、ファイナライズ前に stopCapture でハングした疑い。issue #95)$T18B_DETAIL"
+elif [ "$T18B_COUNT_NG" != "0" ]; then
+    # **「再生不能」とは別に報告する (cubic の指摘)。** 欠落や拡張子違いは
+    # 停止順序の回帰ではないので、#95 の文言で報告すると機序の切り分けを誤らせる。
+    # **#95 の門 (FILE_NG) より後ろに置く** — 両方起きたときに名指しすべきは
+    # 回帰のほうで、こちらは前提が崩れた側 (cubic の指摘)
+    bad "T18b 同時起動: ${T18B_ROUNDS} 組中 $T18B_COUNT_NG 組で m4a が 2 本揃わなかった (ファイルの欠落または別拡張子。再生可否以前の問題)$T18B_DETAIL"
+elif [ "$T18B_SELF_FAIL" != "0" ]; then
+    # **watchdog 未介入の非ゼロは #103 のハングではない (CodeRabbit の指摘)。**
+    # 自力で終わって非ゼロ = kilde が失敗を返したということ。skip に流すと
+    # 本物の失敗を #103 の名前で見逃す
+    bad "T18b 同時起動: ${T18B_ROUNDS} 組中 $T18B_SELF_FAIL 組で watchdog 未介入のまま非ゼロ終了した (ハングではなく録画自体の失敗)$T18B_DETAIL"
 elif [ "$T18B_LIVE_NG" != "0" ]; then
-    # 一部だけなら #95 の残存。ここで落とさない (約 10% で起きるため無関係な PR まで赤くなる)
-    skip "T18b 同時起動: 名前の保護は ${T18B_ROUNDS}/${T18B_ROUNDS} 組で成立。ただし $T18B_LIVE_NG 組で両者が完走しなかった (issue #95 の残存ハング。#95 が閉じたらこの分岐を bad に上げること)$T18B_DETAIL"
+    # **ここは「プロセスが自力で終わらなかった」だけ。ファイルは全部健全。**
+    # `SCStream.stopCapture()` が replayd から戻らないもので (issue #103)、
+    # **kilde 側では解消できない**。実測で 24/40 組、条件次第で 9/10 組出るので、
+    # 落とすと無関係な PR が恒常的に赤くなる。
+    #
+    # **「全組で起きたら bad」にはしない。** 以前は「#95 の残存は約 10% なので
+    # 3 組連続は 0.1% 未満」として全滅を bad にしていたが、**その前提は実測で崩れた** —
+    # 同じプロトコルで 90% 出る。全滅は普通に起こりうるので、回数では回帰を判定できない。
+    # 起動ロックの回帰 (issue #70) はファイルが壊れる形で上の分岐に出る
+    skip "T18b 同時起動: 名前の保護と出力の健全性は ${T18B_ROUNDS}/${T18B_ROUNDS} 組で成立。ただし $T18B_LIVE_NG 組でプロセスが自力終了しなかった (issue #103 の未解決分。#103 が閉じたらこの分岐を bad に上げること)$T18B_DETAIL"
 elif [ "$T18B_NAMES" = "2" ]; then
     # 両者のタイムスタンプが同じ秒なら、片方が必ず -2 に退避しているはず。異なる秒に
     # 落ちた場合は起動の揺らぎで、名前の衝突自体が起きていない (同一秒の決定的検証は T18 が担う)
@@ -1410,18 +1649,31 @@ mkdir -p "$T22_DIR"
 T22_PID=$!
 sleep 0.15
 kill -INT $T22_PID 2>/dev/null
-# 固まって残ってもスイートを止めないよう期限つきで待つ (T13 と同じ段階的強制)
-T22_DEADLINE=$(( $(date +%s) + 10 ))
-while [ "$(date +%s)" -lt "$T22_DEADLINE" ] && kill -0 $T22_PID 2>/dev/null; do
-    sleep 0.5
-done
-if kill -0 $T22_PID 2>/dev/null; then
-    kill -TERM $T22_PID 2>/dev/null; sleep 1
-    kill -0 $T22_PID 2>/dev/null && kill -KILL $T22_PID 2>/dev/null
-fi
-wait $T22_PID 2>/dev/null; T22_EXIT=$?
+# 固まって残ってもスイートを止めないよう期限つきで待つ (T13 と同じ段階的強制)。
+# **await_stop であって stop_kilde ではない (issue #101)。** このテストの刺激は
+# 「起動直後の SIGINT を 1 通だけ」であり、#67 が保証するのはその 1 通が届くこと。
+# 回収の側で INT を送り直すと、1 通目が失われる回帰をこのテストが救ってしまう。
+# 役割は recording — 準備中に間に合わなければ通常録画に解け、ファイナライズを待つ
+await_stop "$T22_PID" recording
+T22_EXIT=$STOP_EXIT
+# **T13 と同じ理由で STOP_BY_INT も見る (cubic P2 の指摘)。** #67 が保証するのは
+# 「起動直後に届いた 1 通目の SIGINT が失われない」ことなので、TERM への昇格で
+# exit 0 になった回はこの契約を満たしていない
+T22_BY_INT=$STOP_BY_INT
+# **回収済みの PID を trap に残さない。** スイートの残りで数百のプロセスが起動するため、
+# PID が一周して再利用されると無関係なプロセスに signal を送る。しかもヘルパ化で
+# 後始末は「TERM+KILL を 1 発ずつ」から「最大 20 発の SIGINT を 10 秒 + TERM/KILL」に
+# 変わっており、取り違えたときの被害が増えている (T23 / T25 と同じ理由・同じ作法)
+T22_PID=""
 T22_FILES=$(ls "$T22_DIR" 2>/dev/null | wc -l | tr -d ' ')
-if [ "$T22_EXIT" = "0" ]; then
+if [ "$T22_EXIT" = "0" ] && [ "$T22_BY_INT" != "1" ]; then
+    # **診断を断定しない (cubic P3 の指摘)。** STOP_BY_INT=0 は「猶予 10 秒を超えた」
+    # ことしか意味せず、原因は 2 つありうる — (a) 起動直後の SIGINT が失われた (#67 の
+    # 回帰)、(b) INT は効いたがファイナライズが 10 秒超に伸びた。後者なら TERM 送信から
+    # KILL までの 1 秒窓で終了して exit=0・STOP_BY_INT=0 になる。窓は狭いが、
+    # 「#67 の回帰」と断定すると調査を誤らせるので、観測した事実だけを書く
+    bad "T22 準備中 SIGINT: exit=0 だが SIGINT 後 10 秒以内に終了せず TERM/KILL への昇格が必要だった (issue #67 の回帰か、ファイナライズの異常な遅延。$WORK/t22.log を見て切り分けること)"
+elif [ "$T22_EXIT" = "0" ]; then
     if [ "$T22_FILES" = "0" ]; then
         ok "T22 準備中 SIGINT: exit=0・出力ファイルなし (準備フェーズを中断)"
     else
@@ -1437,6 +1689,214 @@ if [ "$T22_EXIT" = "0" ]; then
     fi
 else
     bad "T22 準備中 SIGINT: exit=$T22_EXIT — $WORK/t22.log"
+fi
+
+# ---- T24: devices を併走させても rec が失敗しない (issue #90)
+# `SCShareableContent` の列挙と SCK の起動が重なると、**起動側が
+# `SCStream.startCapture()` で -3801 (TCC 拒否) を受けて即座に失敗する**。
+# **権限拒否ではない** — Recorder は startCapture() の手前で
+# Permissions.hasScreenCapture を確認済みで、権限が無ければそこで終了コード 2 になる。
+# 修正前の実測 (条件を交互に各 10 回): **devices 併走で 7/10 失敗、単独では 0/10**。
+#
+# **1 組では足りない。** 修正前でも 3/10 は成功するので、1 回通っても回帰が無い証拠に
+# ならない。5 組なら修正前を見逃す確率は 0.3^5 ≈ 0.2% で、門として機能する。
+# #70 (T18b) と違って**固まらない**ので、期限つきの待ちは要らない (失敗は即座に返る)。
+
+log "T24: devices 併走 — 列挙と SCK 起動が重なっても rec が失敗しない"
+T24_ROUNDS=5
+T24_NG=0
+T24_TCC=0
+T24_DETAIL=""
+T24_DIR="$WORK/t24"
+mkdir -p "$T24_DIR"
+for T24_ROUND in $(seq 1 "$T24_ROUNDS"); do
+    T24_DEV_LOG="$WORK/t24-devices-$T24_ROUND.log"
+    : > "$T24_DEV_LOG"
+    # 列挙を先に出してから録画を始める — 危険なのは列挙と**起動**が重なる瞬間なので、
+    # devices (実測 0.2 秒) が rec の起動区間 (実測 0.31 秒) に被る順序にする
+    "$KILDE" devices > "$T24_DEV_LOG" 2>&1 &
+    T24_DEVICES_PID=$!
+    # **同期信号は入れない (CodeRabbit の指摘を実測のうえ一部見送り)。**
+    #
+    # 「devices が rec の起動前に終わる経路を防げない」という指摘は理屈としては正しい。
+    # だが実装できる同期が無く、無理に入れると門が弱くなる:
+    #
+    #   - `devices` は**列挙が終わってから** "== displays ==" を出す
+    #     (実測: 全体 0.17 秒 / 起動のみ 0.02 秒 → 列挙は約 0.15 秒)。
+    #     この行を待ってから rec を起動すると devices は終了間際で、**重なりが減る**
+    #   - `devices` を回し続けて確実に重ねる案は、**rec がハングした** (issue #95。
+    #     修正前バイナリで 1 回目から `Recorder.swift:494` の completionCondition 待ちで
+    #     65 秒停止)。スイートが無言で止まるので採れない
+    #
+    # **同期なしで門になることを実測で確認した**: #90 修正前のバイナリ (5b22465) に
+    # この形で 5 回当てて **4/5 が -3801 で失敗**。回帰は捕まる
+    "$KILDE" rec --no-video --duration 2 --output "$T24_DIR/t24-$T24_ROUND.m4a" \
+        > "$WORK/t24-rec-$T24_ROUND.log" 2>&1
+    T24_EXIT=$?
+    # **devices の終了コードも見る。** 捨てると、列挙側が落ちても rec さえ成功すれば
+    # T24 が通ってしまう (このテストは両者が併走して**双方無事**であることを見る)。
+    #
+    # **期限つきで待つ。** 無期限の `wait` だと、`devices` が固まったときに
+    # スイート全体が無言で止まる。列挙は実測 0.2 秒、ロック待ちを含めても
+    # 3 秒 (enumerationTimeout) なので、10 秒あれば正常時は必ず終わる。
+    #
+    # **ここは stop_kilde / await_stop に寄せない (issue #101)。** 理由は 2 つ:
+    #   - `devices` は録画もシグナル処理もしないので、INT も TERM も意味がない
+    #     (安全停止ハンドラを持たない = ヘルパの「録画しているか」という軸に乗らない)
+    #   - 終わらなかったことを **137 として記録して失敗に数える**のがここの目的で、
+    #     TERM で綺麗に終わらせると所見が消える (T18b と同じ考え方)
+    T24_DEV_DEADLINE=$(( $(date +%s) + 10 ))
+    while [ "$(date +%s)" -lt "$T24_DEV_DEADLINE" ] && kill -0 "$T24_DEVICES_PID" 2>/dev/null; do
+        sleep 0.2
+    done
+    if kill -0 "$T24_DEVICES_PID" 2>/dev/null; then
+        kill -KILL "$T24_DEVICES_PID" 2>/dev/null
+        wait "$T24_DEVICES_PID" 2>/dev/null
+        T24_DEV_EXIT=137
+        T24_DETAIL="$T24_DETAIL [組$T24_ROUND devices が 10 秒で終わらず KILL]"
+    else
+        wait "$T24_DEVICES_PID" 2>/dev/null
+        T24_DEV_EXIT=$?
+    fi
+    T24_DEVICES_PID=""
+    # -3801 かどうかを分けて数える。他の理由の失敗 (環境起因の -3818 など) と
+    # 混ぜると、#90 の回帰なのか環境なのかが判定から読み取れなくなる
+    if grep -q "Code=-3801" "$WORK/t24-rec-$T24_ROUND.log" 2>/dev/null; then
+        T24_TCC=$((T24_TCC+1))
+    fi
+    if [ "$T24_EXIT" != "0" ]; then
+        T24_NG=$((T24_NG+1))
+        T24_DETAIL="$T24_DETAIL [組$T24_ROUND rec exit=$T24_EXIT]"
+    fi
+    if [ "$T24_DEV_EXIT" != "0" ]; then
+        T24_NG=$((T24_NG+1))
+        T24_DETAIL="$T24_DETAIL [組$T24_ROUND devices exit=$T24_DEV_EXIT — $T24_DEV_LOG]"
+    fi
+done
+# **判定を 3 つに分ける (T18b が #95 に対して取っている形と同じ)。**
+#
+# 列挙を直列化しても **約 1.8% が -3801 で残る** (issue #99。修正後 110 試行中 2 件)。
+# 全組を必須にすると、5 組がすべて通る確率は 91.3% なので **約 8.7% の頻度で
+# 無関係な PR まで赤くなる**。一方で緩めすぎると回帰を見逃す。そこで:
+#
+#   - **2 組以上で -3801** → #90 の回帰。`bad`
+#   - **1 組だけ -3801** → #99 の残存。`skip` (#99 が閉じたらこの分岐を bad に上げること)
+#   - **-3801 以外の失敗** → 環境かコードの別の問題。従来どおり `bad`
+#
+# **閾値を「全組」ではなく「2 組以上」に置く。** 全組だけを bad にすると、
+# **修正前バイナリで実測した 4/5 の回帰が skip になって素通りします** (CodeRabbit の指摘)。
+# 一方 2 組以上なら:
+#   - 残存 1.8% で 5 組中 2 件以上が出る確率は **約 0.31%** (320 回に 1 回) — 誤検知は許容範囲
+#     (二項分布で P(0)=91.32%, P(1)=8.37% なので P(>=2)=0.31%。実測の 2/110=1.82% でも 0.32%)
+#   - 修正前 (実測 70〜80%) なら 2 件以上はほぼ確実 — 回帰は捕まる
+if [ "$T24_TCC" -ge 2 ]; then
+    bad "T24 devices 併走: ${T24_ROUNDS} 組中 $T24_TCC 組で -3801 (列挙が SCK 起動ロックの外に出ている。issue #90 の回帰を疑う。残存 #99 なら 5 組中 2 件以上は約 0.31% でしか起きない)$T24_DETAIL"
+elif [ "$T24_NG" != "$T24_TCC" ]; then
+    # -3801 以外の理由でも落ちている (NG が TCC を上回る = devices 側の失敗を含む)
+    bad "T24 devices 併走: ${T24_ROUNDS} 組中 $T24_NG 件が失敗 (うち -3801 は $T24_TCC 件)。-3801 以外の原因を調べること — $WORK/t24-rec-*.log$T24_DETAIL"
+elif [ "$T24_TCC" != "0" ]; then
+    skip "T24 devices 併走: ${T24_ROUNDS} 組中 1 組で -3801 (issue #99 の残存。約 1.8% で起きる。#99 が閉じたらこの分岐を bad に上げること)$T24_DETAIL"
+else
+    ok "T24 devices 併走: ${T24_ROUNDS}/${T24_ROUNDS} 組で rec が exit=0 (-3801 なし)"
+fi
+
+# ---- T25: 設定 hotkey + --duration は待機に入り、警告を出す (issue #97)
+# `--duration` は**待機の解除後**から数えるので、設定に hotkey があると
+# 「N 秒で終わるはずのコマンドが帰ってこない」ことになる。これは仕様だが、
+# **黙って待たれると無人実行が詰まる** (#90 の計測中に 8 分間ハングと誤認した)。
+# 設定由来のときだけ WARNING を出すことにしたので、それを固定する。
+#
+# **このテストが固定するのは「待ち続けること」**。#97 の受け入れ条件は
+# 「非対話実行で無期限に待ち続けることがない」だったが、**決めた挙動は
+# 「待機は維持し、WARNING で気づけるようにする」**なので、ここで assert するのは
+# **`< /dev/null` でも待機が終わらないこと**になる (DESIGN.md「`--duration` と待機モード」)。
+# 待機は RunLoop で待ち stdin を見ないため、`meeting` の対話選択が EOF で終了コード 1 に
+# なるのとは事情が違う (あちらは入力を要求している)。
+#
+# T23 と同じくキーを分ける — 取り違えると「実は誰も握っていない」状態を緑と誤認する
+
+log "T25: 設定 hotkey + --duration — 待機に入り警告を出す (非対話でも待ち続ける)"
+T25_KEY="cmd+opt+ctrl+shift+f8"
+T25_DIR="$WORK/t25"
+T25_CFG_DIR="$WORK/t25-config"
+mkdir -p "$T25_DIR" "$T25_CFG_DIR"
+printf '{"hotkey": "%s"}\n' "$T25_KEY" > "$T25_CFG_DIR/config.json"
+# **stdin を /dev/null にする** — 端末が無くても待機が終わらないことを見るため。
+# exec で置き換えるのは kill を kilde 本体に届かせるため (T13 と同じ)
+# **stdout と stderr を分けて取る。** 結合すると「WARNING が stderr に出ている」ことを
+# 検証できず、stdout に出ても緑になる。実装と DESIGN.md は WARNING を stderr、
+# 「待機中」を stdout と定めているので、テストもその区別を見る (CodeRabbit の指摘)
+( cd "$T25_DIR" && exec env KILDE_CONFIG_DIR="$T25_CFG_DIR" "$KILDE" \
+    rec --no-video --duration 2 > "$WORK/t25-out.log" 2> "$WORK/t25-err.log" < /dev/null ) &
+T25_PID=$!
+# **猶予は T23 と揃えて 15 秒**。待機に入らず即時録画へ縮退した場合の所要は
+# 実測 4 秒前後 (SCK 起動 + 2 秒録画 + ファイナライズ) だが、**起動には
+# SCKStartupLock の待機が最大 15 秒乗りうる** (#70 / #90)。6 秒では、
+# 並行する録画とロックを取り合っただけで「待機に入っていない」と誤判定する
+T25_WAITED=0
+for _ in $(seq 1 30); do
+    kill -0 "$T25_PID" 2>/dev/null || break
+    T25_WAITED=$((T25_WAITED + 1))
+    sleep 0.5
+done
+if kill -0 "$T25_PID" 2>/dev/null; then
+    T25_STILL_WAITING=1
+else
+    T25_STILL_WAITING=0
+fi
+# **SIGINT を 1 回送って 1 秒で TERM へ進めない。** 下で exit=0 を必須にしている以上、
+# ここの猶予が判定の土台になる。stop_kilde は終了を確認するまで INT を送り直す —
+# installStopSignalHandler の設置前に届いた SIGINT は失われうるため。
+#
+# **役割は recording** — 待機中なら何も書いていないが、#80 の縮退で即時録画に入って
+# いる可能性があり、そちらだとファイナライズに時間がかかる (EXIT trap 側と同じ理由)。
+# waiting の 5 秒では、縮退していた回に未完了ファイルを残しかねない。
+#
+# **INT だけで終わったかを記録する (T25_STOPPED_BY_INT ← STOP_BY_INT)。** 終了コード
+# だけでは SIGINT の回帰を検出できない — **SIGTERM も SIGINT と同じ安全停止ハンドラに
+# 繋がる**ので (KildeCommand.installStopSignalHandler)、INT だけが壊れても TERM への
+# 昇格で exit 0 になり、`T25_EXIT != 0` のゲートを素通りしてしまう。終了コードで
+# 捕まるのはシグナル経路が丸ごと死んだ場合 (KILL → 137) だけ
+stop_kilde "$T25_PID" recording
+T25_STOPPED_BY_INT=$STOP_BY_INT
+T25_EXIT=$STOP_EXIT
+T25_PID=""
+T25_FILES=$(ls "$T25_DIR" 2>/dev/null | wc -l | tr -d ' ')
+T25_WARN=0
+# WARNING は **stderr** から見る (実装が FileHandle.standardError に書く契約)
+grep -q "WARNING:.*待機モード" "$WORK/t25-err.log" 2>/dev/null && T25_WARN=1
+T25_WAITING_SHOWN=0
+# 「待機中」は **stdout** から見る (print で出る。T13 も stdout のこの行を待っている)
+grep -q "待機中" "$WORK/t25-out.log" 2>/dev/null && T25_WAITING_SHOWN=1
+# **縮退したかを先に見る。** 他プロセスが f8 を握っていると #80 の縮退で即時録画になり、
+# そのとき #97 の WARNING は (待機しないので) 正しく出ない。これを「警告が失われている」と
+# 診断すると原因を取り違える — 実際はキーの取り合いで、このテストの前提が崩れている
+T25_DEGRADED=0
+# 縮退の警告 (#80) も stderr
+grep -q "WARNING: ホットキー" "$WORK/t25-err.log" 2>/dev/null && T25_DEGRADED=1
+
+if [ "$T25_DEGRADED" = "1" ]; then
+    bad "T25 hotkey+duration: ホットキー $T25_KEY を他プロセスが握っており縮退した (このテストの前提が崩れている。孤児が残っていないか確認すること) — $WORK/t25-out.log と $WORK/t25-err.log"
+elif [ "$T25_STILL_WAITING" != "1" ]; then
+    # --duration で終わってしまった = 待機に入っていない。仕様が変わったか縮退した
+    bad "T25 hotkey+duration: 待機に入らず $((T25_WAITED / 2)) 秒で終了した (exit=$T25_EXIT)。設定の hotkey が効いていないか、待機の判定が変わった — $WORK/t25-out.log と $WORK/t25-err.log"
+elif [ "$T25_WARN" != "1" ]; then
+    bad "T25 hotkey+duration: 待機には入ったが WARNING が出ていない (issue #97 の警告が失われている) — $WORK/t25-out.log と $WORK/t25-err.log"
+elif [ "$T25_WAITING_SHOWN" != "1" ]; then
+    bad "T25 hotkey+duration: WARNING は出たが「待機中」の表示がない (登録に失敗している) — $WORK/t25-out.log と $WORK/t25-err.log"
+elif [ "$T25_FILES" != "0" ]; then
+    bad "T25 hotkey+duration: 待機中なのに出力ファイルが $T25_FILES 個ある — $T25_DIR"
+elif [ "$T25_STOPPED_BY_INT" != "1" ]; then
+    # **終了コードだけでは SIGINT の回帰を捕まえられない。** `installStopSignalHandler` は
+    # SIGINT / SIGTERM / SIGHUP を**同じ handler** に繋ぐので、INT だけが壊れても
+    # TERM への昇格で exit 0 になり、`$T25_EXIT` を見るだけでは緑になってしまう。
+    # **INT のループ内で終了したか**を見て初めて、T13 が守る契約の回帰を検出できる
+    bad "T25 hotkey+duration: 待機中の SIGINT で終了しなかった (TERM/KILL への昇格が必要だった。exit=$T25_EXIT)。待機中 Ctrl+C = exit 0 の契約 (DESIGN.md §6) の回帰を疑う — $WORK/t25-out.log と $WORK/t25-err.log"
+elif [ "$T25_EXIT" != "0" ]; then
+    # INT で終わったのに非ゼロ = ファイナライズや後始末の失敗
+    bad "T25 hotkey+duration: SIGINT で終了したが exit=$T25_EXIT (0 が契約) — $WORK/t25-out.log と $WORK/t25-err.log"
+else
+    ok "T25 hotkey+duration: 非対話でも待機に入り、WARNING を出し、ファイルを作らず、SIGINT で exit=0"
 fi
 
 # ---- サマリ -------------------------------------------------------------------

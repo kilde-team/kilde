@@ -93,7 +93,13 @@ final class RecordingController: ObservableObject {
         recordingStartedAt = nil
         stoppedAt = nil
         stopRequestedDuringPreparation = false
-        let recorder = Recorder(options: options)
+        // **GUI はセッションが終わっても生き続け、次の録画を受け付ける (issue #95)。**
+        // 失敗経路で `stopCapture()` を待たずに次を始めると、未完了の停止が次の
+        // `startCapture()` と重なり、#70 / #95 が実測した replayd の楔付け
+        // (SIGKILL でも 60 秒回復しない) を起こす。引数は let なので複製して立てる
+        var sessionOptions = options
+        sessionOptions.callerOutlivesSession = true
+        let recorder = Recorder(options: sessionOptions)
         self.recorder = recorder
         // **開始前に登録されたハンドラをこのセッションへ移す。** SelfTest は
         // start() の前に whenSessionEnds を呼ぶので、登録時点の recorder は nil。
