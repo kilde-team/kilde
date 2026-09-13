@@ -207,6 +207,8 @@ jobs:
           {
             echo "## kilde $VERSION"
             echo
+            echo "- ビルド: arm64 (Apple Silicon)。Intel / universal は今後のリリースで提供予定"
+            echo
             if [ "$SIGNED" = "true" ]; then
               echo "- 署名・notarization 済み (Developer ID)"
             else
