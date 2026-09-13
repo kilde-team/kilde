@@ -20,7 +20,18 @@ public enum StopTrace {
     /// 有効かどうかは 1 度だけ決める。コールバック経路 (handleAudio) からも
     /// 呼ばれるため、毎回 environment を引くと録画中のホットパスに辞書引きが乗る
     public static let isEnabled: Bool = {
-        ProcessInfo.processInfo.environment["KILDE_TRACE_STOP"] == "1"
+        let on = ProcessInfo.processInfo.environment["KILDE_TRACE_STOP"] == "1"
+        // **SIGPIPE を無視する (cubic の指摘)。** 下で生の `write(2)` を使うため、
+        // stderr が**読み手の消えた pipe** (`kilde rec … 2>&1 | head` など) だと
+        // SIGPIPE が飛び、既定の処理は**プロセス終了**。`mark()` はサンプルごとに
+        // 呼ばれるので、録画中にファイナライズを飛ばして死ぬ — このファイル自身が
+        // 掲げる「診断コードがプロダクトをクラッシュさせない」原則と、
+        // 「Ctrl+C でも必ずファイナライズ」(DESIGN.md §5) の両方に反する。
+        //
+        // 旧実装の `FileHandle.standardError.write` は Foundation が SIGPIPE を
+        // 無視する前提に乗っていた。`FileHandle` をやめた以上、自分で無視する
+        if on { signal(SIGPIPE, SIG_IGN) }
+        return on
     }()
 
     /// 最初の `mark()` を基準にした相対秒。`Date` ではなく単調時計を使う。
@@ -51,9 +62,30 @@ public enum StopTrace {
         let seconds = Double(elapsedNanos) / 1_000_000_000
         let line = String(format: "[stop-trace] %8.3f %@\n", seconds, label())
         // 複数のキュー (SCK の outQueue / マイクの queue / セッション Task) から
-        // 同時に呼ばれるので、行が混ざらないよう直列化する
+        // 同時に呼ばれるので、行が混ざらないよう直列化する。
+        //
+        // **`write(2)` を直接使い、FileHandle を使わない (cubic の指摘)。**
+        // `handleAudio` はサンプルごとに呼ばれる (実測 3 秒で約 160 回)。stderr が
+        // **誰も読んでいない pipe** だと、満杯になった時点で書き込みがブロックし、
+        // **キャプチャのコールバックがそこで止まる**。すると `suspendDelivery()` が
+        // その完了を待ち続け、**ファイナライズまで止まる** — 診断コードが
+        // issue #95 で直そうとしている症状そのものを作ってしまう。
+        //
+        // 戻り値は捨てる (部分書き込みで診断の 1 行が欠けても、録画を止めるよりは軽い)。
+        // `FileHandle.write` は失敗時に ObjC 例外を投げる (Swift では捕まえられず落ちる)
+        // という別の問題もあり、そちらも同時に避けられる。
+        //
+        // **満杯の pipe でブロックすること自体は避けられない (cubic の指摘)。**
+        // ブロッキング fd では戻り値を捨ててもブロックし続ける (部分書き込みが起きるのは
+        // 実質 EINTR のとき)。**誰も読まない pipe へ大量に出せば、ここで止まる** —
+        // その場合キャプチャのコールバックが止まり、`suspendDelivery()` がその完了を
+        // 待ってファイナライズまで止まる。診断を有効にするときは
+        // **stderr をファイルへ向けるか、読み続けられる先へ繋ぐこと**
         lock.lock()
-        FileHandle.standardError.write(Data(line.utf8))
+        let bytes = Array(line.utf8)
+        _ = bytes.withUnsafeBufferPointer { buffer in
+            write(STDERR_FILENO, buffer.baseAddress, buffer.count)
+        }
         lock.unlock()
     }
 }

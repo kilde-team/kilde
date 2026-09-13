@@ -52,15 +52,15 @@ public final class ScreenAudioStream: NSObject, SCStreamOutput {
         try await stream.startCapture()
     }
 
-    /// キャプチャを停止し、出力キューに積まれたコールバックを吐き切ってから返る。
-    /// 戻った後に handler が呼ばれないことを保証する — MovieWriter.finish() の後に
-    /// append が走らないようにするため (MicStream.stop() の queue.sync {} と同じ役割。CLAUDE.md §6)
-    ///
-    /// stopCapture の失敗は投げない。投げると呼び出し側が finish() を飛ばして壊れたファイルが残り、
-    /// 「Ctrl+C でも必ずファイナライズする」最重要要件に反するため。代わりに、停止に失敗して
-    /// SCK がコールバックを送り続けても handler へ届かないよう、outQueue 上で stopped を立てて
-    /// 以降のコールバックを捨てる
     /// **サンプルの配送だけを止める (replayd とは話さない)。** issue #95 の対処の要。
+    ///
+    /// **これを呼んでもキャプチャは止まらない。** replayd 側のセッションは動き続け、
+    /// 画面収録インジケータも点いたままになる。停止まで伝えるには `stopCapture()` を
+    /// 別途呼ぶこと (`stop()` は両方を順に呼ぶ)。
+    ///
+    /// 戻った後に handler が呼ばれないことは保証する — `MovieWriter.finish()` の後に
+    /// append が走らないようにするため (`MicStream.stop()` の `queue.sync {}` と
+    /// 同じ役割。CLAUDE.md §6)
     ///
     /// 停止シーケンスは `stopCapture()` が replayd との XPC から戻らないことがあり
     /// (2 プロセスの停止が重なると実測 8/10)、そこで固まるとファイナライズに辿り着けず

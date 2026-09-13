@@ -685,12 +685,42 @@ public final class Recorder {
             monitorCreatedByUs = true
         }
 
+        // **`do` の外で持つ (cubic の指摘)。** 中で宣言すると下の `catch` から見えず、
+        // 失敗経路で `beforeStopNotify()` が既に復元した後に catch がもう一度呼ぶ。
+        // 1 回目の成功で state ファイルが消えるため 2 回目は `false` を返し、
+        // **復元できているのに「復元に失敗しました」という誤った復旧指示**を出してしまう
+        var monitorTornDown = false
+        // **「1 回だけ」をここ 1 箇所で述べる (cubic の指摘)。** 同じガードを
+        // 呼び出し地点ごとに書き写すと、後始末に何か足したい人が全箇所を直す前提になり、
+        // 1 つ漏らすと二重実行に戻る — 2 回目は state ファイルが消えているため
+        // `MonitorDevice.teardown()` が `false` を返し、**復元できているのに
+        // 「復元に失敗しました」という誤った復旧指示**が出る。
+        // issue #101 で統合テストの同種の重複を潰したばかりで、同じ形を作らない
+        func tearDownMonitorOnce() {
+            guard !monitorTornDown else { return }
+            monitorTornDown = true
+            teardownMonitorIfNeeded(monitorCreatedByUs)
+        }
         do {
             // monitor の setup 中に停止されていたら、ここで抜けて catch 側の
             // teardownMonitorIfNeeded に既定出力を戻させる
             try checkCancelledDuringPreparation()
-            let summary = try await recordAndFinalize(url: url, reservation: reservation)
-            teardownMonitorIfNeeded(monitorCreatedByUs)
+            // **monitor の復元を `stopCapture()` の待ちより前に済ませる (cubic の指摘)。**
+            //
+            // `recordAndFinalize` は最後に `stopCapture()` を待つ。そこがハングすると
+            // (issue #103。replayd が XPC から戻らない) **この関数から戻ってこない**ので、
+            // 下の `teardownMonitorIfNeeded` に永久に到達しない。`--monitor` を使った
+            // 録画では、**ファイルは完成しているのに既定出力が `kilde Monitor` のまま残る**。
+            //
+            // そこで「ファイナライズ済み・停止通知はまだ」の地点で呼ばせる。
+            // **二重に呼ばない** — このクロージャが走ったかを見て下をスキップする
+            // (`teardownMonitorIfNeeded` 自体は冪等だが、`cleanupWarnings` が二重に積まれる)
+            let summary = try await recordAndFinalize(
+                url: url, reservation: reservation,
+                beforeStopNotify: { tearDownMonitorOnce() })
+            // 保険。現状ここへ来る時点で `beforeStopNotify()` は必ず走っているが
+            // (正常復帰路は 1 箇所で無条件に呼ぶ)、経路が増えたときに取りこぼさないよう残す
+            tearDownMonitorOnce()
             // 復元失敗は録画の失敗ではないが、購読側が気づけないと既定出力が
             // kilde Monitor のまま残る — 完了の前に警告イベントで伝える
             for warning in cleanupWarnings {
@@ -701,13 +731,29 @@ public final class Recorder {
             return summary
         } catch {
             // 後始末の失敗で録画本体のエラーと終了コードを上書きしない。
-            // 失敗イベントと error 遷移は runSession の収束点で出す
-            teardownMonitorIfNeeded(monitorCreatedByUs)
+            // 失敗イベントと error 遷移は runSession の収束点で出す。
+            // 録画に入る前の失敗はここが唯一の後始末になる (`beforeStopNotify` は
+            // 録画に入れた場合しか走らない)。既に復元済みなら二重に呼ばない
+            tearDownMonitorOnce()
             throw error
         }
     }
 
-    private func recordAndFinalize(url: URL, reservation: OutputFileReservation?) async throws -> Summary {
+    /// - Parameter beforeStopNotify: **ファイナライズが済み、`stopCapture()` を待つ直前**に
+    ///   呼ばれる。`stopCapture()` は replayd から戻らないことがある (issue #103) ので、
+    ///   その待ちに巻き込んではいけない後始末 (monitor の既定出力の復元) をここへ寄せる。
+    ///
+    ///   **`defer` のような「必ず 1 回」ではない (cubic の指摘)。** 呼ばれるのは
+    ///   **録画に入れた場合だけ** — 成功経路と、ファイナライズ (映像フレーム数の検証 /
+    ///   `writer.finish()`) で失敗した経路に限る。権限拒否・SCK 起動ロックの待機切れ・
+    ///   対象の解決失敗など**録画に入る前の throw では呼ばれず**、`performSession` の
+    ///   catch 側の後始末に委ねられる。
+    ///
+    ///   したがって**「`stopCapture()` より前に必ず走る」保証としてここに処理を足さない**こと。
+    ///   足すなら `performSession` 側にも同じ後始末を置き、二重実行を防ぐこと
+    ///   (`monitorTornDown` が実際にそうしている)
+    private func recordAndFinalize(url: URL, reservation: OutputFileReservation?,
+                                   beforeStopNotify: @escaping () -> Void = {}) async throws -> Summary {
         audioLabels = try labeledSources().map { $0.label }
         let useMixer = options.trackPolicy == .mixed && options.audioSources.count > 1
 
@@ -1152,9 +1198,11 @@ public final class Recorder {
             // 掴み続けるので、**この分割が直そうとしている症状そのものが残る**。
             //
             // 代わりに待つ。**待つ側の代償は正直に書いておく** — ここでハングすると
-            // `.failed` イベントも `storeCompletion` も `teardownMonitorIfNeeded` も
-            // 動かず、既定出力が kilde Monitor のまま残りうる。それでも、replayd を
+            // `.failed` イベントも `storeCompletion` も動かない。それでも、replayd を
             // 楔付けにして**以後の録画をすべて壊す**よりは軽い。
+            //
+            // なお **monitor の既定出力の復元は巻き添えにならない** — 直前の
+            // `beforeStopNotify()` で済ませてある (cubic の指摘で後から分離した)。
             //
             // **この catch に来る 2 経路でファイルの状態は違う。揃っていると思わないこと**
             // (cubic の指摘):
@@ -1170,11 +1218,17 @@ public final class Recorder {
             // 安全論が**成立しない** — 検証失敗の経路は出力を消しており、守るものが無い。
             // CLI のように 1 回で終わる側は待たずに失敗を報告し (プロセス終了で XPC が
             // 切れれば replayd 側は掃除される)、次の録画を受け付ける側だけが待つ
+            // **停止通知の待ちに巻き込んではいけない後始末を先に済ませる (cubic の指摘)。**
+            // monitor の復元は replayd と無関係なので、ここでハングしても道連れにしない
+            beforeStopNotify()
             if options.callerOutlivesSession {
                 await notifyReplaydStopIfNeeded()
             }
             throw error
         }
+        // **停止通知より前に monitor を戻す。** ここがハングすると `performSession` へ
+        // 戻れず、既定出力が `kilde Monitor` のまま残ってしまう (cubic の指摘)
+        beforeStopNotify()
         // **ファイルが完成してから replayd に停止を伝える (issue #95)。**
         // ここがハングしても残るのは完成したファイルで、最重要要件は守られる
         await notifyReplaydStopIfNeeded()

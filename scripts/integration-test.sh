@@ -1082,6 +1082,20 @@ for T18B_ROUND in $(seq 1 "$T18B_ROUNDS"); do
     # 畳んだままだと、#103 が残る限り `exit=137` が消えないので**この判定は永久に skip**
     # になり、ファイル健全性の回帰を検出できなくなる。**壊れたら bad、ハングだけなら skip**
     T18B_FILE_NG_R=0
+    # **まず本数を数える (cubic の指摘)。** 下のループは `*.m4a` だけを見るので、
+    # 片方が別の拡張子で出た / そもそも作られなかった場合に**検査対象が 0〜1 本でも
+    # 「壊れ 0」で通ってしまう**。2 プロセスぶん揃っていることを先に確かめる
+    # (名前の予約が壊れた場合は上の T18B_NAME_NG が拾うが、あちらは `ls` の総数を
+    #  見るので、拡張子が違うケースはここでしか捕まらない)
+    T18B_M4A_N=0
+    for T18B_COUNT_F in "$T18B_DIR"/*.m4a; do
+        [ -f "$T18B_COUNT_F" ] || continue
+        T18B_M4A_N=$((T18B_M4A_N+1))
+    done
+    if [ "$T18B_M4A_N" != "2" ]; then
+        T18B_FILE_NG_R=$((T18B_FILE_NG_R+1))
+        T18B_DETAIL="$T18B_DETAIL [組$T18B_ROUND m4a の本数=$T18B_M4A_N (2 が期待値)]"
+    fi
     for T18B_F in "$T18B_DIR"/*.m4a; do
         [ -f "$T18B_F" ] || continue
         # 1KB 未満は「開いただけで中身が無い」(正常な 3 秒の録音は数十 KB)。
