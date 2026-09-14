@@ -41,8 +41,11 @@ class Kilde < Formula
   end
 
   test do
-    # --version は "kilde 0.2.0" の形式 (メジャー/マイナーはリリースごとに変わる)
-    assert_match(/\d+\.\d+/, shell_output("#{bin}/kilde --version"))
+    # --version は "kilde 0.2.0" の形式。version.to_s は url 由来の formula
+    # バージョンなので、url とバイナリの組がずれるとここで検知できる
+    # (CodeRabbit 指摘 — 任意の "\d+\.\d+" を許すより厳しい)。
+    # head ブロック廃止により version がコミットハッシュになる経路は存在しない
+    assert_match version.to_s, shell_output("#{bin}/kilde --version")
     # doctor は画面収録・マイクの権限状態で結果が変わるため、終了コードを検証しない。
   end
 end
