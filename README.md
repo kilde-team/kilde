@@ -2,13 +2,20 @@
 
 # kilde
 
-[![CI](https://github.com/takezou621/kilde/actions/workflows/ci.yml/badge.svg)](https://github.com/takezou621/kilde/actions/workflows/ci.yml)
+[![Release](https://github.com/takezou621/kilde/actions/workflows/release.yml/badge.svg)](https://github.com/takezou621/kilde/actions/workflows/release.yml)
 
-An open-source command-line screen and audio recorder for macOS.
+An open-source screen and audio recorder for macOS.
 
 kilde records your screen together with **system audio that QuickTime Player's
-screen recorder cannot capture**, all with a single command. It is CLI-first,
-with a menu bar app in development.
+screen recorder cannot capture** — as a single-command CLI and as a menu bar
+app.
+
+The project is split across two repositories (issue #115):
+
+| Repository | Contents | Visibility |
+|---|---|---|
+| [takezou621/kilde](https://github.com/takezou621/kilde) (this one) | Menu bar app (`gui/`), release signing and distribution, Homebrew formula, documentation | Public |
+| [kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift) | The recording engine (`KildeCore`) and the `kilde` CLI source | Private (kilde-team members) |
 
 ## Features
 
@@ -24,14 +31,17 @@ with a menu bar app in development.
 - 🛡️ Safely finalize the output file when you stop recording with Ctrl+C
 - ⌨️ Start and stop recording with a global hotkey while working in another app
 
-## Installation and build
+## Installation
 
 - macOS 14 or later
+- Release binaries are **arm64 (Apple Silicon) builds** — Intel Macs are not
+  supported at this time
 - Runtime testing is currently performed on macOS 26 on Apple Silicon
+- Requires a toolchain with the macOS 26 SDK to build (the engine references
+  the macOS 26 API `captureHDRRecordingPreservedSDRHDR10`; runtime still
+  supports macOS 14+)
 
 ### Homebrew
-
-The Homebrew tap is available (v0.1.0+). Install kilde with either form:
 
 ```sh
 brew tap takezou621/kilde
@@ -42,39 +52,23 @@ brew install kilde
 brew install takezou621/kilde/kilde
 ```
 
-To build the latest `main` branch from source through Homebrew, add `--HEAD`:
+### Release binaries
+
+Download `kilde-<version>-macos.zip` from
+[GitHub Releases](https://github.com/takezou621/kilde/releases), unzip it, and
+put the `kilde` binary on your `PATH`:
 
 ```sh
-brew install --HEAD takezou621/kilde/kilde
+unzip kilde-*-macos.zip && sudo cp kilde /usr/local/bin/
 ```
 
-The HEAD build requires a toolchain with the macOS 26 SDK (Xcode 26 or
-later). The code references `captureHDRRecordingPreservedSDRHDR10`
-(macOS 26 API), which older SDKs lack, so **any pre-26 toolchain —
-Xcode 15 and 16 alike — fails with `has no member`**. Runtime still
-supports macOS 14+; users on older OSes should use the release binaries.
+### Building from source
 
-### Build from source
-
-Building from source requires Swift Package Manager and a toolchain
-with the macOS 26 SDK (Xcode 26 or later; pre-26 SDKs fail to compile —
-see the note under Homebrew above).
-
-```sh
-git clone https://github.com/takezou621/kilde.git
-cd kilde
-swift build
-.build/debug/kilde doctor   # Check and request permissions on first run
-```
-
-Optionally put the binary on your PATH so the examples below work as written:
-
-```sh
-ln -sf "$PWD/.build/debug/kilde" /usr/local/bin/kilde
-```
-
-The only package dependency is
-[swift-argument-parser](https://github.com/apple/swift-argument-parser).
+The `kilde` CLI and the `KildeCore` engine are developed in
+[kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift),
+which is **private**, so public source builds are not available at this time —
+please use Homebrew or the release binaries. kilde-team members can clone that
+repository and build it with `swift build` there (see its documentation).
 
 ## Getting started
 
@@ -197,8 +191,10 @@ to audio while recording it through another path.
 
 By default, kilde captures display `0`, records `system` audio into a `mixed`
 audio track, uses the H.264 video codec, and includes the cursor. If no output
-path is supplied, it creates `kilde-yyyyMMdd-HHmmss.mov`, or an `.m4a` file in
-audio-only mode. Run `kilde rec --help` for the complete option list.
+path is supplied, it creates `kilde-yyyyMMdd-HHmmss.mp4` (an `.mov` file when
+`--format mov` is selected, or when ProRes forces the default container back to
+`mov`), or an `.m4a` file in audio-only mode. Run `kilde rec --help` for the
+complete option list.
 
 Common options include:
 
@@ -206,7 +202,10 @@ Common options include:
 - repeatable `--audio system|mic|device:NAME_OR_UID|none` to select audio sources
 - `--audio-tracks mixed|separate` to mix sources or preserve separate tracks
 - `--no-video`, `--monitor`, `--duration 30s` (counted from the end of a hotkey
-  wait, not from launch), `--codec h264|hevc|prores`, and `--fps NUMBER`
+  wait, not from launch), `--codec h264|hevc|prores`, `--fps NUMBER`, and
+  `--format mov|mp4` (the output path's `.mov`/`.mp4` extension also selects
+  the container; ProRes cannot go into MP4, so a standalone `--codec prores`
+  falls back to `mov`)
 - `--cursor` or `--no-cursor`, `--countdown SECONDS`, `--preset meeting`, and
   `--hotkey SHORTCUT`
 - `-o PATH` or `--output PATH` as an alternative to the positional output path
@@ -269,25 +268,16 @@ recording with exit status `1`.
 | `3` | Display, window, or audio device not found |
 | `64` | Command-line parsing or option validation error, such as `rec --fps 0` |
 
-## Development
+## GUI
 
-- Official releases (Developer ID signing and notarization): [docs/RELEASE.md](docs/RELEASE.md)
-
-- Build, permissions, testing, and troubleshooting:
-  [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
-- Architecture and behavior: [docs/DESIGN.md](docs/DESIGN.md)
-- M0 spike results: [docs/SPIKE-NOTES.md](docs/SPIKE-NOTES.md)
-- Monetization strategy survey (Japanese): [docs/MONETIZATION.md](docs/MONETIZATION.md)
-- Local integration tests with real recording: `scripts/integration-test.sh`
-  (requires permissions and audible speaker output; takes about two minutes)
-
-## GUI (M3 in progress)
-
-The menu bar app skeleton uses `NSStatusItem` and `NSPopover`. It is managed
+The menu bar app in `gui/` uses `NSStatusItem` and `NSPopover`. It is managed
 manually with AppKit because SwiftUI `MenuBarExtra` with a `.window` panel does
-not open on macOS 26. The app shares the same `KildeCore` recording engine as
-the CLI through a local package dependency. Generate the uncommitted Xcode
-project from `project.yml` with [XcodeGen](https://github.com/yonaskolb/XcodeGen):
+not open on macOS 26. It shares the same `KildeCore` recording engine as the
+CLI through a **pinned** dependency on
+[kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift)
+(private — package resolution requires kilde-team git credentials). Generate
+the uncommitted Xcode project from `project.yml` with
+[XcodeGen](https://github.com/yonaskolb/XcodeGen):
 
 ```sh
 brew install xcodegen   # First time only
@@ -311,10 +301,28 @@ configuration file, so `kilde rec` picks it up as well. A checkbox registers
 the app to launch at login through `SMAppService`, which macOS may ask you to
 approve in System Settings.
 
+## Development
+
+- Engine and CLI (`KildeCore`, `kilde`): developed in
+  [kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift)
+  (private) — its repository owns the tests and CI
+- Menu bar app, release workflow, and Homebrew formula: this repository
+  - Build, permissions, and GUI troubleshooting:
+    [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
+  - Official releases (signing, notarization, distribution):
+    [docs/RELEASE.md](docs/RELEASE.md)
+- Architecture and behavior: [docs/DESIGN.md](docs/DESIGN.md)
+- M0 spike results: [docs/SPIKE-NOTES.md](docs/SPIKE-NOTES.md)
+- Monetization strategy survey (Japanese):
+  [docs/MONETIZATION.md](docs/MONETIZATION.md)
+
 ## Roadmap
 
 - **M0** ✅ Technical spike: validated ScreenCaptureKit audio capture
 - **M1** ✅ CLI MVP: `kilde rec / devices / doctor / audio monitor / inspect`
+  (the engine and CLI source now live in
+  [kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift),
+  issue #115)
 - **M2** Global hotkey ✅; region capture ✅; pause/resume
 - **M3** Menu bar GUI app: skeleton ✅ / recording UI ✅ / permission
   onboarding ✅ / completion notifications, recent recordings, global hotkey,
@@ -338,7 +346,8 @@ cannot open again is no source at all.
 ## Contributing
 
 Bug reports, feature requests, and pull requests are welcome. See
-[CONTRIBUTING.md](CONTRIBUTING.md) to get started.
+[CONTRIBUTING.md](CONTRIBUTING.md) to get started. Work on the recording
+engine and the CLI happens in kilde-team/kilde-cli-swift.
 
 ## License
 

@@ -1,9 +1,14 @@
 # kilde — macOS 画面 + 音声 録画ツール 設計書
 
 - Version: 0.4 (draft)
-- Date: 2026-09-12
+- Date: 2026-09-14
 - Status: M0 スパイク完了 (結果は [SPIKE-NOTES.md](SPIKE-NOTES.md))。M1 CLI MVP 実装済み —
   v0.4 で §5 / §6 / §10 を M1 実装に追従させた
+- **リポジトリ分割 (issue #115 / #118)**: 録画エンジン (`KildeCore`) と CLI の実装・
+  テストは kilde-team/kilde-cli-swift (private) へ移管済み。この文書はプロダクト全体
+  (CLI / GUI 共通) の設計と契約の記録として残し、**エンジン実装の詳細 (地雷・並行性・
+  計測) の正本は kilde-team/kilde-cli-swift 側の DESIGN.md** とする。GUI (`gui/`) と
+  配布 (release workflow / Homebrew) は本リポジトリが担う
 
 ## 1. 背景・目的
 
@@ -59,8 +64,8 @@ macOS 標準の QuickTime Player による画面収録は**システム音声を
 - **録音 (音声のみ) モード**: SCK ネイティブでドライバ不要。
   `--window` 併用で特定アプリの音声だけを録音 (通知音カット)
 - 会議プリセット (`--preset meeting`)
-- MOV (映像あり) / M4A (音声のみ) 出力 (H.264 / HEVC / ProRes)、AAC 音声
-  (MP4 コンテナは M2 — issue #12)
+- MP4 (映像あり・既定。`--format mov` で MOV) / M4A (音声のみ) 出力
+  (H.264 / HEVC / ProRes)、AAC 音声 — 既定コンテナの MP4 化は kilde-cli-swift#24
 - Ctrl+C での安全な停止 (ファイルが必ずファイナライズされること)
 - デバイス一覧表示、権限診断
 
@@ -115,8 +120,10 @@ macOS 標準の QuickTime Player による画面収録は**システム音声を
   アクセシビリティ権限を要求しない。CLI はメイン RunLoop、GUI は AppKit の通常の
   イベントループで、メインスレッドに配送される押下コールバックを受ける。
 - **kilde (CLI)**: 引数解析とコンソール出力 (進捗・レベルメーター) のみ。
-- **KildeGUI**: 後日 Xcode プロジェクトとして作成し、KildeCore をローカル
-  パッケージ依存で取り込む (署名・entitlements のため SPM 単独より容易)。
+- **KildeGUI**: メニューバー GUI (`gui/`、XcodeGen — issue #17 以降)。KildeCore は
+  kilde-team/kilde-cli-swift を **revision 固定のリモートパッケージ依存**で参照する
+  (`gui/project.yml` の pin。release workflow の checkout と同じ revision を指す —
+  docs/RELEASE.md)。署名・entitlements を持つため Xcode プロジェクトでビルドする
 
 ### RecorderController の状態機械
 
@@ -215,7 +222,7 @@ SCStream(contentFilter, configuration)
 
 ### ライタと A/V 同期
 
-- `AVAssetWriter` (コンテナ: 映像ありは MOV、音声のみは M4A。MP4 は M2 — #12)。
+- `AVAssetWriter` (コンテナ: 映像ありは MP4 が既定、`--format mov` で MOV、音声のみは M4A — 既定の MP4 化は kilde-cli-swift#24)。
 - `startSession(atSourceTime:)` を「最初に到着した映像サンプルの PTS」
   (音声のみモードは最初の音声 PTS) で呼び、アンカーより前の音声 PTS は
   ドロップする (`MovieWriter.Anchor`)。
@@ -223,7 +230,8 @@ SCStream(contentFilter, configuration)
   (`MovieWriter.firstPTSOffsets` は書き込み先ラベルがキー。mixed では `mixed` トラックの差になる)。
   これが同期の健全性指標で、マイクは起動遅延ぶん +0.3s 前後までを想定内とする
   (マイクを SCStream より先に起動して吸収 — SPIKE-NOTES F-D)。
-  長時間録画でのドリフトは `scripts/drift-test.sh` で計測する (手順と結果は SPIKE-NOTES F-E)。
+  長時間録画でのドリフトは kilde-team/kilde-cli-swift (issue #115 で移管) の
+  `scripts/drift-test.sh` で計測する (手順と結果は SPIKE-NOTES F-E)。
   2026-09-12 の 15 分計測 (BlackHole ループバック) では映像↔音声が最大 −12 ms、
   AVCapture 経路と SCK 経路の差が +0.1 ms (傾き +0.01 ms/分) で、許容の目安 ±40 ms に収まった。
   **実マイクのクロックでの計測は未実施** (検証機に音響経路が無いため — issue #3)。
@@ -259,7 +267,7 @@ kilde config [show|set|unset|path]        設定ファイル ~/.kilde/config.jso
 
 | オプション | 既定 | 説明 |
 |-----------|------|------|
-| `[<出力パス>]` / `--output, -o <path>` | 自動生成 | 既定 `kilde-yyyyMMdd-HHmmss.mov` (音声のみは `.m4a`)。既定名は原子的に予約し、同名があれば拡張子の前へ `-2`〜`-999` を付けて既存録画を保護する (全て埋まっていれば録画開始前に失敗)。明示パスは従来どおり既存ファイルを上書きする。保存先は `KILDE_OUTPUT_DIR` > 設定 `outputDirectory` > カレントディレクトリ (前二者が存在しないディレクトリなら録画開始前に終了コード 1)。位置引数と `-o` は同時指定不可。`~` は展開する |
+| `[<出力パス>]` / `--output, -o <path>` | 自動生成 | 既定 `kilde-yyyyMMdd-HHmmss.mp4` (既定コンテナは mp4 — kilde-cli-swift#24。`--format mov` や `.mov` パスなら `.mov`、音声のみは `.m4a`)。既定名は原子的に予約し、同名があれば拡張子の前へ `-2`〜`-999` を付けて既存録画を保護する (全て埋まっていれば録画開始前に失敗)。明示パスは従来どおり既存ファイルを上書きする。保存先は `KILDE_OUTPUT_DIR` > 設定 `outputDirectory` > カレントディレクトリ (前二者が存在しないディレクトリなら録画開始前に終了コード 1)。位置引数と `-o` は同時指定不可。`~` は展開する |
 | `--display <番号>` | `0` | 収録ディスプレイ (`kilde devices` の番号)。範囲外は終了コード 3。`--window` を 1 つだけ指定したときは無視される (そのウィンドウ単体を収録するため)。**`--window` を複数指定したときは合成先のディスプレイとして効く** — 指定したディスプレイの外にあるウィンドウが混ざっていると、黙って黒く写るのを避けるため録画前に終了コード 1 (M2 — #13)。(`all` は M2 — #12) |
 | `--window <windowID\|文字列>` | なし | ウィンドウ単位で収録。windowID の完全一致、またはタイトル / bundleID の部分一致 (大文字小文字を区別しない)。複数ヒット時は面積が最大のもの。見つからなければ終了コード 3。音声もそのアプリにスコープされる。**複数回指定可 (M2 — #13)**: 2 つ以上指定するとそのウィンドウ群をまとめて 1 本に収録する。このとき出力はディスプレイ全体の大きさになり (ウィンドウごとに切り出されるわけではない)、対象外の領域は黒で埋まる |
 | `--exclude-app <bundleID>` | なし | ディスプレイ収録から指定アプリを除外する (M2 — #13)。**映像だけでなくそのアプリのシステム音声も出力に入らない** (SCK のフィルタは音声にも適用される — SPIKE-NOTES F-F)。音を出しているアプリ (会議アプリ・ブラウザ等) を除外すると、その音声も失われる点に注意。bundleID の**完全一致** (大文字小文字は区別しない。除外は「写っていないはず」を期待する操作で、取り違えても画面を見るまで気づけないため部分一致にしていない)。複数回指定可。実行中に見つからなければ終了コード 3。`--window` / `--no-video` / `--preset meeting` とは併用不可 (いずれも収録対象を選ぶ指定で、除外と矛盾するため)。`--region` とは併用可 |
@@ -271,7 +279,7 @@ kilde config [show|set|unset|path]        設定ファイル ~/.kilde/config.jso
 | `--duration <dur>` | なし | `30` (秒) / `30s` / `5m` / `1h` / `1.5m`。経過で自動停止 (SIGINT と同じ経路)。**待機モード (hotkey) では「待機の解除後」から数える** — 待機そのものは打ち切らないので、キーが押されるまで終了しない。設定 `hotkey` で待機に入るときは WARNING を出す (issue #97。下の「`--duration` と待機モード」参照) |
 | `--codec <c>` | `h264` (設定 `codec`) | `h264` / `hevc` / `prores` |
 | `--hdr` | off | HDR で収録する (M2 — #16)。`SCStreamConfiguration` の HDR プリセットを OS で選ぶ (macOS 26 は HDR10 メタデータ付きの `captureHDRRecordingPreservedSDRHDR10`、15 は `captureHDRStreamLocalDisplay`)。HEVC **Main10** + PQ で書き出し、色域はプリセットのバッファに従う (26 は BT.2020、15 は Display P3。マトリクスは色域が P3 でも BT.2020 — SPIKE-NOTES F-H)。`--codec hevc` 以外との併用と `--no-video` との併用は終了コード 64。**macOS 14 以前、または HDR 非対応ディスプレイでは SDR にフォールバックし、理由を結果表示に出す** (黙って SDR にすると「HDR で録れたつもりのファイル」ができるため)。この通知は stdout の `⚠ HDR: …` 行で、**`cleanupWarnings` (stderr の `WARNING:` 行 + 終了コード 1) とは別扱い** — 録画自体は成功しているので**終了コードは 0 のまま**。**macOS 26 では HDR10 メタデータ付きの録画プリセット (`captureHDRRecordingPreservedSDRHDR10`) を使う** — SDR 範囲の見え方を保ち、HDR10 メタデータが付く (issue #76)。どちらの方式で録れたかは結果表示の `HDR: …` 行に出る。CI の SDK の壁はランナーを macos-26 に上げて解消 (PR #81) |
-| `--format <mov\|mp4>` | `mov` (M2 — #12) | 映像ありのときの出力コンテナ。**出力パスの拡張子が `.mp4` なら自動で mp4** (明示した `--format` が優先)。MP4 に ProRes は入れられないため、`--format mp4 --codec prores` は終了コード 64 (設定ファイル由来の codec との組合せは 1)。`--no-video` とは併用不可 (音声のみは M4A 固定)。既定の出力名の拡張子もコンテナに従う |
+| `--format <mov\|mp4>` | `mp4` (kilde-cli-swift#24。設定 `format` で変更可) | 映像ありのときの出力コンテナ。**出力パスの拡張子 (`.mov` / `.mp4`) でも指定でき、設定 `format` より強い** (明示した `--format` が最も強い)。ProRes は MP4 に入れられないため、`--codec prores` を単独で選んだときは既定コンテナを `mov` に退避する (`--format mp4` 等と明示併用したときは終了コード 64。設定ファイル由来の codec との組合せは 1)。`--no-video` とは併用不可 (音声のみは M4A 固定)。既定の出力名の拡張子もコンテナに従う |
 | `--fps <n>` | 指定なし (SCK 既定。設定 `fps`) | 上限フレームレート。1 以上 (0 以下は終了コード 64 — 以前は黙って無視していた) |
 | `--cursor` / `--no-cursor` | 写り込む (設定 `showsCursor`) | カーソルを写し込むか。`--cursor` は設定 `showsCursor: false` をその回だけ打ち消す用 (M1 の `--no-cursor` はそのまま使える) |
 | `--countdown <sec>` | `0` | 開始前カウントダウン。hotkey (CLI 引数) との併用は引数検証エラー (終了コード 64)、設定 `hotkey` との組合せは終了コード 1 で拒否 — 待機モードではカウントダウンが待機開始前に消費され、録画の開始を守れなくなるため |
@@ -400,46 +408,12 @@ writer の後始末より**前**に `sck?.stop()` を呼ぶ。ここでも停止
 
 #### 列挙も同じロックで直列化する (issue #90)
 
-**`SCShareableContent` の列挙と `rec` の SCK 起動が重なると、起動側が
-`SCStream.startCapture()` で `-3801`** (「ユーザがアプリケーション、ウインドウ、
-ディスプレイ取り込みの TCC を拒否しました」) **を受けて失敗する。**
-実測 (macOS 26、`devices` と `rec` を交互に各 10 回):
-
-| 条件 | `rec` の非ゼロ終了 |
-|---|---|
-| `kilde devices` を併走 | **7/10** (すべて `-3801`) |
-| 単独 (対照) | **0/10** |
-
-**権限拒否ではない。** `Recorder` は `startCapture()` の手前で
-`Permissions.hasScreenCapture` を確認済みで、権限が無ければそこで終了コード 2 になる。
-#70 のハングと違って固まりはせず、録画が即座に落ちる。
-
-そのため `DisplayCatalog` の列挙も `SCKStartupLock` の対象にする:
-
-- **既定でロックを取る** (`usesStartupLock: true`)。新しい呼び出し元が黙って穴を開けないため。
-  ロックを既に保持している `Recorder` の対象解決だけが明示的に `false` を渡す —
-  **`flock` は同一プロセスの別 fd でも排他される**ので (実測で `EWOULDBLOCK`)、
-  既定のまま呼ぶと自分のロックに阻まれて録画が失敗する
-- **「このプロセスが保持中なら素通り」という再入方式は採らない。** プロセス単位のフラグで
-  素通りさせると、GUI の列挙タスクが**録画開始中に**素通りする。同一プロセス内の
-  列挙と録画開始の競合はこの §6 が危険としている当のもので、呼び出し箇所ごとの
-  明示指定ならその穴ができない
-- **列挙の待機上限は録画より短い 3 秒** (`SCKStartupLock.enumerationTimeout`)。
-  列挙は 0.2 秒で終わる操作 (実測: `devices` 0.16〜0.19 秒、`doctor` 0.20〜0.21 秒) で、
-  危険区間 0.31 秒に対して余裕がある。長く待たせると「一覧を見たいだけなのに固まった」になる。
-  **同期版・async 版の両方をこの既定にする** — GUI は async 版を使うので、
-  片方だけ短くすると GUI のウィンドウ一覧が 15 秒固まる
-- **待てなかった場合は列挙を続行し、stderr に WARNING を出す。** 失敗させると、`rec` が
-  ハングしてロックを握ったままのとき (issue #95) に `devices` / `doctor` まで
-  巻き添えで使えなくなる。**診断コマンドは「壊れているときに動く」ことが値打ち**なので、
-  競合の危険を承知で進む方を選ぶ
-- **ただし「待ち切れなかった」と「ロックが使えない」を同じ文言で報せない。**
-  `SCKStartupLock.acquire` は理由を `Failure` (`timedOut` / `unavailable` /
-  `cancelled` / `invalidTimeout`) で返す。ロックファイルが開けない場合は
-  **排他がまったく成立していない**状態で、「先の録画を待ってください」と伝えると
-  利用者を無関係な復旧手順へ誘導する
-- GUI のサムネイル取得 (`windowThumbnails`) も `SCShareableContent.current` を
-  直接呼ぶ経路なので同じく塞ぐ。補助表示なので待ちは短く、取れなくても続行する
+`SCShareableContent` の列挙と `rec` の SCK 起動の重なりで起動側が `-3801` で
+失敗する問題と、`SCKStartupLock` による直列化 (列挙にも既定でロックを取る、
+待機上限 3 秒、待てなければ続行 + WARNING) の設計は、エンジンの実装とともに
+**kilde-team/kilde-cli-swift の DESIGN.md** へ移した (issue #115 / #118)。
+経緯と実測、残存する確率的不成立 (kilde #99) と停止の確実性 (kilde #103) は
+そちらを参照すること — kilde 側の issue はオープンなまま追跡する。
 
 ### 設定ファイル (`~/.kilde/config.json`, M2 — #14)
 
@@ -466,7 +440,8 @@ KildeCore (`ConfigStore` / `RecordSettings`) にある。値は CLI 引数と同
   **設定ファイル自体をどこから読むか**を決める (`config.json` と `monitor-state.json` の
   保存先。未設定・空文字なら `~/.kilde`。絶対パスか `~` 始まりのみで相対パスは不可)。
   つまり「環境変数 > 設定ファイル」の*環境変数*側ではなく、*設定ファイル*側の置き場所を
-  差し替える変数で、隔離した環境やテスト (`scripts/integration-test.sh`) で使う
+  差し替える変数で、隔離した環境やテスト (kilde-team/kilde-cli-swift の
+  `scripts/integration-test.sh` — issue #115 で移管) で使う
 - ホットキーの優先順位は **`--hotkey` > 設定 `hotkey` > 待機モードなし**
   (プリセットと環境変数は関与しない)
 - **ホットキーの排他 — 先に登録したプロセスが勝つ** (issue #80)。`HotkeyMonitor` は
@@ -637,7 +612,7 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
 > **出力名の例外**: 既定名 `kilde-yyyyMMdd-HHmmss.*` は秒までしか持たないため、止めてすぐ
 > 録り直すと同じ名前になり、`MovieWriter` が既存ファイルを消してしまう。出力パスを省略した
 > 場合 (CLI の `rec` / GUI の `makeOptions` とも) 既定名は **`open(O_CREAT|O_EXCL)` で原子的に
-> 予約**され、衝突時は `kilde-yyyyMMdd-HHmmss-2.mov` のように連番 (`-2`〜`-999`) に退避する
+> 予約**され、衝突時は `kilde-yyyyMMdd-HHmmss-2.mp4` のように連番 (`-2`〜`-999`) に退避する
 > (全て埋まっていれば録画を始めずに失敗する)。予約は 0 バイトのファイルを作り、
 > `MovieWriter` は自分が予約したファイルだけを置き換える — GUI と CLI が同じ秒に
 > 同じ保存先で始めても、どちらかが他方の録画を消すことはない (issue #59)。
@@ -699,45 +674,38 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
 
 ## 10. リポジトリ構成と開発プロセス
 
+エンジンと CLI のソースは kilde-team/kilde-cli-swift へ移管済み (issue #115 / #118)。
+本リポジトリの構成は次のとおり:
+
 ```
 kilde/
-├── Package.swift            # SPM: KildeCore (library) + kilde (executable)
-├── Sources/
-│   ├── KildeCore/           # UI 非依存のコア (CLI / GUI 共用)
-│   │   ├── Capture/         # SCStream / AVCaptureSession ラッパ、サンプル変換
-│   │   ├── Devices/         # ディスプレイ・ウィンドウ列挙、CoreAudio 機器、kilde Monitor
-│   │   ├── Input/           # HotkeyMonitor、ホットキー待機と開始/停止の状態管理
-│   │   ├── Recording/       # Recorder (セッションの指揮)、MovieWriter、AudioMixer
-│   │   └── Support/         # 権限、エラーと終了コード、ファイル検証、ユーティリティ
-│   └── kilde/               # CLI (引数解析と表示のみ) + Info.plist (リンカで埋め込み)
-├── Tests/KildeCoreTests/    # 単体テスト (権限不要・CI で実行 — issue #5)
-├── scripts/
-│   ├── integration-test.sh  # 実録画の統合テスト T1〜T12 (要権限・音量、ローカルのみ)
-│   └── soundapp.swift       # 統合テスト用の「音を鳴らすウィンドウ」アプリ
 ├── gui/                     # M3: メニューバー GUI (XcodeGen project.yml が正本で
-│                            #   .xcodeproj は生成物 — 骨格は #17、録画 UI は #18 以降)
-├── docs/                    # DESIGN.md / SPIKE-NOTES.md / DEVELOPMENT.md
+│                            #   .xcodeproj は生成物 — #17〜#20。KildeCore は
+│                            #   kilde-cli-swift を revision 固定のパッケージ依存で参照)
+├── scripts/release/         # sign.sh (署名 + notarization + zip/DMG) と entitlements
+│                            #   — CLI は kilde-cli-swift の checkout をビルドする
+├── .github/workflows/release.yml  # v* タグで Release を作成 (kilde-cli-swift を
+│                            #   pin + PAT で checkout)。単体テストの CI はエンジン側
+├── homebrew/Formula/kilde.rb  # tap (takezou621/homebrew-kilde) と同じ内容の formula 正本
+├── docs/                    # DESIGN.md / SPIKE-NOTES.md / DEVELOPMENT.md / RELEASE.md
 ├── CLAUDE.md / AGENTS.md    # AI エージェント向けの作業指示
 └── README.md
 ```
 
-- v0.3 で予定していた `Tests/SmokeTests/` (要権限の録画スモーク) は
-  `scripts/integration-test.sh` に置き換えた (権限が必要なため CI には載せない)。
-- Swift 6 相当・SPM。依存は `swift-argument-parser` のみで始める。
-- **ローカル統合テスト**: `scripts/integration-test.sh` — 実際に録画・音声再生を
-  行い、出力ファイルのトラック構成と RMS を機械検証する (T1〜T12、権限と
-  音量が必要、所要 ~2 分)。テスト用の音鳴らしウィンドウアプリ
-  (`scripts/soundapp.swift`) を同梱。
-  T11 (GUI のビルド・起動・終了) は xcodegen 未導入 / kilde-dev 証明書なし /
-  KildeGUI 起動中の環境では SKIP する (docs/DEVELOPMENT.md §4 の T11 参照)。
-- CI: GitHub Actions で `swift build` / `swift test` (単体のみ。スモークは
-  手動マトリクス)。
+- **単体テストと統合テストの正本は kilde-team/kilde-cli-swift 側**
+  (`swift test` と `scripts/integration-test.sh`、実録画 T1〜T25。権限が必要なため
+  CI には載せない — この方針もエンジン側で運用する)。
+  GUI の検証は docs/DEVELOPMENT.md §3 のセルフテストを使う。
+- CI: エンジンの `swift build` / `swift test` は kilde-team/kilde-cli-swift 側で実行
+  (macos-26 ランナー — issue #76)。本リポジトリの workflow はリリースのみ。
+
 - ロードマップ:
   - **M0**: 技術スパイク (§11) — **完了** (SPIKE-NOTES.md)
   - **M1**: CLI MVP (§3 の MVP 範囲) — 実装済み (ミックスダウン、`--monitor` を含む)。
-    仕上げ (単体テスト・CI・実地検証) は issue #2〜#7
+    エンジンと CLI のソースは kilde-team/kilde-cli-swift へ移管済み (issue #115)
   - **M2**: Recorder のイベント駆動化、領域指定、ホットキー、一時停止、
-    複数ディスプレイ / MP4、アプリ除外、設定ファイル、passthrough、HDR (issue #8〜#16)
+    複数ディスプレイ、アプリ除外、設定ファイル、passthrough、HDR (issue #8〜#16)。
+    MP4 コンテナ対応は kilde-cli-swift#24 で実装済み (既定コンテナ — §6)
   - **M3**: GUI (issue #17〜#20)
   - **配布 & OSS**: LICENSE、英語 README、署名・notarization、Homebrew、Releases (issue #21〜#25)
 

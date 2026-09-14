@@ -2,13 +2,19 @@
 
 # kilde
 
-[![CI](https://github.com/takezou621/kilde/actions/workflows/ci.yml/badge.svg)](https://github.com/takezou621/kilde/actions/workflows/ci.yml)
+[![Release](https://github.com/takezou621/kilde/actions/workflows/release.yml/badge.svg)](https://github.com/takezou621/kilde/actions/workflows/release.yml)
 
 macOS 向けの OSS 画面 + 音声 録画ツール。
 
 QuickTime Player の画面収録では録れない**システム音声を含めた録画・録音**を、
-ワンコマンドで実現します。CLI ファーストで、その後メニューバーアプリ (GUI)
-へ発展させます。
+CLI のワンコマンドとメニューバーアプリで実現します。
+
+プロジェクトは 2 リポジトリに分かれています (issue #115):
+
+| リポジトリ | 内容 | 公開範囲 |
+|---|---|---|
+| [takezou621/kilde](https://github.com/takezou621/kilde) (本リポジトリ) | メニューバーアプリ (`gui/`)、リリース署名と配布、Homebrew formula、ドキュメント | Public |
+| [kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift) | 録画エンジン (`KildeCore`) と `kilde` CLI のソース | Private (kilde-team メンバー) |
 
 ## 特徴
 
@@ -21,14 +27,14 @@ QuickTime Player の画面収録では録れない**システム音声を含め�
 - 🛡️ Ctrl+C でもファイルが必ずファイナライズされる安全な停止
 - ⌨️ グローバルホットキーで、他アプリの操作中でも録画を開始 / 停止
 
-## インストールとビルド
+## インストール
 
 - 要件: macOS 14+ (動作検証は macOS 26 / Apple Silicon)
+- リリースバイナリは **arm64 (Apple Silicon) ビルド**です — 現時点で Intel Mac は非対応
+- ビルドには macOS 26 SDK を持つツールチェーンが必要 (エンジンが macOS 26 の API
+  `captureHDRRecordingPreservedSDRHDR10` を参照するため。実行は引き続き macOS 14+ に対応)
 
 ### Homebrew
-
-Homebrew tap は v0.1.0 以降で利用できます。次のどちらかで
-インストールできます。
 
 ```sh
 brew tap takezou621/kilde
@@ -39,38 +45,23 @@ brew install kilde
 brew install takezou621/kilde/kilde
 ```
 
-Homebrew で最新の `main` ブランチをソースからビルドする場合は `--HEAD` を指定します。
+### リリースバイナリ
+
+[GitHub Releases](https://github.com/takezou621/kilde/releases) から
+`kilde-<バージョン>-macos.zip` をダウンロードし、展開して `kilde` を PATH の
+通った場所に置きます。
 
 ```sh
-brew install --HEAD takezou621/kilde/kilde
+unzip kilde-*-macos.zip && sudo cp kilde /usr/local/bin/
 ```
-
-HEAD ビルドには macOS 26 SDK を持つツールチェーン (Xcode 26 以降) が必要です —
-`captureHDRRecordingPreservedSDRHDR10` (macOS 26 の API) を参照するため、
-**26 未満の SDK (Xcode 15 / 16 の両方) では `has no member` で失敗します**。
-実行は引き続き macOS 14+ に対応します。旧 OS ユーザーはリリースバイナリを使ってください。
 
 ### ソースからビルド
 
-ソースからのビルドには Swift Package Manager と、macOS 26 SDK を持つ
-ツールチェーン (Xcode 26 以降) が必要です (26 未満の SDK ではコンパイルできません —
-上の Homebrew の注記を参照)。
-
-```sh
-git clone https://github.com/takezou621/kilde.git
-cd kilde
-swift build
-.build/debug/kilde doctor   # 初回は権限を確認・要求します
-```
-
-必要なら PATH に置くと、このあとの例はそのまま動きます:
-
-```sh
-ln -sf "$PWD/.build/debug/kilde" /usr/local/bin/kilde
-```
-
-- 依存: [swift-argument-parser](https://github.com/apple/swift-argument-parser)
-- BlackHole 利用時: `brew install --cask blackhole-2ch`
+`kilde` CLI と `KildeCore` エンジンのソースは
+[kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift)
+(**private**) で開発されており、現時点で公開のソースビルドは提供していません。
+Homebrew かリリースバイナリをご利用ください。kilde-team メンバーは同リポジトリを
+clone して `swift build` でビルドできます (手順は同リポジトリのドキュメント参照)。
 
 ## 使い方
 
@@ -143,20 +134,23 @@ kilde inspect FILE # 録画ファイルのトラック構成と音声レベル
 
 ## 開発
 
-- 開発手順 (ビルド・権限・テスト・トラブルシュート): [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
+- エンジンと CLI (`KildeCore`、`kilde`):
+  [kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift)
+  (private) で開発 — テストと CI も同リポジトリが正本
+- メニューバーアプリ、リリース workflow、Homebrew formula: 本リポジトリ
+  - ビルド・権限・GUI のトラブルシュート: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
+  - 公式リリース (署名・notarization・配布): [docs/RELEASE.md](docs/RELEASE.md)
 - 設計: [docs/DESIGN.md](docs/DESIGN.md) / M0 検証結果: [docs/SPIKE-NOTES.md](docs/SPIKE-NOTES.md)
 - マネタイズ調査メモ: [docs/MONETIZATION.md](docs/MONETIZATION.md)
-- 統合テスト (ローカル・実録画): `scripts/integration-test.sh`
-  — 権限と音量が必要、所要 ~2 分
 
-## GUI (M3 開発中)
+## GUI
 
 メニューバーアプリ (`NSStatusItem` + `NSPopover` — macOS 26 で SwiftUI
-`MenuBarExtra` の `.window` パネルが開かないため AppKit で手動管理)。
-録画エンジンは
+`MenuBarExtra` の `.window` パネルが開かないため AppKit で手動管理)。録画エンジンは
 [kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift)
-(issue #115 で分離) の `KildeCore` をパッケージ依存で共有する (**private リポジトリのため、
-パッケージ解決には kilde-team メンバーの git 認証が必要**)。`.xcodeproj` はコミットせず
+(issue #115 で分離) の `KildeCore` を **revision 固定**のパッケージ依存で共有します
+(**private リポジトリのため、パッケージ解決には kilde-team メンバーの git 認証が必要**)。
+`.xcodeproj` はコミットせず
 [XcodeGen](https://github.com/yonaskolb/XcodeGen) の `project.yml` から生成する:
 
 ```sh
@@ -188,6 +182,9 @@ Finder で該当ファイルを選択表示する。パネルには保存先の�
 
 - **M0** ✅ 技術スパイク (ScreenCaptureKit の音声経路の検証)
 - **M1** ✅ CLI MVP (`kilde rec / devices / doctor / audio monitor / inspect`)
+  — エンジンと CLI のソースは
+  [kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift)
+  に移管済み (issue #115)
 - **M2** グローバルホットキー ✅、領域指定の収録 ✅、一時停止/再開
 - **M3** メニューバー GUI アプリ (骨格 ✅ / 録画 UI ✅ / 権限オンボーディング ✅ /
   完了通知・最近の録画・グローバルホットキー・ログイン時起動 ✅)
@@ -208,6 +205,7 @@ kilde という名前は、このツールが残すべきもの = 「源」か�
 ## コントリビューション
 
 バグ報告・機能要望・PR を歓迎します。[CONTRIBUTING.md](CONTRIBUTING.md) を参照してください。
+録画エンジンと CLI の開発は kilde-team/kilde-cli-swift で行っています。
 
 ## ライセンス
 

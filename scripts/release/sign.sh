@@ -4,6 +4,10 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+# CLI のソースは kilde-team/kilde-cli-swift に分離された (kilde#115 / #118)。
+# このリポジトリにはソースが無いため、checkout / clone を CLI_DIR として受ける。
+# 既定は release.yml が checkout するパス (リポジトリ直下の kilde-cli-swift/)
+CLI_DIR="${KILDE_CLI_DIR:-$ROOT_DIR/kilde-cli-swift}"
 ENTITLEMENTS="$SCRIPT_DIR/entitlements.plist"
 
 SIGN_IDENTITY="${DEVELOPER_ID_APPLICATION:-}"
@@ -27,6 +31,8 @@ Options:
                         (env: AC_API_KEY。パスまたは .p8 の内容)
   --key-id ID           App Store Connect API キー ID (env: AC_API_KEY_ID)
   --issuer UUID         App Store Connect issuer ID (env: AC_API_ISSUER)
+  --cli-dir DIR         CLI ソース (kilde-team/kilde-cli-swift) の checkout / clone
+                        (env: KILDE_CLI_DIR、既定: <リポジトリルート>/kilde-cli-swift)
   --output-dir DIR      成果物の出力先 (env: KILDE_RELEASE_OUTPUT_DIR、既定: dist)
   --version VERSION     成果物名に使うバージョン
                         (env: KILDE_RELEASE_VERSION、既定: Info.plist のバージョン)
@@ -78,6 +84,11 @@ while [[ $# -gt 0 ]]; do
             NOTARY_ISSUER="$2"
             shift 2
             ;;
+        --cli-dir)
+            require_value "$@"
+            CLI_DIR="$2"
+            shift 2
+            ;;
         --output-dir)
             require_value "$@"
             OUTPUT_DIR="$2"
@@ -109,6 +120,10 @@ for tool in swift codesign security otool plutil xcodegen xcodebuild ditto hdiut
 done
 
 [[ -f "$ENTITLEMENTS" ]] || die "entitlements が見つかりません: $ENTITLEMENTS"
+# ソース不在はビルド段階まで進まないうちに弾く — swift build の
+# 「directory does not exist」より、原因 (CLI_DIR の誤り) を具体的に伝えられる
+[[ -f "$CLI_DIR/Sources/kilde/Info.plist" ]] \
+    || die "CLI ソースが見つかりません: $CLI_DIR/Sources/kilde/Info.plist — --cli-dir / KILDE_CLI_DIR に kilde-team/kilde-cli-swift の checkout を指定してください"
 [[ -n "$SIGN_IDENTITY" ]] || die "--identity または DEVELOPER_ID_APPLICATION で Developer ID Application 証明書名を指定してください"
 [[ "$SIGN_IDENTITY" == "Developer ID Application:"* ]] \
     || die "配布署名には Developer ID Application identity の完全な名前を指定してください: $SIGN_IDENTITY"
@@ -119,7 +134,7 @@ if ! grep -Fq "\"$SIGN_IDENTITY\"" <<<"$IDENTITIES"; then
 fi
 
 if [[ -z "$VERSION" ]]; then
-    VERSION="$(plutil -extract CFBundleShortVersionString raw -o - "$ROOT_DIR/Sources/kilde/Info.plist")"
+    VERSION="$(plutil -extract CFBundleShortVersionString raw -o - "$CLI_DIR/Sources/kilde/Info.plist")"
 fi
 [[ "$VERSION" =~ ^[0-9A-Za-z][0-9A-Za-z._-]*$ ]] || die "バージョンには英数字、ピリオド、ハイフン、アンダースコアだけを使用してください: $VERSION"
 
@@ -149,8 +164,8 @@ if [[ "$SKIP_NOTARIZE" == false ]]; then
     fi
 fi
 
-CLI_IDENTIFIER="$(plutil -extract CFBundleIdentifier raw -o - "$ROOT_DIR/Sources/kilde/Info.plist")"
-CLI_PATH="$ROOT_DIR/.build/release/kilde"
+CLI_IDENTIFIER="$(plutil -extract CFBundleIdentifier raw -o - "$CLI_DIR/Sources/kilde/Info.plist")"
+CLI_PATH="$CLI_DIR/.build/release/kilde"
 EMBEDDED_INFO_PLIST="$WORK_DIR/cli-embedded-info.plist"
 DERIVED_DATA="$WORK_DIR/DerivedData"
 GUI_PROJECT="$ROOT_DIR/gui/KildeGUI.xcodeproj"
@@ -158,8 +173,8 @@ GUI_APP="$DERIVED_DATA/Build/Products/Release/KildeGUI.app"
 CLI_ZIP="$OUTPUT_DIR/kilde-$VERSION-macos.zip"
 GUI_DMG="$OUTPUT_DIR/KildeGUI-$VERSION.dmg"
 
-echo "==> CLI をリリースビルド"
-swift build -c release --package-path "$ROOT_DIR"
+echo "==> CLI をリリースビルド (source: $CLI_DIR)"
+swift build -c release --package-path "$CLI_DIR"
 [[ -x "$CLI_PATH" ]] || die "CLI のビルド成果物が見つかりません: $CLI_PATH"
 
 # otool は plist の前にバイナリ名とセクション名を表示するため、XML 部分だけを

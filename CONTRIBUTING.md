@@ -2,10 +2,19 @@
 
 kilde に興味を持っていただきありがとうございます。バグ報告・機能要望・PR を歓迎します。
 
+プロジェクトは 2 リポジトリに分かれています (issue #115):
+
+- **本リポジトリ (takezou621/kilde, public)** — メニューバーアプリ (`gui/`)、
+  リリース署名と配布 (workflow・Homebrew formula)、ドキュメント
+- **[kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift)
+  (private)** — 録画エンジン (`KildeCore`) と `kilde` CLI のソース。テストと CI も
+  同リポジトリが正本です
+
 このファイルは入口の要約です。詳細な手順は次のドキュメントが正本です
 (内容が食い違った場合はそちらを優先してください)。
 
-- ビルド・権限・テスト・トラブルシュート: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
+- GUI のビルド・権限・トラブルシュート: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
+- リリースと配布: [docs/RELEASE.md](docs/RELEASE.md)
 - ブランチ / PR / レビュー対応の運用ルール: [AGENTS.md](AGENTS.md)
 - 設計と、その根拠になった検証結果: [docs/DESIGN.md](docs/DESIGN.md) / [docs/SPIKE-NOTES.md](docs/SPIKE-NOTES.md)
 
@@ -15,6 +24,8 @@ kilde に興味を持っていただきありがとうございます。バグ�
   再現コマンドを添えてください。テンプレートに必須項目としてまとめてあります。
   録画の不具合は OS バージョンと権限 (TCC) の状態で挙動が大きく変わるため、これらの情報がないと
   原因を絞り込めません
+  - CLI / エンジンの不具合 (録画の挙動、オプション、終了コードなど) は
+    kilde-team/kilde-cli-swift 側の issue で管理します
 - **機能要望**: 用途 (どんな場面で何を録りたいか) を書いてください
 - 作業はすべて issue 単位で進めます。PR を出す前に対応する issue があるか確認し、
   なければ先に issue を立ててください
@@ -22,28 +33,18 @@ kilde に興味を持っていただきありがとうございます。バグ�
 ## 開発環境
 
 - macOS 14 以降 (動作検証は macOS 26 / Apple Silicon で行っています)
-- Xcode (Swift 5.10 以降のツールチェーン)
-- Linux などの macOS 以外の環境では `swift build` も通りません (ScreenCaptureKit などの macOS SDK が必要)
+- Xcode (macOS 26 SDK を持つツールチェーン) と [XcodeGen](https://github.com/yonaskolb/XcodeGen)
+- GUI は kilde-team/kilde-cli-swift を **revision 固定**のパッケージ依存で参照します。
+  private リポジトリのため、パッケージ解決には kilde-team メンバーの git 認証が必要です
 
 ```sh
-swift build                    # バイナリは .build/debug/kilde
-.build/debug/kilde doctor      # 初回は権限の確認と要求
-swift test                     # 単体テスト (権限不要・ヘッドレス)
-scripts/integration-test.sh    # 統合テスト (実際に録画する)
+brew install xcodegen      # 初回のみ
+cd gui && xcodegen         # .xcodeproj を生成 (コミットしない)
+open KildeGUI.xcodeproj    # KildeGUI スキームを Run
 ```
 
-### 統合テストの前提
-
-`scripts/integration-test.sh` (T1〜T10) は実際に録画・録音して出力ファイルを検証するため、
-次の条件を満たさないと失敗します。詳細は [docs/DEVELOPMENT.md §4](docs/DEVELOPMENT.md#4-統合テスト) を参照してください。
-
-- ターミナル (または実行するアプリ) に**画面収録とマイクの権限**が付与されていること
-- **スピーカー音量が 0 でない・ミュートでない**こと (音声シナリオが無音と判定されます)
-- 所要時間は約 2 分。実行中は画面とスピーカーが占有されます
-
-権限が必要なため、統合テストは CI では実行しません。CI (`swift build` + `swift test`) は PR ごとに自動で走ります。
-**録画・デバイス・権限に関わる変更では、統合テストをローカルで実行し、その結果を PR に貼ってください。**
-実行できない場合は、その旨と未実施の T 番号を PR に書いてください。
+エンジンと CLI (`KildeCore` / `kilde`) のビルド・単体テスト・統合テストは
+kilde-team/kilde-cli-swift 側で行います (手順は同リポジトリのドキュメントを参照)。
 
 ## ブランチと PR
 
@@ -59,9 +60,15 @@ scripts/integration-test.sh    # 統合テスト (実際に録画する)
 
 ### 変えてはいけない契約
 
-終了コード (`0` 成功 / `1` 失敗 / `2` 権限不足 / `3` デバイス・ウィンドウ不明、オプション検証エラーは `64`) と、
-既定値 (`--audio system`、`--audio-tracks mixed`、出力名 `kilde-yyyyMMdd-HHmmss.*`) はスクリプトから
-利用される契約です。変更する場合は [docs/DESIGN.md §6](docs/DESIGN.md#6-cli-仕様) を同じ PR で更新してください。
+CLI の終了コード (`0` 成功 / `1` 失敗 / `2` 権限不足 / `3` デバイス・ウィンドウ不明、
+オプション検証エラーは `64`) と、既定値 (`--audio system`、`--audio-tracks mixed`、
+出力名 `kilde-yyyyMMdd-HHmmss.*`) はスクリプトから利用される契約です。これらの正本は
+kilde-team/kilde-cli-swift 側にあり、変更する場合は同リポジトリと
+[docs/DESIGN.md §6](docs/DESIGN.md#6-cli-仕様) を揃えて更新してください。
+
+リリース周りの契約もあります: GUI と release workflow は kilde-cli-swift の **同じ
+revision を参照する** (gui/project.yml の pin と release.yml の `ref`)。pin を更新するときは
+両方を同じ PR で揃え、手順は [docs/RELEASE.md](docs/RELEASE.md) を参照してください。
 
 ## AI レビュー (cubic / CodeRabbit)
 

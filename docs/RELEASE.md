@@ -4,6 +4,11 @@
 手順です。GUI は Hardened Runtime を有効にした DMG、CLI は zip として生成します。
 通常の開発ビルドとテストにはこの手順は不要です。
 
+CLI のソースは kilde-team/kilde-cli-swift (private、issue #115 で分離) にあり、
+本リポジトリには GUI・配布・ドキュメントしかありません。リリースビルドでは
+同リポジトリを checkout / clone して使います (§3)。リリースの起動から成果物の
+添付までを自動化する workflow の説明は「GitHub でのリリース自動化」を参照してください。
+
 実際の署名には Apple Developer Program のチームが発行した
 `Developer ID Application` 証明書、notarization には App Store Connect API キーが
 必要です。秘密鍵や証明書を書き出したファイルはリポジトリへコミットしないでください。
@@ -38,22 +43,29 @@ App Store Connect で直ちに無効化してください。Apple の画面や�
 
 ## 3. `sign.sh` の使い方
 
-リポジトリのルートで実行します。Xcode、Swift、XcodeGen が必要です。
+本リポジトリのルートで実行します。Xcode、Swift、XcodeGen が必要です。
+
+CLI のソースは本リポジトリに無いため、事前に kilde-team/kilde-cli-swift を
+`$ROOT_DIR/kilde-cli-swift` (リポジトリ直下) に clone しておきます。別の場所に
+置くときは `--cli-dir` (環境変数 `KILDE_CLI_DIR`) で指定します。ソースが無い状態では
+ビルドに入る前にエラーで停止します。
 
 ```sh
 brew install xcodegen # 未導入の場合のみ
+git clone git@github.com:kilde-team/kilde-cli-swift.git   # CLI ソース
 
 scripts/release/sign.sh \
   --identity "Developer ID Application: Example, Inc. (TEAMID)" \
   --key "$HOME/private/AuthKey_ABC123.p8" \
   --key-id ABC123 \
   --issuer 00000000-0000-0000-0000-000000000000 \
-  --version 0.1.0
+  --version 0.2.0
 ```
 
 スクリプトは次の処理を順番に行い、いずれかが失敗すると直ちに停止します。
 
-1. `swift build -c release` で CLI をビルドする
+1. `swift build -c release --package-path "$CLI_DIR"` で CLI をビルドする
+   (`$CLI_DIR` は上の kilde-cli-swift の checkout / clone)
 2. CLI の埋め込み `CFBundleIdentifier` (`dev.kilde.cli`) を検査し、同じ signing
    identifier と audio-input entitlement、Hardened Runtime、timestamp を付けて署名する
 3. XcodeGen と `xcodebuild` で KildeGUI の Release `.app` をビルドし、同じ条件で署名する
@@ -82,6 +94,7 @@ scripts/release/sign.sh \
 | `--key` | `AC_API_KEY` | `.p8` のパス、または `.p8` ファイルの内容 |
 | `--key-id` | `AC_API_KEY_ID` | API Key ID |
 | `--issuer` | `AC_API_ISSUER` | Issuer ID |
+| `--cli-dir` | `KILDE_CLI_DIR` | CLI ソース (kilde-team/kilde-cli-swift) の checkout / clone。既定はリポジトリ直下の `kilde-cli-swift/` |
 | `--output-dir` | `KILDE_RELEASE_OUTPUT_DIR` | 成果物の出力先。既定は `dist/` |
 | `--version` | `KILDE_RELEASE_VERSION` | 成果物名のバージョン。既定は CLI の Info.plist |
 
@@ -89,8 +102,10 @@ scripts/release/sign.sh \
 
 ## 4. GitHub Actions 用 Secrets
 
-release workflow は issue #25 で追加します。workflow から `sign.sh` へ渡す名前は次で固定し、
-証明書の import と一時 Keychain の作成は workflow 側で行います。
+release workflow から `sign.sh` へ渡す名前は次で固定し、証明書の import と一時
+Keychain の作成は workflow 側で行います。
+
+署名用の 6 secrets:
 
 | GitHub Secret | workflow での用途 / `sign.sh` との対応 |
 |---------------|-----------------------------------------|
@@ -101,17 +116,19 @@ release workflow は issue #25 で追加します。workflow から `sign.sh` �
 | `AC_API_ISSUER` | `sign.sh` の `--issuer` / 同名環境変数 |
 | `AC_API_KEY` | `.p8` の内容。workflow が権限 600 の一時ファイルにして `--key` へ渡す |
 
-一時 Keychain のパスワードは workflow が実行ごとに生成するため secret は不要です
-(旧稿の `KEYCHAIN_PASSWORD` は廃止)。ローカルで `sign.sh` を直接使う場合も
-`--identity` 等の引数で渡すため、設定は不要です。
+CLI ソースの checkout 用 secret (issue #118):
+
+| GitHub Secret | 内容 |
+|---------------|------|
+| `KILDE_CLI_SWIFT_TOKEN` | kilde-team/kilde-cli-swift (private) を読むための fine-grained PAT。Repository access を同リポジトリに限定し、権限は `Contents: Read-only` のみ。**未設定だと checkout step が失敗し、リリースが作れない** — `GITHUB_TOKEN` は他リポジトリを読めないため必須 |
+
+一時 Keychain のパスワードは workflow が実行ごとに生成するため secret は不要です。
+ローカルで `sign.sh` を直接使う場合も `--identity` 等の引数で渡すため、設定は不要です。
 
 バージョンと出力先は秘密情報ではないため、設定は不要です。release workflow
 (`.github/workflows/release.yml`) はバージョンを**タグから解決**し、出力先は
-`sign.sh` の既定 (`dist/`) を使います (旧稿の `KILDE_RELEASE_VERSION` /
-`KILDE_RELEASE_OUTPUT_DIR` / `KILDE_RELEASE_VERSION` の Variables 設定は
-どちらも廃止 — workflow 側は引数を渡さず sign.sh の既定 (dist/ とタグ由来の
-バージョン) に任せるため)。上の表はローカルで sign.sh を直に使うときの対応)。
-| `KILDE_RELEASE_OUTPUT_DIR` | workflow の artifact staging directory。未指定なら `dist/` |
+`sign.sh` の既定 (`dist/`) を使います。上の 2 つの表は、workflow が読む secrets と
+ローカルで `sign.sh` を直に使うときの引数 / 環境変数の対応です。
 
 GitHub のログに秘密値を表示しないでください。workflow 終了時は一時 Keychain と API キーの
 一時ファイルを削除します (`sign.sh` が作った API キーファイルは trap で削除されます)。
@@ -122,33 +139,35 @@ GitHub のログに秘密値を表示しないでください。workflow 終了�
 
 ```sh
 codesign --verify --deep --strict --verbose=2 "/path/to/KildeGUI.app"
-spctl --assess --type open --context context:primary-signature -vv "dist/KildeGUI-0.1.0.dmg"
-xcrun stapler validate "dist/KildeGUI-0.1.0.dmg"
+spctl --assess --type open --context context:primary-signature -vv "dist/KildeGUI-0.2.0.dmg"
+xcrun stapler validate "dist/KildeGUI-0.2.0.dmg"
 ```
 
 CLI は zip を展開して `codesign --verify --strict --verbose=2 kilde` と
 `codesign -d --entitlements :- kilde` を実行し、別の macOS ユーザー環境で初回起動時の
 Gatekeeper と TCC (画面収録・マイク) の動作も確認してください。
 
-
-## GitHub でのリリース自動化 (issue #25)
+## GitHub でのリリース自動化
 
 `.github/workflows/release.yml` が `v*` タグの push で起動します:
 
 ```sh
-git tag v0.1.0 && git push origin v0.1.0
+git tag v0.2.0 && git push origin v0.2.0
 ```
 
-フロー: タグからバージョンを解決 → `Info.plist` と `KildeCommand` の version に
-差し込み (ビルド限り、コミットはしない) → `swift build -c release` → 埋め込み
-Info.plist の生存とバージョンを検証 → 署名 → Release を作成して zip を添付。
+フロー: 本リポジトリと kilde-team/kilde-cli-swift (pin 固定、`KILDE_CLI_SWIFT_TOKEN`
+で checkout) を取得 → タグからバージョンを解決 (手動実行時は kilde-cli-swift の
+`Info.plist` 由来) → `kilde-cli-swift/Sources/kilde/Info.plist`、`gui/Resources/Info.plist`、
+`KildeCommand.swift` の version に差し込み (ビルド限り、コミットはしない) →
+`swift build -c release --package-path kilde-cli-swift` → 埋め込み Info.plist の生存と
+バージョンを検証 → 署名 → Release を作成して zip (署名時は GUI の DMG も) を添付。
 
 **署名は secrets の有無で自動分岐**:
 
 | secrets | 動作 |
 |---------|------|
-| §4 の 6 secret がすべて設定済み (`DEVELOPER_ID_CERTIFICATE_BASE64` + `DEVELOPER_ID_CERTIFICATE_PASSWORD` + `DEVELOPER_ID_APPLICATION` + `AC_API_KEY` + `AC_API_KEY_ID` + `AC_API_ISSUER`) | 証明書を一時キーチェーンに import → `sign.sh` で署名・notarization・staple まで実行 |
-| 未設定 (現在) | **unsigned zip** でリリース。Release Notes に「未署名」の注意と `xattr -d` の回避方法を明記 |
+| §4 の署名用 6 secret がすべて設定済み (`DEVELOPER_ID_CERTIFICATE_BASE64` + `DEVELOPER_ID_CERTIFICATE_PASSWORD` + `DEVELOPER_ID_APPLICATION` + `AC_API_KEY` + `AC_API_KEY_ID` + `AC_API_ISSUER`) | 証明書を一時キーチェーンに import → `sign.sh` で署名・notarization・staple まで実行 |
+| 未設定 (v0.1.0 時点) | **unsigned zip** でリリース。Release Notes に「未署名」の注意と `xattr -d` の回避方法を明記 |
 
 証明書を取得したら §4 の 6 つの secrets を足すだけで署名に切り替わります
 (ワークフロー側の変更は不要)。`DEVELOPER_ID_CERTIFICATE_BASE64` は「Developer ID
@@ -159,9 +178,44 @@ Application」の .p12 を `base64 -i cert.p12 | pbcopy` でエンコードし�
 Release は作成しない) — タグが無いと Info.plist 由来の現在値でリリースを作りかねないため、
 Release の作成は `v*` タグの push に限定しています。
 
+### CLI ソースの pin の更新
+
+workflow は kilde-cli-swift を **revision 固定**で checkout します
+(`release.yml` の `ref:`。現在は GUI (`gui/project.yml` の pin) と同じ
+`5518a5d79826c5e0f918f57d8d19e719ac44eb83`)。pin は「リリース成果物がどのコミットで
+ビルドされたか」を追跡可能にするための固定で、GUI と release が同じエンジンを参照する
+契約です。**更新するときは `gui/project.yml` と `release.yml` の `ref:` を同じ PR で
+必ず揃えてください** (片方だけ更新すると、GUI と CLI が別のエンジン revision で
+ビルドされます)。
+
+### Homebrew tap の更新
+
+次リリース (`v0.2.0` 以降) では、Release に添付された zip のハッシュを formula に書いて
+tap へ反映します。formula の正本は本リポジトリの `homebrew/Formula/kilde.rb` で、
+[takezou621/homebrew-kilde](https://github.com/takezou621/homebrew-kilde) (public) に
+反映して初めてユーザーに届きます。
+
+```sh
+# Release ページ (または gh release download) から zip を取得してハッシュを計算
+shasum -a 256 kilde-0.2.0-macos.zip
+```
+
+1. `homebrew/Formula/kilde.rb` の `url` を `.../download/v0.2.0/kilde-0.2.0-macos.zip` に、
+   `sha256` を計算値に更新する (本リポジトリの PR として)
+2. 同じ内容を takezou621/homebrew-kilde の formula に反映する
+3. 反映後に `brew install takezou621/kilde/kilde` (または `brew upgrade`) で動作を確認する
+   (`kilde --version` が新バージョンを返すこと)
+
+**zip は arm64 (Apple Silicon) ビルドのみ**です。Formula には
+`depends_on arch: :arm64` を置いてあり、Intel への誤 install を brew が拒否します。
+tap 側へ反映するときも同じ行を消さないこと。Intel 対応 (universal binary) を
+始めるときは、release workflow・Formula・README の arm64 記載を一体で見直す。
+
+CLI のソースは kilde-team/kilde-cli-swift (private) に分離されたため、head ブロック
+(`brew install --HEAD` による外部からのソースビルド) は廃止しました。
+
 ### 未実装 (follow-up)
 
-- **tap リポジトリ (`takezou621/homebrew-kilde`) への formula 自動更新** —
-  tap 自体が未作成のため、tap 作成 (#24 のフォロー) 後に `url` / `sha256` を
-  更新する PR を送るジョブを追加する
+- **formula 更新の自動化** — 上の tap 更新手順は手動。workflow から tap へ更新 PR を
+  送るジョブを追加する (PAT の権限設計が必要なため別 issue で)
 - **Release Notes の自動生成 (PR タイトル由来)** — 初回リリース後に手順を確定させる
