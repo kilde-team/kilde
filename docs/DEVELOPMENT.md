@@ -16,11 +16,12 @@ kilde リポジトリ (GUI・配布・ドキュメント) をローカルでビ�
 
 | 項目 | 要件 |
 |------|------|
-| OS | macOS 26 (Apple Silicon)。**実検証済みはこの構成のみ** |
+| OS (実行対象) | **macOS 14+** (GUI の deployment target — `gui/project.yml` の `deploymentTarget`)。動作検証は macOS 26 / Apple Silicon のみ |
+| OS (開発環境) | macOS 26 (Apple Silicon)。**実検証済みはこの構成のみ** |
 | ツールチェーン | Xcode 26 以降 (**macOS 26 SDK 必須**) — GUI が参照する KildeCore が macOS 26 の API (`captureHDRRecordingPreservedSDRHDR10` など) を使うため。26 未満の SDK ではパッケージのビルドが `has no member` で失敗します |
 | [XcodeGen](https://github.com/yonaskolb/XcodeGen) | `brew install xcodegen` (`.xcodeproj` はコミットせず `project.yml` から生成する) |
 | kilde-team メンバー権限 | GUI は kilde-team/kilde-cli-swift (private) をパッケージ依存で参照するため、パッケージ解決には**同リポジトリを読める git 認証** (SSH 鍵または PAT) が必要 |
-| 任意 | BlackHole — `brew install --cask blackhole-2ch` (monitor 経路の検証をする場合のみ) |
+| 任意 | BlackHole — `brew install --cask blackhole-2ch` (セルフテストの入力デバイス指定 `KILDE_GUI_SELFTEST_AUDIO=device:BlackHole 2ch` でスピーカーを介さず信号を入れる、またはクラムシェル検証のために既定出力を切り替える場合。§3 参照) |
 | 任意 | `kilde-dev` 自己署名証明書 — TCC 権限のトグルを安定させる (§3 の注意を参照) |
 
 ## 2. 権限 (TCC) のセットアップ

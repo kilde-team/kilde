@@ -26,8 +26,8 @@ cd gui && xcodegen && xcodebuild -resolvePackageDependencies \
 
 ```
 bash -n scripts/release/sign.sh                             # sign.sh を触ったとき
-ruby -ryaml -e 'YAML.load_file(".github/workflows/release.yml")' \
-  && actionlint .github/workflows/release.yml 2>/dev/null   # release.yml を触ったとき
+ruby -ryaml -e 'YAML.load_file(".github/workflows/release.yml")'   # release.yml を触ったとき (YAML 検証)
+if command -v actionlint >/dev/null; then actionlint .github/workflows/release.yml; fi   # 導入されていれば追加で
 ```
 
 <!-- 実録画を伴う検証 (GUI セルフテストなど) を行ったなら結果を書く。
