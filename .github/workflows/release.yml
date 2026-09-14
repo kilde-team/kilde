@@ -238,8 +238,13 @@ jobs:
           SECTION="url.https://x-access-token:${KILDE_CLI_SWIFT_TOKEN}@github.com/kilde-team/kilde-cli-swift.git"
           if git config --global --get-regexp '^url\..*kilde-cli-swift\.git\.insteadOf$' >/dev/null 2>&1; then
             git config --global --remove-section "$SECTION"
-            git config --global --get-regexp '^url\..*kilde-cli-swift\.git\.insteadOf$' \
-              && { echo "url 置換を削除できませんでした — PAT が global config に残っています"; exit 1; } || true
+            # 残留検査の出力には PAT を含むキー名が載るため破棄して存在だけを
+            # 判定する — 過去ジョブの token は現行 secret と一致せずログで
+            # マスクされない (CodeRabbit 指摘)
+            if git config --global --get-regexp '^url\..*kilde-cli-swift\.git\.insteadOf$' >/dev/null 2>&1; then
+              echo "url 置換を削除できませんでした — PAT が global config に残っています"
+              exit 1
+            fi
           fi
 
       # Release の作成はタグ起動時のみ。手動実行 (workflow_dispatch) は dry-run 固定 —
