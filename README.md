@@ -59,7 +59,7 @@ Download `kilde-<version>-macos.zip` from
 put the `kilde` binary on your `PATH`:
 
 ```sh
-unzip kilde-*-macos.zip && sudo cp kilde /usr/local/bin/
+unzip kilde-*-macos.zip && sudo cp release/kilde /usr/local/bin/
 ```
 
 ### Building from source

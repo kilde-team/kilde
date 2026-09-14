@@ -52,7 +52,7 @@ brew install takezou621/kilde/kilde
 通った場所に置きます。
 
 ```sh
-unzip kilde-*-macos.zip && sudo cp kilde /usr/local/bin/
+unzip kilde-*-macos.zip && sudo cp release/kilde /usr/local/bin/
 ```
 
 ### ソースからビルド
