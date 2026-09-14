@@ -162,7 +162,9 @@ APP=$(xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI -configuration Deb
 KILDE_GUI_SELFTEST_RECORD=3 KILDE_GUI_SELFTEST_OUTPUT=/tmp "$APP/Contents/MacOS/KildeGUI"
 # → selftest: finished /tmp/kilde-yyyyMMdd-HHmmss.mp4 (終了コード 0。既定コンテナは
 #   mp4 — kilde-cli-swift#24。設定 format=mov や ProRes 退避なら .mov になる)
-../.build/debug/kilde inspect /tmp/kilde-*.mp4   # CLI の録画と同じトラック構成か確認
+# inspect には finished に表示されたパスをそのまま渡す。kilde-*.mp4 の glob だと
+# format=mov 等で .mov になった出力を取りこぼす
+../.build/debug/kilde inspect /tmp/kilde-yyyyMMdd-HHmmss.mp4   # CLI の録画と同じトラック構成か確認
 ```
 
 `KILDE_GUI_SELFTEST_AUDIO` で音声ソースを変えられます: `system` (既定) / `none` (映像のみ — 音声出力が
