@@ -1,0 +1,26 @@
+docs/DESIGN.md
+  s_35faeec28b4c4b::t_33c2fc10079987 449
+  s_35faeec28b4c4b::t_da92acfb766eeb 486
+  s_35faeec28b4c4b::t_87ed129eda57d4 469-480
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_8d6d8458b5ec05 1733
+  s_35faeec28b4c4b::t_0473e1b22130f0 1728
+docs/DEVELOPMENT.md
+  s_35faeec28b4c4b::t_99c0898f1c1867 313
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "cf9b2f80c599ddaff1098d246ba9fff496ae656e",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
