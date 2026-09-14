@@ -320,6 +320,21 @@ approve in System Settings.
   onboarding ✅ / completion notifications, recent recordings, global hotkey,
   and launch at login ✅
 
+## The name
+
+*kilde* is the Danish and Norwegian word for **source** — literally a
+spring, where water rises from the ground, and by extension the source of
+a piece of information, as in a journalist's or a scholar's sources.
+
+More and more knowledge is now created in online meetings and on screens.
+In an era when AI can transcribe, summarize, and search recordings, those
+recordings — the video, the audio, the screen — are valuable sources of
+information in their own right, not byproducts to discard once the meeting
+is over. kilde is named for the thing it exists to keep: the source. The
+same conviction is why kilde is built so that stopping a recording — even
+with Ctrl+C — always leaves a finalized, playable file. A source you
+cannot open again is no source at all.
+
 ## Contributing
 
 Bug reports, feature requests, and pull requests are welcome. See
