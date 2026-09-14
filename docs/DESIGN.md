@@ -64,8 +64,8 @@ macOS 標準の QuickTime Player による画面収録は**システム音声を
 - **録音 (音声のみ) モード**: SCK ネイティブでドライバ不要。
   `--window` 併用で特定アプリの音声だけを録音 (通知音カット)
 - 会議プリセット (`--preset meeting`)
-- MOV (映像あり) / M4A (音声のみ) 出力 (H.264 / HEVC / ProRes)、AAC 音声
-  (MP4 コンテナは M2 — issue #12)
+- MP4 (映像あり・既定。`--format mov` で MOV) / M4A (音声のみ) 出力
+  (H.264 / HEVC / ProRes)、AAC 音声 — 既定コンテナの MP4 化は kilde-cli-swift#24
 - Ctrl+C での安全な停止 (ファイルが必ずファイナライズされること)
 - デバイス一覧表示、権限診断
 
@@ -222,7 +222,7 @@ SCStream(contentFilter, configuration)
 
 ### ライタと A/V 同期
 
-- `AVAssetWriter` (コンテナ: 映像ありは MOV、音声のみは M4A。MP4 は M2 — #12)。
+- `AVAssetWriter` (コンテナ: 映像ありは MP4 が既定、`--format mov` で MOV、音声のみは M4A — 既定の MP4 化は kilde-cli-swift#24)。
 - `startSession(atSourceTime:)` を「最初に到着した映像サンプルの PTS」
   (音声のみモードは最初の音声 PTS) で呼び、アンカーより前の音声 PTS は
   ドロップする (`MovieWriter.Anchor`)。

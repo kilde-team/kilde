@@ -202,7 +202,10 @@ Common options include:
 - repeatable `--audio system|mic|device:NAME_OR_UID|none` to select audio sources
 - `--audio-tracks mixed|separate` to mix sources or preserve separate tracks
 - `--no-video`, `--monitor`, `--duration 30s` (counted from the end of a hotkey
-  wait, not from launch), `--codec h264|hevc|prores`, and `--fps NUMBER`
+  wait, not from launch), `--codec h264|hevc|prores`, `--fps NUMBER`, and
+  `--format mov|mp4` (the output path's `.mov`/`.mp4` extension also selects
+  the container; ProRes cannot go into MP4, so a standalone `--codec prores`
+  falls back to `mov`)
 - `--cursor` or `--no-cursor`, `--countdown SECONDS`, `--preset meeting`, and
   `--hotkey SHORTCUT`
 - `-o PATH` or `--output PATH` as an alternative to the positional output path
