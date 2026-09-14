@@ -9,12 +9,21 @@ options:
     macOS: "14.0"
   createIntermediateGroups: true
 
-# ルートパッケージをローカル依存として追加し、KildeCore 製品だけをリンクする。
-# ローカルパッケージはルートと同等に扱われるため、kilde 実行ターゲットの
-# unsafeFlags (Info.plist 埋め込み) は GUI 側のビルドを妨げない
+# 分離先リポジトリ kilde-team/kilde-cli-swift (kilde#115) をリモート依存として
+# 追加し、KildeCore 製品だけをリンクする。CLI 分離後、kilde リポジトリ自体は
+# SPM パッケージを持たない。
+# リモート参照の実証は kilde-cli-swift#8 スパイクで完了 (SPM / Xcode 両経路で
+# ビルド・実行時リンクを確認)。unsafeFlags は kilde 実行ターゲットにのみ付いており、
+# GUI が消費する KildeCore 製品のビルドには影響しない。
+# 本リポジトリは private 依存を持つため、パッケージ解決には kilde-team の
+# メンバー権限 (git 認証) が必要 — 外部のクローン・CI では解決できない
+# 制約: KildeCore (の依存閉包) に unsafeFlags が入ると、バージョン指定の依存では
+# ビルドできなくなる (kilde-cli-swift#8 / kilde#115)。branch 参照の間は気づけない
+# ため、unsafeFlags は kilde 実行ターゲットに限定して維持すること
 packages:
-  kilde:
-    path: ..
+  kilde-cli-swift:
+    url: https://github.com/kilde-team/kilde-cli-swift.git
+    branch: main
 
 targets:
   KildeGUI:
@@ -48,5 +57,5 @@ targets:
         SWIFT_VERSION: "5"
         MACOSX_DEPLOYMENT_TARGET: "14.0"
     dependencies:
-      - package: kilde
+      - package: kilde-cli-swift
         product: KildeCore

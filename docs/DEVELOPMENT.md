@@ -109,8 +109,10 @@ Ctrl+C は正規の停止操作なので、ファイナライズに成功すれ�
 macOS 26 で `MenuBarExtra` の `.window` パネルが開かないため AppKit で管理)。
 `.xcodeproj` はコミットして
 いないため、[XcodeGen](https://github.com/yonaskolb/XcodeGen) で生成してから
-Xcode でビルドします (録画エンジンは CLI と同じ KildeCore をローカルパッケージ
-依存で共有):
+Xcode でビルドします (録画エンジンは kilde-team/kilde-cli-swift (issue #115 で
+分離) の KildeCore をリモートパッケージ依存で共有。**private リポジトリのため、
+パッケージ解決には kilde-team のメンバー権限の git 認証が必要**):
+
 
 ```sh
 brew install xcodegen   # 初回のみ
