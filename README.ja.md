@@ -153,8 +153,10 @@ kilde inspect FILE # 録画ファイルのトラック構成と音声レベル
 
 メニューバーアプリ (`NSStatusItem` + `NSPopover` — macOS 26 で SwiftUI
 `MenuBarExtra` の `.window` パネルが開かないため AppKit で手動管理)。
-録画エンジンは CLI と同じ
-`KildeCore` をローカルパッケージ依存で共有する。`.xcodeproj` はコミットせず
+録画エンジンは
+[kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift)
+(issue #115 で分離) の `KildeCore` をパッケージ依存で共有する (**private リポジトリのため、
+パッケージ解決には kilde-team メンバーの git 認証が必要**)。`.xcodeproj` はコミットせず
 [XcodeGen](https://github.com/yonaskolb/XcodeGen) の `project.yml` から生成する:
 
 ```sh
