@@ -115,7 +115,7 @@ cd gui && xcodegen && xcodebuild -resolvePackageDependencies \
   && xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI \
        -configuration Debug build CODE_SIGNING_ALLOWED=NO   # GUI ビルド (既定の検証)
 bash -n scripts/release/sign.sh                             # sign.sh を触ったとき
-ruby -ryaml -e 'YAML.load_file(".github/workflows/release.yml")'   # release.yml を触ったとき (YAML 検証)
+ruby -ryaml -e 'YAML.load_file(".github/workflows/release.yml")' || false   # release.yml を触ったとき (YAML 検証。壊れていればここで失敗する)
 # 導入されていれば actionlint も通す (未導入なら YAML 検証のみでよい)
 if command -v actionlint >/dev/null; then actionlint .github/workflows/release.yml; fi
 ```

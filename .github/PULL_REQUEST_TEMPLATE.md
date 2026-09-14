@@ -26,7 +26,7 @@ cd gui && xcodegen && xcodebuild -resolvePackageDependencies \
 
 ```
 bash -n scripts/release/sign.sh                             # sign.sh を触ったとき
-ruby -ryaml -e 'YAML.load_file(".github/workflows/release.yml")'   # release.yml を触ったとき (YAML 検証)
+ruby -ryaml -e 'YAML.load_file(".github/workflows/release.yml")' || false   # release.yml を触ったとき (YAML 検証。壊れていればここで失敗する)
 if command -v actionlint >/dev/null; then actionlint .github/workflows/release.yml; fi   # 導入されていれば追加で
 ```
 
