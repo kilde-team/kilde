@@ -326,8 +326,10 @@ DESIGN.md「列挙も同じロックで直列化する」参照)。**FAIL をそ
    コミット済みなら no-op (`No local changes to save`) になり、**自分のバイナリのまま
    測って「main 相当でも同じ」と誤信する**。この repo の標準フロー (AGENTS.md §2〜§3)
    では FAIL 時点でコミット済みなのが普通なので、その場合は
-   `git worktree add /tmp/kilde-main origin/main` で別 worktree を用意してビルドし、
-   そのバイナリで測る (主作業コピーが `main` にあるならそこでも良い。
+   `git fetch origin main && git worktree add /tmp/kilde-main origin/main` で
+   別 worktree を用意してビルドし、そのバイナリで測る。**`git fetch` を省かない** —
+   `origin/main` はローカルのリモート追跡参照なので、古いままだと**古いベースと
+   比べて回帰か環境かを取り違える** (主作業コピーが `main` にあり最新ならそこでも良い。
    worktree 内では `main` が他所でチェックアウト済みのため `git switch main` は使えない)
 4. **環境を整えて測り直す** — 常駐 SCK クライアントを終了し、`replayd` をリセット
    (確実なのは再起動) してから再実行する。**ここまでやって初めて判定できる**
