@@ -29,7 +29,9 @@ packages:
     # を消すため)。エンジンの更新を取り込むときは revision を新コミットに更新する。
     # kilde-cli-swift#10 のタグ整備後は from: "0.2.0" への切替を推奨
     # (成立条件は kilde-cli-swift#8 スパイク記録を参照)
-    revision: aff76ec7766f20a4b535f4222dda20d3d643d256
+    # 5518a5d: 録画の既定コンテナが mp4 になったコミット (kilde-cli-swift#24)。
+    # これより前の pin では GUI も既定 mov で録る
+    revision: 5518a5d79826c5e0f918f57d8d19e719ac44eb83
 
 targets:
   KildeGUI:
