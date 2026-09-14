@@ -20,7 +20,7 @@ kilde リポジトリ (GUI・配布・ドキュメント) をローカルでビ�
 | OS (開発環境) | macOS 26 (Apple Silicon)。**実検証済みはこの構成のみ** |
 | ツールチェーン | Xcode 26 以降 (**macOS 26 SDK 必須**) — GUI が参照する KildeCore が macOS 26 の API (`captureHDRRecordingPreservedSDRHDR10` など) を使うため。26 未満の SDK ではパッケージのビルドが `has no member` で失敗します |
 | [XcodeGen](https://github.com/yonaskolb/XcodeGen) | `brew install xcodegen` (`.xcodeproj` はコミットせず `project.yml` から生成する) |
-| kilde-team メンバー権限 | GUI は kilde-team/kilde-cli-swift (private) をパッケージ依存で参照するため、パッケージ解決には**同リポジトリを読める git 認証** (SSH 鍵または PAT) が必要 |
+| kilde-team メンバー権限 | GUI は kilde-team/kilde-cli-swift (private) をパッケージ依存で参照するため、パッケージ解決には**同リポジトリを読める git 認証**が必要。Xcode の SwiftPM 解決は `https://github.com/kilde-team/kilde-cli-swift.git` で clone するため、**HTTPS で認証できること**が条件。手軽なのは fine-grained PAT (kilde-cli-swift へ contents:read) を macOS キーチェーン (`osxkeychain` credential helper) に保存する方法。SSH 鍵で運用している場合は `git config --global url."ssh://git@github.com/".insteadOf "https://github.com/"` の url 置換で HTTPS URL を SSH へ書き換える (kilde-team 配下のすべての HTTPS clone が SSH に乗る点に注意) |
 | 任意 | BlackHole — `brew install --cask blackhole-2ch` (セルフテストの入力デバイス指定 `KILDE_GUI_SELFTEST_AUDIO=device:BlackHole 2ch` でスピーカーを介さず信号を入れる、またはクラムシェル検証のために既定出力を切り替える場合。§3 参照) |
 | 任意 | `kilde-dev` 自己署名証明書 — TCC 権限のトグルを安定させる (§3 の注意を参照) |
 

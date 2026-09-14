@@ -111,9 +111,10 @@
 対象外 (エンジンのビルド・テストは kilde-team/kilde-cli-swift 側)。
 
 ```sh
-cd gui && xcodegen && xcodebuild -resolvePackageDependencies \
+# GUI ビルド (既定の検証)。サブシェルで実行する — cd を後続コマンドに残さないため
+(cd gui && xcodegen && xcodebuild -resolvePackageDependencies \
   && xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI \
-       -configuration Debug build CODE_SIGNING_ALLOWED=NO   # GUI ビルド (既定の検証)
+       -configuration Debug build CODE_SIGNING_ALLOWED=NO)
 bash -n scripts/release/sign.sh                             # sign.sh を触ったとき
 ruby -ryaml -e 'YAML.load_file(".github/workflows/release.yml")' || false   # release.yml を触ったとき (YAML 検証。壊れていればここで失敗する)
 # 導入されていれば actionlint も通す (未導入なら YAML 検証のみでよい)

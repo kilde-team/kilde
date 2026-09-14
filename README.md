@@ -34,6 +34,8 @@ The project is split across two repositories (issue #115):
 ## Installation
 
 - macOS 14 or later
+- Release binaries are **arm64 (Apple Silicon) builds** — Intel Macs are not
+  supported at this time
 - Runtime testing is currently performed on macOS 26 on Apple Silicon
 - Requires a toolchain with the macOS 26 SDK to build (the engine references
   the macOS 26 API `captureHDRRecordingPreservedSDRHDR10`; runtime still
@@ -189,8 +191,10 @@ to audio while recording it through another path.
 
 By default, kilde captures display `0`, records `system` audio into a `mixed`
 audio track, uses the H.264 video codec, and includes the cursor. If no output
-path is supplied, it creates `kilde-yyyyMMdd-HHmmss.mov`, or an `.m4a` file in
-audio-only mode. Run `kilde rec --help` for the complete option list.
+path is supplied, it creates `kilde-yyyyMMdd-HHmmss.mp4` (an `.mov` file when
+`--format mov` is selected, or when ProRes forces the default container back to
+`mov`), or an `.m4a` file in audio-only mode. Run `kilde rec --help` for the
+complete option list.
 
 Common options include:
 

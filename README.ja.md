@@ -30,6 +30,7 @@ CLI のワンコマンドとメニューバーアプリで実現します。
 ## インストール
 
 - 要件: macOS 14+ (動作検証は macOS 26 / Apple Silicon)
+- リリースバイナリは **arm64 (Apple Silicon) ビルド**です — 現時点で Intel Mac は非対応
 - ビルドには macOS 26 SDK を持つツールチェーンが必要 (エンジンが macOS 26 の API
   `captureHDRRecordingPreservedSDRHDR10` を参照するため。実行は引き続き macOS 14+ に対応)
 

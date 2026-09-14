@@ -120,8 +120,10 @@ macOS 標準の QuickTime Player による画面収録は**システム音声を
   アクセシビリティ権限を要求しない。CLI はメイン RunLoop、GUI は AppKit の通常の
   イベントループで、メインスレッドに配送される押下コールバックを受ける。
 - **kilde (CLI)**: 引数解析とコンソール出力 (進捗・レベルメーター) のみ。
-- **KildeGUI**: 後日 Xcode プロジェクトとして作成し、KildeCore をローカル
-  パッケージ依存で取り込む (署名・entitlements のため SPM 単独より容易)。
+- **KildeGUI**: メニューバー GUI (`gui/`、XcodeGen — issue #17 以降)。KildeCore は
+  kilde-team/kilde-cli-swift を **revision 固定のリモートパッケージ依存**で参照する
+  (`gui/project.yml` の pin。release workflow の checkout と同じ revision を指す —
+  docs/RELEASE.md)。署名・entitlements を持つため Xcode プロジェクトでビルドする
 
 ### RecorderController の状態機械
 
@@ -265,7 +267,7 @@ kilde config [show|set|unset|path]        設定ファイル ~/.kilde/config.jso
 
 | オプション | 既定 | 説明 |
 |-----------|------|------|
-| `[<出力パス>]` / `--output, -o <path>` | 自動生成 | 既定 `kilde-yyyyMMdd-HHmmss.mov` (音声のみは `.m4a`)。既定名は原子的に予約し、同名があれば拡張子の前へ `-2`〜`-999` を付けて既存録画を保護する (全て埋まっていれば録画開始前に失敗)。明示パスは従来どおり既存ファイルを上書きする。保存先は `KILDE_OUTPUT_DIR` > 設定 `outputDirectory` > カレントディレクトリ (前二者が存在しないディレクトリなら録画開始前に終了コード 1)。位置引数と `-o` は同時指定不可。`~` は展開する |
+| `[<出力パス>]` / `--output, -o <path>` | 自動生成 | 既定 `kilde-yyyyMMdd-HHmmss.mp4` (既定コンテナは mp4 — kilde-cli-swift#24。`--format mov` や `.mov` パスなら `.mov`、音声のみは `.m4a`)。既定名は原子的に予約し、同名があれば拡張子の前へ `-2`〜`-999` を付けて既存録画を保護する (全て埋まっていれば録画開始前に失敗)。明示パスは従来どおり既存ファイルを上書きする。保存先は `KILDE_OUTPUT_DIR` > 設定 `outputDirectory` > カレントディレクトリ (前二者が存在しないディレクトリなら録画開始前に終了コード 1)。位置引数と `-o` は同時指定不可。`~` は展開する |
 | `--display <番号>` | `0` | 収録ディスプレイ (`kilde devices` の番号)。範囲外は終了コード 3。`--window` を 1 つだけ指定したときは無視される (そのウィンドウ単体を収録するため)。**`--window` を複数指定したときは合成先のディスプレイとして効く** — 指定したディスプレイの外にあるウィンドウが混ざっていると、黙って黒く写るのを避けるため録画前に終了コード 1 (M2 — #13)。(`all` は M2 — #12) |
 | `--window <windowID\|文字列>` | なし | ウィンドウ単位で収録。windowID の完全一致、またはタイトル / bundleID の部分一致 (大文字小文字を区別しない)。複数ヒット時は面積が最大のもの。見つからなければ終了コード 3。音声もそのアプリにスコープされる。**複数回指定可 (M2 — #13)**: 2 つ以上指定するとそのウィンドウ群をまとめて 1 本に収録する。このとき出力はディスプレイ全体の大きさになり (ウィンドウごとに切り出されるわけではない)、対象外の領域は黒で埋まる |
 | `--exclude-app <bundleID>` | なし | ディスプレイ収録から指定アプリを除外する (M2 — #13)。**映像だけでなくそのアプリのシステム音声も出力に入らない** (SCK のフィルタは音声にも適用される — SPIKE-NOTES F-F)。音を出しているアプリ (会議アプリ・ブラウザ等) を除外すると、その音声も失われる点に注意。bundleID の**完全一致** (大文字小文字は区別しない。除外は「写っていないはず」を期待する操作で、取り違えても画面を見るまで気づけないため部分一致にしていない)。複数回指定可。実行中に見つからなければ終了コード 3。`--window` / `--no-video` / `--preset meeting` とは併用不可 (いずれも収録対象を選ぶ指定で、除外と矛盾するため)。`--region` とは併用可 |
@@ -277,7 +279,7 @@ kilde config [show|set|unset|path]        設定ファイル ~/.kilde/config.jso
 | `--duration <dur>` | なし | `30` (秒) / `30s` / `5m` / `1h` / `1.5m`。経過で自動停止 (SIGINT と同じ経路)。**待機モード (hotkey) では「待機の解除後」から数える** — 待機そのものは打ち切らないので、キーが押されるまで終了しない。設定 `hotkey` で待機に入るときは WARNING を出す (issue #97。下の「`--duration` と待機モード」参照) |
 | `--codec <c>` | `h264` (設定 `codec`) | `h264` / `hevc` / `prores` |
 | `--hdr` | off | HDR で収録する (M2 — #16)。`SCStreamConfiguration` の HDR プリセットを OS で選ぶ (macOS 26 は HDR10 メタデータ付きの `captureHDRRecordingPreservedSDRHDR10`、15 は `captureHDRStreamLocalDisplay`)。HEVC **Main10** + PQ で書き出し、色域はプリセットのバッファに従う (26 は BT.2020、15 は Display P3。マトリクスは色域が P3 でも BT.2020 — SPIKE-NOTES F-H)。`--codec hevc` 以外との併用と `--no-video` との併用は終了コード 64。**macOS 14 以前、または HDR 非対応ディスプレイでは SDR にフォールバックし、理由を結果表示に出す** (黙って SDR にすると「HDR で録れたつもりのファイル」ができるため)。この通知は stdout の `⚠ HDR: …` 行で、**`cleanupWarnings` (stderr の `WARNING:` 行 + 終了コード 1) とは別扱い** — 録画自体は成功しているので**終了コードは 0 のまま**。**macOS 26 では HDR10 メタデータ付きの録画プリセット (`captureHDRRecordingPreservedSDRHDR10`) を使う** — SDR 範囲の見え方を保ち、HDR10 メタデータが付く (issue #76)。どちらの方式で録れたかは結果表示の `HDR: …` 行に出る。CI の SDK の壁はランナーを macos-26 に上げて解消 (PR #81) |
-| `--format <mov\|mp4>` | `mov` (M2 — #12) | 映像ありのときの出力コンテナ。**出力パスの拡張子が `.mp4` なら自動で mp4** (明示した `--format` が優先)。MP4 に ProRes は入れられないため、`--format mp4 --codec prores` は終了コード 64 (設定ファイル由来の codec との組合せは 1)。`--no-video` とは併用不可 (音声のみは M4A 固定)。既定の出力名の拡張子もコンテナに従う |
+| `--format <mov\|mp4>` | `mp4` (kilde-cli-swift#24。設定 `format` で変更可) | 映像ありのときの出力コンテナ。**出力パスの拡張子 (`.mov` / `.mp4`) でも指定でき、設定 `format` より強い** (明示した `--format` が最も強い)。ProRes は MP4 に入れられないため、`--codec prores` を単独で選んだときは既定コンテナを `mov` に退避する (`--format mp4` 等と明示併用したときは終了コード 64。設定ファイル由来の codec との組合せは 1)。`--no-video` とは併用不可 (音声のみは M4A 固定)。既定の出力名の拡張子もコンテナに従う |
 | `--fps <n>` | 指定なし (SCK 既定。設定 `fps`) | 上限フレームレート。1 以上 (0 以下は終了コード 64 — 以前は黙って無視していた) |
 | `--cursor` / `--no-cursor` | 写り込む (設定 `showsCursor`) | カーソルを写し込むか。`--cursor` は設定 `showsCursor: false` をその回だけ打ち消す用 (M1 の `--no-cursor` はそのまま使える) |
 | `--countdown <sec>` | `0` | 開始前カウントダウン。hotkey (CLI 引数) との併用は引数検証エラー (終了コード 64)、設定 `hotkey` との組合せは終了コード 1 で拒否 — 待機モードではカウントダウンが待機開始前に消費され、録画の開始を守れなくなるため |
@@ -610,7 +612,7 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
 > **出力名の例外**: 既定名 `kilde-yyyyMMdd-HHmmss.*` は秒までしか持たないため、止めてすぐ
 > 録り直すと同じ名前になり、`MovieWriter` が既存ファイルを消してしまう。出力パスを省略した
 > 場合 (CLI の `rec` / GUI の `makeOptions` とも) 既定名は **`open(O_CREAT|O_EXCL)` で原子的に
-> 予約**され、衝突時は `kilde-yyyyMMdd-HHmmss-2.mov` のように連番 (`-2`〜`-999`) に退避する
+> 予約**され、衝突時は `kilde-yyyyMMdd-HHmmss-2.mp4` のように連番 (`-2`〜`-999`) に退避する
 > (全て埋まっていれば録画を始めずに失敗する)。予約は 0 バイトのファイルを作り、
 > `MovieWriter` は自分が予約したファイルだけを置き換える — GUI と CLI が同じ秒に
 > 同じ保存先で始めても、どちらかが他方の録画を消すことはない (issue #59)。

@@ -7,6 +7,12 @@ class Kilde < Formula
   license "MIT"
 
   depends_on macos: :sonoma
+  # 配布 zip は arm64 (Apple Silicon) ビルドのみ (release workflow の macos-26
+  # ランナーで swift build -c release した単体バイナリ)。universal に含まれない
+  # Intel がこの Formula を拾うと起動時に落ちるため、誤 install を brew 側で
+  # 拒否させる。Intel 対応 (universal binary) を始めるときはこの行と
+  # README の arm64 記載を外す
+  depends_on arch: :arm64
 
   # head ブロックは廃止 (kilde#118)。CLI のソースは kilde-team/kilde-cli-swift
   # (private) に分離されたため、外部ユーザーがこのリポジトリからソースビルドする

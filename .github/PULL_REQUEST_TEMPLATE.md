@@ -19,9 +19,9 @@ Closes #
      エンジンのビルド・テストは kilde-team/kilde-cli-swift 側) -->
 
 ```
-cd gui && xcodegen && xcodebuild -resolvePackageDependencies \
+(cd gui && xcodegen && xcodebuild -resolvePackageDependencies \
   && xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI \
-       -configuration Debug build CODE_SIGNING_ALLOWED=NO   # BUILD SUCCEEDED / 失敗理由
+       -configuration Debug build CODE_SIGNING_ALLOWED=NO)   # BUILD SUCCEEDED / 失敗理由
 ```
 
 ```

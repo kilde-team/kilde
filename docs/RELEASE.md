@@ -206,6 +206,11 @@ shasum -a 256 kilde-0.2.0-macos.zip
 3. 反映後に `brew install takezou621/kilde/kilde` (または `brew upgrade`) で動作を確認する
    (`kilde --version` が新バージョンを返すこと)
 
+**zip は arm64 (Apple Silicon) ビルドのみ**です。Formula には
+`depends_on arch: :arm64` を置いてあり、Intel への誤 install を brew が拒否します。
+tap 側へ反映するときも同じ行を消さないこと。Intel 対応 (universal binary) を
+始めるときは、release workflow・Formula・README の arm64 記載を一体で見直す。
+
 CLI のソースは kilde-team/kilde-cli-swift (private) に分離されたため、head ブロック
 (`brew install --HEAD` による外部からのソースビルド) は廃止しました。
 
