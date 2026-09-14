@@ -1,0 +1,31 @@
+docs/DEVELOPMENT.md
+  s_35faeec28b4c4b::t_17fe6b2658e926 313-321,323,332-339
+  s_35faeec28b4c4b::t_a12680fd57a92c 322,324-331
+  s_35faeec28b4c4b::t_a0ed6ead3d80a0 303
+scripts/integration-test.sh
+  s_35faeec28b4c4b::t_2cfc1254648283 1733
+  s_35faeec28b4c4b::t_36ca874360f4b7 1728
+  s_35faeec28b4c4b::t_c8f556acd31380 1717-1726
+docs/DESIGN.md
+  s_35faeec28b4c4b::t_8490a536cce81d 468
+  s_35faeec28b4c4b::t_9d538958575a1c 489-494
+  s_35faeec28b4c4b::t_b06cc4cfb5fed4 475-477
+  s_35faeec28b4c4b::t_282b4c6520be36 479-483
+  s_35faeec28b4c4b::t_90a1c9fb6f7c0c 469-471
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "72386c7b8008b960247dafadac443fb690d068e9",
+  "prompts": {},
+  "sessions": {
+    "s_35faeec28b4c4b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3294fd7d-febc-4ac3-9eb1-96f2b54519b5",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
