@@ -1,0 +1,19 @@
+docs/DESIGN.md
+  s_0532a2a2eac578::t_dbf0f9e7410d7e 707-708
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "621dcf78648c654330303a08a706c1f96a0ef41a",
+  "prompts": {},
+  "sessions": {
+    "s_0532a2a2eac578": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "68956145-5c9d-4f4b-96a6-eb93cc361b60",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
