@@ -704,7 +704,8 @@ kilde/
   - **M1**: CLI MVP (§3 の MVP 範囲) — 実装済み (ミックスダウン、`--monitor` を含む)。
     エンジンと CLI のソースは kilde-team/kilde-cli-swift へ移管済み (issue #115)
   - **M2**: Recorder のイベント駆動化、領域指定、ホットキー、一時停止、
-    複数ディスプレイ / MP4、アプリ除外、設定ファイル、passthrough、HDR (issue #8〜#16)
+    複数ディスプレイ、アプリ除外、設定ファイル、passthrough、HDR (issue #8〜#16)。
+    MP4 コンテナ対応は kilde-cli-swift#24 で実装済み (既定コンテナ — §6)
   - **M3**: GUI (issue #17〜#20)
   - **配布 & OSS**: LICENSE、英語 README、署名・notarization、Homebrew、Releases (issue #21〜#25)
 
