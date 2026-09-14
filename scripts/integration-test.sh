@@ -1725,12 +1725,12 @@ done
 # 詳細は docs/DESIGN.md「列挙も同じロックで直列化する」、
 # 切り分け手順は docs/DEVELOPMENT.md「T24 が FAIL したときの切り分け」
 if [ "$T24_TCC" -ge 2 ]; then
-    bad "T24 devices 併走: ${T24_ROUNDS} 組中 $T24_TCC 組で -3801。**回帰と決めつける前に環境を確認すること** — 発生率は環境で桁が変わる (同一バイナリで 0/5→1/5→5/5 の実測あり)。ps -Ao pid,etime,comm | grep -E 'replayd|KildeGUI' で稼働時間を見て、整えてから測り直す。それでも続くなら issue #90 の回帰 (列挙が SCK 起動ロックの外に出ている) を疑う。手順は docs/DEVELOPMENT.md「T24 が FAIL したときの切り分け」$T24_DETAIL"
+    bad "T24 devices 併走: ${T24_ROUNDS} 組中 $T24_TCC 組で -3801。「回帰と決めつける前に環境を確認すること」— 発生率は環境で桁が変わる (同一バイナリで 0/5→1/5→5/5 の実測あり)。ps -Ao pid,etime,comm | grep -E 'replayd|KildeGUI' で稼働時間を見て、整えてから測り直す。それでも続くなら issue #90 の回帰 (列挙が SCK 起動ロックの外に出ている) を疑う。手順は docs/DEVELOPMENT.md「T24 が FAIL したときの切り分け」$T24_DETAIL"
 elif [ "$T24_NG" != "$T24_TCC" ]; then
     # -3801 以外の理由でも落ちている (NG が TCC を上回る = devices 側の失敗を含む)
     bad "T24 devices 併走: ${T24_ROUNDS} 組中 $T24_NG 件が失敗 (うち -3801 は $T24_TCC 件)。-3801 以外の原因を調べること — $WORK/t24-rec-*.log$T24_DETAIL"
 elif [ "$T24_TCC" != "0" ]; then
-    skip "T24 devices 併走: ${T24_ROUNDS} 組中 1 組で -3801 (issue #99 の残存。クリーンな環境での実測は約 1.8% だが**発生率は環境で変わる** — replayd の稼働時間が長いなど心当たりがあれば整えて測り直すこと。#99 が閉じたらこの分岐を bad に上げること)$T24_DETAIL"
+    skip "T24 devices 併走: ${T24_ROUNDS} 組中 1 組で -3801 (issue #99 の残存。クリーンな環境での実測は約 1.8% だが発生率は環境で変わる — replayd の稼働時間が長いなど心当たりがあれば整えて測り直すこと。#99 が閉じたらこの分岐を bad に上げること)$T24_DETAIL"
 else
     ok "T24 devices 併走: ${T24_ROUNDS}/${T24_ROUNDS} 組で rec が exit=0 (-3801 なし)"
 fi
