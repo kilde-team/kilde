@@ -160,8 +160,11 @@ macOS 15 以降は一度許可した画面収録権限が定期的に再確認�
 APP=$(xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI -configuration Debug \
       -showBuildSettings 2>/dev/null | awk '/ BUILT_PRODUCTS_DIR /{print $3}')/KildeGUI.app
 KILDE_GUI_SELFTEST_RECORD=3 KILDE_GUI_SELFTEST_OUTPUT=/tmp "$APP/Contents/MacOS/KildeGUI"
-# → selftest: finished /tmp/kilde-yyyyMMdd-HHmmss.mov (終了コード 0)
-../.build/debug/kilde inspect /tmp/kilde-*.mov   # CLI の録画と同じトラック構成か確認
+# → selftest: finished /tmp/kilde-yyyyMMdd-HHmmss.mp4 (終了コード 0。既定コンテナは
+#   mp4 — kilde-cli-swift#24。設定 format=mov や ProRes 退避なら .mov になる)
+# inspect には finished に表示されたパスをそのまま渡す。kilde-*.mp4 の glob だと
+# format=mov 等で .mov になった出力を取りこぼす
+../.build/debug/kilde inspect /tmp/kilde-yyyyMMdd-HHmmss.mp4   # CLI の録画と同じトラック構成か確認
 ```
 
 `KILDE_GUI_SELFTEST_AUDIO` で音声ソースを変えられます: `system` (既定) / `none` (映像のみ — 音声出力が
