@@ -23,7 +23,13 @@ options:
 packages:
   kilde-cli-swift:
     url: https://github.com/kilde-team/kilde-cli-swift.git
-    branch: main
+    # 移行期は revision 固定 (cubic レビュー指摘)。branch: main の浮動参照だと
+    # kilde-cli-swift 側の push が kilde リポジトリの変更なしに GUI のビルドを壊し、
+    # 解決コミットも記録されない (xcodegen が .xcodeproj 再生成時に Package.resolved
+    # を消すため)。エンジンの更新を取り込むときは revision を新コミットに更新する。
+    # kilde-cli-swift#10 のタグ整備後は from: "0.2.0" への切替を推奨
+    # (成立条件は kilde-cli-swift#8 スパイク記録を参照)
+    revision: aff76ec7766f20a4b535f4222dda20d3d643d256
 
 targets:
   KildeGUI:
