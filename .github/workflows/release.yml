@@ -7,6 +7,12 @@ name: Release
 #     AC_API_ISSUER (署名・notarization 用) がすべてあれば sign.sh まで行う
 #   - 無ければ unsigned zip でリリースし、caveats に「未署名」を明記する
 # 証明書を取得したら RELEASE.md §4 の 6 secrets を足すだけで署名に切り替わる。
+#
+# kilde#118: CLI ソースは kilde-team/kilde-cli-swift に分離されたため、この workflow
+# は同リポジトリを revision 固定で追加チェックアウトして CLI をビルドする。private
+# リポジトリのため GITHUB_TOKEN では読めず、KILDE_CLI_SWIFT_TOKEN (fine-grained PAT、
+# kilde-team/kilde-cli-swift への contents:read) が必要 — 無いと checkout step で
+# 失敗する。pin は GUI (gui/project.yml) と同じ値を揃える (docs/RELEASE.md 参照)
 on:
   push:
     tags: ["v*"]
@@ -22,14 +28,29 @@ concurrency:
 jobs:
   release:
     name: Build and release (macOS, arm64)
-    # macos-26: kilde は Xcode 26 SDK 必須 (issue #76。macos-15 の SDK には
-    # captureHDRRecordingPreservedSDRHDR10 が無い)。CI と同じ理由
+    # macos-26: エンジン (kilde-cli-swift) は Xcode 26 SDK 必須 (issue #76。
+    # macos-15 の SDK には captureHDRRecordingPreservedSDRHDR10 が無い)
     runs-on: macos-26
     timeout-minutes: 90
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Checkout kilde-cli-swift (CLI / KildeCore engine)
+        uses: actions/checkout@v4
+        with:
+          # CLI のソース本体。kilde リポジトリには GUI・配布・ドキュメントしか
+          # 残っていない (kilde#115 / #118)。path は sign.sh の既定 (KILDE_CLI_DIR
+          # 未指定時の $ROOT_DIR/kilde-cli-swift) と一致させる
+          repository: kilde-team/kilde-cli-swift
+          # GUI (gui/project.yml) と同じ pin。リリース成果物が「どのコミットで
+          # ビルドされたか」を追跡可能にするため。更新時は GUI 側と揃える
+          ref: 5518a5d79826c5e0f918f57d8d19e719ac44eb83
+          # private リポジトリ: GITHUB_TOKEN は他リポジトリを読めないため
+          # fine-grained PAT (contents:read) を使う
+          token: ${{ secrets.KILDE_CLI_SWIFT_TOKEN }}
+          path: kilde-cli-swift
 
       - name: Resolve version from tag
         id: version
@@ -38,7 +59,7 @@ jobs:
             VERSION="${GITHUB_REF#refs/tags/v}"
           else
             # 手動実行 (検証用): Info.plist の現在値を使う
-            VERSION="$(plutil -extract CFBundleShortVersionString raw -o - Sources/kilde/Info.plist)"
+            VERSION="$(plutil -extract CFBundleShortVersionString raw -o - kilde-cli-swift/Sources/kilde/Info.plist)"
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
@@ -54,31 +75,33 @@ jobs:
             || { echo "バージョンに使えない文字が含まれます: $VERSION"; exit 1; }
           # バージョンの真実の源はタグ。Info.plist と KildeCommand の既定値を
           # ビルド前に差し込む (コミットはせず、このビルド限り)
-          for PLIST in Sources/kilde/Info.plist gui/Resources/Info.plist; do
+          for PLIST in kilde-cli-swift/Sources/kilde/Info.plist gui/Resources/Info.plist; do
             [ -f "$PLIST" ] || continue
             plutil -replace CFBundleShortVersionString -string "$VERSION" "$PLIST"
             plutil -replace CFBundleVersion -string "$GITHUB_RUN_NUMBER" "$PLIST"
           done
           # macOS の sed (BSD) は -i '' が必要。version: "x.y.z" の形式をタグの値に。
           # 差し込みが成功したことを grep で確認する (sed の失敗は黙って通るため)
-          sed -i '' "s/version: \"[^\"]*\"/version: \"$VERSION\"/" Sources/kilde/KildeCommand.swift
-          grep -q "version: \"$VERSION\"" Sources/kilde/KildeCommand.swift \
+          sed -i '' "s/version: \"[^\"]*\"/version: \"$VERSION\"/" kilde-cli-swift/Sources/kilde/KildeCommand.swift
+          grep -q "version: \"$VERSION\"" kilde-cli-swift/Sources/kilde/KildeCommand.swift \
             || { echo "KildeCommand へのバージョン差し込みに失敗"; exit 1; }
 
       - name: Build release binary
-        run: swift build -c release
+        # CLI は kilde-cli-swift の checkout 内でビルドする (--package-path)。
+        # バイナリは kilde-cli-swift/.build/release/kilde に出る
+        run: swift build -c release --package-path kilde-cli-swift
 
       - name: Verify embedded Info.plist survived the build
         run: |
           # リンカの -sectcreate で Info.plist が埋め込まれていること (CLAUDE.md §5-7)。
           # バージョン差し込みが実行ファイルに届いているかもここで確認する
-          otool -P .build/release/kilde | grep -q "NSMicrophoneUsageDescription" \
+          otool -P kilde-cli-swift/.build/release/kilde | grep -q "NSMicrophoneUsageDescription" \
             || { echo "Info.plist の埋め込みが失敗"; exit 1; }
-          PLIST="$(otool -P .build/release/kilde | awk '/^<\?xml/ {f=1} f' \
+          PLIST="$(otool -P kilde-cli-swift/.build/release/kilde | awk '/^<\?xml/ {f=1} f' \
             | plutil -extract CFBundleShortVersionString raw -o - -)"
           [ "$PLIST" = "${{ steps.version.outputs.version }}" ] \
             || { echo "埋め込みバージョンが不一致: $PLIST"; exit 1; }
-          .build/release/kilde --version
+          kilde-cli-swift/.build/release/kilde --version
 
       - name: Import signing certificate (when credentials exist)
         id: cert
@@ -177,7 +200,7 @@ jobs:
             echo "signed=false" >> "$GITHUB_OUTPUT"
             mkdir -p dist
             ditto -c -k --sequesterRsrc --keepParent \
-              .build/release/kilde "dist/kilde-$VERSION-macos.zip"
+              kilde-cli-swift/.build/release/kilde "dist/kilde-$VERSION-macos.zip"
           fi
 
       - name: Clean up the signing keychain
@@ -214,7 +237,6 @@ jobs:
             else
               echo "- **このバイナリは未署名です** (Developer ID 証明書未取得のため)。"
               echo "  初回実行時はGatekeeper の警告が出ます (\`xattr -d com.apple.quarantine kilde\` で回避可能)。"
-              echo "  ソースからのビルド (\`swift build -c release\`) も利用できます。"
             fi
             echo
             echo "### インストール"
@@ -223,7 +245,7 @@ jobs:
             echo '```'
             echo
             echo "### Homebrew"
-            echo "tap は今後のリリースで提供予定です。それまでは上記の手動インストールか \`--HEAD\` ビルドを利用してください。"
+            echo "brew install takezou621/kilde/kilde"
           } > "$NOTES"
           # 署名ブランチでは sign.sh が GUI の DMG も作るので、存在すれば一緒に添付する
           ARGS=("$ARTIFACT")

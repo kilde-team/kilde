@@ -1,9 +1,14 @@
 # kilde — macOS 画面 + 音声 録画ツール 設計書
 
 - Version: 0.4 (draft)
-- Date: 2026-09-12
+- Date: 2026-09-14
 - Status: M0 スパイク完了 (結果は [SPIKE-NOTES.md](SPIKE-NOTES.md))。M1 CLI MVP 実装済み —
   v0.4 で §5 / §6 / §10 を M1 実装に追従させた
+- **リポジトリ分割 (issue #115 / #118)**: 録画エンジン (`KildeCore`) と CLI の実装・
+  テストは kilde-team/kilde-cli-swift (private) へ移管済み。この文書はプロダクト全体
+  (CLI / GUI 共通) の設計と契約の記録として残し、**エンジン実装の詳細 (地雷・並行性・
+  計測) の正本は kilde-team/kilde-cli-swift 側の DESIGN.md** とする。GUI (`gui/`) と
+  配布 (release workflow / Homebrew) は本リポジトリが担う
 
 ## 1. 背景・目的
 
@@ -223,7 +228,8 @@ SCStream(contentFilter, configuration)
   (`MovieWriter.firstPTSOffsets` は書き込み先ラベルがキー。mixed では `mixed` トラックの差になる)。
   これが同期の健全性指標で、マイクは起動遅延ぶん +0.3s 前後までを想定内とする
   (マイクを SCStream より先に起動して吸収 — SPIKE-NOTES F-D)。
-  長時間録画でのドリフトは `scripts/drift-test.sh` で計測する (手順と結果は SPIKE-NOTES F-E)。
+  長時間録画でのドリフトは kilde-team/kilde-cli-swift (issue #115 で移管) の
+  `scripts/drift-test.sh` で計測する (手順と結果は SPIKE-NOTES F-E)。
   2026-09-12 の 15 分計測 (BlackHole ループバック) では映像↔音声が最大 −12 ms、
   AVCapture 経路と SCK 経路の差が +0.1 ms (傾き +0.01 ms/分) で、許容の目安 ±40 ms に収まった。
   **実マイクのクロックでの計測は未実施** (検証機に音響経路が無いため — issue #3)。
@@ -400,46 +406,12 @@ writer の後始末より**前**に `sck?.stop()` を呼ぶ。ここでも停止
 
 #### 列挙も同じロックで直列化する (issue #90)
 
-**`SCShareableContent` の列挙と `rec` の SCK 起動が重なると、起動側が
-`SCStream.startCapture()` で `-3801`** (「ユーザがアプリケーション、ウインドウ、
-ディスプレイ取り込みの TCC を拒否しました」) **を受けて失敗する。**
-実測 (macOS 26、`devices` と `rec` を交互に各 10 回):
-
-| 条件 | `rec` の非ゼロ終了 |
-|---|---|
-| `kilde devices` を併走 | **7/10** (すべて `-3801`) |
-| 単独 (対照) | **0/10** |
-
-**権限拒否ではない。** `Recorder` は `startCapture()` の手前で
-`Permissions.hasScreenCapture` を確認済みで、権限が無ければそこで終了コード 2 になる。
-#70 のハングと違って固まりはせず、録画が即座に落ちる。
-
-そのため `DisplayCatalog` の列挙も `SCKStartupLock` の対象にする:
-
-- **既定でロックを取る** (`usesStartupLock: true`)。新しい呼び出し元が黙って穴を開けないため。
-  ロックを既に保持している `Recorder` の対象解決だけが明示的に `false` を渡す —
-  **`flock` は同一プロセスの別 fd でも排他される**ので (実測で `EWOULDBLOCK`)、
-  既定のまま呼ぶと自分のロックに阻まれて録画が失敗する
-- **「このプロセスが保持中なら素通り」という再入方式は採らない。** プロセス単位のフラグで
-  素通りさせると、GUI の列挙タスクが**録画開始中に**素通りする。同一プロセス内の
-  列挙と録画開始の競合はこの §6 が危険としている当のもので、呼び出し箇所ごとの
-  明示指定ならその穴ができない
-- **列挙の待機上限は録画より短い 3 秒** (`SCKStartupLock.enumerationTimeout`)。
-  列挙は 0.2 秒で終わる操作 (実測: `devices` 0.16〜0.19 秒、`doctor` 0.20〜0.21 秒) で、
-  危険区間 0.31 秒に対して余裕がある。長く待たせると「一覧を見たいだけなのに固まった」になる。
-  **同期版・async 版の両方をこの既定にする** — GUI は async 版を使うので、
-  片方だけ短くすると GUI のウィンドウ一覧が 15 秒固まる
-- **待てなかった場合は列挙を続行し、stderr に WARNING を出す。** 失敗させると、`rec` が
-  ハングしてロックを握ったままのとき (issue #95) に `devices` / `doctor` まで
-  巻き添えで使えなくなる。**診断コマンドは「壊れているときに動く」ことが値打ち**なので、
-  競合の危険を承知で進む方を選ぶ
-- **ただし「待ち切れなかった」と「ロックが使えない」を同じ文言で報せない。**
-  `SCKStartupLock.acquire` は理由を `Failure` (`timedOut` / `unavailable` /
-  `cancelled` / `invalidTimeout`) で返す。ロックファイルが開けない場合は
-  **排他がまったく成立していない**状態で、「先の録画を待ってください」と伝えると
-  利用者を無関係な復旧手順へ誘導する
-- GUI のサムネイル取得 (`windowThumbnails`) も `SCShareableContent.current` を
-  直接呼ぶ経路なので同じく塞ぐ。補助表示なので待ちは短く、取れなくても続行する
+`SCShareableContent` の列挙と `rec` の SCK 起動の重なりで起動側が `-3801` で
+失敗する問題と、`SCKStartupLock` による直列化 (列挙にも既定でロックを取る、
+待機上限 3 秒、待てなければ続行 + WARNING) の設計は、エンジンの実装とともに
+**kilde-team/kilde-cli-swift の DESIGN.md** へ移した (issue #115 / #118)。
+経緯と実測、残存する確率的不成立 (kilde #99) と停止の確実性 (kilde #103) は
+そちらを参照すること — kilde 側の issue はオープンなまま追跡する。
 
 ### 設定ファイル (`~/.kilde/config.json`, M2 — #14)
 
@@ -466,7 +438,8 @@ KildeCore (`ConfigStore` / `RecordSettings`) にある。値は CLI 引数と同
   **設定ファイル自体をどこから読むか**を決める (`config.json` と `monitor-state.json` の
   保存先。未設定・空文字なら `~/.kilde`。絶対パスか `~` 始まりのみで相対パスは不可)。
   つまり「環境変数 > 設定ファイル」の*環境変数*側ではなく、*設定ファイル*側の置き場所を
-  差し替える変数で、隔離した環境やテスト (`scripts/integration-test.sh`) で使う
+  差し替える変数で、隔離した環境やテスト (kilde-team/kilde-cli-swift の
+  `scripts/integration-test.sh` — issue #115 で移管) で使う
 - ホットキーの優先順位は **`--hotkey` > 設定 `hotkey` > 待機モードなし**
   (プリセットと環境変数は関与しない)
 - **ホットキーの排他 — 先に登録したプロセスが勝つ** (issue #80)。`HotkeyMonitor` は
@@ -699,43 +672,35 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
 
 ## 10. リポジトリ構成と開発プロセス
 
+エンジンと CLI のソースは kilde-team/kilde-cli-swift へ移管済み (issue #115 / #118)。
+本リポジトリの構成は次のとおり:
+
 ```
 kilde/
-├── Package.swift            # SPM: KildeCore (library) + kilde (executable)
-├── Sources/
-│   ├── KildeCore/           # UI 非依存のコア (CLI / GUI 共用)
-│   │   ├── Capture/         # SCStream / AVCaptureSession ラッパ、サンプル変換
-│   │   ├── Devices/         # ディスプレイ・ウィンドウ列挙、CoreAudio 機器、kilde Monitor
-│   │   ├── Input/           # HotkeyMonitor、ホットキー待機と開始/停止の状態管理
-│   │   ├── Recording/       # Recorder (セッションの指揮)、MovieWriter、AudioMixer
-│   │   └── Support/         # 権限、エラーと終了コード、ファイル検証、ユーティリティ
-│   └── kilde/               # CLI (引数解析と表示のみ) + Info.plist (リンカで埋め込み)
-├── Tests/KildeCoreTests/    # 単体テスト (権限不要・CI で実行 — issue #5)
-├── scripts/
-│   ├── integration-test.sh  # 実録画の統合テスト T1〜T12 (要権限・音量、ローカルのみ)
-│   └── soundapp.swift       # 統合テスト用の「音を鳴らすウィンドウ」アプリ
 ├── gui/                     # M3: メニューバー GUI (XcodeGen project.yml が正本で
-│                            #   .xcodeproj は生成物 — 骨格は #17、録画 UI は #18 以降)
-├── docs/                    # DESIGN.md / SPIKE-NOTES.md / DEVELOPMENT.md
+│                            #   .xcodeproj は生成物 — #17〜#20。KildeCore は
+│                            #   kilde-cli-swift を revision 固定のパッケージ依存で参照)
+├── scripts/release/         # sign.sh (署名 + notarization + zip/DMG) と entitlements
+│                            #   — CLI は kilde-cli-swift の checkout をビルドする
+├── .github/workflows/release.yml  # v* タグで Release を作成 (kilde-cli-swift を
+│                            #   pin + PAT で checkout)。単体テストの CI はエンジン側
+├── homebrew/Formula/kilde.rb  # tap (takezou621/homebrew-kilde) と同じ内容の formula 正本
+├── docs/                    # DESIGN.md / SPIKE-NOTES.md / DEVELOPMENT.md / RELEASE.md
 ├── CLAUDE.md / AGENTS.md    # AI エージェント向けの作業指示
 └── README.md
 ```
 
-- v0.3 で予定していた `Tests/SmokeTests/` (要権限の録画スモーク) は
-  `scripts/integration-test.sh` に置き換えた (権限が必要なため CI には載せない)。
-- Swift 6 相当・SPM。依存は `swift-argument-parser` のみで始める。
-- **ローカル統合テスト**: `scripts/integration-test.sh` — 実際に録画・音声再生を
-  行い、出力ファイルのトラック構成と RMS を機械検証する (T1〜T12、権限と
-  音量が必要、所要 ~2 分)。テスト用の音鳴らしウィンドウアプリ
-  (`scripts/soundapp.swift`) を同梱。
-  T11 (GUI のビルド・起動・終了) は xcodegen 未導入 / kilde-dev 証明書なし /
-  KildeGUI 起動中の環境では SKIP する (docs/DEVELOPMENT.md §4 の T11 参照)。
-- CI: GitHub Actions で `swift build` / `swift test` (単体のみ。スモークは
-  手動マトリクス)。
+- **単体テストと統合テストの正本は kilde-team/kilde-cli-swift 側**
+  (`swift test` と `scripts/integration-test.sh`、実録画 T1〜T25。権限が必要なため
+  CI には載せない — この方針もエンジン側で運用する)。
+  GUI の検証は docs/DEVELOPMENT.md §3 のセルフテストを使う。
+- CI: エンジンの `swift build` / `swift test` は kilde-team/kilde-cli-swift 側で実行
+  (macos-26 ランナー — issue #76)。本リポジトリの workflow はリリースのみ。
+
 - ロードマップ:
   - **M0**: 技術スパイク (§11) — **完了** (SPIKE-NOTES.md)
   - **M1**: CLI MVP (§3 の MVP 範囲) — 実装済み (ミックスダウン、`--monitor` を含む)。
-    仕上げ (単体テスト・CI・実地検証) は issue #2〜#7
+    エンジンと CLI のソースは kilde-team/kilde-cli-swift へ移管済み (issue #115)
   - **M2**: Recorder のイベント駆動化、領域指定、ホットキー、一時停止、
     複数ディスプレイ / MP4、アプリ除外、設定ファイル、passthrough、HDR (issue #8〜#16)
   - **M3**: GUI (issue #17〜#20)
