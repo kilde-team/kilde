@@ -213,18 +213,21 @@ git tag v0.2.0 && git push origin v0.2.0
 `swift build -c release --package-path kilde-cli-swift` → 埋め込み Info.plist の生存と
 バージョンを検証 → 署名 → Release を作成して zip (署名時は GUI の DMG も) を添付。
 
-**署名は secrets の有無で自動分岐**:
+**署名は必須 (secrets 不足でジョブが失敗する)**:
 
 | secrets | 動作 |
 |---------|------|
 | §4 の署名用 6 secret がすべて設定済み (`DEVELOPER_ID_CERTIFICATE_BASE64` + `DEVELOPER_ID_CERTIFICATE_PASSWORD` + `DEVELOPER_ID_APPLICATION` + `AC_API_KEY` + `AC_API_KEY_ID` + `AC_API_ISSUER`) | 証明書を一時キーチェーンに import → `sign.sh` で署名・notarization・staple と appcast 生成 (§5) まで実行 |
-| 未設定 (v0.1.0 時点) | **unsigned zip** でリリース。Release Notes に「未署名」の注意と `xattr -d` の回避方法を明記 |
+| 一部でも未設定 / すべて未設定 | **ジョブを失敗させる** (unsigned zip でのリリースは行わない) |
 
-証明書を取得したら §4 の 6 つの secrets を足すだけで署名に切り替わります
-(ワークフロー側の変更は不要)。`DEVELOPER_ID_CERTIFICATE_BASE64` は「Developer ID
+v0.2.0 以降は署名ありリリースで運用しており、GUI は Sparkle で latest の
+appcast を見にいく — 署名なしリリースが latest になると appcast が 404 になり
+全ユーザーの更新チェックが壊れるため、secrets 不足で unsigned に落ちる経路は
+持たせない (cubic レビュー指摘により v0.1.0 時代の unsigned 分岐は廃止)。
+`DEVELOPER_ID_CERTIFICATE_BASE64` は「Developer ID
 Application」の .p12 を `base64 -i cert.p12 | pbcopy` でエンコードしたもの。
-署名ありリリースでは Sparkle の `SPARKLE_ED25519_PRIVATE_KEY` (§5) も必要です —
-署名ブランチでこの secret が無いとジョブは appcast 生成の前で失敗します。
+署名には Sparkle の `SPARKLE_ED25519_PRIVATE_KEY` (§5) も必要です —
+この secret が無いとジョブは appcast 生成の前で失敗します。
 
 **手動検証** (タグを打たずにビルドだけ確認): Actions タブから `Release` ワークフローを
 `workflow_dispatch` で実行。**手動実行は常に dry-run** (ビルドと署名分岐までを検証、

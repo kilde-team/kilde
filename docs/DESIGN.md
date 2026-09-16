@@ -682,10 +682,16 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
 > `SPUUpdaterDelegate` (`UpdateInstallGate`) が再起動を postpone し、
 > `applicationShouldTerminate` と同じ `whenSessionEnds` パターンで「停止 →
 > ファイナライズ完了 → 通知待ち完了 → relaunch」の順に繋ぐ (最重要要件
-> 「壊れたファイルを残さない」の徹底)。判定は純関数 `installAction` に切り出して
+> 「壊れたファイルを残さない」の徹底)。**`whenSessionEnds` は登録時点のセッションに
+> 束縛されるため、通知待ちの間にユーザーが次の録画を始めると、古いセッションの
+> 完了でハンドラが発火してしまう** — ハンドラは実行時点で `installAction` を
+> 再評価し、まだ動いている録画があればそのセッションに束縛して待ち直す
+> (`postponeUntilSettled`。cubic レビュー指摘による修正。プロセス終了時に一度しか
+> 走らない `applicationShouldTerminate` には起きない — GUI の生存が続くからこその問題)。
+> 判定は純関数 `installAction` に切り出して
 > あり (録画中→停止待ち / 通知待ち→通知待ち / 待機中→即時)、セルフテスト
 > (`KILDE_GUI_SELFTEST_UPDATE=1`) が全ケースを検証する。Debug ビルドは
-> `SUAutomaticallyChecksForUpdates=false` を UserDefaults に書き込み、開発機が
+> `SUEnableAutomaticChecks=false` を UserDefaults に書き込み、開発機が
 > 実フィードを定期的に見にいかないようにする (SU* キーは UserDefaults が
 > Info.plist より優先される。戻す手順は docs/DEVELOPMENT.md §3)。
 > セルフテストで確かめられるのは配線と設定まで — ダウンロード・EdDSA 検証・

@@ -1,12 +1,13 @@
 name: Release
 
-# issue #25: v* タグの push で署名付き (可能なら) リリースを作る。
-# 証明書 (Developer ID) はまだ取得済みではないため、secrets の有無で分岐する:
-#   - DEVELOPER_ID_CERTIFICATE_BASE64 + DEVELOPER_ID_CERTIFICATE_PASSWORD (証明書の
-#     import 用) と DEVELOPER_ID_APPLICATION + AC_API_KEY / AC_API_KEY_ID /
-#     AC_API_ISSUER (署名・notarization 用) がすべてあれば sign.sh まで行う
-#   - 無ければ unsigned zip でリリースし、caveats に「未署名」を明記する
-# 証明書を取得したら RELEASE.md §4 の 6 secrets (+ Sparkle の §5) を足すだけで署名に切り替わる。
+# issue #25: v* タグの push で署名付きリリースを作る。署名は必須 —
+# DEVELOPER_ID_CERTIFICATE_BASE64 + DEVELOPER_ID_CERTIFICATE_PASSWORD (証明書の
+# import 用) と DEVELOPER_ID_APPLICATION + AC_API_KEY / AC_API_KEY_ID /
+# AC_API_ISSUER (署名・notarization 用) が揃っていなければジョブを失敗させる。
+# v0.2.0 以降は署名ありリリースで運用しており、GUI は Sparkle で latest の appcast を
+# 見にいく — 署名なしリリースが latest になると appcast が 404 になり全ユーザーの
+# 更新チェックが壊れるため、secrets 不足で unsigned に落ちる経路は持たない
+# (cubic レビュー指摘により v0.1.0 時代の unsigned 分岐は廃止)。
 #
 # kilde#118: CLI ソースは kilde-team/kilde-cli-swift に分離されたため、この workflow
 # は同リポジトリを revision 固定で追加チェックアウトして CLI をビルドする。private
@@ -143,8 +144,9 @@ jobs:
           [ -n "$API_KEY_ID" ] && SET_COUNT=$((SET_COUNT+1))
           [ -n "$API_ISSUER" ] && SET_COUNT=$((SET_COUNT+1))
           if [ "$SET_COUNT" -eq 0 ]; then
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-            exit 0
+            echo "署名用 secrets が 1 つも設定されていません (RELEASE.md §4)。"
+            echo "v0.2.0 以降は署名ありリリースが前提のため、unsigned でのリリースは行いません"
+            exit 1
           fi
           if [ "$SET_COUNT" -ne 6 ]; then
             echo "署名用 secrets が部分的にしか設定されていません (RELEASE.md §4 の 6 つを確認。全部揃えるか全部外すかしてください)"
@@ -178,9 +180,8 @@ jobs:
             | grep -q "Developer ID Application" \
             || { echo "キーチェーンに署名用 identity が見つかりません"; exit 1; }
           rm cert.p12
-          echo "skip=false" >> "$GITHUB_OUTPUT"
 
-      - name: Sign and notarize (when credentials exist)
+      - name: Sign and notarize
         id: sign
         env:
           DEVELOPER_ID_APPLICATION: ${{ secrets.DEVELOPER_ID_APPLICATION }}
@@ -192,51 +193,48 @@ jobs:
         run: |
           # notarization の鍵ファイルはどの経路で抜けても消す
           trap 'rm -rf "$HOME/.signing"' EXIT
-          if [ -n "$DEVELOPER_ID_APPLICATION" ] && [ -n "$AC_API_KEY" ] \
-              && [ "${{ steps.cert.outputs.skip }}" = "false" ]; then
-            echo "signed=true" >> "$GITHUB_OUTPUT"
-            # sign.sh は GUI を xcodegen + xcodebuild でビルドする。unsigned 分岐は
-            # CLI の zip しか作らないため、インストールは署名ブランチの中だけでよい
-            brew install xcodegen
-            # Sparkle の EdDSA 署名ツール (issue #122)。homebrew に formula は無く、
-            # SPM checkout (バイナリターゲット) にも入らないため公式 Release の
-            # tar.xz から取る。バージョンは gui/project.yml の exactVersion と揃える
-            SPARKLE_VERSION=2.10.0
-            mkdir -p "$RUNNER_TEMP/sparkle"
-            curl -fsSL "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz" \
-              | tar -xJ -C "$RUNNER_TEMP/sparkle"
-            export KILDE_SIGN_UPDATE="$RUNNER_TEMP/sparkle/bin/sign_update"
-            # 鍵が無いと署名なし appcast のリリースができ上がり、GUI の更新チェックが
-            # 壊れる — 黙って続けない (鍵の手順は docs/RELEASE.md「Sparkle (GUI 自動更新)」)
-            [ -n "$SPARKLE_ED25519_PRIVATE_KEY" ] \
-              || { echo "SPARKLE_ED25519_PRIVATE_KEY が未設定です (docs/RELEASE.md §5)"; exit 1; }
-            mkdir -p "$HOME/.signing"
-            # AC_API_KEY は .p8 ファイルの内容 (生)。sign.sh はファイルパスを
-            # 受け取るので、権限 600 の一時ファイルに書いて渡す
-            umask 077
-            printf '%s\n' "$AC_API_KEY" > "$HOME/.signing/AuthKey.p8"
-            scripts/release/sign.sh \
-              --identity "$DEVELOPER_ID_APPLICATION" \
-              --key "$HOME/.signing/AuthKey.p8" \
-              --key-id "$AC_API_KEY_ID" --issuer "$AC_API_ISSUER" \
-              --version "$VERSION"
-            # appcast が無いリリースが latest になると、既存 GUI の更新チェックが
-            # 404 で壊れる — 失敗扱いにして設定ミスを黙らせない (issue #122)
-            [ -f dist/appcast.xml ] \
-              || { echo "dist/appcast.xml が生成されていません — sign.sh の appcast 生成を確認"; exit 1; }
-            rm -rf "$HOME/.signing"
-          else
-            # 証明書が未取得: unsigned zip でリリースし、利用者に伝える。
-            # 成果物名は sign.sh と同じ kilde-<ver>-macos.zip に揃える — Homebrew
-            # formula (#24) の url がこの名前を指す想定のため
-            echo "signed=false" >> "$GITHUB_OUTPUT"
-            mkdir -p dist
-            ditto -c -k --sequesterRsrc --keepParent \
-              kilde-cli-swift/.build/release/kilde "dist/kilde-$VERSION-macos.zip"
-          fi
+          # 証明書が無ければ前段 (cert step) が失敗している — ここは署名経路のみ
+          # sign.sh は GUI を xcodegen + xcodebuild でビルドする
+          brew install xcodegen
+          # Sparkle の EdDSA 署名ツール (issue #122)。homebrew に formula は無く、
+          # SPM checkout (バイナリターゲット) にも入らないため公式 Release の
+          # tar.xz から取る。バージョンは gui/project.yml の exactVersion と揃える。
+          # ツールは署名鍵を持つ CI 上で動くため、tarball が期待する配布物かを
+          # SHA-256 固定値で検証してから展開する (資産の差し替え対策)
+          SPARKLE_VERSION=2.10.0
+          SPARKLE_SHA256="c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c"
+          TARBALL="$RUNNER_TEMP/Sparkle-$SPARKLE_VERSION.tar.xz"
+          curl -fsSL -o "$TARBALL" \
+            "https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz"
+          echo "$SPARKLE_SHA256  $TARBALL" | shasum -a 256 --check \
+            || { echo "Sparkle tarball の SHA-256 が一致しません — 配布物が更新されたか URL が差し替えられています"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/sparkle"
+          tar -xJf "$TARBALL" -C "$RUNNER_TEMP/sparkle"
+          export KILDE_SIGN_UPDATE="$RUNNER_TEMP/sparkle/bin/sign_update"
+          # 鍵が無いと署名なし appcast のリリースができ上がり、GUI の更新チェックが
+          # 壊れる — 黙って続けない (鍵の手順は docs/RELEASE.md「Sparkle (GUI 自動更新)」)
+          [ -n "$SPARKLE_ED25519_PRIVATE_KEY" ] \
+            || { echo "SPARKLE_ED25519_PRIVATE_KEY が未設定です (docs/RELEASE.md §5)"; exit 1; }
+          mkdir -p "$HOME/.signing"
+          # AC_API_KEY は .p8 ファイルの内容 (生)。sign.sh はファイルパスを
+          # 受け取るので、権限 600 の一時ファイルに書いて渡す
+          umask 077
+          printf '%s\n' "$AC_API_KEY" > "$HOME/.signing/AuthKey.p8"
+          scripts/release/sign.sh \
+            --identity "$DEVELOPER_ID_APPLICATION" \
+            --key "$HOME/.signing/AuthKey.p8" \
+            --key-id "$AC_API_KEY_ID" --issuer "$AC_API_ISSUER" \
+            --version "$VERSION"
+          # appcast が無いリリースが latest になると、既存 GUI の更新チェックが
+          # 404 で壊れる — 失敗扱いにして設定ミスを黙らせない (issue #122)
+          [ -f dist/appcast.xml ] \
+            || { echo "dist/appcast.xml が生成されていません — sign.sh の appcast 生成を確認"; exit 1; }
+          rm -rf "$HOME/.signing"
 
       - name: Clean up the signing keychain
-        if: ${{ always() && steps.cert.outputs.skip == 'false' }}
+        # cert step がキーチェーンを作った場合のみ (失敗時は cert step の trap が
+        # 自分で消すため、失敗 step の outputs は空のままここに来る)
+        if: ${{ always() && steps.cert.outputs.keychain != '' }}
         env:
           KEYCHAIN: ${{ steps.cert.outputs.keychain }}
         run: |
@@ -272,7 +270,6 @@ jobs:
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         env:
           GH_TOKEN: ${{ github.token }}
-          SIGNED: ${{ steps.sign.outputs.signed }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           TAG="v$VERSION"
@@ -286,13 +283,8 @@ jobs:
             echo
             echo "- ビルド: arm64 (Apple Silicon)。Intel / universal は今後のリリースで提供予定"
             echo
-            if [ "$SIGNED" = "true" ]; then
-              echo "- 署名・notarization 済み (Developer ID)"
-              echo "- GUI はアプリ内の「アップデートを確認」で自動更新できます (Sparkle)"
-            else
-              echo "- **このバイナリは未署名です** (Developer ID 証明書未取得のため)。"
-              echo "  初回実行時はGatekeeper の警告が出ます (\`xattr -d com.apple.quarantine kilde\` で回避可能)。"
-            fi
+            echo "- 署名・notarization 済み (Developer ID)"
+            echo "- GUI はアプリ内の「アップデートを確認」で自動更新できます (Sparkle)"
             echo
             echo "### インストール"
             echo '```sh'
@@ -302,10 +294,10 @@ jobs:
             echo "### Homebrew"
             echo "brew install takezou621/kilde/kilde"
           } > "$NOTES"
-          # 署名ブランチでは sign.sh が GUI の DMG も作るので、存在すれば一緒に添付する
           ARGS=("$ARTIFACT")
-          # appcast.xml は SUFeedURL (latest download の固定 URL) の中身 — 必ず添付する
-          [ "$SIGNED" = "true" ] && for extra in dist/KildeGUI-*.dmg dist/appcast.xml; do
+          # sign.sh が GUI の DMG と appcast.xml を必ず作る — appcast は SUFeedURL
+          # (latest download の固定 URL) の中身なので添付漏れは全ユーザーの更新を壊す
+          for extra in dist/KildeGUI-*.dmg dist/appcast.xml; do
             [ -e "$extra" ] && ARGS+=("$extra")
           done
           # 同じタグで再実行した場合、既存 Release の資産を差し替える (作り直しはしない)

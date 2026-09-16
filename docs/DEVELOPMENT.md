@@ -219,14 +219,18 @@ KILDE_GUI_SELFTEST_UPDATE=1 "$APP/Contents/MacOS/KildeGUI"
 > 影響しません (正式な Developer ID 署名では出なくなると考えられます)。
 
 > **Sparkle (GUI 自動更新、issue #122)**: Debug ビルドは
-> `SUAutomaticallyChecksForUpdates=false` を UserDefaults に書き込みます —
+> `SUEnableAutomaticChecks=false` を UserDefaults に書き込みます —
 > 開発機が実フィード (`releases/latest/download/appcast.xml`) を定期的に見に
-> いかないようにするため (SU* キーは UserDefaults が Info.plist より優先される)。
-> **この値は Release ビルドにも効いてしまう**ので、手動の更新チェック
-> (ポップオーバーの「アップデートを確認」) を Release ビルドで試すときは戻します:
+> いかないようにするため (SU* キーは UserDefaults が Info.plist より優先される。
+> キー名は Sparkle 2 の `SUEnableAutomaticChecks` — Sparkle 1 の
+> `SUAutomaticallyChecksForUpdates` は効かない)。
+> **この値は Release ビルドにも効いてしまう**ので、開発が終わったら開発機を
+> 出荷時状態に戻す後始末として削除します。なお**手動の更新チェック**
+> (ポップオーバーの「アップデートを確認」) はこの値に関係なく動く —
+> 削除し忘れても手動チェックの成否には影響せず、影響するのは自動チェックだけ:
 >
 > ```sh
-> defaults delete com.takezou621.KildeGUI SUAutomaticallyChecksForUpdates
+> defaults delete com.takezou621.KildeGUI SUEnableAutomaticChecks
 > ```
 >
 > ダウンロード〜再起動までの E2E をリリース前に確認したいときは、フィードを

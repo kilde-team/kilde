@@ -264,6 +264,12 @@ fi
 # sparkle:version は CFBundleVersion (= リリース workflow が差し込む GITHUB_RUN_NUMBER)。
 # Sparkle はこの値の単調増加で更新を判定する — バージョン文字列ではない
 BUILD_NUMBER="$(plutil -extract CFBundleVersion raw -o - "$GUI_APP/Contents/Info.plist")"
+GUI_SHORT_VERSION="$(plutil -extract CFBundleShortVersionString raw -o - "$GUI_APP/Contents/Info.plist")"
+# sparkle:shortVersionString には VERSION を書くため、ビルドした GUI と VERSION が
+# ずれていると appcast と DMG の中身が不一致になる — 更新を催促するのに中身が古い
+# 配布物ができ上がる。--version 直接実行 (stamp 無し) で起こりうるので弾く
+[[ "$GUI_SHORT_VERSION" == "$VERSION" ]] \
+    || die "GUI の CFBundleShortVersionString ($GUI_SHORT_VERSION) が成果物バージョン ($VERSION) と一致しません — リリース workflow の stamp を通すか、gui/Resources/Info.plist を更新してください"
 SIGN_UPDATE_OUT=""
 if [[ -n "$SPARKLE_PRIVATE_KEY" ]]; then
     # CI など鍵ファイルが無い環境: 秘密鍵を stdin に流す (--ed-key-file - は定型)
@@ -311,7 +317,11 @@ XML
 if grep -q '\${' "$APPCAST"; then
     die "appcast に未置換のプレースホルダが残っています: $APPCAST"
 fi
-xmllint --noout "$APPCAST" 2>/dev/null || echo "warn: xmllint が無いため appcast の整形式検査を省略しました"
+if command -v xmllint >/dev/null 2>&1; then
+    xmllint --noout "$APPCAST" || die "appcast.xml が整形式ではありません: $APPCAST"
+else
+    echo "warn: xmllint が無いため appcast の整形式検査を省略しました"
+fi
 
 echo "完了:"
 echo "  CLI: $CLI_ZIP"

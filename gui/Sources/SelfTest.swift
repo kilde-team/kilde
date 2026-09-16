@@ -201,11 +201,12 @@ enum SelfTest {
         let info = Bundle.main.infoDictionary ?? [:]
         let feedURL = info["SUFeedURL"] as? String ?? ""
         print("selftest: SUFeedURL=\(feedURL)")
-        // latest の固定 URL にしておくと Release を作るたびに appcast の場所が変わらない
-        guard feedURL.hasPrefix("https://"),
-              feedURL.contains("github.com"),
-              feedURL.hasSuffix("/appcast.xml") else {
-            fail("SUFeedURL が GitHub Releases の appcast.xml に見えません: \(feedURL)")
+        // **完全一致で検証する** — hasPrefix/hasSuffix の緩い形式チェックだと、ホストや
+        // パスの打ち間違い (appcast を別リポジトリに置く等) が通ってしまう。latest の
+        // 固定 URL は Release を作るたびに appcast の場所が変わらないという SUFeedURL の
+        // 契約の一部なので、ここで崩れていないことを機械的に保証する
+        guard feedURL == "https://github.com/takezou621/kilde/releases/latest/download/appcast.xml" else {
+            fail("SUFeedURL が GitHub Releases の appcast.xml 固定 URL と一致しません: \(feedURL)")
         }
         let publicEDKey = info["SUPublicEDKey"] as? String ?? ""
         print("selftest: SUPublicEDKey=\(publicEDKey.isEmpty ? "(空)" : publicEDKey)")

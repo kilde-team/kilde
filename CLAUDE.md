@@ -61,7 +61,8 @@ scripts/release/sign.sh        Developer ID 署名 + notarization + zip/DMG 作�
                                (CLI は kilde-cli-swift の checkout をビルド — CLI_DIR)
 scripts/release/entitlements.plist  audio-input (署名用)
 .github/workflows/release.yml  v* タグで kilde-cli-swift (pin 固定 + PAT) を checkout し
-                               CLI をビルド、sign.sh か unsigned zip で Release を作成
+                               CLI をビルド、sign.sh で署名して Release を作成
+                               (署名 secrets 不足ならジョブは失敗 — unsigned 分岐は廃止)
 homebrew/Formula/kilde.rb      tap (takezou621/homebrew-kilde) と同じ内容の formula 正本
 docs/                          DEVELOPMENT.md / RELEASE.md / DESIGN.md / SPIKE-NOTES.md ほか
 ```
@@ -82,8 +83,9 @@ docs/                          DEVELOPMENT.md / RELEASE.md / DESIGN.md / SPIKE-N
   `Info.plist` と `KildeCommand.swift` にビルド時に差し込む (コミットはしない)。
   手動実行 (workflow_dispatch) は常に dry-run — Release は作らない
 - **成果物名は `kilde-<version>-macos.zip`** — Homebrew formula の `url` がこの名前を
-  指す。署名用 6 secrets が揃うと `sign.sh` 経路 (署名 + GUI DMG + appcast) に切り替わる。
-  署名ありリリースでは Sparkle の `SPARKLE_ED25519_PRIVATE_KEY` も必須 (RELEASE.md §5)
+  指す。**署名は必須**: §4 の署名用 6 secrets と Sparkle の `SPARKLE_ED25519_PRIVATE_KEY`
+  (RELEASE.md §5) が揃っていないとジョブは失敗する。unsigned へのフォールバックは
+  廃止 — appcast の無いリリースが latest になると全ユーザーの更新チェックが壊れるため
 - **Homebrew formula は 2 箇所で揃える**: 本リポジトリの `homebrew/Formula/kilde.rb`
   (正本) と tap takezou621/homebrew-kilde。リリース zip の `url` / `sha256` を更新して
   tap へ反映する (docs/RELEASE.md「Homebrew tap の更新」)。head ブロックはない —
@@ -145,6 +147,10 @@ Info.plist 埋め込みの `unsafeFlags`、SDK シンボルの CI 確認) は
     単調増加が契約**。Sparkle はバージョン文字列ではなくこの値で更新を判定する。
     release workflow が `GITHUB_RUN_NUMBER` を差し込む前提なので、手差し込みの
     リリースでは必ず前回より大きい値にする
+14. **Sparkle 2 の自動チェックのキーは `SUEnableAutomaticChecks`**。Sparkle 1 の
+    `SUAutomaticallyChecksForUpdates` に戻すと警告なしで効かなくなり、Debug ビルドの
+    「実フィードを見にいかない」が黙って無効になる (UpdaterCoordinator が書き込む値。
+    defaults での戻し手順は docs/DEVELOPMENT.md §3)
 
 ## 6. 作業の進め方 — issue 駆動 (共通ルールは AGENTS.md)
 
