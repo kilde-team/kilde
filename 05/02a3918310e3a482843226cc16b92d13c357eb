@@ -1,0 +1,24 @@
+scripts/release/appstore-archive.sh
+  s_eb3337c7e94f28::t_0eea9ed7d4fbd6 128-131,133,135
+  s_eb3337c7e94f28::t_56fdf5d2c190eb 132,134,136
+docs/DEVELOPMENT.md
+  s_eb3337c7e94f28::t_34ec838b481629 257-259,261,269-270
+gui/Sources/RecordingSetup.swift
+  s_eb3337c7e94f28::t_9de82c327b45aa 78-87
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "0502a3918310e3a482843226cc16b92d13c357eb",
+  "prompts": {},
+  "sessions": {
+    "s_eb3337c7e94f28": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f20c22fd-6aba-4f7b-96ec-194e2618b56f",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
