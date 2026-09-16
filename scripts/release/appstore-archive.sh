@@ -7,9 +7,12 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 GUI_DIR="$ROOT_DIR/gui"
 SCHEME="KildeGUI-AppStore"
 
-# App Store Connect API キー (Apple Developer サイトの「ユーザとアクセス → 統合」で
-# 発行する .p8)。xcodebuild -allowProvisioningUpdates が証明書・プロファイルの
-# 自動作成に、-exportArchive のアップロードに使う。sign.sh と同じ変数名にしてある
+# App Store Connect API キー (**任意** — 「ユーザとアクセス → 統合」で発行する .p8)。
+# 未指定なら xcodebuild -allowProvisioningUpdates がこの Mac の Xcode にログイン済みの
+# Apple ID セッションで証明書・プロファイルを作り、アップロードもそこから行う。
+# API キーを渡す場合は «クラウド署名» の権限 (キーロール App Manager 以上) が要る —
+# 権限の無いキーだとエクスポートが "Cloud signing permission error" で失敗する
+# (Xcode 26 実測)。sign.sh と同じ変数名にしてある
 KEY_PATH="${AC_API_KEY:-}"
 KEY_ID="${AC_API_KEY_ID:-}"
 ISSUER="${AC_API_ISSUER:-}"
@@ -40,13 +43,19 @@ Options:
   --team-id ID          Developer Team ID (既定: 4B873Q67MK)
 
 Environment:
-  AC_API_KEY       App Store Connect API キー (.p8) のパス (必須)
-  AC_API_KEY_ID    キー ID (必須)
-  AC_API_ISSUER    issuer ID (必須)
+  AC_API_KEY       App Store Connect API キー (.p8) のパス (**任意** —
+                   未指定なら Xcode の Apple ID セッションでプロビジョニングする。
+                   キーを使うにはクラウド署名の権限 (App Manager 以上) が必要)
+  AC_API_KEY_ID    キー ID (AC_API_KEY とセットで指定)
+  AC_API_ISSUER    issuer ID (AC_API_KEY とセットで指定)
   KILDE_CLI_SWIFT_TOKEN   private な kilde-cli-swift を解決するための PAT
                           (Contents: Read-only)。未設定なら既存の git 認証を使う
 
 例:
+  # この Mac で完結 — Xcode の Apple ID セッションが証明書・プロファイルを自動作成する
+  scripts/release/appstore-archive.sh --version 0.4.0 --build 42
+
+  # ASC API キーを使う (CI など Apple ID でログインできない環境)
   AC_API_KEY=~/.kilde-asc/AuthKey_XYZ.p8 AC_API_KEY_ID=XYZ AC_API_ISSUER=... \
       scripts/release/appstore-archive.sh --version 0.4.0 --build 42
 EOF
@@ -68,10 +77,12 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-[ -n "$KEY_PATH" ] || { usage >&2; die "AC_API_KEY (.p8 のパス) が必要です"; }
-[ -n "$KEY_ID" ] || die "AC_API_KEY_ID が必要です"
-[ -n "$ISSUER" ] || die "AC_API_ISSUER が必要です"
-[ -f "$KEY_PATH" ] || die "API キーが見つかりません: $KEY_PATH"
+# API キーは 3 変数をすべて指定するかすべて省略する (任意)。片方だけの指定は設定漏れ
+if [ -n "$KEY_PATH" ] || [ -n "$KEY_ID" ] || [ -n "$ISSUER" ]; then
+    { [ -n "$KEY_PATH" ] && [ -n "$KEY_ID" ] && [ -n "$ISSUER" ]; } \
+        || die "AC_API_KEY / AC_API_KEY_ID / AC_API_ISSUER は 3 つとも指定するか、すべて省略してください"
+    [ -f "$KEY_PATH" ] || die "API キーが見つかりません: $KEY_PATH"
+fi
 [ -d "$GUI_DIR" ] || die "gui/ が見つかりません: $GUI_DIR"
 # CFBundleVersion は整数またはドット区切り整数のみ。不正値はビルド開始前に弾く
 # (ASC は提出時に拒否するが、そのためだけにアーカイブ一式を作らせない — cubic レビュー指摘)
@@ -84,12 +95,19 @@ fi
 mkdir -p "$OUTPUT_DIR"
 OUTPUT_DIR="$(cd "$OUTPUT_DIR" && pwd)"
 
-AUTH_ARGS=(
-    -authenticationKeyPath "$KEY_PATH"
-    -authenticationKeyID "$KEY_ID"
-    -authenticationKeyIssuerID "$ISSUER"
-    -allowProvisioningUpdates
-)
+if [ -n "$KEY_PATH" ]; then
+    AUTH_ARGS=(
+        -authenticationKeyPath "$KEY_PATH"
+        -authenticationKeyID "$KEY_ID"
+        -authenticationKeyIssuerID "$ISSUER"
+    )
+    log "ASC API キーを使用: $KEY_PATH"
+else
+    # 認証キーを渡さなければ -allowProvisioningUpdates が Xcode の Apple ID
+    # セッションを使う — 配布証明書・プロファイルの自動作成もアップロードもこれで通る
+    AUTH_ARGS=()
+    log "ASC API キー未指定 — Xcode の Apple ID セッションでプロビジョニング"
+fi
 
 # private な kilde-cli-swift のパッケージ解決には GitHub の git 認証が要る
 # (DEVELOPMENT.md §1)。KILDE_CLI_SWIFT_TOKEN があれば release.yml と同じ insteadOf
@@ -137,11 +155,17 @@ ARCHIVE_PATH="$OUTPUT_DIR/KildeGUI-AppStore.xcarchive"
 # PRODUCT_NAME が直接配布版と同じ KildeGUI のため、DerivedData を分離する。
 # 使い回すと以前の KildeGUI ビルドの Sparkle.framework が成果物に残る (project.yml 参照)。
 #
-# project.yml の CODE_SIGN_IDENTITY=kilde-dev はローカル開発用 — このままでは
-# 自動署名が kilde-dev を探してアーカイブが失敗するため、ASC 用の証明書名を
-# 明示して上書きする (Apple Distribution は -allowProvisioningUpdates が作る。
-# cubic レビュー指摘)
+# project.yml の CODE_SIGN_STYLE=Manual + CODE_SIGN_IDENTITY=kilde-dev はローカル
+# 開発用 — このままではアーカイブが kilde-dev を探して失敗するため、自動署名に
+# 差し替える。ここで CODE_SIGN_IDENTITY は **Apple Development** を指定する
+# (Xcode 26 実測): 自動署名のままで Apple Distribution を明示すると
+# 「conflicting provisioning settings」で失敗する。配布署名 (Apple Distribution) は
+# -exportArchive が exportOptions の signingStyle=automatic + -allowProvisioningUpdates
+# で適用する — 証明書・プロファイルが無ければその時点で自動作成される
 log "アーカイブを開始 (scheme=$SCHEME)"
+# "${AUTH_ARGS[@]+...}" は配列が空のときの set -u 対策 (macOS 標準の bash 3.2 は
+# 空配列展開でエラーになる)。AUTH_ARGS が空でも -allowProvisioningUpdates は
+# 常に渡す — Apple ID セッションのプロビジョニングはこのフラグで有効になる
 xcodebuild archive \
     -project KildeGUI.xcodeproj \
     -scheme "$SCHEME" \
@@ -149,9 +173,10 @@ xcodebuild archive \
     -derivedDataPath "$OUTPUT_DIR/derived" \
     -archivePath "$ARCHIVE_PATH" \
     CODE_SIGN_STYLE=Automatic \
-    CODE_SIGN_IDENTITY="Apple Distribution" \
+    CODE_SIGN_IDENTITY="Apple Development" \
     DEVELOPMENT_TEAM="$TEAM_ID" \
-    "${AUTH_ARGS[@]}"
+    -allowProvisioningUpdates \
+    ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"}
 
 # アーカイブの中身を検証する。「MAS 版に Sparkle を含めない」「サンドボックス有効」は
 # このスクリプトの契約 — 作ってから確かめるまで通ったことにならない
@@ -203,7 +228,8 @@ if [ "$UPLOAD" = true ]; then
         -archivePath "$ARCHIVE_PATH" \
         -exportPath "$OUTPUT_DIR" \
         -exportOptionsPlist "$EXPORT_OPTIONS" \
-        "${AUTH_ARGS[@]}"
+        -allowProvisioningUpdates \
+        ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"}
     log "アップロード完了。App Store Connect で処理完了後に提出してください"
     exit 0
 fi
@@ -214,7 +240,8 @@ xcodebuild -exportArchive \
     -archivePath "$ARCHIVE_PATH" \
     -exportPath "$OUTPUT_DIR" \
     -exportOptionsPlist "$EXPORT_OPTIONS" \
-    "${AUTH_ARGS[@]}"
+    -allowProvisioningUpdates \
+    ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"}
 
 PKG="$OUTPUT_DIR/KildeGUI.pkg"
 [ -f "$PKG" ] || PKG="$(find "$OUTPUT_DIR" -maxdepth 1 -name '*.pkg' | head -1)"

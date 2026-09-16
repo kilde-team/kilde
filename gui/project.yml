@@ -98,8 +98,11 @@ targets:
         PRODUCT_NAME: KildeGUI
         INFOPLIST_FILE: Resources/Info.plist
         # ローカル開発は kilde-dev で署名する (KildeGUI と同じ — TCC が同一識別で
-        # 権限を引き継ぐ)。アーカイブ時は scripts/release/appstore-archive.sh が
-        # Apple Distribution + 自動署名に差し替える
+        # 権限を引き継ぐ)。アーカイブ時は appstore-archive.sh が自動署名
+        # (Apple Development) に差し替え、配布署名 (Apple Distribution) は
+        # -exportArchive 時に signingStyle=automatic + -allowProvisioningUpdates が
+        # 適用する。**アーカイブ段階で Apple Distribution を指定すると
+        # 「automatic signing と競合する」で xcodebuild が失敗する** (Xcode 26 実測)
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: kilde-dev
         # KildeGUI と同じ Xcode 26 の EF debug dylib 問題への対策 (上記参照)
