@@ -71,6 +71,8 @@ scripts/release/sign.sh \
 3. XcodeGen と `xcodebuild` で KildeGUI の Release `.app` をビルドし、同じ条件で署名する
 4. `dist/kilde-<version>-macos.zip` と `dist/KildeGUI-<version>.dmg` を作る
 5. 両方を `notarytool submit --wait` へ送り、GUI の DMG にチケットを staple する
+6. GUI の DMG に Sparkle の EdDSA 署名をして `dist/appcast.xml` を作る (§5。
+   `--skip-notarize` でも生成する — appcast が無いと GUI の自動更新が壊れるため)
 
 zip には notarization ticket を直接 staple できません。CLI の ticket は Gatekeeper が
 Apple のサービスから取得します。GUI の DMG はオフライン検証にも対応できるよう staple します。
@@ -97,6 +99,7 @@ scripts/release/sign.sh \
 | `--cli-dir` | `KILDE_CLI_DIR` | CLI ソース (kilde-team/kilde-cli-swift) の checkout / clone。既定はリポジトリ直下の `kilde-cli-swift/` |
 | `--output-dir` | `KILDE_RELEASE_OUTPUT_DIR` | 成果物の出力先。既定は `dist/` |
 | `--version` | `KILDE_RELEASE_VERSION` | 成果物名のバージョン。既定は CLI の Info.plist |
+| `--sign-update` | `KILDE_SIGN_UPDATE` | Sparkle の EdDSA 署名ツール `sign_update` のパス (§5) |
 
 引数と環境変数を両方指定した場合は引数が優先されます。
 
@@ -105,7 +108,7 @@ scripts/release/sign.sh \
 release workflow から `sign.sh` へ渡す名前は次で固定し、証明書の import と一時
 Keychain の作成は workflow 側で行います。
 
-署名用の 6 secrets:
+署名用の 6 secrets と、GUI 自動更新 (Sparkle) 用の 1 secret:
 
 | GitHub Secret | workflow での用途 / `sign.sh` との対応 |
 |---------------|-----------------------------------------|
@@ -115,6 +118,7 @@ Keychain の作成は workflow 側で行います。
 | `AC_API_KEY_ID` | `sign.sh` の `--key-id` / 同名環境変数 |
 | `AC_API_ISSUER` | `sign.sh` の `--issuer` / 同名環境変数 |
 | `AC_API_KEY` | `.p8` の内容。workflow が権限 600 の一時ファイルにして `--key` へ渡す |
+| `SPARKLE_ED25519_PRIVATE_KEY` | Sparkle の EdDSA 秘密鍵 (base64、§5)。workflow が `sign.sh` の環境変数へ渡す。署名ブランチでは**必須** — 無いとジョブが失敗する |
 
 CLI ソースの checkout 用 secret (issue #118):
 
@@ -133,7 +137,60 @@ CLI ソースの checkout 用 secret (issue #118):
 GitHub のログに秘密値を表示しないでください。workflow 終了時は一時 Keychain と API キーの
 一時ファイルを削除します (`sign.sh` が作った API キーファイルは trap で削除されます)。
 
-## 5. リリース前の確認
+## 5. Sparkle (GUI 自動更新) の鍵と appcast
+
+GUI は Sparkle 2 でアプリ内更新を行い、更新情報 (appcast) と DMG の EdDSA 署名を
+`sign.sh` が生成します (issue #122)。EdDSA 鍵は Apple の証明書とは別の、Sparkle 専用の鍵対です。
+
+### 鍵の生成と登録 (最初の 1 回)
+
+`generate_keys` / `sign_update` は homebrew に formula が無く、SPM checkout
+(バイナリターゲット) にも含まれないため、**GitHub Releases の tar.xz** から取ります:
+
+```sh
+curl -fsSL -o /tmp/Sparkle-2.10.0.tar.xz \
+  https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-2.10.0.tar.xz
+# tarball をパイプで直接展開しない — SHA-256 が一致するか見てから展開する
+# (sign_update は署名鍵のある環境で動くため、差し替え資産を展開・実行させない。
+#  release workflow も同じ固定値で検証している)
+echo "c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c  /tmp/Sparkle-2.10.0.tar.xz" \
+  | shasum -a 256 --check || { echo "SHA-256 が一致しません"; exit 1; }
+tar -xJf /tmp/Sparkle-2.10.0.tar.xz -C /tmp
+/tmp/bin/generate_keys            # login Keychain に鍵対を生成
+/tmp/bin/generate_keys -p         # 公開鍵を表示 → gui/Resources/Info.plist の SUPublicEDKey へ
+/tmp/bin/generate_keys -x /tmp/sparkle-private-key.txt   # 秘密鍵を export
+```
+
+1. `generate_keys -p` の出力 (base64 1 行) を `gui/Resources/Info.plist` の
+   `SUPublicEDKey` に書く (リポジトリにコミットしてよい — 公開鍵なので)
+2. 秘密鍵 (export した 1 行) を GitHub Secret **`SPARKLE_ED25519_PRIVATE_KEY`** に登録する
+3. **秘密鍵は失うと既存ユーザーの更新ができなくなります** — 新しい鍵対で署名した
+   appcast は、古いアプリ (古い公開鍵入り) は検証できないためです。鍵のバックアップを
+   取り、GitHub Secret と同じ値を安全な場所に保管してください
+
+バージョンは `gui/project.yml` の Sparkle の `exactVersion` と揃えます
+(上の URL の `2.10.0`。release workflow も同じバージョンをダウンロードする)。
+
+### ローカルでの署名
+
+`sign.sh` は `SPARKLE_ED25519_PRIVATE_KEY` 環境変数があればそれを stdin で
+`sign_update` に渡し、無ければ **login Keychain の鍵** (`generate_keys` で作ったもの) を
+使います。ローカルで `--skip-notarize` を試す場合は Keychain に鍵があるため設定不要で、
+`sign_update` のパスだけ `--sign-update` / `KILDE_SIGN_UPDATE` で渡します。
+
+### 運用上の契約
+
+- **EdDSA 署名は staple の後**: `stapler staple` は DMG を書き換えるため、先に署名すると
+  配布物と署名の対象が食い違い Sparkle が更新を拒否します。`sign.sh` はこの順序を保証します
+- **一度 Sparkle を公開したら、以降の全リリースを署名ありにする**: SUFeedURL は
+  `releases/latest/download/appcast.xml` の固定 URL なので、appcast の無いリリースが
+  latest になると**全ユーザーの更新チェックが 404 で壊れます**。そのため release workflow は
+  署名ブランチで `dist/appcast.xml` が無ければジョブを失敗させる設計にしてあります
+- `sparkle:version` (= GUI の `CFBundleVersion`) はリリースごとに**単調増加させる** —
+  Sparkle はバージョン文字列ではなくこの値で更新を判定します。release workflow が
+  `GITHUB_RUN_NUMBER` を差し込むため、タグを打つたびに自動的に増えます
+
+## 6. リリース前の確認
 
 証明書と API キーを持つ担当者は、上記手順で notarization まで実行した後に確認します。
 
@@ -162,16 +219,21 @@ git tag v0.2.0 && git push origin v0.2.0
 `swift build -c release --package-path kilde-cli-swift` → 埋め込み Info.plist の生存と
 バージョンを検証 → 署名 → Release を作成して zip (署名時は GUI の DMG も) を添付。
 
-**署名は secrets の有無で自動分岐**:
+**署名は必須 (secrets 不足でジョブが失敗する)**:
 
 | secrets | 動作 |
 |---------|------|
-| §4 の署名用 6 secret がすべて設定済み (`DEVELOPER_ID_CERTIFICATE_BASE64` + `DEVELOPER_ID_CERTIFICATE_PASSWORD` + `DEVELOPER_ID_APPLICATION` + `AC_API_KEY` + `AC_API_KEY_ID` + `AC_API_ISSUER`) | 証明書を一時キーチェーンに import → `sign.sh` で署名・notarization・staple まで実行 |
-| 未設定 (v0.1.0 時点) | **unsigned zip** でリリース。Release Notes に「未署名」の注意と `xattr -d` の回避方法を明記 |
+| §4 の署名用 6 secret がすべて設定済み (`DEVELOPER_ID_CERTIFICATE_BASE64` + `DEVELOPER_ID_CERTIFICATE_PASSWORD` + `DEVELOPER_ID_APPLICATION` + `AC_API_KEY` + `AC_API_KEY_ID` + `AC_API_ISSUER`) | 証明書を一時キーチェーンに import → `sign.sh` で署名・notarization・staple と appcast 生成 (§5) まで実行 |
+| 一部でも未設定 / すべて未設定 | **ジョブを失敗させる** (unsigned zip でのリリースは行わない) |
 
-証明書を取得したら §4 の 6 つの secrets を足すだけで署名に切り替わります
-(ワークフロー側の変更は不要)。`DEVELOPER_ID_CERTIFICATE_BASE64` は「Developer ID
+v0.2.0 以降は署名ありリリースで運用しており、GUI は Sparkle で latest の
+appcast を見にいく — 署名なしリリースが latest になると appcast が 404 になり
+全ユーザーの更新チェックが壊れるため、secrets 不足で unsigned に落ちる経路は
+持たせない (cubic レビュー指摘により v0.1.0 時代の unsigned 分岐は廃止)。
+`DEVELOPER_ID_CERTIFICATE_BASE64` は「Developer ID
 Application」の .p12 を `base64 -i cert.p12 | pbcopy` でエンコードしたもの。
+署名には Sparkle の `SPARKLE_ED25519_PRIVATE_KEY` (§5) も必要です —
+この secret が無いとジョブは appcast 生成の前で失敗します。
 
 **手動検証** (タグを打たずにビルドだけ確認): Actions タブから `Release` ワークフローを
 `workflow_dispatch` で実行。**手動実行は常に dry-run** (ビルドと署名分岐までを検証、

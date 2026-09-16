@@ -10,6 +10,7 @@ struct ContentView: View {
     @ObservedObject var setup: RecordingSetup
     @ObservedObject var recording: RecordingController
     @ObservedObject var permissions: PermissionsModel
+    @ObservedObject var updater: UpdaterCoordinator
 
     private enum Mode: Hashable {
         case display, window, audioOnly
@@ -164,7 +165,44 @@ struct ContentView: View {
                     set: { setup.setLaunchesAtLogin($0) }))
                     .toggleStyle(.checkbox)
             }
+            section("アップデート") {
+                updateRow
+            }
         }
+    }
+
+    /// 現在のバージョンと「アップデートを確認」ボタン (issue #122)。
+    /// Sparkle 標準の更新ウィンドウが出る。録画中に適用した場合はファイナライズ完了後に
+    /// 再起動する (UpdateInstallGate)
+    private var updateRow: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Image(systemName: "arrow.triangle.2.circle.circle")
+                Text(currentVersion)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .help(currentVersion)
+                Spacer()
+                Button("アップデートを確認") {
+                    updater.checkForUpdates()
+                }
+                // Sparkle の初期化が済むまで押せない (canCheckForUpdates が false)
+                .disabled(!updater.canCheckForUpdates)
+            }
+            Text("録画中に更新を適用したときは、録画を停止してファイルの保存が終わってから再起動します")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// CFBundleShortVersionString と CFBundleVersion (Sparkle の sparkle:version と
+    /// 同じ値) を並べて出す。ビルド番号はリリースごとに単調増加する
+    private var currentVersion: String {
+        let info = Bundle.main.infoDictionary ?? [:]
+        let short = info["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info["CFBundleVersion"] as? String ?? "?"
+        return "\(short) (build \(build))"
     }
 
     private var mode: Mode {

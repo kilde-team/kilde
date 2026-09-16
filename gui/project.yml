@@ -32,6 +32,13 @@ packages:
     # 5518a5d: 録画の既定コンテナが mp4 になったコミット (kilde-cli-swift#24)。
     # これより前の pin では GUI も既定 mov で録る
     revision: 5518a5d79826c5e0f918f57d8d19e719ac44eb83
+  # GUI の自動更新 (issue #122)。Sparkle 2 のバイナリターゲット (macOS 12+) で、
+  # リンクすると Sparkle.framework が Contents/Frameworks に埋め込まれる。
+  # バージョンを固定する理由は kilde-cli-swift と同じ: 浮動参照だと上流の push が
+  # このリポジトリの変更なしに GUI ビルドを壊しうるため
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle.git
+    exactVersion: 2.10.0
 
 targets:
   KildeGUI:
@@ -67,3 +74,5 @@ targets:
     dependencies:
       - package: kilde-cli-swift
         product: KildeCore
+      - package: Sparkle
+        product: Sparkle

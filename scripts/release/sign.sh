@@ -17,6 +17,8 @@ NOTARY_ISSUER="${AC_API_ISSUER:-}"
 OUTPUT_DIR="${KILDE_RELEASE_OUTPUT_DIR:-$ROOT_DIR/dist}"
 VERSION="${KILDE_RELEASE_VERSION:-}"
 SKIP_NOTARIZE=false
+SIGN_UPDATE_TOOL="${KILDE_SIGN_UPDATE:-}"
+SPARKLE_PRIVATE_KEY="${SPARKLE_ED25519_PRIVATE_KEY:-}"
 
 usage() {
     cat <<'EOF'
@@ -37,7 +39,15 @@ Options:
   --version VERSION     成果物名に使うバージョン
                         (env: KILDE_RELEASE_VERSION、既定: Info.plist のバージョン)
   --skip-notarize       署名とパッケージ作成のみ行う
+  --sign-update PATH    Sparkle の EdDSA 署名ツール sign_update のパス
+                        (env: KILDE_SIGN_UPDATE、未指定なら PATH 上を探す。
+                         入手手順は docs/RELEASE.md「Sparkle (GUI 自動更新)」)
   -h, --help            このヘルプを表示する
+
+Environment (Sparkle 自動更新用、issue #122):
+  SPARKLE_ED25519_PRIVATE_KEY  EdDSA 秘密鍵 (base64)。設定あれば stdin から
+                        sign_update へ渡す。未設定なら login Keychain の
+                        Sparkle 鍵 (generate_keys で作ったもの) を使う
 
 Examples:
   scripts/release/sign.sh --identity "Developer ID Application: Example (TEAMID)" \
@@ -102,6 +112,11 @@ while [[ $# -gt 0 ]]; do
         --skip-notarize)
             SKIP_NOTARIZE=true
             shift
+            ;;
+        --sign-update)
+            require_value "$@"
+            SIGN_UPDATE_TOOL="$2"
+            shift 2
             ;;
         -h|--help)
             usage
@@ -198,14 +213,16 @@ xcodebuild -project "$GUI_PROJECT" -scheme KildeGUI -configuration Release \
     -derivedDataPath "$DERIVED_DATA" CODE_SIGNING_ALLOWED=NO build
 [[ -d "$GUI_APP" ]] || die "GUI のビルド成果物が見つかりません: $GUI_APP"
 
-# 現在は埋め込みフレームワークを持たない。将来追加された dylib / framework は
-# 外側の .app より先に署名し、コード署名の内側から外側という順序を維持する。
+# Sparkle.framework (issue #122) はネストしたコードを複数持つ: XPCServices/*.xpc、
+# ネスト .app の Updater.app、拡張子なし Mach-O の Autoupdate。find がこれらを
+# 拾わないと --deep 相当の検証で外側の署名だけが作られ、配布物のゲートが通らない。
 # find -d (-depth) で子を親より先に列挙し、最深のコードから署名する — 内側を
 # 後から署名すると外側の署名が無効になるため。BSD find の -d を使うのは、
 # macOS 標準の sort に NUL 区切りの -z が無いため (パス逆順ソートが使えない)
 while IFS= read -r -d '' nested_code; do
     codesign --force --sign "$SIGN_IDENTITY" --options runtime --timestamp "$nested_code"
-done < <(find -d "$GUI_APP/Contents" \( -type f -name '*.dylib' -o -type d \( -name '*.framework' -o -name '*.xpc' -o -name '*.appex' \) \) -print0)
+done < <(find -d "$GUI_APP/Contents" \( -type f \( -name '*.dylib' -o -name 'Autoupdate' \) \
+    -o -type d \( -name '*.framework' -o -name '*.xpc' -o -name '*.appex' -o -name '*.app' \) \) -print0)
 
 echo "==> GUI を署名 (Hardened Runtime)"
 codesign --force --sign "$SIGN_IDENTITY" --options runtime --timestamp \
@@ -233,6 +250,80 @@ else
     echo "==> --skip-notarize: notarization と staple を省略"
 fi
 
+# ---- appcast.xml (Sparkle 自動更新、issue #122) ----
+# GUI DMG を作ったら必ず appcast も作る — SUFeedURL は latest download の固定 URL なので、
+# appcast の無いリリースが latest になると GUI の更新チェックが壊れる。
+# EdDSA 署名は **staple の後**に行う。stapler は DMG を書き換えるため、先に署名すると
+# 配布物と署名の対象が一致しなくなり、Sparkle が更新を拒否する
+if [[ -z "$SIGN_UPDATE_TOOL" ]] && command -v sign_update >/dev/null 2>&1; then
+    SIGN_UPDATE_TOOL="$(command -v sign_update)"
+fi
+[[ -n "$SIGN_UPDATE_TOOL" && -x "$SIGN_UPDATE_TOOL" ]] \
+    || die "sign_update が見つかりません — --sign-update / KILDE_SIGN_UPDATE で指定してください (入手は docs/RELEASE.md「Sparkle (GUI 自動更新)」)"
+
+# sparkle:version は CFBundleVersion (= リリース workflow が差し込む GITHUB_RUN_NUMBER)。
+# Sparkle はこの値の単調増加で更新を判定する — バージョン文字列ではない
+BUILD_NUMBER="$(plutil -extract CFBundleVersion raw -o - "$GUI_APP/Contents/Info.plist")"
+GUI_SHORT_VERSION="$(plutil -extract CFBundleShortVersionString raw -o - "$GUI_APP/Contents/Info.plist")"
+# sparkle:shortVersionString には VERSION を書くため、ビルドした GUI と VERSION が
+# ずれていると appcast と DMG の中身が不一致になる — 更新を催促するのに中身が古い
+# 配布物ができ上がる。--version 直接実行 (stamp 無し) で起こりうるので弾く
+[[ "$GUI_SHORT_VERSION" == "$VERSION" ]] \
+    || die "GUI の CFBundleShortVersionString ($GUI_SHORT_VERSION) が成果物バージョン ($VERSION) と一致しません — リリース workflow の stamp を通すか、gui/Resources/Info.plist を更新してください"
+SIGN_UPDATE_OUT=""
+if [[ -n "$SPARKLE_PRIVATE_KEY" ]]; then
+    # CI など鍵ファイルが無い環境: 秘密鍵を stdin に流す (--ed-key-file - は定型)
+    SIGN_UPDATE_OUT="$(printf '%s' "$SPARKLE_PRIVATE_KEY" | "$SIGN_UPDATE_TOOL" --ed-key-file - "$GUI_DMG")"
+else
+    # ローカル: login Keychain の Sparkle 鍵 (generate_keys で作ったもの) を使う
+    SIGN_UPDATE_OUT="$("$SIGN_UPDATE_TOOL" "$GUI_DMG")"
+fi
+SIGNATURE="$(sed -n 's/^sparkle:edSignature="\([^"]*\)".*$/\1/p' <<<"$SIGN_UPDATE_OUT")"
+DMG_LENGTH_REPORTED="$(sed -n 's/.*length="\([^"]*\)".*$/\1/p' <<<"$SIGN_UPDATE_OUT")"
+DMG_LENGTH="$(stat -f %z "$GUI_DMG")"
+[[ -n "$SIGNATURE" ]] || die "sign_update から EdDSA 署名を取り出せませんでした: $SIGN_UPDATE_OUT"
+# length は Sparkle がダウンロードの検証に使う。署名対象と実際の DMG が同じであることを
+# ここでも機械的に確かめる (staple 前に署名していないかの検出にもなる)
+[[ "$DMG_LENGTH_REPORTED" == "$DMG_LENGTH" ]] \
+    || die "sign_update が報告した length ($DMG_LENGTH_REPORTED) が実際の DMG サイズ ($DMG_LENGTH) と一致しません"
+
+APPCAST="$OUTPUT_DIR/appcast.xml"
+# pubDate は RFC 822 (英語の曜日・月名) でなければならない。date の出力は LC_TIME に
+# 従うため、日本語ロケールの実行環境では «水, 16 9月 2026…» になり Sparkle が日付を
+# パースできない — LC_ALL=C で英語に固定する
+PUBDATE="$(LC_ALL=C date -u '+%a, %d %b %Y %H:%M:%S +0000')"
+cat > "$APPCAST" <<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>KildeGUI</title>
+    <link>https://github.com/takezou621/kilde/releases/latest/download/appcast.xml</link>
+    <description>kilde GUI の更新情報</description>
+    <language>ja</language>
+    <item>
+      <title>kilde ${VERSION}</title>
+      <pubDate>${PUBDATE}</pubDate>
+      <sparkle:version>${BUILD_NUMBER}</sparkle:version>
+      <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+      <sparkle:releaseNotesLink>https://github.com/takezou621/kilde/releases/tag/v${VERSION}</sparkle:releaseNotesLink>
+      <enclosure url="https://github.com/takezou621/kilde/releases/download/v${VERSION}/KildeGUI-${VERSION}.dmg" sparkle:edSignature="${SIGNATURE}" length="${DMG_LENGTH}" type="application/octet-stream"/>
+    </item>
+  </channel>
+</rss>
+XML
+# item は常に 1 件 — SUFeedURL が latest 固定なので過去分の累積は不要。
+# 展開漏れのプレースホルダが残っていないか機械的に検査する (sed の失敗は黙って通るため)
+if grep -q '\${' "$APPCAST"; then
+    die "appcast に未置換のプレースホルダが残っています: $APPCAST"
+fi
+if command -v xmllint >/dev/null 2>&1; then
+    xmllint --noout "$APPCAST" || die "appcast.xml が整形式ではありません: $APPCAST"
+else
+    echo "warn: xmllint が無いため appcast の整形式検査を省略しました"
+fi
+
 echo "完了:"
 echo "  CLI: $CLI_ZIP"
 echo "  GUI: $GUI_DMG"
+echo "  appcast: $APPCAST"

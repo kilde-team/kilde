@@ -23,8 +23,15 @@ enum SelfTest {
 
     @MainActor
     static func runIfRequested(setup: RecordingSetup, recording: RecordingController,
-                               permissions: PermissionsModel, popover: PopoverControl) {
+                               permissions: PermissionsModel, updater: UpdaterCoordinator,
+                               popover: PopoverControl) {
         let env = ProcessInfo.processInfo.environment
+        // KILDE_GUI_SELFTEST_UPDATE=1: Sparkle 自動更新の配線と設定を確かめる (issue #122)。
+        // 終了は reportUpdateSetup の中 (canCheckForUpdates の待ちがあるため)
+        if env["KILDE_GUI_SELFTEST_UPDATE"] == "1" {
+            reportUpdateSetup(updater: updater)
+            return
+        }
         // KILDE_GUI_SELFTEST_PERMISSIONS=1: 構成ごとに「何の権限を要求するか」を出して終わる (issue #19)。
         // 実際に TCC の許可を取り消さないと確かめられない部分 (案内の見た目) は人の目に頼るしかないが、
         // 「音声のみの録音に画面収録権限を求めない」のような判定はこれで機械的に確認できる
@@ -178,6 +185,78 @@ enum SelfTest {
             try? await Task.sleep(nanoseconds: UInt64(max(2.0, seconds / 2) * 1_000_000_000))
             recording.stop()
         }
+    }
+
+    /// Sparkle 自動更新の検証 (KILDE_GUI_SELFTEST_UPDATE=1、issue #122)。
+    ///
+    /// 自動で確かめられるのはここまで、という線引きを明示しておく:
+    /// - **確かめられる**: Info.plist の SUFeedURL / SUPublicEDKey / CFBundleVersion、
+    ///   UpdaterCoordinator が AppDelegate に繋がって更新チェック可能になること、
+    ///   録画中のインストール判定 (installAction) の全ケース
+    /// - **確かめられない**: 更新のダウンロード・EdDSA 検証・インストール・再起動。
+    ///   これらは Developer ID 署名同士のビルドでしか成立せず、実機 E2E は
+    ///   v0.3.0 → v0.3.1 のリリースで手動確認する — ここで «通った» にしない
+    @MainActor
+    private static func reportUpdateSetup(updater: UpdaterCoordinator) {
+        let info = Bundle.main.infoDictionary ?? [:]
+        let feedURL = info["SUFeedURL"] as? String ?? ""
+        print("selftest: SUFeedURL=\(feedURL)")
+        // **完全一致で検証する** — hasPrefix/hasSuffix の緩い形式チェックだと、ホストや
+        // パスの打ち間違い (appcast を別リポジトリに置く等) が通ってしまう。latest の
+        // 固定 URL は Release を作るたびに appcast の場所が変わらないという SUFeedURL の
+        // 契約の一部なので、ここで崩れていないことを機械的に保証する
+        guard feedURL == "https://github.com/takezou621/kilde/releases/latest/download/appcast.xml" else {
+            fail("SUFeedURL が GitHub Releases の appcast.xml 固定 URL と一致しません: \(feedURL)")
+        }
+        let publicEDKey = info["SUPublicEDKey"] as? String ?? ""
+        print("selftest: SUPublicEDKey=\(publicEDKey.isEmpty ? "(空)" : publicEDKey)")
+        guard !publicEDKey.isEmpty else {
+            fail("SUPublicEDKey が空です (EdDSA 公開鍵が Info.plist にありません)")
+        }
+        let build = info["CFBundleVersion"] as? String ?? ""
+        print("selftest: CFBundleVersion=\(build)")
+        guard !build.isEmpty else {
+            fail("CFBundleVersion が空です (sparkle:version の比較に使うため必須)")
+        }
+
+        // AppDelegate の配線も確認する — ポップオーバーのボタンが押す先と
+        // 同じインスタンスかどうか (delegate 経由で別物になる退行を見張る)
+        let delegate = AppDelegate.shared
+        print("selftest: delegate=\(delegate == nil ? "nil" : "ok")"
+            + " updaterOwned=\(delegate.map { $0.updater === updater } ?? false)")
+        guard let delegate, delegate.updater === updater else {
+            fail("AppDelegate が別の UpdaterCoordinator を持っています (配線を確認してください)")
+        }
+
+        // canCheckForUpdates は Sparkle の初期化が終わると true になる。KVO 由来の
+        // 同期更新なので RunLoop を回して待てる (Swift Concurrency の待ちではない)
+        let deadline = Date().addingTimeInterval(5)
+        while !updater.canCheckForUpdates, Date() < deadline {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        }
+        print("selftest: canCheckForUpdates=\(updater.canCheckForUpdates)")
+        guard updater.canCheckForUpdates else {
+            fail("updater が更新チェック可能になりませんでした (Sparkle の初期化に失敗?)")
+        }
+
+        // installAction の全ケース (録画中 / 通知待ち / 待機中 / 両方)。実際に録画を
+        // 始めずに判定だけを確かめる — 停止 → ファイナライズ → 再起動のつなぎ目は
+        // UpdateInstallGate が applicationShouldTerminate と同じパターンで書いている
+        let cases: [(String, Bool, Bool, UpdaterCoordinator.InstallAction)] = [
+            ("録画中", true, false, .afterStop),
+            ("通知待ち", false, true, .afterNotification),
+            ("待機中", false, false, .immediate),
+            ("録画中+通知待ち", true, true, .afterStop),
+        ]
+        for (name, active, awaiting, expected) in cases {
+            let actual = UpdaterCoordinator.installAction(isActive: active, awaitingNotification: awaiting)
+            guard actual == expected else {
+                fail("installAction(\(name)) が \(actual)、期待は \(expected)")
+            }
+            print("selftest: installAction[\(name)]=\(actual)")
+        }
+        fflush(stdout)
+        exit(0)
     }
 
     /// 権限の判定結果を構成ごとに出す (KILDE_GUI_SELFTEST_PERMISSIONS=1)。

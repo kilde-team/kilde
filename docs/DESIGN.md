@@ -571,6 +571,10 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
 - GUI は Hardened Runtime + Notarization を必須とする。公式ビルドのみへの
   案内。CLI も Developer ID 署名を出す (アドホック署名だと TCC の
   再プロンプトが増えるため)。
+- GUI の更新は **Sparkle 2 によるアプリ内自動更新** (issue #122)。フィードは
+  GitHub Releases の `releases/latest/download/appcast.xml` (latest 固定 URL)、
+  DMG は EdDSA 署名で検証する。更新対象は GUI のみ — CLI は Homebrew で別管理
+  なので Sparkle の対象に含めない。鍵と appcast の運用は docs/RELEASE.md §5。
 
 ## 8. BlackHole 連携の詳細 (advanced)
 
@@ -671,6 +675,28 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
 > すべてそこを通る。2 つの型は語彙が違う (`audioSources` と `captureSystemAudio`) ので
 > 定義を 1 箇所にはできず、`RecordRequestTests` が全組み合わせで両者の一致を縛っている。
 > 集約前は 4 箇所に書き写されており、コメントで「手で揃える」と指示されていた。
+
+> **実装 (issue #122):** 自動更新は Sparkle 2 (`SPUStandardUpdaterController`)。
+> `UpdaterCoordinator` が AppDelegate に持ち、ポップオーバーの「アップデートを確認」から
+> Sparkle 標準の更新ウィンドウを出す。**更新のインストール (再起動) は録画に割り込まない** —
+> `SPUUpdaterDelegate` (`UpdateInstallGate`) が再起動を postpone し、
+> `applicationShouldTerminate` と同じ `whenSessionEnds` パターンで「停止 →
+> ファイナライズ完了 → 通知待ち完了 → relaunch」の順に繋ぐ (最重要要件
+> 「壊れたファイルを残さない」の徹底)。**`whenSessionEnds` は登録時点のセッションに
+> 束縛されるため、通知待ちの間にユーザーが次の録画を始めると、古いセッションの
+> 完了でハンドラが発火してしまう** — ハンドラは実行時点で `installAction` を
+> 再評価し、まだ動いている録画があればそのセッションに束縛して待ち直す
+> (`postponeUntilSettled`。cubic レビュー指摘による修正。プロセス終了時に一度しか
+> 走らない `applicationShouldTerminate` には起きない — GUI の生存が続くからこその問題)。
+> 判定は純関数 `installAction` に切り出して
+> あり (録画中→停止待ち / 通知待ち→通知待ち / 待機中→即時)、セルフテスト
+> (`KILDE_GUI_SELFTEST_UPDATE=1`) が全ケースを検証する。Debug ビルドは
+> `SUEnableAutomaticChecks=false` を UserDefaults に書き込み、開発機が
+> 実フィードを定期的に見にいかないようにする (SU* キーは UserDefaults が
+> Info.plist より優先される。戻す手順は docs/DEVELOPMENT.md §3)。
+> セルフテストで確かめられるのは配線と設定まで — ダウンロード・EdDSA 検証・
+> インストール・再起動は Developer ID 署名同士でしか成立せず、実機 E2E は
+> v0.3.0 → v0.3.1 のリリースで手動確認する。
 
 ## 10. リポジトリ構成と開発プロセス
 

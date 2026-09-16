@@ -33,5 +33,15 @@
 	<string>画面と会議アプリの音声を収録するために画面収録へアクセスします。</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<!-- Sparkle による GUI の自動更新 (issue #122)。フィードは GitHub Releases の
+	     appcast.xml (latest download の固定 URL — Release を作るたびに置き換わる)。
+	     SU* キーは UserDefaults が Info.plist より優先されるため、ローカル検証では
+	     defaults write で差し替えられる (docs/DEVELOPMENT.md §3) -->
+	<key>SUFeedURL</key>
+	<string>https://github.com/takezou621/kilde/releases/latest/download/appcast.xml</string>
+	<!-- EdDSA 検証の公開鍵 (generate_keys -p の出力)。対応する秘密鍵を失うと
+	     この鍵で署名されたアプリへの更新ができなくなる (docs/RELEASE.md) -->
+	<key>SUPublicEDKey</key>
+	<string>RoQa7eL0MHYfskU9F75G4g0Bt4NAWaGvXqDLftHnXuw=</string>
 </dict>
 </plist>
