@@ -46,6 +46,13 @@ enum SandboxOutputDirectory {
 
     private static let bookmarkKey = "outputDirectoryBookmark"
 
+    /// 現在アクセスを開始していて (対応する stop をまだ呼んでいない) URL。
+    /// start/stop は対応が取れているのが契約 — persist() での同じ URL の再選択時に
+    /// start を重ねない、保存先変更時に旧 URL を解放する、の 2 つにこの 1 変数を使う
+    /// (CodeRabbit レビュー指摘: 開始しっぱなしを重ねると sandbox extension が
+    /// リークして、繰り返しの保存先変更で新規の powerbox 許可が失敗しうる)
+    private static var accessedURL: URL?
+
     /// 前回起動時に選んだ保存先を bookmark から復元する。
     /// 成功時はアクセスを開始して **プロセス終了まで保持する** — 録画のたびに
     /// start/stop を往復させず、閉じ忘れ (アクセス喪失) の経路を作らないため。
@@ -70,12 +77,18 @@ enum SandboxOutputDirectory {
             relativeTo: nil) {
             UserDefaults.standard.set(fresh, forKey: bookmarkKey)
         }
+        accessedURL = url
         return url
     }
 
     /// 選択された保存先を bookmark として永続化し、今このプロセスでのアクセスも開始する。
     /// bookmark の作成に失敗しても選択自体は有効 (この起動中は powerbox の許可で
     /// アクセスできる) なので、失敗は通知せず続行する — 次回起動時に既定へ戻るだけ
+    ///
+    /// restore() の「プロセス終了まで保持」はあくまで起動時の既定経路の話。
+    /// 保存先を **変更** したときは旧 URL のアクセスをここで解放する —
+    /// 録画済みファイルは既に開かれている (開いた fd は sandbox extension の
+    /// 取り消しで無効にならない) ので、書きかけへの影響はない
     static func persist(_ url: URL) {
         if let data = try? url.bookmarkData(
             options: .withSecurityScope,
@@ -83,7 +96,13 @@ enum SandboxOutputDirectory {
             relativeTo: nil) {
             UserDefaults.standard.set(data, forKey: bookmarkKey)
         }
-        _ = url.startAccessingSecurityScopedResource()
+        if accessedURL == url { return }
+        accessedURL?.stopAccessingSecurityScopedResource()
+        if url.startAccessingSecurityScopedResource() {
+            accessedURL = url
+        } else {
+            accessedURL = nil
+        }
     }
 }
 #endif
