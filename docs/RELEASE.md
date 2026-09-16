@@ -154,7 +154,7 @@ curl -fsSL -o /tmp/Sparkle-2.10.0.tar.xz \
 # (sign_update は署名鍵のある環境で動くため、差し替え資産を展開・実行させない。
 #  release workflow も同じ固定値で検証している)
 echo "c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c  /tmp/Sparkle-2.10.0.tar.xz" \
-  | shasum -a 256 --check
+  | shasum -a 256 --check || { echo "SHA-256 が一致しません"; exit 1; }
 tar -xJf /tmp/Sparkle-2.10.0.tar.xz -C /tmp
 /tmp/bin/generate_keys            # login Keychain に鍵対を生成
 /tmp/bin/generate_keys -p         # 公開鍵を表示 → gui/Resources/Info.plist の SUPublicEDKey へ
