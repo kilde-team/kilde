@@ -254,8 +254,11 @@ Sparkle 無し・App Sandbox 有効 — 詳細は docs/RELEASE.md §7):
 
 ```sh
 cd gui && xcodegen
+# **最初のビルドから -derivedDataPath を付ける** — PRODUCT_NAME が直接配布版と同じ
+# KildeGUI のため、標準 DerivedData を使い回すと以前の Sparkle.framework が成果物に
+# 残ることがある (下の説明も参照)
 xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI-AppStore \
-  -configuration Debug build CODE_SIGNING_ALLOWED=NO
+  -configuration Debug build CODE_SIGNING_ALLOWED=NO -derivedDataPath /tmp/kilde-mas
 # 両スキームを触ったときは **どちらも** ビルドを通すこと。#if APPSTORE の
 # 分岐漏れ (import Sparkle の位置など) は通常ビルドでは検出できない
 ```
@@ -263,8 +266,8 @@ xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI-AppStore \
 **DerivedData を分離する** — PRODUCT_NAME が直接配布版と同じ KildeGUI のため、
 共通の DerivedData を使い回すと以前の KildeGUI ビルドの Sparkle.framework が
 成果物に残ることがある (`scripts/release/appstore-archive.sh` は分離済みの
-`-derivedDataPath` を使う。手動ビルドで混在が疑わしいときは
-`-derivedDataPath /tmp/kilde-mas` を付けるか clean する)。
+`-derivedDataPath` を使う。手動ビルドは上のコマンドのように
+`-derivedDataPath /tmp/kilde-mas` を付ける)。
 
 サンドボックス下での実録画を確かめるときは、セルフテストの保存先を
 **`~/Movies` 配下**にします。サンドボックスでは tmp やホーム直下には書けず、

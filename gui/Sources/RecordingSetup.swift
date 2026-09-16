@@ -68,14 +68,6 @@ final class RecordingSetup: ObservableObject {
         let fallback = FileManager.default.urls(for: .moviesDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser
         request = RecordRequest(outputDirectory: fallback)
-#if APPSTORE
-        // 前回 NSOpenPanel で選んだ保存先を bookmark から復元する (issue #126)。
-        // サンドボックスでは設定ファイルで知ったパスにはアクセスできないため、
-        // 選択で得たディレクトリだけを security-scoped bookmark で持ち越す
-        if let restored = SandboxOutputDirectory.restore() {
-            request.outputDirectory = restored
-        }
-#endif
         do {
             config = try ConfigStore.load()
         } catch {
@@ -83,6 +75,16 @@ final class RecordingSetup: ObservableObject {
             notice = "設定ファイルを読めません (既定値で表示します): \(error)"
         }
         request = RecordRequest.initial(config: config, fallbackDirectory: fallback)
+#if APPSTORE
+        // 前回 NSOpenPanel で選んだ保存先を bookmark から復元する (issue #126)。
+        // サンドボックスでは設定ファイルで知ったパスにはアクセスできないため、
+        // 選択で得たディレクトリだけを security-scoped bookmark で持ち越す。
+        // **最後の request 再作成より後で行う** — 先に復元すると initial(config:) が
+        // request を作り直して復元結果を上書きする (CodeRabbit レビュー指摘)
+        if let restored = SandboxOutputDirectory.restore() {
+            request.outputDirectory = restored
+        }
+#endif
         hotkeyDraft = config.hotkey ?? ""
     }
 

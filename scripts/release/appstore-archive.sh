@@ -125,8 +125,15 @@ APP_IN_ARCHIVE="$ARCHIVE_PATH/Products/Applications/KildeGUI.app"
 if [ -e "$APP_IN_ARCHIVE/Contents/Frameworks/Sparkle.framework" ]; then
     die "アーカイブに Sparkle.framework が含まれています (APPSTORE 条件の除外漏れを確認してください)"
 fi
-codesign -d --entitlements - "$APP_IN_ARCHIVE" | grep -q "com.apple.security.app-sandbox" \
-    || die "アーカイブに App Sandbox のエンタイトルメントがありません"
+# 値まで見る — キーの存在だけだと false/ でも通り抜ける (CodeRabbit レビュー指摘)。
+# entitlements は :- で XML plist として受け取る (省略形 (-) は人間可読テキストで
+# plutil が読めない)。plutil -extract はドットを keypath 区切りにするため、
+# 鍵名のドットはバックスラッシュでエスケープする
+ENTITLEMENTS_PLIST="$OUTPUT_DIR/archive-entitlements.plist"
+codesign -d --entitlements :- "$APP_IN_ARCHIVE" > "$ENTITLEMENTS_PLIST" 2>/dev/null \
+    || die "アーカイブのエンタイトルメントを取得できません"
+[ "$(plutil -extract 'com\.apple\.security\.app-sandbox' raw -o - "$ENTITLEMENTS_PLIST" 2>/dev/null)" = "true" ] \
+    || die "アーカイブで App Sandbox が有効ではありません (entitlement の値を確認してください)"
 log "検証 OK: Sparkle 無し・App Sandbox 有効"
 
 # exportOptions はアップロード / .pkg 書き出しの両方で使う。signingStyle automatic
