@@ -46,9 +46,18 @@ targets:
     platform: macOS
     sources:
       - Sources
+      # アセットカタログ «だけ» を明示して足す。Resources ディレクトリごと入れると
+      # Info.plist と entitlements までリソースとしてバンドルにコピーされてしまう
+      # (両者は INFOPLIST_FILE / CODE_SIGN_ENTITLEMENTS から参照される設定ファイルで、
+      # バンドル直下に置かれるものではない)
+      - path: Resources/Assets.xcassets
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.takezou621.KildeGUI
+        # アプリアイコン。Assets.xcassets の AppIcon を使う。Info.plist 側の
+        # CFBundleIconName と対で必要 — 片方だけだとアイコンが付かないまま通る
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         PRODUCT_NAME: KildeGUI
         INFOPLIST_FILE: Resources/Info.plist
         # 開発用の自己署名証明書で署名する (作成手順は docs/DEVELOPMENT.md)。
