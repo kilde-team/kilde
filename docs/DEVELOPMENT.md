@@ -156,6 +156,26 @@ KILDE_GUI_SELFTEST_PERMISSIONS=1 KILDE_GUI_SELFTEST_DENY=screen "$APP/Contents/M
 
 案内の文面や配置そのものは、最終的には人の目で確認してください。
 
+`KILDE_GUI_SELFTEST_UPDATE=1` は録画せず、**Sparkle 自動更新の配線と設定**を確かめて
+終わります (issue #122)。SUFeedURL / SUPublicEDKey / CFBundleVersion の形式、
+AppDelegate が持つ UpdaterCoordinator との配線、更新チェック可能になること
+(`canCheckForUpdates`)、録画中のインストール判定 (`installAction`) の全ケースを検証します:
+
+```sh
+KILDE_GUI_SELFTEST_UPDATE=1 "$APP/Contents/MacOS/KildeGUI"
+# → selftest: SUFeedURL=https://github.com/takezou621/kilde/releases/latest/download/appcast.xml
+#   selftest: SUPublicEDKey=… selftest: CFBundleVersion=1
+#   selftest: delegate=ok updaterOwned=true
+#   selftest: canCheckForUpdates=true
+#   selftest: installAction[録画中]=afterStop … (exit 0)
+```
+
+**このセルフテストで「通った」にできないもの**: 更新のダウンロード・EdDSA 検証・
+インストール・再起動。これらは Developer ID 署名同士のビルドでしか成立せず、
+実機 E2E は v0.3.0 → v0.3.1 のリリースで手動確認します (SelfTest.swift の線引きコメント
+と同じ)。また、v0.3.0 より前は Releases に appcast が無いため、**手動の更新チェックが
+404 エラーになるのが正常**です。
+
 ### 検証時の環境の注意
 
 > 画面がロックされている、または**ディスプレイが消灯している**間は
@@ -197,6 +217,30 @@ KILDE_GUI_SELFTEST_PERMISSIONS=1 KILDE_GUI_SELFTEST_DENY=screen "$APP/Contents/M
 > intents framework" が出ることがあります。これは App Shortcuts 登録まわりの
 > システムサービス接続のノイズで、KildeGUI は AppIntents を使わないため機能に
 > 影響しません (正式な Developer ID 署名では出なくなると考えられます)。
+
+> **Sparkle (GUI 自動更新、issue #122)**: Debug ビルドは
+> `SUAutomaticallyChecksForUpdates=false` を UserDefaults に書き込みます —
+> 開発機が実フィード (`releases/latest/download/appcast.xml`) を定期的に見に
+> いかないようにするため (SU* キーは UserDefaults が Info.plist より優先される)。
+> **この値は Release ビルドにも効いてしまう**ので、手動の更新チェック
+> (ポップオーバーの「アップデートを確認」) を Release ビルドで試すときは戻します:
+>
+> ```sh
+> defaults delete com.takezou621.KildeGUI SUAutomaticallyChecksForUpdates
+> ```
+>
+> ダウンロード〜再起動までの E2E をリリース前に確認したいときは、フィードを
+> ローカルに差し替えられます (同じく UserDefaults が優先されるのを利用):
+>
+> ```sh
+> # ローカル HTTP サーバ (appcast.xml と DMG を置く) を立てて差し替え
+> defaults write com.takezou621.KildeGUI SUFeedURL http://127.0.0.1:8000/appcast.xml
+> # 確認が終わったら戻す (Info.plist の値へ戻る)
+> defaults delete com.takezou621.KildeGUI SUFeedURL
+> ```
+>
+> 鍵と appcast の運用は docs/RELEASE.md §5、録画中の再起動待ちの設計は
+> docs/DESIGN.md §9 を参照してください。
 
 ## 4. エンジンと CLI の開発
 

@@ -27,6 +27,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 録画完了通知 (issue #20)。UNUserNotificationCenter はデリゲートを弱参照するので、
     /// ここで生存期間を持つ
     private let notifier = RecordingNotifier()
+    /// 自動更新 (issue #122)。Sparkle の起動は環境変数で制御する — 録画系の
+    /// セルフテストではネットワークアクセスと更新ダイアログを避けるため
+    /// (updaterStartsAtLaunch 参照)
+    private(set) lazy var updater = UpdaterCoordinator(
+        recording: recording,
+        startUpdater: Self.updaterStartsAtLaunch(env: ProcessInfo.processInfo.environment))
     private var cancellables: Set<AnyCancellable> = []
     /// グローバルホットキー (issue #20)。CLI と同じ `HotkeyMonitor` / `HotkeySettings` を使い、
     /// 設定 (~/.kilde/config.json の `hotkey`) も CLI と共有する。
@@ -46,6 +52,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// ホットキーの解決に使ったものと同一インスタンスかを確かめる
     func debugUsesSameSetup(_ other: RecordingSetup) -> Bool { setup === other }
 
+    /// Sparkle の更新確認を起動時に始めるか。
+    /// - KILDE_GUI_SELFTEST_UPDATE=1: 更新の配線検証なので起動する
+    /// - それ以外のセルフテスト (録画・通知・権限): ネットワークアクセスと更新
+    ///   ダイアログが検証の邪魔になるので起動しない
+    /// - 通常起動: 起動する (Sparkle が前回チェックからの間隔を自分で管理する)
+    static func updaterStartsAtLaunch(env: [String: String]) -> Bool {
+        if env["KILDE_GUI_SELFTEST_UPDATE"] == "1" { return true }
+        if env.keys.contains(where: { $0.hasPrefix("KILDE_GUI_SELFTEST_") }) { return false }
+        return true
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.shared = self
         // 通知の許可要求はここで 1 回だけ。拒否されても録画は完全に動くので、
@@ -64,7 +81,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // パネル外のクリックで閉じる (メニューバーアプリの標準挙動)。閉じても録画は止まらない
         p.behavior = .transient
         p.contentViewController = NSHostingController(
-            rootView: ContentView(setup: setup, recording: recording, permissions: permissions))
+            rootView: ContentView(
+                setup: setup, recording: recording, permissions: permissions, updater: updater))
         popover = p
         item.button?.target = self
         item.button?.action = #selector(togglePopover)
@@ -85,6 +103,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self else { return }
             SelfTest.runIfRequested(
                 setup: self.setup, recording: self.recording, permissions: self.permissions,
+                updater: self.updater,
                 popover: SelfTest.PopoverControl(
                     show: { [weak self] in self?.showPopover() },
                     // performClose は「閉じる要求」なので transient の popover では

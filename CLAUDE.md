@@ -54,7 +54,8 @@ gui/                           メニューバー GUI (XcodeGen: project.yml が
   Sources/ContentView.swift    録画パネル (対象・音声・保存先の選択、Rec/Stop、レベルメーター)
   Sources/LevelMeter.swift     ソース別レベルメーター (dB 表示)
   Sources/SelfTest.swift       KILDE_GUI_SELFTEST_* による UI なし録画 (検証用)
-  Resources/Info.plist         LSUIElement・権限説明文字列 (バンドル用)
+  Sources/UpdaterCoordinator.swift  Sparkle 2 自動更新の窓口 + 録画中の再起動待ち (issue #122)
+  Resources/Info.plist         LSUIElement・権限説明文字列・SUFeedURL/SUPublicEDKey (バンドル用)
   Resources/KildeGUI.entitlements  audio-input (Hardened Runtime 下のマイクに必須)
 scripts/release/sign.sh        Developer ID 署名 + notarization + zip/DMG 作成
                                (CLI は kilde-cli-swift の checkout をビルド — CLI_DIR)
@@ -81,7 +82,8 @@ docs/                          DEVELOPMENT.md / RELEASE.md / DESIGN.md / SPIKE-N
   `Info.plist` と `KildeCommand.swift` にビルド時に差し込む (コミットはしない)。
   手動実行 (workflow_dispatch) は常に dry-run — Release は作らない
 - **成果物名は `kilde-<version>-macos.zip`** — Homebrew formula の `url` がこの名前を
-  指す。署名用 6 secrets が揃うと `sign.sh` 経路 (署名 + GUI DMG) に切り替わる
+  指す。署名用 6 secrets が揃うと `sign.sh` 経路 (署名 + GUI DMG + appcast) に切り替わる。
+  署名ありリリースでは Sparkle の `SPARKLE_ED25519_PRIVATE_KEY` も必須 (RELEASE.md §5)
 - **Homebrew formula は 2 箇所で揃える**: 本リポジトリの `homebrew/Formula/kilde.rb`
   (正本) と tap takezou621/homebrew-kilde。リリース zip の `url` / `sha256` を更新して
   tap へ反映する (docs/RELEASE.md「Homebrew tap の更新」)。head ブロックはない —
@@ -128,6 +130,21 @@ Info.plist 埋め込みの `unsafeFlags`、SDK シンボルの CI 確認) は
    手動操作に頼らず、GUI → Recorder の経路をコマンドラインから確かめられる
 9. ローカル署名ビルドでは `com.apple.linkd.autoShortcut` 接続エラー等のノイズが
    コンソールに出るが、AppIntents を使わないため機能への影響はない
+10. **Sparkle の postpone セレクタは `untilInvokingBlock:`** (Sparkle 2)。旧名
+    `untilInvoking:` はオプショナルメソッドのため、間違えても警告なしで永久に
+    呼ばれず、**録画中の再起動待ちが黙って無効になる** (壊れたファイルを残す経路が
+    復活する)。`UpdateInstallGate` を触るときは必ず確認する
+11. **sign.sh のネスト署名の find を狭めない**。Sparkle.framework はネストコードとして
+    `XPCServices/*.xpc`、ネスト `.app` の Updater.app、拡張子なし Mach-O の Autoupdate
+    を持つ。find がこれらを拾わないと外側の署名だけが作られ、配布物の Gatekeeper が
+    通らない (`--deep` 相当の検証で落ちる)
+12. **appcast の EdDSA 署名は staple の後**。`stapler staple` は DMG を書き換えるため、
+    先に署名すると配布物と署名の対象が食い違い Sparkle が更新を拒否する。
+    sign.sh はこの順序を保証する — 処理順を変えるときは理由を書く
+13. **GUI の `CFBundleVersion` (= appcast の `sparkle:version`) はリリースごとに
+    単調増加が契約**。Sparkle はバージョン文字列ではなくこの値で更新を判定する。
+    release workflow が `GITHUB_RUN_NUMBER` を差し込む前提なので、手差し込みの
+    リリースでは必ず前回より大きい値にする
 
 ## 6. 作業の進め方 — issue 駆動 (共通ルールは AGENTS.md)
 
