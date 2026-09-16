@@ -6,6 +6,11 @@
 	<string>ja</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
+	<!-- アセットカタログのアイコン名。macOS 11 以降と Mac App Store は
+	     CFBundleIconFile ではなくこのキーでアイコンを解決する。
+	     project.yml の ASSETCATALOG_COMPILER_APPICON_NAME と必ず揃える -->
+	<key>CFBundleIconName</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
