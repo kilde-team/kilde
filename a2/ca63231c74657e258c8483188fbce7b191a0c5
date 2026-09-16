@@ -1,0 +1,19 @@
+gui/Sources/UpdaterCoordinator.swift
+  s_f54280cb82ab79::t_c13659d7667737 1-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "a2ca63231c74657e258c8483188fbce7b191a0c5",
+  "prompts": {},
+  "sessions": {
+    "s_f54280cb82ab79": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d1f24c7c-ab69-4591-b537-1f2302ef552e",
+        "model": "glm-5.3"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
