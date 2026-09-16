@@ -148,8 +148,14 @@ GUI は Sparkle 2 でアプリ内更新を行い、更新情報 (appcast) と DM
 (バイナリターゲット) にも含まれないため、**GitHub Releases の tar.xz** から取ります:
 
 ```sh
-curl -fsSL https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-2.10.0.tar.xz \
-  | tar -xJ -C /tmp
+curl -fsSL -o /tmp/Sparkle-2.10.0.tar.xz \
+  https://github.com/sparkle-project/Sparkle/releases/download/2.10.0/Sparkle-2.10.0.tar.xz
+# tarball をパイプで直接展開しない — SHA-256 が一致するか見てから展開する
+# (sign_update は署名鍵のある環境で動くため、差し替え資産を展開・実行させない。
+#  release workflow も同じ固定値で検証している)
+echo "c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c  /tmp/Sparkle-2.10.0.tar.xz" \
+  | shasum -a 256 --check
+tar -xJf /tmp/Sparkle-2.10.0.tar.xz -C /tmp
 /tmp/bin/generate_keys            # login Keychain に鍵対を生成
 /tmp/bin/generate_keys -p         # 公開鍵を表示 → gui/Resources/Info.plist の SUPublicEDKey へ
 /tmp/bin/generate_keys -x /tmp/sparkle-private-key.txt   # 秘密鍵を export
