@@ -259,6 +259,9 @@ cd gui && xcodegen
 # 残ることがある (下の説明も参照)
 xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI-AppStore \
   -configuration Debug build CODE_SIGNING_ALLOWED=NO -derivedDataPath /tmp/kilde-mas
+# CODE_SIGNING_ALLOWED=NO は **コンパイル確認のみ** — 署名と entitlements の埋め込みが
+# 行われないため、App Sandbox の実行時挙動はこのビルドでは検証できない。
+# サンドボックス下の動作は下の ad-hoc 署名ビルドで確かめる
 # 両スキームを触ったときは **どちらも** ビルドを通すこと。#if APPSTORE の
 # 分岐漏れ (import Sparkle の位置など) は通常ビルドでは検出できない
 ```
@@ -285,7 +288,9 @@ mkdir -p ~/Movies/kilde-selftest
 KILDE_GUI_SELFTEST_RECORD=3 KILDE_GUI_SELFTEST_AUDIO=none \
   KILDE_GUI_SELFTEST_OUTPUT="$HOME/Movies/kilde-selftest" \
   /tmp/kilde-mas/Build/Products/Debug/KildeGUI.app/Contents/MacOS/KildeGUI
-# → selftest: finished /Users/<you>/Movies/kilde-selftest/kilde-*.mp4 (exit 0)
+# → selftest: finished /Users/<you>/Movies/kilde-selftest/kilde-… (exit 0)。
+#   拡張子は設定に従う (format=mov や ProRes 退避なら .mov)。**finished に表示された
+#   パスをそのまま使う** — kilde-*.mp4 の glob だと .mov を取りこぼす
 ```
 
 確認ポイント:

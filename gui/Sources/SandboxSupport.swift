@@ -61,6 +61,15 @@ enum SandboxOutputDirectory {
             bookmarkDataIsStale: &stale),
             url.startAccessingSecurityScopedResource()
         else { return nil }
+        // ディレクトリの移動等で stale になった bookmark は «この起動では解決できても
+        // 次の起動では解決できない» 状態。解決できた今の URL から作り直して永続化し、
+        // 保存先が黙って ~/Movies に戻るのを防ぐ (cubic レビュー指摘)
+        if stale, let fresh = try? url.bookmarkData(
+            options: .withSecurityScope,
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil) {
+            UserDefaults.standard.set(fresh, forKey: bookmarkKey)
+        }
         return url
     }
 

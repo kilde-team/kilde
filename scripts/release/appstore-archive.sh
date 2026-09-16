@@ -43,6 +43,8 @@ Environment:
   AC_API_KEY       App Store Connect API キー (.p8) のパス (必須)
   AC_API_KEY_ID    キー ID (必須)
   AC_API_ISSUER    issuer ID (必須)
+  KILDE_CLI_SWIFT_TOKEN   private な kilde-cli-swift を解決するための PAT
+                          (Contents: Read-only)。未設定なら既存の git 認証を使う
 
 例:
   AC_API_KEY=~/.kilde-asc/AuthKey_XYZ.p8 AC_API_KEY_ID=XYZ AC_API_ISSUER=... \
@@ -71,6 +73,16 @@ done
 [ -n "$ISSUER" ] || die "AC_API_ISSUER が必要です"
 [ -f "$KEY_PATH" ] || die "API キーが見つかりません: $KEY_PATH"
 [ -d "$GUI_DIR" ] || die "gui/ が見つかりません: $GUI_DIR"
+# CFBundleVersion は整数またはドット区切り整数のみ。不正値はビルド開始前に弾く
+# (ASC は提出時に拒否するが、そのためだけにアーカイブ一式を作らせない — cubic レビュー指摘)
+if [ -n "$STAMP_BUILD" ] && ! [[ "$STAMP_BUILD" =~ ^[0-9]+([.][0-9]+){0,2}$ ]]; then
+    die "--build は整数 (またはドット区切り整数) で指定してください: $STAMP_BUILD"
+fi
+
+# 相対パスの --output-dir は **cd "$GUI_DIR" の前に**絶対化する — 後から解決すると
+# gui/ 配下に書かれてしまう (cubic レビュー指摘)
+mkdir -p "$OUTPUT_DIR"
+OUTPUT_DIR="$(cd "$OUTPUT_DIR" && pwd)"
 
 AUTH_ARGS=(
     -authenticationKeyPath "$KEY_PATH"
@@ -78,6 +90,17 @@ AUTH_ARGS=(
     -authenticationKeyIssuerID "$ISSUER"
     -allowProvisioningUpdates
 )
+
+# private な kilde-cli-swift のパッケージ解決には GitHub の git 認証が要る
+# (DEVELOPMENT.md §1)。KILDE_CLI_SWIFT_TOKEN があれば release.yml と同じ insteadOf
+# 置換を **プロセス環境だけ** で足す — GIT_CONFIG_* はファイルに書かれないため
+# trap での後始末が不要。未設定なら既存の git 認証に任せる (cubic レビュー指摘)
+if [ -n "${KILDE_CLI_SWIFT_TOKEN:-}" ]; then
+    export GIT_CONFIG_COUNT=1
+    export GIT_CONFIG_KEY_0="url.https://x-access-token:${KILDE_CLI_SWIFT_TOKEN}@github.com/kilde-team/.insteadOf"
+    export GIT_CONFIG_VALUE_0="https://github.com/kilde-team/"
+    log "KILDE_CLI_SWIFT_TOKEN を private パッケージ解決に使用 (環境変数のみ、永続化しない)"
+fi
 
 cd "$GUI_DIR"
 
@@ -91,8 +114,15 @@ xcodebuild -resolvePackageDependencies
 
 # バージョン・ビルド番号をビルド前に差し込む (release.yml と同じ plutil 手法)。
 # このリポジトリには CFBundleVersion の単調増加を強制する仕組みが無いので、
-# 提出のたびに --build を大きくして指定する
-PLIST="Resources/Info.plist"
+# 提出のたびに --build を大きくして指定する。
+# 追跡対象の Info.plist を書き換えるため、元の内容を退避して **EXIT で必ず復元**する
+# — 失敗・中断後に古い MAS のバージョン番号が残るのを防ぐ (cubic レビュー指摘)
+PLIST="$GUI_DIR/Resources/Info.plist"
+if [ -n "$STAMP_VERSION" ] || [ -n "$STAMP_BUILD" ]; then
+    PLIST_BACKUP="$(mktemp)"
+    cp "$PLIST" "$PLIST_BACKUP"
+    trap 'cp "$PLIST_BACKUP" "$PLIST" && rm -f "$PLIST_BACKUP"' EXIT
+fi
 if [ -n "$STAMP_VERSION" ]; then
     log "CFBundleShortVersionString=$STAMP_VERSION を差し込み"
     plutil -replace CFBundleShortVersionString -string "$STAMP_VERSION" "$PLIST"
@@ -103,10 +133,14 @@ if [ -n "$STAMP_BUILD" ]; then
 fi
 
 ARCHIVE_PATH="$OUTPUT_DIR/KildeGUI-AppStore.xcarchive"
-mkdir -p "$OUTPUT_DIR"
 
 # PRODUCT_NAME が直接配布版と同じ KildeGUI のため、DerivedData を分離する。
-# 使い回すと以前の KildeGUI ビルドの Sparkle.framework が成果物に残る (project.yml 参照)
+# 使い回すと以前の KildeGUI ビルドの Sparkle.framework が成果物に残る (project.yml 参照)。
+#
+# project.yml の CODE_SIGN_IDENTITY=kilde-dev はローカル開発用 — このままでは
+# 自動署名が kilde-dev を探してアーカイブが失敗するため、ASC 用の証明書名を
+# 明示して上書きする (Apple Distribution は -allowProvisioningUpdates が作る。
+# cubic レビュー指摘)
 log "アーカイブを開始 (scheme=$SCHEME)"
 xcodebuild archive \
     -project KildeGUI.xcodeproj \
@@ -115,6 +149,7 @@ xcodebuild archive \
     -derivedDataPath "$OUTPUT_DIR/derived" \
     -archivePath "$ARCHIVE_PATH" \
     CODE_SIGN_STYLE=Automatic \
+    CODE_SIGN_IDENTITY="Apple Distribution" \
     DEVELOPMENT_TEAM="$TEAM_ID" \
     "${AUTH_ARGS[@]}"
 
@@ -186,4 +221,4 @@ PKG="$OUTPUT_DIR/KildeGUI.pkg"
 [ -n "$PKG" ] && [ -f "$PKG" ] || die ".pkg が見つかりません ($OUTPUT_DIR を確認してください)"
 log "完成: $PKG"
 echo "appstore: アップロードは --upload か、この .pkg を Transporter 等で"
-echo "appstore: アップロードしてください。Info.plist に差し込んだバージョンはコミットしないこと"
+echo "appstore: アップロードしてください。Info.plist に差し込んだバージョンは終了時に元へ戻りました"

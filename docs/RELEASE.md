@@ -225,18 +225,20 @@ GUI は **直接配布 (Sparkle 自動更新) と Mac App Store の 2 チャネ�
 ### ビルドとアップロード (`scripts/release/appstore-archive.sh`)
 
 ```sh
-AC_API_KEY="$HOME/private/AuthKey_ABC123.p8" \
-AC_API_KEY_ID=ABC123 \
-AC_API_ISSUER=00000000-0000-0000-0000-000000000000 \
-  scripts/release/appstore-archive.sh --version 0.4.0 --build 42          # .pkg まで
-  scripts/release/appstore-archive.sh --version 0.4.0 --build 42 --upload # ASC へアップロードまで
+export AC_API_KEY="$HOME/private/AuthKey_ABC123.p8"
+export AC_API_KEY_ID=ABC123
+export AC_API_ISSUER=00000000-0000-0000-0000-000000000000
+
+scripts/release/appstore-archive.sh --version 0.4.0 --build 42          # .pkg まで
+scripts/release/appstore-archive.sh --version 0.4.0 --build 42 --upload # ASC へアップロードまで
 ```
 
 API キーの作り方は §2 と同じ (notarization 用と同じキーでよい。App Manager 以上の
 権限があればアップロードできる)。スクリプトは xcodegen → パッケージ解決 →
-バージョン差し込み (plutil。**Info.plist への差し込みはコミットしない** — release.yml
-と同じビルド時差し込み) → `xcodebuild archive` → 検証 (アーカイブ内に
-**Sparkle.framework が無いこと・App Sandbox エンタイトルメントがあること**を
+バージョン差し込み (plutil。**追跡対象の Info.plist への書き換えだが、スクリプトが
+終了時に元へ復元する** — release.yml と同じビルド時差し込みで、コミットはしない) →
+`xcodebuild archive` → 検証 (アーカイブ内に
+**Sparkle.framework が無いこと・App Sandbox エンタイトルメントが true であること**を
 確認してから次へ進む) → `exportOptions.plist` 生成 → `.pkg` 書き出し
 (または `--upload` でアップロードまで) を行う。
 
@@ -247,7 +249,7 @@ API キーの作り方は §2 と同じ (notarization 用と同じキーでよ�
   `-allowProvisioningUpdates` が ASC API キーで**自動作成する** — 手動での
   証明書発行は不要。ただし初回は Keychain に「Apple Distribution」が現れる
 - `--upload` しても**審査は始まらない**。アップロード後、App Store Connect の
-  TestFlight / App Store 提出画面で提交する
+  TestFlight / App Store 提出画面で提出する
 
 ### スクリプトで自動化できない手作業 ( ASC の画面または ASC API)
 

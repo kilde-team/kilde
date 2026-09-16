@@ -580,10 +580,13 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
   含められない** (ストア外自己更新のため) — `#if APPSTORE` で分岐し、更新 UI は
   MAS 版から除く。サンドボックス下では `~/.kilde` にアクセスできないため、
   設定はアプリコンテナ内へ退避させ (`ConfigStore.directory` の差し替え)、
-  保存先は security-scoped bookmark で永続化する。バンドル ID は 2 チャネルで同じ
-  (`com.takezou621.KildeGUI`) — TCC 権限と画面収録の許可がチャネル間で共有され、
-  Sparkle 版から MAS 版へ乗り換えても権限の再許可が不要なため。手順は
-  docs/RELEASE.md §7。
+  保存先は **NSOpenPanel で選んだディレクトリのみ** security-scoped bookmark
+  (UserDefaults 永続化) で持ち越す — 既定の ~/Movies は movies エンタイトルメントの
+  経路で書ける。バンドル ID は 2 チャネルで同じ
+  (`com.takezou621.KildeGUI`) — そのため TCC 権限 (画面収録・マイク) は
+  チャネル間で共有される**想定**だが、TCC は署名の designated requirement でも
+  アプリを識別するため、Developer ID 署名と Apple Distribution 署名の間で
+  再許可が不要かは**実機での確認が必要** (未検証)。手順は docs/RELEASE.md §7。
 
 ## 8. BlackHole 連携の詳細 (advanced)
 
