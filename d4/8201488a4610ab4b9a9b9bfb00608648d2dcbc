@@ -1,0 +1,19 @@
+PRIVACY.md
+  s_ee07b46942374b::t_365aa256831722 1-19,21-52,55-83,85-114,117-129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d48201488a4610ab4b9a9b9bfb00608648d2dcbc",
+  "prompts": {},
+  "sessions": {
+    "s_ee07b46942374b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b986afd2-70bc-478c-acf4-7884b0c108ee",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
