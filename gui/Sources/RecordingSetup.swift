@@ -60,9 +60,22 @@ final class RecordingSetup: ObservableObject {
     private static let ownBundleID = Bundle.main.bundleIdentifier
 
     init() {
+#if APPSTORE
+        // **ConfigStore に触るより先に**設定の保存先をコンテナ内へ退避させる (issue #126)。
+        // 既定の ~/.kilde はサンドボックス下で読み書きできないため
+        SandboxSupport.redirectConfigStoreIntoContainer()
+#endif
         let fallback = FileManager.default.urls(for: .moviesDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser
         request = RecordRequest(outputDirectory: fallback)
+#if APPSTORE
+        // 前回 NSOpenPanel で選んだ保存先を bookmark から復元する (issue #126)。
+        // サンドボックスでは設定ファイルで知ったパスにはアクセスできないため、
+        // 選択で得たディレクトリだけを security-scoped bookmark で持ち越す
+        if let restored = SandboxOutputDirectory.restore() {
+            request.outputDirectory = restored
+        }
+#endif
         do {
             config = try ConfigStore.load()
         } catch {
@@ -224,6 +237,11 @@ final class RecordingSetup: ObservableObject {
         NSApp.activate(ignoringOtherApps: true)
         if panel.runModal() == .OK, let url = panel.url {
             request.outputDirectory = url
+#if APPSTORE
+            // 選択を bookmark に永続化して再起動後も使えるようにする (issue #126)。
+            // 保存しないと、選んだ保存先が次回起動時には既定 (~/Movies) へ戻ってしまう
+            SandboxOutputDirectory.persist(url)
+#endif
             // 「最近の録画」は保存先を走査して作るので、変更したら取り直す。
             // 忘れると変更前のディレクトリの一覧が残り、クリックすると別の場所が開く
             reloadRecentRecordings()

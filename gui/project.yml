@@ -76,3 +76,41 @@ targets:
         product: KildeCore
       - package: Sparkle
         product: Sparkle
+
+  # App Store 配布用ターゲット (issue #126)。直接配布の KildeGUI と**同じ Sources を
+  # 条件コンパイルで共有**し、ガイドライン上の必須差分だけを持つ:
+  # - App Sandbox 必須 → Resources/KildeGUI-AppStore.entitlements
+  # - Sparkle (ストア外自己更新) は MAS で禁止 → パッケージ依存に入れず、
+  #   APPSTORE コンパイル条件で UpdaterCoordinator 等の Sparkle 経路を除外する
+  # バンドル ID は直接配布版と同じ (デュアルチャネルの標準構成)。TCC の画面収録権限は
+  # 署名チーム単位で効くため、権限は両ビルドで共有される
+  # 注意: PRODUCT_NAME は KildeGUI と同じため、**ビルド成果物は -derivedDataPath で
+  # 分離すること**。同じ DerivedData を使い回すと、先にビルドした KildeGUI の
+  # Sparkle.framework が成果物に残り、「MAS 版に Sparkle が無い」を受け入れ条件が崩れる
+  KildeGUI-AppStore:
+    type: application
+    platform: macOS
+    sources:
+      - Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.takezou621.KildeGUI
+        PRODUCT_NAME: KildeGUI
+        INFOPLIST_FILE: Resources/Info.plist
+        # ローカル開発は kilde-dev で署名する (KildeGUI と同じ — TCC が同一識別で
+        # 権限を引き継ぐ)。アーカイブ時は scripts/release/appstore-archive.sh が
+        # Apple Distribution + 自動署名に差し替える
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: kilde-dev
+        # KildeGUI と同じ Xcode 26 の EF debug dylib 問題への対策 (上記参照)
+        ENABLE_DEBUG_DYLIB: NO
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_ENTITLEMENTS: Resources/KildeGUI-AppStore.entitlements
+        SWIFT_VERSION: "5"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        # Sparkle 経路 (UpdaterCoordinator など) を除外する条件。!APPSTORE 側に
+        # Sparkle 実装を置くため、ここを消すと MAS ビルドが Sparkle に依存して失敗する
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: APPSTORE
+    dependencies:
+      - package: kilde-cli-swift
+        product: KildeCore

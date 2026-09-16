@@ -204,6 +204,63 @@ CLI は zip を展開して `codesign --verify --strict --verbose=2 kilde` と
 `codesign -d --entitlements :- kilde` を実行し、別の macOS ユーザー環境で初回起動時の
 Gatekeeper と TCC (画面収録・マイク) の動作も確認してください。
 
+## 7. App Store 配布ビルド (issue #126)
+
+GUI は **直接配布 (Sparkle 自動更新) と Mac App Store の 2 チャネルで併存**します。
+両方ともバンドル ID は `com.takezou621.KildeGUI` で、App Store 版は
+`KildeGUI-AppStore` ターゲットからビルドします。App Store 版の要件:
+
+- **App Sandbox が必須** — `Resources/KildeGUI-AppStore.entitlements`
+  (app-sandbox + マイク + `~/Movies` + ユーザー選択ファイル + app-scope bookmark)
+- **Sparkle を含めない** — ストア外自己更新の仕組みのため審査で拒否される。
+  `UpdaterCoordinator.swift` 全体が `#if !APPSTORE` で、MAS ビルドでは
+  `UpdaterCoordinatorAppStore.swift` のスタブに差し替わる。UI の「アップデート」
+  セクションも `#if !APPSTORE` で消える
+- サンドボックス下では `~/.kilde` が読めないため、設定はアプリコンテナ内
+  (`~/Library/Containers/com.takezou621.KildeGUI/Data/Library/Application
+  Support/kilde/`) に保存される (SandboxSupport が `ConfigStore.directory` を退避)。
+  保存先ディレクトリは NSOpenPanel で選んだ security-scoped bookmark を
+  UserDefaults に永続化する。**CLI との設定共有は MAS 版では発生しない**
+
+### ビルドとアップロード (`scripts/release/appstore-archive.sh`)
+
+```sh
+AC_API_KEY="$HOME/private/AuthKey_ABC123.p8" \
+AC_API_KEY_ID=ABC123 \
+AC_API_ISSUER=00000000-0000-0000-0000-000000000000 \
+  scripts/release/appstore-archive.sh --version 0.4.0 --build 42          # .pkg まで
+  scripts/release/appstore-archive.sh --version 0.4.0 --build 42 --upload # ASC へアップロードまで
+```
+
+API キーの作り方は §2 と同じ (notarization 用と同じキーでよい。App Manager 以上の
+権限があればアップロードできる)。スクリプトは xcodegen → パッケージ解決 →
+バージョン差し込み (plutil。**Info.plist への差し込みはコミットしない** — release.yml
+と同じビルド時差し込み) → `xcodebuild archive` → 検証 (アーカイブ内に
+**Sparkle.framework が無いこと・App Sandbox エンタイトルメントがあること**を
+確認してから次へ進む) → `exportOptions.plist` 生成 → `.pkg` 書き出し
+(または `--upload` でアップロードまで) を行う。
+
+- `--build` は**前回の App Store 提出より大きい値が必須** (Sparkle の
+  CFBundleVersion 単調増加と同じ契約。リポジトリには提出番号を追跡する仕組みが
+  無いので、提出のたびに人手で管理する)
+- 証明書 (`Apple Distribution`) とプロビジョニングプロファイルは
+  `-allowProvisioningUpdates` が ASC API キーで**自動作成する** — 手動での
+  証明書発行は不要。ただし初回は Keychain に「Apple Distribution」が現れる
+- `--upload` しても**審査は始まらない**。アップロード後、App Store Connect の
+  TestFlight / App Store 提出画面で提交する
+
+### スクリプトで自動化できない手作業 ( ASC の画面または ASC API)
+
+1. **アプリレコードの作成** (初回のみ) — App Store Connect で「新規 App」を作成
+   (バンドル ID `com.takezou621.KildeGUI`、SKU など)
+2. **プライバシーラベル (App Privacy) の入力** — 収集データ「なし」の申告と
+   画面収録・マイクの用途説明
+3. **審査への提出** — アップロード済みビルドの選択と提出
+
+アップロードの方法が `--upload` (xcodebuild が直接アップロード) で失敗する環境
+(ネットワーク制限など) では、`--upload` 無しで書き出した `.pkg` を Transporter app
+や `altool` でアップロードできる。
+
 ## GitHub でのリリース自動化
 
 `.github/workflows/release.yml` が `v*` タグの push で起動します:

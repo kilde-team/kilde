@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- App Sandbox: Mac App Store 配布では必須 (issue #126)。直接配布版の
+	     KildeGUI.entitlements には無い — MAS ターゲット専用 -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<!-- マイク。Hardened Runtime 下で MicStream を使うには必須 (issue #18 と同じ理由)。
+	     欠けるとエラーもクラッシュもなく無音のトラックになる -->
+	<key>com.apple.security.device.audio-input</key>
+	<true/>
+	<!-- 録画の保存先の既定 (~/Movies)。これが無いとサンドボックス下では
+	     アプリコンテナ内にしか書けず、ユーザーが QuickTime 等と同じ場所に
+	     録画を保存できない -->
+	<key>com.apple.security.assets.movies.read-write</key>
+	<true/>
+	<!-- 保存先ディレクトリを NSOpenPanel (powerbox) で選ばせ、そのディレクトリへの
+	     アクセスを得るため。設定ファイル (config.json) 経由で知ったパスには
+	     このエンタイトルメントでもアクセスできない点に注意 (docs/DEVELOPMENT.md) -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	<!-- 選択した保存先を security-scoped bookmark として保存し、再起動後も
+	     アクセスを復元するために必須。user-selected.read-write だけでは
+	     アクセスはプロセスの生存中限り -->
+	<key>com.apple.security.files.bookmarks.app-scope</key>
+	<true/>
+</dict>
+</plist>

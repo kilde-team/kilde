@@ -246,6 +246,56 @@ KILDE_GUI_SELFTEST_UPDATE=1 "$APP/Contents/MacOS/KildeGUI"
 > 鍵と appcast の運用は docs/RELEASE.md §5、録画中の再起動待ちの設計は
 > docs/DESIGN.md §9 を参照してください。
 
+### App Store 配布ビルド (KildeGUI-AppStore) のビルドと検証 (issue #126)
+
+App Store 申請用のサンドボックスビルドは、通常の KildeGUI スキームとは別の
+`KildeGUI-AppStore` スキームで行います (`gui/project.yml` の同名ターゲット。
+Sparkle 無し・App Sandbox 有効 — 詳細は docs/RELEASE.md §7):
+
+```sh
+cd gui && xcodegen
+xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI-AppStore \
+  -configuration Debug build CODE_SIGNING_ALLOWED=NO
+# 両スキームを触ったときは **どちらも** ビルドを通すこと。#if APPSTORE の
+# 分岐漏れ (import Sparkle の位置など) は通常ビルドでは検出できない
+```
+
+**DerivedData を分離する** — PRODUCT_NAME が直接配布版と同じ KildeGUI のため、
+共通の DerivedData を使い回すと以前の KildeGUI ビルドの Sparkle.framework が
+成果物に残ることがある (`scripts/release/appstore-archive.sh` は分離済みの
+`-derivedDataPath` を使う。手動ビルドで混在が疑わしいときは
+`-derivedDataPath /tmp/kilde-mas` を付けるか clean する)。
+
+サンドボックス下での実録画を確かめるときは、セルフテストの保存先を
+**`~/Movies` 配下**にします。サンドボックスでは tmp やホーム直下には書けず、
+書けるのはアプリコンテナ・`~/Movies` (entitlement)・NSOpenPanel で選んだ場所だけです:
+
+```sh
+# kilde-dev 証明書があれば CODE_SIGNING_ALLOWED=NO を外して普通に署名ビルドしてよい。
+# 無い環境では ad-hoc + Hardened Runtime オフでローカル起動だけ可能にする
+# (App Sandbox 自体は entitlement なので ad-hoc でも有効。TCC トグルの安定性は
+#  kilde-dev の方が良い — §3 の kilde-dev 作成手順を参照)
+xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI-AppStore -configuration Debug build \
+  CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual ENABLE_HARDENED_RUNTIME=NO \
+  -derivedDataPath /tmp/kilde-mas
+mkdir -p ~/Movies/kilde-selftest
+KILDE_GUI_SELFTEST_RECORD=3 KILDE_GUI_SELFTEST_AUDIO=none \
+  KILDE_GUI_SELFTEST_OUTPUT="$HOME/Movies/kilde-selftest" \
+  /tmp/kilde-mas/Build/Products/Debug/KildeGUI.app/Contents/MacOS/KildeGUI
+# → selftest: finished /Users/<you>/Movies/kilde-selftest/kilde-*.mp4 (exit 0)
+```
+
+確認ポイント:
+
+- **設定の退避**: `~/Library/Containers/com.takezou621.KildeGUI/Data/Library/
+  Application Support/kilde/` が作られ、`~/.kilde/` は MAS 版の実行では
+  書き換わらないこと (SandboxSupport が `ConfigStore.directory` をコンテナへ退避)
+- `KILDE_GUI_SELFTEST_UPDATE=1` は **MAS ビルドでは使えません** (Sparkle ごと
+  除外しているため)。更新まわりの検証は通常の KildeGUI スキームで行う
+- ad-hoc 署名のままだと TCC 権限のトグルが再起動のたびに外れることがある
+  (§3 の kilde-dev の注意と同じ)。審査相当の確認は
+  `scripts/release/appstore-archive.sh` が Apple Distribution で自動署名する
+
 ## 4. エンジンと CLI の開発
 
 `KildeCore` (録画エンジン) と `kilde` (CLI) の開発は

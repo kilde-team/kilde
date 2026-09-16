@@ -1,3 +1,9 @@
+// Sparkle はストア外自己更新の仕組みのため、App Store 配布ビルド (issue #126) には
+// 含められない。MAS ビルドではこのファイルを丸ごと除外し、同じ API を持つスタブ
+// (UpdaterCoordinatorAppStore.swift) で AppDelegate / ContentView / SelfTest の
+// 呼び出し側をそのままコンパイルできるようにする。
+// **import も条件の内側** — 外に出すと Sparkle をリンクしない MAS ビルドが解決に失敗する
+#if !APPSTORE
 import Combine
 import Sparkle
 
@@ -129,3 +135,5 @@ final class UpdateInstallGate: NSObject, SPUUpdaterDelegate {
         }
     }
 }
+
+#endif

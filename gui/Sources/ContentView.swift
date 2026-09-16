@@ -165,9 +165,13 @@ struct ContentView: View {
                     set: { setup.setLaunchesAtLogin($0) }))
                     .toggleStyle(.checkbox)
             }
+            // App Store ビルドには更新項目を出さない (issue #126)。MAS では配信が
+            // App Store に一本化されるため「アップデートを確認」の手段自体が無い
+#if !APPSTORE
             section("アップデート") {
                 updateRow
             }
+#endif
         }
     }
 

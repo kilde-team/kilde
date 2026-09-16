@@ -575,6 +575,15 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
   GitHub Releases の `releases/latest/download/appcast.xml` (latest 固定 URL)、
   DMG は EdDSA 署名で検証する。更新対象は GUI のみ — CLI は Homebrew で別管理
   なので Sparkle の対象に含めない。鍵と appcast の運用は docs/RELEASE.md §5。
+- GUI の配布は **直接配布 (Sparkle) と Mac App Store の 2 チャネル併存** (issue #126)。
+  MAS 版 (`KildeGUI-AppStore` ターゲット) は App Sandbox が必須で、**Sparkle を
+  含められない** (ストア外自己更新のため) — `#if APPSTORE` で分岐し、更新 UI は
+  MAS 版から除く。サンドボックス下では `~/.kilde` にアクセスできないため、
+  設定はアプリコンテナ内へ退避させ (`ConfigStore.directory` の差し替え)、
+  保存先は security-scoped bookmark で永続化する。バンドル ID は 2 チャネルで同じ
+  (`com.takezou621.KildeGUI`) — TCC 権限と画面収録の許可がチャネル間で共有され、
+  Sparkle 版から MAS 版へ乗り換えても権限の再許可が不要なため。手順は
+  docs/RELEASE.md §7。
 
 ## 8. BlackHole 連携の詳細 (advanced)
 
