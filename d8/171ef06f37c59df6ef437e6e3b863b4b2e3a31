@@ -1,0 +1,19 @@
+gui/Resources/Assets.xcassets/AppIcon.appiconset/Contents.json
+  s_ee07b46942374b::t_99bb247456b81c 4,6-7,10,12-13,16,18-19,22,24-25,28,30-31,34,36-37,40,42-43,46,48-49,52,54-55,58,60-61,65-66,68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d8171ef06f37c59df6ef437e6e3b863b4b2e3a31",
+  "prompts": {},
+  "sessions": {
+    "s_ee07b46942374b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b986afd2-70bc-478c-acf4-7884b0c108ee",
+        "model": "claude-opus-5"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
