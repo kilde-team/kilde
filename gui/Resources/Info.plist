@@ -11,6 +11,11 @@
 	     project.yml の ASSETCATALOG_COMPILER_APPICON_NAME と必ず揃える -->
 	<key>CFBundleIconName</key>
 	<string>AppIcon</string>
+	<!-- App Store への提出で必須 (欠けるとアップロード時に "The Info.plist must contain a
+	     LSApplicationCategoryType key" で拒否される)。App Store Connect の一次カテゴリ
+	     「ユーティリティ」と揃える -->
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -25,6 +30,13 @@
 	<string>1</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
+	<!-- 輸出コンプライアンス (App Store Connect)。kilde は暗号化 API を使わず、App Store 版は
+	     ネットワーク接続のエンタイトルメントも持たない (直接配布版の Sparkle も OS の HTTPS と
+	     署名検証だけで免除対象) ため「免除対象外の暗号化なし」= false。
+	     このキーが無いとアップロードのたびに ASC で申告を求められ、ビルドが
+	     「コンプライアンスがありません」で止まる。暗号化や独自通信を足したら見直すこと -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<!-- メニューバーのみのアプリ: Dock に出さない (DESIGN.md §9) -->
 	<key>LSUIElement</key>
 	<true/>

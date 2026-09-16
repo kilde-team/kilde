@@ -101,9 +101,13 @@ targets:
     platform: macOS
     sources:
       - Sources
+      # アイコンは KildeGUI と同じカタログを使う (App Store 審査はアイコン必須)
+      - path: Resources/Assets.xcassets
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.takezou621.KildeGUI
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         PRODUCT_NAME: KildeGUI
         INFOPLIST_FILE: Resources/Info.plist
         # ローカル開発は kilde-dev で署名する (KildeGUI と同じ — TCC が同一識別で

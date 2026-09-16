@@ -257,6 +257,13 @@ scripts/release/appstore-archive.sh --version 0.4.0 --build 42
 - アーカイブ段階の署名は Apple Development (自動署名)。**ここで Apple Distribution を
   指定すると「conflicting provisioning settings」で xcodebuild が失敗する** —
   配布署名は `-exportArchive` 時に適用される (スクリプトが差し替える。Xcode 26 実測)
+- **提出に必須の Info.plist キー** (欠けるとアップロードやビルド処理で止まる。v0.3.0 build 2 の
+  提出で実測): `LSApplicationCategoryType` (= `public.app-category.utilities`。無いと
+  アップロードが "must contain a LSApplicationCategoryType key" で拒否される) と
+  `ITSAppUsesNonExemptEncryption` (= false。無いとビルドが「コンプライアンスがありません」で
+  止まり、ASC での申告を毎回求められる)。暗号化 API や独自の通信を足したら後者を見直す
+- アイコンは KildeGUI と同じ `Resources/Assets.xcassets` を App Store ターゲットの
+  `sources` にも入れて結線する (`ASSETCATALOG_COMPILER_APPICON_NAME` も両ターゲットに必要)
 - `--upload` しても**審査は始まらない**。アップロード後、App Store Connect の
   TestFlight / App Store 提出画面で提出する
 
