@@ -1,9 +1,9 @@
 class Kilde < Formula
   desc "Command-line screen and audio recorder for macOS"
   homepage "https://github.com/takezou621/kilde"
-  url "https://github.com/takezou621/kilde/releases/download/v0.2.0/kilde-0.2.0-macos.zip"
-  # v0.2.0 の実配布物のハッシュ (2026-09-15 のリリースで確定)
-  sha256 "4acde2ea78ca39d9b75bdeb233cf2d4b2fc898472a23251f0a4c2ee5f5be822a"
+  url "https://github.com/takezou621/kilde/releases/download/v0.3.0/kilde-0.3.0-macos.zip"
+  # v0.3.0 の実配布物のハッシュ (2026-09-16 のリリースで確定)
+  sha256 "da537ae641bd5b0e3853211f3681b3daf20202175c8f4825fc4bff2e50597dcf"
   license "MIT"
 
   # 配布 zip は arm64 (Apple Silicon) ビルドのみ (release workflow の macos-26
