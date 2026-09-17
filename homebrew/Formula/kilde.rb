@@ -1,7 +1,7 @@
 class Kilde < Formula
   desc "Command-line screen and audio recorder for macOS"
-  homepage "https://github.com/takezou621/kilde"
-  url "https://github.com/takezou621/kilde/releases/download/v0.3.0/kilde-0.3.0-macos.zip"
+  homepage "https://github.com/kilde-team/kilde"
+  url "https://github.com/kilde-team/kilde/releases/download/v0.3.0/kilde-0.3.0-macos.zip"
   # v0.3.0 の実配布物のハッシュ (2026-09-16 のリリースで確定)
   sha256 "da537ae641bd5b0e3853211f3681b3daf20202175c8f4825fc4bff2e50597dcf"
   license "MIT"
@@ -17,7 +17,7 @@ class Kilde < Formula
   # head ブロックは廃止 (kilde#118)。CLI のソースは kilde-team/kilde-cli-swift
   # (private) に分離されたため、外部ユーザーがこのリポジトリからソースビルドする
   # 経路が存在しない。リリースごとに url / sha256 を更新し
-  # takezou621/homebrew-kilde へ反映する (手順は docs/RELEASE.md「Homebrew tap の更新」)
+  # kilde-team/homebrew-kilde へ反映する (手順は docs/RELEASE.md「Homebrew tap の更新」)
 
   def install
     # zip 内のバイナリは ditto --keepParent のため release/kilde に入っているが、

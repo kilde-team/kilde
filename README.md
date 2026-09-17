@@ -2,7 +2,7 @@
 
 # kilde
 
-[![Release](https://github.com/takezou621/kilde/actions/workflows/release.yml/badge.svg)](https://github.com/takezou621/kilde/actions/workflows/release.yml)
+[![Release](https://github.com/kilde-team/kilde/actions/workflows/release.yml/badge.svg)](https://github.com/kilde-team/kilde/actions/workflows/release.yml)
 
 An open-source screen and audio recorder for macOS.
 
@@ -14,7 +14,7 @@ The project is split across two repositories (issue #115):
 
 | Repository | Contents | Visibility |
 |---|---|---|
-| [takezou621/kilde](https://github.com/takezou621/kilde) (this one) | Menu bar app (`gui/`), release signing and distribution, Homebrew formula, documentation | Public |
+| [kilde-team/kilde](https://github.com/kilde-team/kilde) (this one) | Menu bar app (`gui/`), release signing and distribution, Homebrew formula, documentation | Public |
 | [kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift) | The recording engine (`KildeCore`) and the `kilde` CLI source | Private (kilde-team members) |
 
 ## Features
@@ -44,18 +44,18 @@ The project is split across two repositories (issue #115):
 ### Homebrew
 
 ```sh
-brew tap takezou621/kilde
-brew trust --formula takezou621/kilde/kilde   # one-time, newer Homebrew only
+brew tap kilde-team/kilde
+brew trust --formula kilde-team/kilde/kilde   # one-time, newer Homebrew only
 brew install kilde
 
 # Or install directly from the tap
-brew install takezou621/kilde/kilde
+brew install kilde-team/kilde/kilde
 ```
 
 ### Release binaries
 
 Download `kilde-<version>-macos.zip` from
-[GitHub Releases](https://github.com/takezou621/kilde/releases), unzip it, and
+[GitHub Releases](https://github.com/kilde-team/kilde/releases), unzip it, and
 put the `kilde` binary on your `PATH`:
 
 ```sh

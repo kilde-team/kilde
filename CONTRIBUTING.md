@@ -4,7 +4,7 @@ kilde に興味を持っていただきありがとうございます。バグ�
 
 プロジェクトは 2 リポジトリに分かれています (issue #115):
 
-- **本リポジトリ (takezou621/kilde, public)** — メニューバーアプリ (`gui/`)、
+- **本リポジトリ (kilde-team/kilde, public)** — メニューバーアプリ (`gui/`)、
   リリース署名と配布 (workflow・Homebrew formula)、ドキュメント
 - **[kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift)
   (private)** — 録画エンジン (`KildeCore`) と `kilde` CLI のソース。テストと CI も
