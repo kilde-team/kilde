@@ -17,7 +17,7 @@
 
 ## 1. 作業の単位は GitHub issue
 
-- 作業は必ず GitHub issue (https://github.com/takezou621/kilde/issues) に紐づける。
+- 作業は必ず GitHub issue (https://github.com/kilde-team/kilde/issues) に紐づける。
   依頼に issue 番号があれば `gh issue view <N>` で本文を読む。番号がなく機能名だけの
   依頼なら `gh issue list --search "<キーワード>"` で該当 issue を探し、見つからなければ
   受け入れ条件を含む issue を先に作ってから着手する
@@ -94,7 +94,7 @@
 
    ```sh
    # 未解決スレッドの一覧 (id / ファイル / 本文)
-   gh api graphql -f query='query{repository(owner:"takezou621",name:"kilde"){pullRequest(number:<PR>){reviewThreads(first:100){nodes{id isResolved path line comments(first:1){nodes{author{login} body}}}}}}}' \
+   gh api graphql -f query='query{repository(owner:"kilde-team",name:"kilde"){pullRequest(number:<PR>){reviewThreads(first:100){nodes{id isResolved path line comments(first:1){nodes{author{login} body}}}}}}}' \
      --jq '.data.repository.pullRequest.reviewThreads.nodes[]|select(.isResolved|not)'
    # スレッドへの返信 → resolve
    gh api graphql -f query='mutation($t:ID!,$b:String!){addPullRequestReviewThreadReply(input:{pullRequestReviewThreadId:$t,body:$b}){comment{id}}}' \
@@ -137,7 +137,7 @@ if command -v actionlint >/dev/null; then actionlint .github/workflows/release.y
 - **release workflow は手動実行で Release を作らない** (dry-run 固定)。この設計を
   変えるときは docs/RELEASE.md を同時に更新する
 - **成果物名 `kilde-<version>-macos.zip` は Homebrew formula の `url` と結合している**。
-  変えるときは `homebrew/Formula/kilde.rb` と tap (takezou621/homebrew-kilde) の
+  変えるときは `homebrew/Formula/kilde.rb` と tap (kilde-team/homebrew-kilde) の
   更新を同じリリースサイクルで揃える
 - GUI コードの地雷は CLAUDE.md §5 (`NSStatusItem` + `NSPopover` の手動管理、
   `AppDelegate.shared`、録画モデルの持ち主、audio-input entitlement、kilde-dev 証明書)。
@@ -167,7 +167,7 @@ if command -v actionlint >/dev/null; then actionlint .github/workflows/release.y
   Linux やヘッドレス環境では GUI のビルドもパッケージ解決も通らない
 - GUI は kilde-team/kilde-cli-swift (private) をパッケージ依存で参照するため、
   パッケージ解決には kilde-team メンバーの git 認証が必要
-- `gh` は takezou621 アカウントで認証済み。cubic のレビューは
-  takezou621 組織で実行される (a23s-inc 組織は使わない)
+- `gh` は takezou621 アカウントで認証済み (リポジトリの所有は kilde-team 組織)。
+  cubic のレビューは kilde-team 組織で実行される (a23s-inc 組織は使わない)
 - 検証に使う音声・録画ファイルはリポジトリにコミットしない
   (セルフテストは `KILDE_GUI_SELFTEST_OUTPUT` で一時ディレクトリへ出せる)

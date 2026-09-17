@@ -22,7 +22,7 @@ QuickTime Player では録れない**システム音声を含む録画・録音*
 
 | リポジトリ | 内容 | 公開範囲 |
 |---|---|---|
-| takezou621/kilde (**本リポジトリ**) | メニューバー GUI (`gui/`)、リリースと配布 (`release.yml` + `scripts/release/` + Homebrew formula)、ドキュメント | Public |
+| kilde-team/kilde (**本リポジトリ**) | メニューバー GUI (`gui/`)、リリースと配布 (`release.yml` + `scripts/release/` + Homebrew formula)、ドキュメント | Public |
 | kilde-team/kilde-cli-swift | 録画エンジン (`KildeCore`) と `kilde` CLI のソース、単体テスト、統合テスト、CI | Private (kilde-team メンバー) |
 
 - **本リポジトリに Swift パッケージは無い**。`swift build` / `swift test` は
@@ -40,7 +40,7 @@ QuickTime Player では録れない**システム音声を含む録画・録音*
 | GUI (`gui/`) | ✅ メニューバー録画アプリとして実用域 (録画 UI・権限オンボーディング・完了通知・最近の録画・グローバルホットキー・ログイン時起動)。issue #17〜#20 |
 | エンジン / CLI | kilde-team/kilde-cli-swift に移管済み (issue #115 Phase 1〜2)。本リポジトリの `Sources/` `Tests/` `Package.swift` と CLI 関連スクリプト・ci.yml は削除済み (issue #118) |
 | リリース | `v*` タグで自動リリース (issue #25 / #118)。CLI は kilde-cli-swift の pin 付き checkout からビルド。v0.1.0 は unsigned zip で公開済み |
-| Homebrew | tap `takezou621/homebrew-kilde` (public) で `brew install takezou621/kilde/kilde` (v0.1.0+)。head ブロック (外部ソースビルド) は廃止 — CLI ソースが private のため |
+| Homebrew | tap `kilde-team/homebrew-kilde` (public) で `brew install kilde-team/kilde/kilde` (v0.1.0+)。head ブロック (外部ソースビルド) は廃止 — CLI ソースが private のため |
 
 ## 3. 全体の地図
 
@@ -63,7 +63,7 @@ scripts/release/entitlements.plist  audio-input (署名用)
 .github/workflows/release.yml  v* タグで kilde-cli-swift (pin 固定 + PAT) を checkout し
                                CLI をビルド、sign.sh で署名して Release を作成
                                (署名 secrets 不足ならジョブは失敗 — unsigned 分岐は廃止)
-homebrew/Formula/kilde.rb      tap (takezou621/homebrew-kilde) と同じ内容の formula 正本
+homebrew/Formula/kilde.rb      tap (kilde-team/homebrew-kilde) と同じ内容の formula 正本
 docs/                          DEVELOPMENT.md / RELEASE.md / DESIGN.md / SPIKE-NOTES.md ほか
 ```
 
@@ -87,7 +87,7 @@ docs/                          DEVELOPMENT.md / RELEASE.md / DESIGN.md / SPIKE-N
   (RELEASE.md §5) が揃っていないとジョブは失敗する。unsigned へのフォールバックは
   廃止 — appcast の無いリリースが latest になると全ユーザーの更新チェックが壊れるため
 - **Homebrew formula は 2 箇所で揃える**: 本リポジトリの `homebrew/Formula/kilde.rb`
-  (正本) と tap takezou621/homebrew-kilde。リリース zip の `url` / `sha256` を更新して
+  (正本) と tap kilde-team/homebrew-kilde。リリース zip の `url` / `sha256` を更新して
   tap へ反映する (docs/RELEASE.md「Homebrew tap の更新」)。head ブロックはない —
   CLI ソースが private のため外部ソースビルドの経路は存在しない
 - **`sign.sh` は CLI ソースの場所を知っている**: 既定 `$ROOT_DIR/kilde-cli-swift`
@@ -180,7 +180,7 @@ AI レビュー指摘の処理・完了報告) を毎回自動で適用する。
 
 ## 7. 次の一手
 
-**タスクの正本は GitHub issue** (https://github.com/takezou621/kilde/issues)。
+**タスクの正本は GitHub issue** (https://github.com/kilde-team/kilde/issues)。
 このファイルに個別タスクを列挙しない (陳腐化するため)。エンジン / CLI のタスクは
 kilde-team/kilde-cli-swift の issue 管理へ移っている。新しい作業は必ず `origin/main`
 から issue ごとのブランチを切る (AGENTS.md §2)。

@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
   - name: 開発手順・トラブルシュート
-    url: https://github.com/takezou621/kilde/blob/main/docs/DEVELOPMENT.md
+    url: https://github.com/kilde-team/kilde/blob/main/docs/DEVELOPMENT.md
     about: 権限 (TCC) や音声が無音になる場合の対処は、まず DEVELOPMENT.md §5 を確認してください

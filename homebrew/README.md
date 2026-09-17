@@ -1,6 +1,6 @@
 # Homebrew formula for kilde
 
-`Formula/kilde.rb` は Homebrew tap ([takezou621/homebrew-kilde](https://github.com/takezou621/homebrew-kilde))
+`Formula/kilde.rb` は Homebrew tap ([kilde-team/homebrew-kilde](https://github.com/kilde-team/homebrew-kilde))
 の正本 (このリポジトリに置かれているオリジナル) です。次回リリース時に tap 側へ
 反映します (手順は [docs/RELEASE.md](../docs/RELEASE.md))。
 
@@ -9,14 +9,14 @@
 tap を追加してからインストールします。
 
 ```sh
-brew tap takezou621/kilde
+brew tap kilde-team/kilde
 brew install kilde
 ```
 
 tap の追加とインストールを 1 コマンドで行うこともできます。
 
 ```sh
-brew install takezou621/kilde/kilde
+brew install kilde-team/kilde/kilde
 ```
 
 Formula は GitHub Releases のビルド済み zip (arm64 / Apple Silicon) をインストールします。

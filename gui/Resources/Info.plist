@@ -38,7 +38,7 @@
 	     SU* キーは UserDefaults が Info.plist より優先されるため、ローカル検証では
 	     defaults write で差し替えられる (docs/DEVELOPMENT.md §3) -->
 	<key>SUFeedURL</key>
-	<string>https://github.com/takezou621/kilde/releases/latest/download/appcast.xml</string>
+	<string>https://github.com/kilde-team/kilde/releases/latest/download/appcast.xml</string>
 	<!-- EdDSA 検証の公開鍵 (generate_keys -p の出力)。対応する秘密鍵を失うと
 	     この鍵で署名されたアプリへの更新ができなくなる (docs/RELEASE.md) -->
 	<key>SUPublicEDKey</key>
