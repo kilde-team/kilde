@@ -2,7 +2,7 @@
 
 # kilde
 
-[![Release](https://github.com/takezou621/kilde/actions/workflows/release.yml/badge.svg)](https://github.com/takezou621/kilde/actions/workflows/release.yml)
+[![Release](https://github.com/kilde-team/kilde/actions/workflows/release.yml/badge.svg)](https://github.com/kilde-team/kilde/actions/workflows/release.yml)
 
 macOS 向けの OSS 画面 + 音声 録画ツール。
 
@@ -13,7 +13,7 @@ CLI のワンコマンドとメニューバーアプリで実現します。
 
 | リポジトリ | 内容 | 公開範囲 |
 |---|---|---|
-| [takezou621/kilde](https://github.com/takezou621/kilde) (本リポジトリ) | メニューバーアプリ (`gui/`)、リリース署名と配布、Homebrew formula、ドキュメント | Public |
+| [kilde-team/kilde](https://github.com/kilde-team/kilde) (本リポジトリ) | メニューバーアプリ (`gui/`)、リリース署名と配布、Homebrew formula、ドキュメント | Public |
 | [kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift) | 録画エンジン (`KildeCore`) と `kilde` CLI のソース | Private (kilde-team メンバー) |
 
 ## 特徴
@@ -37,17 +37,17 @@ CLI のワンコマンドとメニューバーアプリで実現します。
 ### Homebrew
 
 ```sh
-brew tap takezou621/kilde
-brew trust --formula takezou621/kilde/kilde   # 初回 1 回のみ (新しい Homebrew で必要)
+brew tap kilde-team/kilde
+brew trust --formula kilde-team/kilde/kilde   # 初回 1 回のみ (新しい Homebrew で必要)
 brew install kilde
 
 # tap から直接インストールする場合
-brew install takezou621/kilde/kilde
+brew install kilde-team/kilde/kilde
 ```
 
 ### リリースバイナリ
 
-[GitHub Releases](https://github.com/takezou621/kilde/releases) から
+[GitHub Releases](https://github.com/kilde-team/kilde/releases) から
 `kilde-<バージョン>-macos.zip` をダウンロードし、展開して `kilde` を PATH の
 通った場所に置きます。
 

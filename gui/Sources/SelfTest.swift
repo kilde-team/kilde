@@ -209,7 +209,7 @@ enum SelfTest {
         // パスの打ち間違い (appcast を別リポジトリに置く等) が通ってしまう。latest の
         // 固定 URL は Release を作るたびに appcast の場所が変わらないという SUFeedURL の
         // 契約の一部なので、ここで崩れていないことを機械的に保証する
-        guard feedURL == "https://github.com/takezou621/kilde/releases/latest/download/appcast.xml" else {
+        guard feedURL == "https://github.com/kilde-team/kilde/releases/latest/download/appcast.xml" else {
             fail("SUFeedURL が GitHub Releases の appcast.xml 固定 URL と一致しません: \(feedURL)")
         }
         let publicEDKey = info["SUPublicEDKey"] as? String ?? ""

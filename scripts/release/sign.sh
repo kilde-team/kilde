@@ -297,7 +297,7 @@ cat > "$APPCAST" <<XML
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
   <channel>
     <title>KildeGUI</title>
-    <link>https://github.com/takezou621/kilde/releases/latest/download/appcast.xml</link>
+    <link>https://github.com/kilde-team/kilde/releases/latest/download/appcast.xml</link>
     <description>kilde GUI の更新情報</description>
     <language>ja</language>
     <item>
@@ -306,8 +306,8 @@ cat > "$APPCAST" <<XML
       <sparkle:version>${BUILD_NUMBER}</sparkle:version>
       <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <sparkle:releaseNotesLink>https://github.com/takezou621/kilde/releases/tag/v${VERSION}</sparkle:releaseNotesLink>
-      <enclosure url="https://github.com/takezou621/kilde/releases/download/v${VERSION}/KildeGUI-${VERSION}.dmg" sparkle:edSignature="${SIGNATURE}" length="${DMG_LENGTH}" type="application/octet-stream"/>
+      <sparkle:releaseNotesLink>https://github.com/kilde-team/kilde/releases/tag/v${VERSION}</sparkle:releaseNotesLink>
+      <enclosure url="https://github.com/kilde-team/kilde/releases/download/v${VERSION}/KildeGUI-${VERSION}.dmg" sparkle:edSignature="${SIGNATURE}" length="${DMG_LENGTH}" type="application/octet-stream"/>
     </item>
   </channel>
 </rss>

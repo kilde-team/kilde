@@ -108,7 +108,7 @@ KILDE_GUI_SELFTEST_RECORD=3 KILDE_GUI_SELFTEST_OUTPUT=/tmp "$APP/Contents/MacOS/
 # inspect には finished に表示されたパスをそのまま渡す。kilde-*.mp4 の glob だと
 # format=mov 等で .mov になった出力を取りこぼす
 kilde inspect /tmp/kilde-yyyyMMdd-HHmmss.mp4   # CLI の録画と同じトラック構成か確認
-#   (kilde は brew install takezou621/kilde/kilde のバイナリか、
+#   (kilde は brew install kilde-team/kilde/kilde のバイナリか、
 #    kilde-cli-swift を swift build したものを使う)
 ```
 
@@ -163,7 +163,7 @@ AppDelegate が持つ UpdaterCoordinator との配線、更新チェック可能
 
 ```sh
 KILDE_GUI_SELFTEST_UPDATE=1 "$APP/Contents/MacOS/KildeGUI"
-# → selftest: SUFeedURL=https://github.com/takezou621/kilde/releases/latest/download/appcast.xml
+# → selftest: SUFeedURL=https://github.com/kilde-team/kilde/releases/latest/download/appcast.xml
 #   selftest: SUPublicEDKey=… selftest: CFBundleVersion=1
 #   selftest: delegate=ok updaterOwned=true
 #   selftest: canCheckForUpdates=true
@@ -324,7 +324,7 @@ CLI 固有のトラブルシュートは、すべて同リポジトリのドキ�
 - **AI エージェント向けの運用ルール (issue 起点の作業、ブランチ命名、PR とレビュー対応) は
   リポジトリ直下の [AGENTS.md](../AGENTS.md) にある。**
 - 作業ブランチ: issue ごとに `origin/main` から `feature/<issue番号>-<slug>` を切る
-- リモート: https://github.com/takezou621/kilde
+- リモート: https://github.com/kilde-team/kilde
 - コミットメッセージは英語。既存履歴のスタイル (命令形の要約行) に合わせる
 - ドキュメントとコードコメントは日本語。特に macOS 26 固有の回避策は
   **「なぜそう書いたか」**をコメントに残す (後から消されると再発するため)

@@ -724,7 +724,7 @@ kilde/
 │                            #   — CLI は kilde-cli-swift の checkout をビルドする
 ├── .github/workflows/release.yml  # v* タグで Release を作成 (kilde-cli-swift を
 │                            #   pin + PAT で checkout)。単体テストの CI はエンジン側
-├── homebrew/Formula/kilde.rb  # tap (takezou621/homebrew-kilde) と同じ内容の formula 正本
+├── homebrew/Formula/kilde.rb  # tap (kilde-team/homebrew-kilde) と同じ内容の formula 正本
 ├── docs/                    # DESIGN.md / SPIKE-NOTES.md / DEVELOPMENT.md / RELEASE.md
 ├── CLAUDE.md / AGENTS.md    # AI エージェント向けの作業指示
 └── README.md

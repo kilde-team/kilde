@@ -329,7 +329,7 @@ workflow は kilde-cli-swift を **revision 固定**で checkout します
 
 次リリース (`v0.2.0` 以降) では、Release に添付された zip のハッシュを formula に書いて
 tap へ反映します。formula の正本は本リポジトリの `homebrew/Formula/kilde.rb` で、
-[takezou621/homebrew-kilde](https://github.com/takezou621/homebrew-kilde) (public) に
+[kilde-team/homebrew-kilde](https://github.com/kilde-team/homebrew-kilde) (public) に
 反映して初めてユーザーに届きます。
 
 ```sh
@@ -339,8 +339,8 @@ shasum -a 256 kilde-0.2.0-macos.zip
 
 1. `homebrew/Formula/kilde.rb` の `url` を `.../download/v0.2.0/kilde-0.2.0-macos.zip` に、
    `sha256` を計算値に更新する (本リポジトリの PR として)
-2. 同じ内容を takezou621/homebrew-kilde の formula に反映する
-3. 反映後に `brew install takezou621/kilde/kilde` (または `brew upgrade`) で動作を確認する
+2. 同じ内容を kilde-team/homebrew-kilde の formula に反映する
+3. 反映後に `brew install kilde-team/kilde/kilde` (または `brew upgrade`) で動作を確認する
    (`kilde --version` が新バージョンを返すこと)
 
 **zip は arm64 (Apple Silicon) ビルドのみ**です。Formula には

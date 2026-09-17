@@ -292,7 +292,7 @@ jobs:
             echo '```'
             echo
             echo "### Homebrew"
-            echo "brew install takezou621/kilde/kilde"
+            echo "brew install kilde-team/kilde/kilde"
           } > "$NOTES"
           ARGS=("$ARTIFACT")
           # sign.sh が GUI の DMG と appcast.xml を必ず作る — appcast は SUFeedURL
