@@ -48,9 +48,12 @@ def meter(label, frac, color):
             f'<div class="mtrack"><div class="mfill" style="width:{frac*100:.0f}%;background:{color}"></div></div></div>')
 
 
-def header():
+def header(refresh=True):
+    # ContentView は録画中 (recording.isActive) に一覧の更新ボタンを出さない。
+    # 録画中のモックでは refresh=False にして実機と揃える
+    btn = f'<span class="icon-btn">{sym("refresh", "#8A8F98", 13)}</span>' if refresh else ""
     return (f'<div class="hdr">{sym("record", "#FF3B30", 14)}<span class="hdr-t">kilde</span>'
-            f'<span class="spacer"></span><span class="icon-btn">{sym("refresh", "#8A8F98", 13)}</span></div>')
+            f'<span class="spacer"></span>{btn}</div>')
 
 
 # --- パネルの中身 3 種 -----------------------------------------------------
@@ -63,11 +66,12 @@ def panel_setup():
         {row(f'{sym("display","#C9CED6")}<span>ディスプレイ 0</span><span class="spacer"></span><span class="dim">3456×2234</span>', True)}
         {row(f'{sym("display","#C9CED6")}<span>ディスプレイ 1</span><span class="spacer"></span><span class="dim">2560×1440</span>')}
       </div>''')
+    # 入力デバイス名も他社の商標 (製品名) を避けて一般名にする — README §2
     body += section("音声", f'''
       <div class="checks">
         <div class="ck">{check(True)}<span>システム音声 (相手の声・アプリの音)</span></div>
         <div class="ck">{check(True)}<span>マイク (既定の入力デバイス)</span></div>
-        <div class="ck">{check(False)}<span>Shure MV7</span></div>
+        <div class="ck">{check(False)}<span>USB マイク</span></div>
       </div>''')
     body += section("複数の音声ソース", seg(["1 トラックに合成", "ソースごとに分離"], 0))
     body += section("保存先", f'''
@@ -81,7 +85,7 @@ def panel_setup():
 
 def panel_recording():
     """録画中。経過時間・出力サイズ・ソース別レベルメーター・停止。"""
-    body = header()
+    body = header(refresh=False)
     body += f'''
       <div class="sess">
         <div class="sess-top">
@@ -94,7 +98,7 @@ def panel_recording():
         <div class="meters">
           {meter("システム音声", 0.62, "#34C759")}
           {meter("マイク", 0.84, "#FFCC00")}
-          {meter("Shure MV7", 0.41, "#34C759")}
+          {meter("USB マイク", 0.41, "#34C759")}
         </div>
         <div class="stop">{sym("stop","#fff",14)}<span>停止</span></div>
         <div class="dim sm wrap">ポップオーバーを閉じても録画は続きます。経過時間はメニューバーに表示されます</div>

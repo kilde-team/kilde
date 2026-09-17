@@ -35,7 +35,7 @@ Mac App Store 配布 (App Store Connect の App レコード `com.takezou621.Kil
 
 **これは実機キャプチャではなく、`gui/Sources/ContentView.swift` の UI を HTML/CSS で
 再現したモックです。** 提出前に実機のキャプチャへ差し替えること。フォントが
-Noto Sans CJK JP で、macOS 実機の SF Pro / ヒラギノとは字形が違う。
+Noto Sans CJK JP (無ければ Noto Sans JP) で、macOS 実機の SF Pro / ヒラギノとは字形が違う。
 
 | ファイル | 訴求 |
 |---|---|
@@ -45,8 +45,9 @@ Noto Sans CJK JP で、macOS 実機の SF Pro / ヒラギノとは字形が違�
 | `04-audio-only.png` | 音声のみ (M4A) |
 | `05-safe-finish.png` | どの終了経路でもファイルを仕上げる |
 
-- **他社の商標を画面に入れない**。ウィンドウ一覧のサンプルは `com.example.*` の
-  一般名にしてある。実機キャプチャに差し替えるときも、Zoom / Google Meet / Teams などの
+- **他社の商標を画面に入れない**。ウィンドウ一覧のサンプルは `com.example.*`、
+  入力デバイス名は「USB マイク」の一般名にしてあり、見出しのコピーにも他社の製品名を
+  入れない。実機キャプチャに差し替えるときも、Zoom / Google Meet / Teams などの
   ウィンドウ名・バンドル ID・ロゴが写り込まないようにすること (App Store の審査で
   指摘されうる)
 - リポジトリに入っているのは 256 色に最適化した版 (5 枚で約 2.5MB)。UI 画像なので
@@ -60,10 +61,17 @@ Noto Sans CJK JP で、macOS 実機の SF Pro / ヒラギノとは字形が違�
 ```sh
 python3 -m pip install playwright && python3 -m playwright install chromium
 cd docs/appstore/tools
-python3 icon.py ../icon          # SVG を書き出す (3 バリアント)
-python3 render.py                # SVG -> PNG (16〜1024px)
-python3 build.py                 # スクリーンショット 5 枚 (2880x1800)
+python3 icon.py                  # SVG を書き出す (3 バリアント) -> ../icon/kilde-icon-*.svg
+python3 render.py                # SVG -> PNG (16〜1024px)      -> ../png/icon_*.png
+python3 build.py                 # スクリーンショット 5 枚 (2880x1800) -> out/*.png
+# 提出用に追跡している ../screenshots/ は build.py では更新されない。
+# 256 色に最適化してコピーする (pngquant は Homebrew の `brew install pngquant`)
+for f in out/*.png; do pngquant --force --output "../screenshots/$(basename "$f")" 256 "$f"; done
 ```
+
+スクリプトのパスは実行時のカレントディレクトリではなく各ファイルの位置から決まる。
+中間生成物の `png/` と `tools/out/` はコミットしない (`docs/appstore/.gitignore`)。
+フル品質のまま使うなら、最後の行の代わりに `out/*.png` を `../screenshots/` へコピーする。
 
 `panel.py` がパネルの再現部分。`ContentView.swift` を変えたら、スクリーンショットを
 撮り直す前にこちらも合わせること (幅 380pt・padding 12・セクション間 14 は SwiftUI 側の値)。

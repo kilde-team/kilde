@@ -17,7 +17,7 @@ kilde は**個人情報を含むいかなるデータも収集しません**。�
 ### 録画・録音したデータ
 
 - 画面の映像、システム音声、マイクの音声は、あなたの Mac 上で処理され、
-  **あなたが指定した保存先 (アプリの既定は `~/Movies`、コマンドラインは指定した場所) のファイルにだけ**書き込まれます
+  **あなたが指定した保存先 (アプリの既定は `~/Movies`。コマンドラインは指定した場所、指定がなければ設定した既定の保存先かカレントディレクトリ) のファイルにだけ**書き込まれます
 - 録画ファイルがアプリによってネットワークへ送られることはありません。
   ファイルの共有・削除はあなたの管理下にあります
 - 会議などを録画する場合は、参加者の同意を得るなど、お住まいの地域の法令に
@@ -28,7 +28,7 @@ kilde は**個人情報を含むいかなるデータも収集しません**。�
 | 権限 | 用途 |
 |---|---|
 | 画面収録 | 画面・ウィンドウの映像とシステム音声を録るため |
-| マイク | 自分の声を録音するため (マイクを使う設定のときだけ要求します) |
+| マイク | 自分の声や、選択した入力デバイス (USB マイク・オーディオインターフェース・仮想オーディオデバイスなど) の音声を録音するため (マイクまたは入力デバイスを使う設定のときだけ要求します) |
 | ファイルとフォルダ (保存先) | 録画ファイルを指定の場所に書き込むため |
 
 これらの権限で得たデータは、上記「録画・録音したデータ」のとおりローカルの
@@ -81,7 +81,7 @@ developer.
 ### Your recordings
 
 - Screen video, system audio, and microphone audio are processed on your Mac and
-  written **only to files in the location you choose** (`~/Movies` by default in the app; wherever you specify on the command line)
+  written **only to files in the location you choose** (`~/Movies` by default in the app; on the command line, wherever you specify, or otherwise your configured default location or the current directory)
 - The app never uploads your recordings. Sharing and deleting them is up to you
 - When you record meetings or calls, follow the laws where you live, such as
   getting consent from other participants
@@ -91,7 +91,7 @@ developer.
 | Permission | Purpose |
 |---|---|
 | Screen Recording | To capture screen or window video and system audio |
-| Microphone | To record your voice (requested only when you choose to record the microphone) |
+| Microphone | To record your voice or audio from the input devices you select, such as USB microphones, audio interfaces, or virtual audio devices (requested only when you choose to record the microphone or an input device) |
 | Files and folders (save location) | To write recordings to the location you choose |
 
 Data obtained through these permissions is stored only in local files, as

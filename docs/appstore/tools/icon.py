@@ -3,7 +3,6 @@ import math
 CANVAS = 1024.0
 # Big Sur 系の比率: 1024 キャンバスに 824 の角丸四角を中央配置 (上下左右 100 の余白)
 SHAPE = 824.0
-M = (CANVAS - SHAPE) / 2.0
 CX = CY = CANVAS / 2.0
 
 def squircle_path(cx, cy, half, n=5.9, steps=360):
@@ -91,8 +90,11 @@ def build(variant):
 
 if __name__ == "__main__":
     import sys, pathlib
-    out = pathlib.Path(sys.argv[1])
+    # 既定の出力先はリポジトリの docs/appstore/icon。render.py はここの
+    # kilde-icon-*.svg を読むので、出力先とファイル名は render.py と揃えておく
+    here = pathlib.Path(__file__).resolve().parent
+    out = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else here.parent / "icon"
     out.mkdir(parents=True, exist_ok=True)
     for v in ("full", "mid", "small"):
-        (out / f"icon-{v}.svg").write_text(build(v))
+        (out / f"kilde-icon-{v}.svg").write_text(build(v))
     print("wrote", [p.name for p in sorted(out.glob("*.svg"))])

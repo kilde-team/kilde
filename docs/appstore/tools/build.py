@@ -12,7 +12,7 @@ ICON = (pathlib.Path(__file__).parent.parent / "png" / "icon_1024.png")
 CSS = """
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { width: 1440px; height: 900px; overflow: hidden;
-  font-family: "Noto Sans CJK JP", "Helvetica Neue", sans-serif;
+  font-family: "Noto Sans CJK JP", "Noto Sans JP", "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased; }
 .stage { position: relative; width: 1440px; height: 900px;
   background: linear-gradient(155deg, #2C3543 0%, #1B222C 45%, #10151C 100%); overflow: hidden; }
@@ -140,7 +140,8 @@ def page(eyebrow, h1, sub, points, body, icon_uri, menubar_recording=False):
 SHOTS = [
     dict(name="01-capture-system-and-mic",
          h1='システム音声とマイクを、<br><span class="hl">1 本のファイル</span>に。',
-         sub="QuickTime では録れない「相手の声」を、自分の声と一緒に。メニューバーからワンクリックで。",
+         # 他社の製品名 (商標) をコピーにも入れない — README §2
+         sub="標準の画面収録では録れない「相手の声」を、自分の声と一緒に。メニューバーからワンクリックで。",
          points=["画面・ウィンドウ・音声のみを選んで収録",
                  "1 トラック合成／ソースごとに分離を切り替え",
                  "保存先の選択は CLI の既定値としても共有"],
