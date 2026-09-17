@@ -45,7 +45,7 @@ kilde は**個人情報を含むいかなるデータも収集しません**。�
   権限がありません)。アップデートは App Store を通じて配信されます
 - **直接配布版 (GitHub Releases / Homebrew)**: アップデートの確認のため、
   自動更新ライブラリ Sparkle が GitHub 上の更新情報
-  (`https://github.com/takezou621/kilde/releases/latest/download/appcast.xml`) を
+  (`https://github.com/kilde-team/kilde/releases/latest/download/appcast.xml`) を
   取得します。この通信では、一般的な HTTP 通信と同じく IP アドレスやアプリの
   バージョンなどが GitHub に伝わりますが、開発者がそれを受け取ることはありません。
   GitHub による取り扱いは
@@ -64,7 +64,7 @@ kilde は**個人情報を含むいかなるデータも収集しません**。�
 ### お問い合わせ
 
 GitHub の Issues でお問い合わせください:
-https://github.com/takezou621/kilde/issues
+https://github.com/kilde-team/kilde/issues
 
 ---
 
@@ -108,7 +108,7 @@ Settings such as the save location and audio sources are stored only on your Mac
   network entitlement). Updates are delivered through the App Store
 - **Directly distributed version (GitHub Releases / Homebrew)**: to check for
   updates, the Sparkle update framework downloads the update feed from GitHub
-  (`https://github.com/takezou621/kilde/releases/latest/download/appcast.xml`).
+  (`https://github.com/kilde-team/kilde/releases/latest/download/appcast.xml`).
   As with any HTTP request, GitHub receives information such as your IP address
   and the app version; the developer does not receive it. GitHub handles it under
   the [GitHub General Privacy Statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement).
@@ -126,4 +126,4 @@ date.
 
 ### Contact
 
-Please open an issue on GitHub: https://github.com/takezou621/kilde/issues
+Please open an issue on GitHub: https://github.com/kilde-team/kilde/issues
