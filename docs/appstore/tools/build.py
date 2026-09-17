@@ -6,8 +6,12 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent))
 import panel
 from playwright.async_api import async_playwright
 
-OUT = pathlib.Path(__file__).parent / "out"; OUT.mkdir(exist_ok=True)
-ICON = (pathlib.Path(__file__).parent.parent / "png" / "icon_1024.png")
+HERE = pathlib.Path(__file__).parent
+# スクリーンショットは README §2 が管理する screenshots/ へ直接書き出す
+# (カレントディレクトリに依存しない)。コミット前に 256 色へ最適化する手順は README §3
+OUT = HERE.parent / "screenshots"
+OUT.mkdir(exist_ok=True)
+ICON = HERE.parent / "png" / "icon_1024.png"
 
 CSS = """
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -143,7 +147,7 @@ SHOTS = [
          sub="QuickTime では録れない「相手の声」を、自分の声と一緒に。メニューバーからワンクリックで。",
          points=["画面・ウィンドウ・音声のみを選んで収録",
                  "1 トラック合成／ソースごとに分離を切り替え",
-                 "保存先の選択は CLI の既定値としても共有"],
+                 "選んだ音声と保存先は次回も保持"],
          body=panel.panel_setup()),
     dict(name="02-recording",
          h1='録画中も、<br><span class="hl">メニューバーだけ</span>。',

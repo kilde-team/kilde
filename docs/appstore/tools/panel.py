@@ -12,7 +12,6 @@ def sym(name, color="currentColor", size=13):
         "folder": '<path d="M1.5 4.2A1.2 1.2 0 0 1 2.7 3h3.1l1.3 1.5h5.2a1.2 1.2 0 0 1 1.2 1.2v6.1a1.2 1.2 0 0 1-1.2 1.2H2.7a1.2 1.2 0 0 1-1.2-1.2z" fill="none" stroke="%s" stroke-width="1.4" stroke-linejoin="round"/>' % color,
         "keyboard": '<rect x="1" y="3.5" width="14" height="9" rx="1.6" fill="none" stroke="%s" stroke-width="1.4"/><path d="M4 6.4h.01M6.5 6.4h.01M9 6.4h.01M11.5 6.4h.01M4 9h.01M6.5 9h.01M9 9h.01M11.5 9h.01M5.5 11.3h5" stroke="%s" stroke-width="1.5" stroke-linecap="round"/>' % (color, color),
         "film": '<rect x="1.5" y="3" width="13" height="10" rx="1.3" fill="none" stroke="%s" stroke-width="1.4"/><path d="M4.6 3v10M11.4 3v10" stroke="%s" stroke-width="1.2"/>' % (color, color),
-        "update": '<circle cx="8" cy="8" r="6.4" fill="none" stroke="%s" stroke-width="1.4"/><path d="M8 4.6v3.6l2.4 1.5" stroke="%s" stroke-width="1.5" stroke-linecap="round" fill="none"/>' % (color, color),
         "check": '<circle cx="8" cy="8" r="7" fill="%s"/><path d="M4.8 8.2l2.2 2.2 4.2-4.6" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>' % color,
         "stop": '<rect x="4" y="4" width="8" height="8" rx="1.3" fill="%s"/>' % color,
         "window": '<rect x="1.5" y="2.5" width="13" height="11" rx="1.6" fill="none" stroke="%s" stroke-width="1.4"/><path d="M1.5 5.6h13" stroke="%s" stroke-width="1.4"/>' % (color, color),
@@ -120,9 +119,9 @@ def panel_done():
         <div class="rr">{sym("film","#8A8F98")}<span>kilde-20260915-101744.mp4</span></div>
         <div class="rr">{sym("film","#8A8F98")}<span>kilde-20260914-193012.m4a</span></div>
       </div>''')
-    body += section("アップデート", f'''
-      <div class="line">{sym("update","#C9CED6")}<span>0.3.0 (build 41)</span>
-        <span class="spacer"></span><span class="btn">アップデートを確認</span></div>''')
+    # 「アップデート」セクションは描かない — ここは MAS 版スクリーンショットのモックで、
+    # 実機 (KildeGUI-AppStore) は更新 UI を持たない (ContentView.swift の #if !APPSTORE。
+    # MAS では配信が App Store に一本化されるため)。提出画像が実物と一致しなくなる
     return body
 
 

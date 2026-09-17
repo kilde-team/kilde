@@ -1,8 +1,13 @@
-import asyncio, pathlib, sys
+import asyncio, pathlib
 from playwright.async_api import async_playwright
 
-SRC = pathlib.Path("svg")
-OUT = pathlib.Path("png"); OUT.mkdir(exist_ok=True)
+HERE = pathlib.Path(__file__).parent
+# SVG は icon.py の出力先 (docs/appstore/icon)、PNG は build.py が読む場所
+# (docs/appstore/png)。実行時のカレントディレクトリに依存させない —
+# README §3 の手順をどこから実行しても同じ場所を読み書きするため
+SRC = HERE.parent / "icon"
+OUT = HERE.parent / "png"
+OUT.mkdir(exist_ok=True)
 
 # ピクセルサイズ -> 使う SVG 版。小さいほど簡略版を使う
 PLAN = {16:"small", 32:"small", 64:"mid", 128:"full", 256:"full", 512:"full", 1024:"full"}
