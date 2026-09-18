@@ -246,6 +246,121 @@ KILDE_GUI_SELFTEST_UPDATE=1 "$APP/Contents/MacOS/KildeGUI"
 > 鍵と appcast の運用は docs/RELEASE.md §5、録画中の再起動待ちの設計は
 > docs/DESIGN.md §9 を参照してください。
 
+### App Store 配布ビルド (KildeGUI-AppStore) のビルドと検証 (issue #126)
+
+App Store 申請用のサンドボックスビルドは、通常の KildeGUI スキームとは別の
+`KildeGUI-AppStore` スキームで行います (`gui/project.yml` の同名ターゲット。
+Sparkle 無し・App Sandbox 有効 — 詳細は docs/RELEASE.md §7):
+
+```sh
+cd gui && xcodegen
+# **最初のビルドから -derivedDataPath を付ける** — PRODUCT_NAME が直接配布版と同じ
+# KildeGUI のため、標準 DerivedData を使い回すと以前の Sparkle.framework が成果物に
+# 残ることがある (下の説明も参照)
+xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI-AppStore \
+  -configuration Debug build CODE_SIGNING_ALLOWED=NO -derivedDataPath /tmp/kilde-mas
+# CODE_SIGNING_ALLOWED=NO は **コンパイル確認のみ** — 署名と entitlements の埋め込みが
+# 行われないため、App Sandbox の実行時挙動はこのビルドでは検証できない。
+# サンドボックス下の動作は下の ad-hoc 署名ビルドで確かめる
+# 両スキームを触ったときは **どちらも** ビルドを通すこと。#if APPSTORE の
+# 分岐漏れ (import Sparkle の位置など) は通常ビルドでは検出できない
+```
+
+**DerivedData を分離する** — PRODUCT_NAME が直接配布版と同じ KildeGUI のため、
+共通の DerivedData を使い回すと以前の KildeGUI ビルドの Sparkle.framework が
+成果物に残ることがある (`scripts/release/appstore-archive.sh` は分離済みの
+`-derivedDataPath` を使う。手動ビルドは上のコマンドのように
+`-derivedDataPath /tmp/kilde-mas` を付ける)。
+
+サンドボックス下での実録画を確かめるときは、セルフテストの保存先を
+**`~/Movies` 配下**にします。サンドボックスでは tmp やホーム直下には書けず、
+書けるのはアプリコンテナ・`~/Movies` (entitlement)・NSOpenPanel で選んだ場所だけです:
+
+**署名の選び方** — 2 つのコマンドは同じではありません。`kilde-dev` 証明書がある環境では
+そちらを使ってください。ad-hoc 署名は TCC がビルドのたびにアプリを別物と見なすため、
+画面収録・マイクの許可を再起動のたびに付け直すことになります (cubic レビュー指摘。
+§3 の kilde-dev 作成手順を参照):
+
+```sh
+# (A) kilde-dev 証明書がある環境 — project.yml の既定のまま署名する。TCC が安定する
+xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI-AppStore -configuration Debug build \
+  -derivedDataPath /tmp/kilde-mas
+
+# (B) 証明書が無い環境 — ad-hoc + Hardened Runtime オフでローカル起動だけ可能にする
+#     (App Sandbox 自体は entitlement なので ad-hoc でも有効。TCC の許可は毎回付け直し)
+xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI-AppStore -configuration Debug build \
+  CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual ENABLE_HARDENED_RUNTIME=NO \
+  -derivedDataPath /tmp/kilde-mas
+
+mkdir -p ~/Movies/kilde-selftest
+KILDE_GUI_SELFTEST_RECORD=3 KILDE_GUI_SELFTEST_AUDIO=none \
+  KILDE_GUI_SELFTEST_OUTPUT="$HOME/Movies/kilde-selftest" \
+  /tmp/kilde-mas/Build/Products/Debug/KildeGUI.app/Contents/MacOS/KildeGUI
+# → selftest: finished /Users/<you>/Movies/kilde-selftest/kilde-… (exit 0)。
+#   拡張子は設定に従う (format=mov や ProRes 退避なら .mov)。**finished に表示された
+#   パスをそのまま使う** — kilde-*.mp4 の glob だと .mov を取りこぼす
+```
+
+**保存先が «ユーザーから見えるパス» になっていることを確かめる** — サンドボックス下の
+`FileManager.urls(for: .moviesDirectory, …)` はコンテナ内の Movies を返すため、そのまま
+使うと録画がユーザーからアクセスできない場所に落ちます (App Store 審査 Guideline
+2.4.5(i) でのリジェクト理由。CLAUDE.md §5.17)。既定の保存先は **まっさらなコンテナ**
+でしか確かめられない (config と bookmark が残っていると前回の選択が復元される) 一方、
+シェルから他アプリのコンテナは TCC で触れません。**バンドル ID を変えたビルド**で
+新しいコンテナを作って確認します:
+
+```sh
+set -o pipefail   # grep の 0 で «セルフテストが落ちた» を見逃さない (cubic レビュー指摘)
+# **バンドル ID は実行のたびに変える。** 同じ ID で再実行すると前回のコンテナに残った
+# config と bookmark が復元され、«新しいコンテナの既定値» を確かめられない
+# (シェルからは他アプリのコンテナを TCC で消せないので、消すより変えるほうが確実)
+SBID="com.takezou621.KildeGUI.sbcheck$(date +%H%M%S)"
+xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI-AppStore -configuration Debug build \
+  CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual \
+  PRODUCT_BUNDLE_IDENTIFIER="$SBID" \
+  -derivedDataPath /tmp/kilde-mas-sbcheck
+# 判定は **サブシェル** で行う — NG でも手元の対話シェルが落ちない。終了コードで
+# CI にも埋め込める
+(
+  set -o pipefail
+  out="$(KILDE_GUI_SELFTEST_NOTIFY=1 \
+    /tmp/kilde-mas-sbcheck/Build/Products/Debug/KildeGUI.app/Contents/MacOS/KildeGUI)" || exit 1
+  # 期待する 2 行が **絶対パスの値つきで出ていること** を必須にする。行の存在だけを
+  # 見ると、出力が空のときも、値が空や相対パスのときも「NG が無いから OK」に
+  # なってしまうため (cubic レビュー指摘)
+  echo "$out" | grep -E "^selftest: outputDirectory=/[^[:space:]]" || exit 1
+  echo "$out" | grep -E "^selftest: revealFallback=/[^[:space:]]" || exit 1
+  # **値まで見る。** grep はキー名が出れば 0 を返すので、パスがコンテナを指していても
+  # 「成功」に見えてしまう (CodeRabbit レビュー指摘)
+  if echo "$out" | grep -qE "^selftest: (outputDirectory|revealFallback)=.*/Library/Containers/"; then
+      echo "NG: 保存先がコンテナを指している (2.4.5(i) リジェクトの再発)" >&2
+      exit 1
+  fi
+  echo "OK: 保存先はユーザーから見えるパス"
+)
+# `echo` の 0 で上書きしないよう、**終了コードを取ってから**表示して返す (cubic レビュー指摘)
+status=$?; echo "検証の終了コード: $status"; test "$status" -eq 0
+# → selftest: outputDirectory=/Users/<you>/Movies
+#   selftest: revealFallback=/Users/<you>/Movies select=false
+#   OK: 保存先はユーザーから見えるパス
+#   検証の終了コード: 0
+```
+
+検証のたびに空のコンテナが増えます (`…KildeGUI.sbcheck<時刻>`)。**シェルからは TCC で
+消せない**ので、「システム設定 > 一般 > ストレージ > アプリケーション」から、または
+Finder で `~/Library/Containers/` を開いて削除してください。残っていても実害はありません。
+
+確認ポイント:
+
+- **設定の退避**: `~/Library/Containers/com.takezou621.KildeGUI/Data/Library/
+  Application Support/kilde/` が作られ、`~/.kilde/` は MAS 版の実行では
+  書き換わらないこと (SandboxSupport が `ConfigStore.directory` をコンテナへ退避)
+- `KILDE_GUI_SELFTEST_UPDATE=1` は **MAS ビルドでは使えません** (Sparkle ごと
+  除外しているため)。更新まわりの検証は通常の KildeGUI スキームで行う
+- ad-hoc 署名のままだと TCC 権限のトグルが再起動のたびに外れることがある
+  (§3 の kilde-dev の注意と同じ)。審査相当の確認は
+  `scripts/release/appstore-archive.sh` が Apple Distribution で自動署名する
+
 ## 4. エンジンと CLI の開発
 
 `KildeCore` (録画エンジン) と `kilde` (CLI) の開発は

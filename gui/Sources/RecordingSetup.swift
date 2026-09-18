@@ -58,10 +58,29 @@ final class RecordingSetup: ObservableObject {
     /// サムネイルを撮るウィンドウ数の上限 (1 枚ごとに SCScreenshotManager の撮影が走るため)
     private static let thumbnailLimit = 24
     private static let ownBundleID = Bundle.main.bundleIdentifier
+#if APPSTORE
+    /// 保存先を bookmark に記録できなかったときの警告。**比較に使うので定数にしている** —
+    /// 選び直しが成功したらこの警告だけを消すため (cubic レビュー指摘)
+    private static let bookmarkFailureNotice =
+        "保存先を変更しました。ただし記録できなかったため、"
+        + "次にアプリを起動したときは既定の保存先に戻ります"
+#endif
 
     init() {
+#if APPSTORE
+        // **ConfigStore に触るより先に**設定の保存先をコンテナ内へ退避させる (issue #126)。
+        // 既定の ~/.kilde はサンドボックス下で読み書きできないため
+        SandboxSupport.redirectConfigStoreIntoContainer()
+        // サンドボックス下の .moviesDirectory は **コンテナ内の** Movies を返す。
+        // そのまま持ち回ると録画がコンテナに落ち、保存先の表示も通知の「Finder で表示」も
+        // ユーザーがアクセスできないパスになり、App Store 審査で
+        // Guideline 2.4.5(i) としてリジェクトされる (2026-09-17)。
+        // 詳細は SandboxSupport.userVisibleMoviesDirectory()
+        let fallback = SandboxSupport.userVisibleMoviesDirectory()
+#else
         let fallback = FileManager.default.urls(for: .moviesDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser
+#endif
         request = RecordRequest(outputDirectory: fallback)
         do {
             config = try ConfigStore.load()
@@ -70,6 +89,27 @@ final class RecordingSetup: ObservableObject {
             notice = "設定ファイルを読めません (既定値で表示します): \(error)"
         }
         request = RecordRequest.initial(config: config, fallbackDirectory: fallback)
+#if APPSTORE
+        // config.json に «コンテナ内のパス» が残っていることがある (リジェクトされた
+        // 版で「既定にする」を押した場合)。ユーザーから見えるパスへ正規化してから
+        // bookmark の復元にかける
+        request.outputDirectory = SandboxSupport.userVisible(request.outputDirectory)
+        // 前回 NSOpenPanel で選んだ保存先を bookmark から復元する (issue #126)。
+        // サンドボックスでは設定ファイルで知ったパスにはアクセスできないため、
+        // 選択で得たディレクトリだけを security-scoped bookmark で持ち越す。
+        // **最後の request 再作成より後で行う** — 先に復元すると initial(config:) が
+        // request を作り直して復元結果を上書きする (CodeRabbit レビュー指摘)
+        if let restored = SandboxOutputDirectory.restore() {
+            request.outputDirectory = restored
+        } else if !FileManager.default.isWritableFile(atPath: request.outputDirectory.path) {
+            // bookmark が無い・復元できない (外付けを外した等) とき、config に残った
+            // 保存先はサンドボックスから開けないことがある。そのままだと録画のたびに
+            // 開始前で失敗し、既定へ戻る手段もユーザーに見えない (cubic レビュー指摘)。
+            // `isWritableFile` はサンドボックスの権限を反映する — movies エンタイトルメント
+            // だけのとき ~/Movies=true, ~/Desktop=false になることを実測 (2026-09-18)
+            request.outputDirectory = fallback
+        }
+#endif
         hotkeyDraft = config.hotkey ?? ""
     }
 
@@ -223,6 +263,25 @@ final class RecordingSetup: ObservableObject {
         // LSUIElement のアプリはアクティブでないとパネルが他のウィンドウの後ろに出る
         NSApp.activate(ignoringOtherApps: true)
         if panel.runModal() == .OK, let url = panel.url {
+#if APPSTORE
+            // 選択を bookmark に永続化して再起動後も使えるようにする (issue #126)。
+            // 保存しないと、選んだ保存先が次回起動時には既定 (~/Movies) へ戻ってしまう。
+            // **パネル由来の URL のアクセス可否はここで判定しない** — powerbox が
+            // 開始済みで、重ねて start すると extension がリークする
+            // (SandboxSupport.persist の説明。Codex レビュー指摘)
+            // bookmark を作れなかったときは **選択を採用したうえで** 知らせる —
+            // このプロセスでは選んだ保存先を使えるが、次回起動では既定に戻るため
+            // (CodeRabbit レビュー指摘)
+            if !SandboxOutputDirectory.persist(url) {
+                notice = Self.bookmarkFailureNotice
+            } else if notice == Self.bookmarkFailureNotice {
+                // 前回の «持ち越せなかった» 警告は、選び直しが成功した時点で嘘になる。
+                // **他の理由の通知は消さない** — 設定ファイルの読み込みエラーのような、
+                // 保存先とは無関係で消えては困る警告が同じ notice に出る
+                // (cubic レビュー指摘。提案の «成功したら nil» はそれらも巻き込む)
+                notice = nil
+            }
+#endif
             request.outputDirectory = url
             // 「最近の録画」は保存先を走査して作るので、変更したら取り直す。
             // 忘れると変更前のディレクトリの一覧が残り、クリックすると別の場所が開く

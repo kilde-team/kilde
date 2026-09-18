@@ -54,11 +54,17 @@ gui/                           メニューバー GUI (XcodeGen: project.yml が
   Sources/ContentView.swift    録画パネル (対象・音声・保存先の選択、Rec/Stop、レベルメーター)
   Sources/LevelMeter.swift     ソース別レベルメーター (dB 表示)
   Sources/SelfTest.swift       KILDE_GUI_SELFTEST_* による UI なし録画 (検証用)
-  Sources/UpdaterCoordinator.swift  Sparkle 2 自動更新の窓口 + 録画中の再起動待ち (issue #122)
+  Sources/UpdaterCoordinator.swift  Sparkle 2 自動更新の窓口 + 録画中の再起動待ち (issue #122)。
+                               ファイル全体が `#if !APPSTORE` — MAS ビルドでは
+                               UpdaterCoordinatorAppStore.swift のスタブに差し替わる
+  Sources/SandboxSupport.swift サンドボックス下 (MAS) でのみ必要な支援。全体が `#if APPSTORE`
   Resources/Info.plist         LSUIElement・権限説明文字列・SUFeedURL/SUPublicEDKey (バンドル用)
   Resources/KildeGUI.entitlements  audio-input (Hardened Runtime 下のマイクに必須)
+  Resources/KildeGUI-AppStore.entitlements  App Sandbox + マイク + Movies + bookmark (MAS 版用)
 scripts/release/sign.sh        Developer ID 署名 + notarization + zip/DMG 作成
                                (CLI は kilde-cli-swift の checkout をビルド — CLI_DIR)
+scripts/release/appstore-archive.sh  App Store 配布ビルド (KildeGUI-AppStore) の
+                               アーカイブ + 検証 + ASC へのアップロード (issue #126)
 scripts/release/entitlements.plist  audio-input (署名用)
 .github/workflows/release.yml  v* タグで kilde-cli-swift (pin 固定 + PAT) を checkout し
                                CLI をビルド、sign.sh で署名して Release を作成
@@ -92,6 +98,14 @@ docs/                          DEVELOPMENT.md / RELEASE.md / DESIGN.md / SPIKE-N
   CLI ソースが private のため外部ソースビルドの経路は存在しない
 - **`sign.sh` は CLI ソースの場所を知っている**: 既定 `$ROOT_DIR/kilde-cli-swift`
   (release.yml の checkout path と一致)。別の場所は `--cli-dir` / `KILDE_CLI_DIR`
+- **App Store 配布は直接配布 (Sparkle) と併存する 2 本立て** (issue #126):
+  `KildeGUI-AppStore` ターゲットが MAS 版を作る。バンドル ID は 2 チャネルで同じ
+  `com.takezou621.KildeGUI`。**MAS 版に Sparkle は禁止** (ストア外自己更新のため) —
+  `#if APPSTORE` / `#if !APPSTORE` で分岐し、appstore-archive.sh がアーカイブ内の
+  Sparkle 無しと App Sandbox 有効を検証する。**MAS ビルドの DerivedData は必ず分離**
+  (PRODUCT_NAME が同じ KildeGUI のため、使い回すと以前の Sparkle.framework が残る)。
+  サンドボックス下では `~/.kilde` が読めないため、SandboxSupport が
+  `ConfigStore.directory` をコンテナ内へ退避させる。手順は docs/RELEASE.md §7
 - CLI の終了コード (`0`/`1`/`2` 権限/`3` デバイス不明、検証エラー `64`) と既定値
   (`--audio system`、`--audio-tracks mixed`、出力名 `kilde-yyyyMMdd-HHmmss.*`) は
   変更してはいけない契約。**正本は kilde-team/kilde-cli-swift と DESIGN.md §6** —
@@ -151,6 +165,30 @@ Info.plist 埋め込みの `unsafeFlags`、SDK シンボルの CI 確認) は
     `SUAutomaticallyChecksForUpdates` に戻すと警告なしで効かなくなり、Debug ビルドの
     「実フィードを見にいかない」が黙って無効になる (UpdaterCoordinator が書き込む値。
     defaults での戻し手順は docs/DEVELOPMENT.md §3)
+15. **MAS ビルド (`KildeGUI-AppStore`) は Sparkle をリンクしない**ため、
+    `import Sparkle` は `UpdaterCoordinator.swift` 内の `#if !APPSTORE` の**内側**に
+    ある。外に出すと MAS ビルドだけが「モジュールを解決できない」で落ちる
+    (通常ビルドは通るので、GUI 単体ビルドでは気づけない)。MAS 版の同じ API の
+    スタブは UpdaterCoordinatorAppStore.swift。両スキームのビルドを通して初めて
+    「通った」と言える
+16. **サンドボックス下では `~/.kilde` が読み書きできない**。MAS 版は
+    `SandboxSupport.redirectConfigStoreIntoContainer()` が `ConfigStore.directory`
+    をコンテナ内 (App Support/kilde) へ退避させる — これは static var の
+    **初回アクセス前に**実行する必要があり、現在の最初の消費者は
+    `RecordingSetup.init`。ConfigStore に触る新しいコードを足すときは呼び出し位置を
+    見直すこと。保存先の永続化は security-scoped bookmark を UserDefaults に置く
+    (~/.kilde/config.json を MAS 専用 blob で汚さないため。CLI は bookmark を解釈できない)
+17. **サンドボックス下の `FileManager.urls(for: .moviesDirectory, …)` は «コンテナ内» の
+    Movies を返す**。既存コンテナでは実 `~/Movies` への symlink になっていることも
+    あるが、**新規コンテナでは実ディレクトリが作られ、録画がコンテナの中に落ちる**
+    (2026-09-18 実測: 修正前ビルドは `recentCount=0` — ユーザーの ~/Movies が
+    見えていなかった)。symlink だった場合でもアプリが持ち回るパス文字列はコンテナの
+    ままなので、保存先表示・録画完了のパス表示・通知の「Finder で表示」・
+    「最近の録画」がユーザーからアクセスできない場所を指す。これで
+    **App Store 審査 Guideline 2.4.5(i) でリジェクトされた** (0.3.0 (2)、2026-09-17)。
+    MAS 版の既定保存先は必ず `SandboxSupport.userVisibleMoviesDirectory()` を通す
+    (symlink 解決 → だめなら getpwuid の実ホーム)。**`NSHomeDirectory()` も
+    サンドボックス下ではコンテナを返す**ので、実ホームの取得には使えない
 
 ## 6. 作業の進め方 — issue 駆動 (共通ルールは AGENTS.md)
 

@@ -27,11 +27,21 @@ enum SelfTest {
                                popover: PopoverControl) {
         let env = ProcessInfo.processInfo.environment
         // KILDE_GUI_SELFTEST_UPDATE=1: Sparkle 自動更新の配線と設定を確かめる (issue #122)。
-        // 終了は reportUpdateSetup の中 (canCheckForUpdates の待ちがあるため)
+        // 終了は reportUpdateSetup の中 (canCheckForUpdates の待ちがあるため)。
+        // App Store ビルドには Sparkle が無い (issue #126) のでこの検証は対象外
+#if !APPSTORE
         if env["KILDE_GUI_SELFTEST_UPDATE"] == "1" {
             reportUpdateSetup(updater: updater)
             return
         }
+#else
+        // MAS ビルドには Sparkle が無いので検証できない。**黙って素通ししない** —
+        // 素通しすると「終了しないセルフテスト」になり、直接起動したプロセスが
+        // 常駐する (検証スクリプトがハングする。cubic レビュー指摘)
+        if env["KILDE_GUI_SELFTEST_UPDATE"] == "1" {
+            fail("KILDE_GUI_SELFTEST_UPDATE は MAS ビルドでは使えません (Sparkle 非搭載)")
+        }
+#endif
         // KILDE_GUI_SELFTEST_PERMISSIONS=1: 構成ごとに「何の権限を要求するか」を出して終わる (issue #19)。
         // 実際に TCC の許可を取り消さないと確かめられない部分 (案内の見た目) は人の目に頼るしかないが、
         // 「音声のみの録音に画面収録権限を求めない」のような判定はこれで機械的に確認できる
@@ -196,6 +206,7 @@ enum SelfTest {
     /// - **確かめられない**: 更新のダウンロード・EdDSA 検証・インストール・再起動。
     ///   これらは Developer ID 署名同士のビルドでしか成立せず、実機 E2E は
     ///   v0.3.0 → v0.3.1 のリリースで手動確認する — ここで «通った» にしない
+#if !APPSTORE
     @MainActor
     private static func reportUpdateSetup(updater: UpdaterCoordinator) {
         let info = Bundle.main.infoDictionary ?? [:]
@@ -258,6 +269,7 @@ enum SelfTest {
         fflush(stdout)
         exit(0)
     }
+#endif
 
     /// 権限の判定結果を構成ごとに出す (KILDE_GUI_SELFTEST_PERMISSIONS=1)。
     /// 判定は PermissionsModel が CLI の `kilde doctor` と同じ Permissions を使って行う

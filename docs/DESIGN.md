@@ -418,7 +418,10 @@ writer の後始末より**前**に `sck?.stop()` を呼ぶ。ここでも停止
 ### 設定ファイル (`~/.kilde/config.json`, M2 — #14)
 
 `kilde rec` の既定値を変える。CLI と GUI (M3) で共有するため、読み込みと解決は
-KildeCore (`ConfigStore` / `RecordSettings`) にある。値は CLI 引数と同じ文字列表現。
+KildeCore (`ConfigStore` / `RecordSettings`) にある。**共有は直接配布版の GUI に限る** —
+Mac App Store 版 (`KildeGUI-AppStore`) はサンドボックスから `~/.kilde` を読めないため、
+設定をアプリコンテナ内へ退避させ、CLI とは共有しない (§7 / docs/RELEASE.md §7。
+cubic レビュー指摘)。値は CLI 引数と同じ文字列表現。
 保存先ディレクトリは `KILDE_CONFIG_DIR` で差し替えられる。絶対パスか `~` 始まりのみ
 受け付け (`outputDirectory` と同じ基準 — GUI はカレントディレクトリが `/` になるため)、
 相対パスは設定・monitor state の読み書き前に終了コード 1 で拒否する。
@@ -575,6 +578,18 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
   GitHub Releases の `releases/latest/download/appcast.xml` (latest 固定 URL)、
   DMG は EdDSA 署名で検証する。更新対象は GUI のみ — CLI は Homebrew で別管理
   なので Sparkle の対象に含めない。鍵と appcast の運用は docs/RELEASE.md §5。
+- GUI の配布は **直接配布 (Sparkle) と Mac App Store の 2 チャネル併存** (issue #126)。
+  MAS 版 (`KildeGUI-AppStore` ターゲット) は App Sandbox が必須で、**Sparkle を
+  含められない** (ストア外自己更新のため) — `#if APPSTORE` で分岐し、更新 UI は
+  MAS 版から除く。サンドボックス下では `~/.kilde` にアクセスできないため、
+  設定はアプリコンテナ内へ退避させ (`ConfigStore.directory` の差し替え)、
+  保存先は **NSOpenPanel で選んだディレクトリのみ** security-scoped bookmark
+  (UserDefaults 永続化) で持ち越す — 既定の ~/Movies は movies エンタイトルメントの
+  経路で書ける。バンドル ID は 2 チャネルで同じ
+  (`com.takezou621.KildeGUI`) — そのため TCC 権限 (画面収録・マイク) は
+  チャネル間で共有される**想定**だが、TCC は署名の designated requirement でも
+  アプリを識別するため、Developer ID 署名と Apple Distribution 署名の間で
+  再許可が不要かは**実機での確認が必要** (未検証)。手順は docs/RELEASE.md §7。
 
 ## 8. BlackHole 連携の詳細 (advanced)
 
@@ -623,6 +638,8 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
 > 明示パス (`--output` / 位置引数) は従来どおり上書きする。
 - グローバルホットキー (開始/停止)。CLI と設定 (出力先・既定ソース) を共有
   (`~/.kilde/config.json` と `KildeCore.ConfigStore` / `RecordSettings` — §6、#14 で実装済み)。
+  **Mac App Store 版は共有しない** — サンドボックスの制約で設定はアプリコンテナ内に
+  置かれる (§7)。チャネルを切り替えても保存先やホットキーは引き継がれない。
 - 権限の初回ガイドを GUI で丁寧に出す (CLI の `doctor` と同一ロジック)。
 
 > **実装 (issue #20):** 録画完了は `UNUserNotificationCenter` で通知し、クリックすると
