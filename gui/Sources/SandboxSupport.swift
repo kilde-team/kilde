@@ -218,33 +218,42 @@ enum SandboxOutputDirectory {
     ///
     /// `accessedURL` は «1 回分の start が生きている URL» を表す — bookmark から
     /// `restore()` が明示的に開始したものも、パネルが暗黙に開始したものも同じ 1 回分
-    static func persist(_ url: URL) {
-        updateBookmark(for: url)
+    /// 戻り値は «次回起動に持ち越せたか» (bookmark を保存できたか)。
+    /// **false でも選択自体は有効** — パネル由来の URL はこのプロセスの間は使えるので、
+    /// 保存先の変更は採用してよい。持ち越せないことだけ呼び出し側から知らせる
+    /// (CodeRabbit レビュー指摘への対応。選択ごと拒否はしない — ユーザーが選んだ
+    /// 保存先を «bookmark を作れなかったから» と無言で捨てるほうが不親切なため)
+    @discardableResult
+    static func persist(_ url: URL) -> Bool {
+        let persisted = updateBookmark(for: url)
         if accessedURL == url {
             // 同じ保存先を選び直した。パネルが **新たに 1 回** 開始しているので、
             // その分をここで解放して数を合わせる (保持するのは既存の 1 回分)
             url.stopAccessingSecurityScopedResource()
-            return
+            return persisted
         }
         // 保存先の変更。旧 URL の 1 回分を解放し、パネルが開始した新 URL の分を保持する。
         // 録画済みファイルは既に開かれている (開いた fd は sandbox extension の
         // 取り消しで無効にならない) ので、書きかけへの影響はない
         accessedURL?.stopAccessingSecurityScopedResource()
         accessedURL = url
+        return persisted
     }
 
-    /// 選択された保存先の bookmark を保存する。
+    /// 選択された保存先の bookmark を保存する。戻り値は保存できたか。
     /// 作成に失敗したときは **古い bookmark を残さない** — 残すと次回起動で
     /// «選んだ覚えのない前の保存先» が黙って復元される (cubic レビュー指摘)
-    private static func updateBookmark(for url: URL) {
-        if let data = try? url.bookmarkData(
+    private static func updateBookmark(for url: URL) -> Bool {
+        guard let data = try? url.bookmarkData(
             options: .withSecurityScope,
             includingResourceValuesForKeys: nil,
-            relativeTo: nil) {
-            UserDefaults.standard.set(data, forKey: bookmarkKey)
-        } else {
+            relativeTo: nil)
+        else {
             UserDefaults.standard.removeObject(forKey: bookmarkKey)
+            return false
         }
+        UserDefaults.standard.set(data, forKey: bookmarkKey)
+        return true
     }
 }
 #endif

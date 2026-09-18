@@ -262,7 +262,13 @@ final class RecordingSetup: ObservableObject {
             // **パネル由来の URL のアクセス可否はここで判定しない** — powerbox が
             // 開始済みで、重ねて start すると extension がリークする
             // (SandboxSupport.persist の説明。Codex レビュー指摘)
-            SandboxOutputDirectory.persist(url)
+            // bookmark を作れなかったときは **選択を採用したうえで** 知らせる —
+            // このプロセスでは選んだ保存先を使えるが、次回起動では既定に戻るため
+            // (CodeRabbit レビュー指摘)
+            if !SandboxOutputDirectory.persist(url) {
+                notice = "保存先を変更しました。ただし記録できなかったため、"
+                    + "次にアプリを起動したときは既定の保存先に戻ります"
+            }
 #endif
             request.outputDirectory = url
             // 「最近の録画」は保存先を走査して作るので、変更したら取り直す。
