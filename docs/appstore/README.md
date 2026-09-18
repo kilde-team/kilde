@@ -83,8 +83,42 @@ python3 build.py                 # スクリーンショット 5 枚 (2880x1800)
 
 App レコードは作成済み (Apple ID `6812783176`)。プライバシー (データ収集なし)・
 年齢区分 (4+)・カテゴリ (ユーティリティ / 仕事効率化)・著作権は入力済み。
-**説明・キーワード・スクリーンショットの登録と審査提出はまだ**。
+**0.3.0 (2) を 2026-09-16 に提出し、2026-09-17 にリジェクトされた** (§5)。
 プライバシーポリシーの本文はリポジトリ直下の `PRIVACY.md` (issue #128)。
 App Store Connect のプライバシーポリシー URL には
 `https://github.com/kilde-team/kilde/blob/main/PRIVACY.md` を指定する
 (main にマージされるまでは 404 になるので、URL の差し替えはマージ後に行う)。
+
+## 5. 審査の履歴
+
+### 0.3.0 (2) — Guideline 2.4.5(i) でリジェクト (2026-09-17)
+
+> The app saves user data to the app's container, which is not user accessible …
+> It would be appropriate to save user files to a location selected by or available
+> to users, using standard Save dialogs.
+
+**原因**: 既定の保存先を `FileManager.urls(for: .moviesDirectory, in: .userDomainMask)`
+から取っていた。サンドボックス下でこの API が返すのは実 `~/Movies` ではなく
+**コンテナ内の** `~/Library/Containers/com.takezou621.KildeGUI/Data/Movies` で、
+新規コンテナではそこが実ディレクトリとして作られ、録画がコンテナの中に落ちる。
+既存コンテナで実 `~/Movies` への symlink になっている場合でも、アプリが表示・記録する
+パス文字列はコンテナのままなので、録画完了のパス表示・通知の「Finder で表示」・
+「最近の録画」がユーザーからアクセスできない場所を指す。
+
+**対応**: MAS ビルドの既定保存先を `SandboxSupport.userVisibleMoviesDirectory()`
+経由にし、実 `~/Movies` を指すようにした (symlink 解決 → だめなら `getpwuid` の実ホーム)。
+`config.json` に残った古いコンテナ内パスも `SandboxSupport.userVisible(_:)` で正規化する。
+検証手順は docs/DEVELOPMENT.md の「App Store 配布ビルドのビルドと検証」、
+地雷としての記録は CLAUDE.md §5.17。
+
+**再提出時のレビューノートに書くこと** (App Store Connect の「App Review Information」):
+
+```
+Recordings are saved to the user's ~/Movies folder by default (entitlement:
+com.apple.security.assets.movies.read-write). The save location is shown in the
+recording panel and can be changed at any time with the "変更…" (Change…) button,
+which opens a standard NSOpenPanel; the choice is persisted with a security-scoped
+bookmark. Nothing the user creates is stored in the app container — the container
+holds only the app's own settings (config.json).
+```
+

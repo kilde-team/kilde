@@ -178,6 +178,17 @@ Info.plist 埋め込みの `unsafeFlags`、SDK シンボルの CI 確認) は
     `RecordingSetup.init`。ConfigStore に触る新しいコードを足すときは呼び出し位置を
     見直すこと。保存先の永続化は security-scoped bookmark を UserDefaults に置く
     (~/.kilde/config.json を MAS 専用 blob で汚さないため。CLI は bookmark を解釈できない)
+17. **サンドボックス下の `FileManager.urls(for: .moviesDirectory, …)` は «コンテナ内» の
+    Movies を返す**。既存コンテナでは実 `~/Movies` への symlink になっていることも
+    あるが、**新規コンテナでは実ディレクトリが作られ、録画がコンテナの中に落ちる**
+    (2026-09-18 実測: 修正前ビルドは `recentCount=0` — ユーザーの ~/Movies が
+    見えていなかった)。symlink だった場合でもアプリが持ち回るパス文字列はコンテナの
+    ままなので、保存先表示・録画完了のパス表示・通知の「Finder で表示」・
+    「最近の録画」がユーザーからアクセスできない場所を指す。これで
+    **App Store 審査 Guideline 2.4.5(i) でリジェクトされた** (0.3.0 (2)、2026-09-17)。
+    MAS 版の既定保存先は必ず `SandboxSupport.userVisibleMoviesDirectory()` を通す
+    (symlink 解決 → だめなら getpwuid の実ホーム)。**`NSHomeDirectory()` も
+    サンドボックス下ではコンテナを返す**ので、実ホームの取得には使えない
 
 ## 6. 作業の進め方 — issue 駆動 (共通ルールは AGENTS.md)
 

@@ -293,6 +293,31 @@ KILDE_GUI_SELFTEST_RECORD=3 KILDE_GUI_SELFTEST_AUDIO=none \
 #   パスをそのまま使う** — kilde-*.mp4 の glob だと .mov を取りこぼす
 ```
 
+**保存先が «ユーザーから見えるパス» になっていることを確かめる** — サンドボックス下の
+`FileManager.urls(for: .moviesDirectory, …)` はコンテナ内の Movies を返すため、そのまま
+使うと録画がユーザーからアクセスできない場所に落ちます (App Store 審査 Guideline
+2.4.5(i) でのリジェクト理由。CLAUDE.md §5.17)。既定の保存先は **まっさらなコンテナ**
+でしか確かめられない (config と bookmark が残っていると前回の選択が復元される) 一方、
+シェルから他アプリのコンテナは TCC で触れません。**バンドル ID を変えたビルド**で
+新しいコンテナを作って確認します:
+
+```sh
+xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI-AppStore -configuration Debug build \
+  CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual \
+  PRODUCT_BUNDLE_IDENTIFIER=com.takezou621.KildeGUI.sbcheck \
+  -derivedDataPath /tmp/kilde-mas-sbcheck
+KILDE_GUI_SELFTEST_NOTIFY=1 \
+  /tmp/kilde-mas-sbcheck/Build/Products/Debug/KildeGUI.app/Contents/MacOS/KildeGUI \
+  | grep -E "outputDirectory|revealFallback"
+# → selftest: outputDirectory=/Users/<you>/Movies
+#   selftest: revealFallback=/Users/<you>/Movies select=false
+#   どちらかが /Users/<you>/Library/Containers/… を指したら **失敗** (リジェクトの再発)
+```
+
+検証用に作ったコンテナ (`…KildeGUI.sbcheck`) は「システム設定 > 一般 > ストレージ >
+アプリケーション」から、または Finder で `~/Library/Containers/` を開いて削除します
+(シェルからは TCC で消せません)。残っていても実害はありません。
+
 確認ポイント:
 
 - **設定の退避**: `~/Library/Containers/com.takezou621.KildeGUI/Data/Library/

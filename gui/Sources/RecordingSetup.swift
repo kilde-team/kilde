@@ -64,9 +64,16 @@ final class RecordingSetup: ObservableObject {
         // **ConfigStore に触るより先に**設定の保存先をコンテナ内へ退避させる (issue #126)。
         // 既定の ~/.kilde はサンドボックス下で読み書きできないため
         SandboxSupport.redirectConfigStoreIntoContainer()
-#endif
+        // サンドボックス下の .moviesDirectory は **コンテナ内の** Movies を返す。
+        // そのまま持ち回ると録画がコンテナに落ち、保存先の表示も通知の「Finder で表示」も
+        // ユーザーがアクセスできないパスになり、App Store 審査で
+        // Guideline 2.4.5(i) としてリジェクトされる (2026-09-17)。
+        // 詳細は SandboxSupport.userVisibleMoviesDirectory()
+        let fallback = SandboxSupport.userVisibleMoviesDirectory()
+#else
         let fallback = FileManager.default.urls(for: .moviesDirectory, in: .userDomainMask).first
             ?? FileManager.default.homeDirectoryForCurrentUser
+#endif
         request = RecordRequest(outputDirectory: fallback)
         do {
             config = try ConfigStore.load()
@@ -76,6 +83,10 @@ final class RecordingSetup: ObservableObject {
         }
         request = RecordRequest.initial(config: config, fallbackDirectory: fallback)
 #if APPSTORE
+        // config.json に «コンテナ内のパス» が残っていることがある (リジェクトされた
+        // 版で「既定にする」を押した場合)。ユーザーから見えるパスへ正規化してから
+        // bookmark の復元にかける
+        request.outputDirectory = SandboxSupport.userVisible(request.outputDirectory)
         // 前回 NSOpenPanel で選んだ保存先を bookmark から復元する (issue #126)。
         // サンドボックスでは設定ファイルで知ったパスにはアクセスできないため、
         // 選択で得たディレクトリだけを security-scoped bookmark で持ち越す。

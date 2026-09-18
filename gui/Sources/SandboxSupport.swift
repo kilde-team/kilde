@@ -31,6 +31,89 @@ enum SandboxSupport {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         ConfigStore.directory = directory
     }
+
+    /// 録画の保存先の既定 (~/Movies) を **ユーザーから見えるパス** で返す。
+    ///
+    /// `FileManager.urls(for: .moviesDirectory, in: .userDomainMask)` はサンドボックス下で
+    /// **コンテナ内の** `~/Library/Containers/<id>/Data/Movies` を返す。新規コンテナでは
+    /// そこが実ディレクトリとして作られ、**録画がコンテナの中に落ちる** (2026-09-18 実測:
+    /// 修正前のビルドは ~/Movies の既存録画を 1 件も見つけられなかった)。実 `~/Movies` への
+    /// symlink になっている場合でも、アプリが持ち回るパス文字列はコンテナのままなので、
+    /// 録画完了のパス表示・通知の「Finder で表示」・「最近の録画」がユーザーから
+    /// アクセスできない場所を指す。これで **App Store 審査 Guideline 2.4.5(i)**
+    /// (ユーザーがアクセスできないコンテナへの保存) としてリジェクトされた
+    /// (0.3.0 (2)、2026-09-17)。
+    ///
+    /// 実 `~/Movies` を指せば表示も Finder の表示先もユーザーのフォルダになり、
+    /// `com.apple.security.assets.movies.read-write` があるので書き込みも通る
+    /// (2026-09-18 実測)
+    static func userVisibleMoviesDirectory() -> URL {
+        let fileManager = FileManager.default
+        let containerMovies = fileManager.urls(for: .moviesDirectory, in: .userDomainMask).first
+        // コンテナ内 Movies が実 ~/Movies への symlink なら、解決するだけで実パスになる
+        if let containerMovies {
+            let resolved = containerMovies.resolvingSymlinksInPath()
+            if !isInsideContainer(resolved) { return resolved }
+        }
+        // symlink でなければ実ホームから組む (新規コンテナはこちら)
+        let movies = realHomeDirectory().appendingPathComponent("Movies", isDirectory: true)
+        var isDirectory: ObjCBool = false
+        if fileManager.fileExists(atPath: movies.path, isDirectory: &isDirectory),
+           isDirectory.boolValue {
+            return movies
+        }
+        // ~/Movies が消されている場合は作る。それも通らなければ **書ける場所** へ退く —
+        // 保存先として使えない実ホーム直下 (サンドボックスでは書けない) を返すより、
+        // コンテナ内でも録画が成立するほうがまし
+        if (try? fileManager.createDirectory(at: movies, withIntermediateDirectories: true)) != nil {
+            return movies
+        }
+        return containerMovies ?? URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+    }
+
+    /// 保存先のパスを「ユーザーから見えるパス」へ正規化する。
+    ///
+    /// config.json に**コンテナ内のパスが残っている**ことがある — リジェクトされた版で
+    /// «この音声・保存先の選択を既定にする» を押すと、コンテナのパスがそのまま保存されるため。
+    /// コンテナ外のパス (NSOpenPanel で選んだ保存先) は触らない — security-scoped な
+    /// アクセスはその URL に紐づいており、別のパスに書き換えるとアクセス権を失う
+    static func userVisible(_ url: URL) -> URL {
+        guard isInsideContainer(url) else { return url }
+        let resolved = url.resolvingSymlinksInPath()
+        // 解決してもコンテナ内 (= Movies 以外のコンテナ内ディレクトリ) なら、
+        // ユーザーがアクセスできる場所ではないので既定へ戻す
+        return isInsideContainer(resolved) ? userVisibleMoviesDirectory() : resolved
+    }
+
+    /// サンドボックスのコンテナ (`…/Library/Containers/<id>/Data`)。サンドボックスが
+    /// **効いていない**ビルド (CODE_SIGNING_ALLOWED=NO のコンパイル確認ビルドなど) では nil。
+    ///
+    /// `NSHomeDirectory()` をそのままコンテナと見なしてはいけない — 非サンドボックス実行では
+    /// 実ホームが返るので、`~/Desktop` や `~/Movies` まで「コンテナ内」と誤判定し、
+    /// ユーザーが選んだ保存先を既定へ巻き戻してしまう
+    private static var containerDataDirectory: String? {
+        let home = NSHomeDirectory()
+        return home.contains("/Library/Containers/") ? home : nil
+    }
+
+    /// サンドボックスのコンテナ内を指すパスか。
+    /// **渡された URL を解決し直さない** — 呼び出し側は «解決した結果» を判定にかけるため、
+    /// ここで再解決すると判定の意味が変わる
+    private static func isInsideContainer(_ url: URL) -> Bool {
+        guard let container = containerDataDirectory else { return false }
+        // 末尾に "/" を足して "…/Data" と "…/DataOther" を取り違えないようにする
+        return url.path == container || url.path.hasPrefix(container + "/")
+    }
+
+    /// 実ホームディレクトリ。`NSHomeDirectory()` はサンドボックス下でコンテナを返すため
+    /// 使えない — パスワードデータベース (getpwuid) はサンドボックスの影響を受けず、
+    /// 実ホームを返す (2026-09-18 実測)
+    private static func realHomeDirectory() -> URL {
+        if let pw = getpwuid(getuid()), let dir = pw.pointee.pw_dir {
+            return URL(fileURLWithPath: String(cString: dir), isDirectory: true)
+        }
+        return URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+    }
 }
 
 /// 保存先ディレクトリの security-scoped bookmark の保存と復元 (issue #126)。
