@@ -325,7 +325,10 @@ xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI-AppStore -configuration 
   set -o pipefail
   out="$(KILDE_GUI_SELFTEST_NOTIFY=1 \
     /tmp/kilde-mas-sbcheck/Build/Products/Debug/KildeGUI.app/Contents/MacOS/KildeGUI)" || exit 1
-  echo "$out" | grep -E "outputDirectory|revealFallback"
+  # 期待する 2 行が **出ていること** を必須にする。出力が空でも「NG が無いから OK」に
+  # なってしまうため (cubic レビュー指摘)
+  echo "$out" | grep -E "^selftest: outputDirectory=" || exit 1
+  echo "$out" | grep -E "^selftest: revealFallback=" || exit 1
   # **値まで見る。** grep はキー名が出れば 0 を返すので、パスがコンテナを指していても
   # 「成功」に見えてしまう (CodeRabbit レビュー指摘)
   if echo "$out" | grep -qE "^selftest: (outputDirectory|revealFallback)=.*/Library/Containers/"; then
@@ -334,7 +337,8 @@ xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI-AppStore -configuration 
   fi
   echo "OK: 保存先はユーザーから見えるパス"
 )
-echo "検証の終了コード: $?"
+# `echo` の 0 で上書きしないよう、**終了コードを取ってから**表示して返す (cubic レビュー指摘)
+status=$?; echo "検証の終了コード: $status"; test "$status" -eq 0"
 # → selftest: outputDirectory=/Users/<you>/Movies
 #   selftest: revealFallback=/Users/<you>/Movies select=false
 #   OK: 保存先はユーザーから見えるパス
