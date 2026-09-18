@@ -12,9 +12,11 @@ PNG は納品物 `kilde-appicon.zip` の書き出し (README §1) で、`tools/`
     python3 icon.py ../icon && python3 render.py && python3 sync_appicon.py
 """
 import json
+import os
 import pathlib
 import shutil
 import sys
+import tempfile
 
 HERE = pathlib.Path(__file__).resolve().parent
 # 入力は render.py の出力先、出力はビルドが読む asset catalog。どちらも
@@ -51,9 +53,21 @@ def main() -> int:
               + " (先に icon.py と render.py を実行してください。"
               + "asset catalog は変更していません)", file=sys.stderr)
         return 1
-    for source, filename in plan:
-        shutil.copyfile(source, ICONSET / filename)
-        print(f"{source.name} -> {filename}")
+    # **一時ディレクトリへ全部書いてから置き換える。** 直接 1 枚ずつ上書きすると、
+    # 途中の I/O エラーで asset catalog が新旧混在のまま残り、次の MAS ビルドに
+    # 不完全なアイコンが入る (cubic レビュー指摘)。置き換えは os.replace —
+    # 同一ボリューム内では原子的なので、この段階での中断はまず起きない
+    # (一時ディレクトリを gui/Resources 配下に作るのは同じボリュームに置くため。
+    #  Assets.xcassets の中には作らない — カタログの構造に一時物を混ぜないため)
+    with tempfile.TemporaryDirectory(dir=ICONSET.parents[1]) as staging:
+        staged = []
+        for source, filename in plan:
+            temporary = pathlib.Path(staging) / filename
+            shutil.copyfile(source, temporary)
+            staged.append((source.name, temporary, ICONSET / filename))
+        for source_name, temporary, target in staged:
+            os.replace(temporary, target)
+            print(f"{source_name} -> {target.name}")
     return 0
 
 
