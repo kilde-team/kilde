@@ -339,7 +339,7 @@ xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI-AppStore -configuration 
   echo "OK: 保存先はユーザーから見えるパス"
 )
 # `echo` の 0 で上書きしないよう、**終了コードを取ってから**表示して返す (cubic レビュー指摘)
-status=$?; echo "検証の終了コード: $status"; test "$status" -eq 0"
+status=$?; echo "検証の終了コード: $status"; test "$status" -eq 0
 # → selftest: outputDirectory=/Users/<you>/Movies
 #   selftest: revealFallback=/Users/<you>/Movies select=false
 #   OK: 保存先はユーザーから見えるパス
