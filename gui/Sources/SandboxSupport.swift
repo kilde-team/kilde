@@ -204,27 +204,33 @@ enum SandboxOutputDirectory {
     /// 保存先を **変更** したときは旧 URL のアクセスをここで解放する —
     /// 録画済みファイルは既に開かれている (開いた fd は sandbox extension の
     /// 取り消しで無効にならない) ので、書きかけへの影響はない
-    /// 戻り値は «この保存先を使えるか» — false は security-scoped アクセスを
-    /// 取得できなかったということ。呼び出し側は選択を採用してはいけない
-    /// (採用すると失敗が録画開始まで表面化しない — cubic レビュー指摘)
-    @discardableResult
-    static func persist(_ url: URL) -> Bool {
-        // 同じ URL の選び直し。既にアクセスを開始しているので start を重ねない
-        // (重ねると sandbox extension がリークし、保存先の変更を繰り返したときに
-        // 新規の powerbox 許可が失敗しうる — cubic レビュー指摘)
-        if accessedURL == url {
-            updateBookmark(for: url)
-            return true
-        }
-        // **新しいアクセスを先に取る。** 古いアクセスを先に解放すると、新しい取得に
-        // 失敗したときに «選択は採用されない (呼び出し側が false で弾く) のに、
-        // 古い保存先のアクセスだけ失われる» 状態になり、**次の録画が開始できなくなる**
-        // (CodeRabbit レビュー指摘)。失敗時は bookmark もアクセスも一切触らない
-        guard url.startAccessingSecurityScopedResource() else { return false }
+    /// NSOpenPanel で選ばれた保存先を記録する。
+    ///
+    /// **panel.url に `startAccessingSecurityScopedResource()` を呼んではいけない。**
+    /// Apple のドキュメント (Accessing files from the macOS App Sandbox) が
+    /// «The operating system starts security-scoped access on URLs passed from open
+    /// panels, save panels, or items dragged to your app's icon in the Dock, as if you
+    /// called startAccessingSecurityScopedResource()» と明示している — つまりパネル
+    /// 由来の URL は **OS が既に 1 回分開始済み**。ここで重ねて呼ぶと start が 2 回・
+    /// stop が 1 回になり、sandbox extension がリークする。保存先の変更を繰り返すと
+    /// カーネル資源が積み上がり、いずれ新しい extension を取れなくなる
+    /// (Codex レビュー指摘)。
+    ///
+    /// `accessedURL` は «1 回分の start が生きている URL» を表す — bookmark から
+    /// `restore()` が明示的に開始したものも、パネルが暗黙に開始したものも同じ 1 回分
+    static func persist(_ url: URL) {
         updateBookmark(for: url)
+        if accessedURL == url {
+            // 同じ保存先を選び直した。パネルが **新たに 1 回** 開始しているので、
+            // その分をここで解放して数を合わせる (保持するのは既存の 1 回分)
+            url.stopAccessingSecurityScopedResource()
+            return
+        }
+        // 保存先の変更。旧 URL の 1 回分を解放し、パネルが開始した新 URL の分を保持する。
+        // 録画済みファイルは既に開かれている (開いた fd は sandbox extension の
+        // 取り消しで無効にならない) ので、書きかけへの影響はない
         accessedURL?.stopAccessingSecurityScopedResource()
         accessedURL = url
-        return true
     }
 
     /// 選択された保存先の bookmark を保存する。

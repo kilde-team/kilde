@@ -56,18 +56,37 @@ def main() -> int:
     # **一時ディレクトリへ全部書いてから置き換える。** 直接 1 枚ずつ上書きすると、
     # 途中の I/O エラーで asset catalog が新旧混在のまま残り、次の MAS ビルドに
     # 不完全なアイコンが入る (cubic レビュー指摘)。置き換えは os.replace —
-    # 同一ボリューム内では原子的なので、この段階での中断はまず起きない
+    # 同一ボリューム内では原子的
     # (一時ディレクトリを gui/Resources 配下に作るのは同じボリュームに置くため。
     #  Assets.xcassets の中には作らない — カタログの構造に一時物を混ぜないため)
+    #
+    # **1 枚ずつの os.replace が原子的でも、10 枚全体は原子的にならない。** 5 枚目で
+    # 落ちれば先頭 4 枚だけ新しくなる。既存ファイルを退避しておき、失敗したら
+    # 置換済みを全部戻す (Codex レビュー指摘)
     with tempfile.TemporaryDirectory(dir=ICONSET.parents[1]) as staging:
+        staging_path = pathlib.Path(staging)
         staged = []
         for source, filename in plan:
-            temporary = pathlib.Path(staging) / filename
+            temporary = staging_path / filename
             shutil.copyfile(source, temporary)
             staged.append((source.name, temporary, ICONSET / filename))
-        for source_name, temporary, target in staged:
-            os.replace(temporary, target)
-            print(f"{source_name} -> {target.name}")
+        backup = staging_path / "_backup"
+        backup.mkdir()
+        replaced = []
+        try:
+            for source_name, temporary, target in staged:
+                if target.exists():
+                    shutil.copyfile(target, backup / target.name)
+                os.replace(temporary, target)
+                replaced.append(target)
+                print(f"{source_name} -> {target.name}")
+        except Exception:
+            for target in replaced:
+                saved = backup / target.name
+                if saved.exists():
+                    shutil.copyfile(saved, target)
+            print("error: 置換に失敗したため、元のアイコンに戻しました", file=sys.stderr)
+            raise
     return 0
 
 

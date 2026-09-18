@@ -146,4 +146,3 @@ which opens a standard NSOpenPanel; the choice is persisted with a security-scop
 bookmark. The app container holds only the app's own settings (config.json) — no
 user-created files are written there.
 ```
-

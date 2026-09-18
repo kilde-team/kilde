@@ -259,13 +259,10 @@ final class RecordingSetup: ObservableObject {
 #if APPSTORE
             // 選択を bookmark に永続化して再起動後も使えるようにする (issue #126)。
             // 保存しないと、選んだ保存先が次回起動時には既定 (~/Movies) へ戻ってしまう。
-            // **アクセスを取得できなかった保存先は採用しない** — 採用すると
-            // 「選べたのに録画開始で落ちる」になり、原因が分かりにくい
-            // (cubic レビュー指摘)
-            guard SandboxOutputDirectory.persist(url) else {
-                notice = "この保存先は使えません (アクセスを取得できませんでした): \(url.path)"
-                return
-            }
+            // **パネル由来の URL のアクセス可否はここで判定しない** — powerbox が
+            // 開始済みで、重ねて start すると extension がリークする
+            // (SandboxSupport.persist の説明。Codex レビュー指摘)
+            SandboxOutputDirectory.persist(url)
 #endif
             request.outputDirectory = url
             // 「最近の録画」は保存先を走査して作るので、変更したら取り直す。

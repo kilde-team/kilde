@@ -191,8 +191,16 @@ async def main():
         # 変わり、同じ絵にならない。**黙って別物を作らない**ために警告を出す
         # (cubic レビュー指摘)。リポジトリ同梱は Noto CJK が 16MB 級で割に合わないため、
         # 「気づける」ことで担保する
+        # `document.fonts.check()` は **フォントが無くても true を返す** のが仕様
+        # (W3C CSS Font Loading §3.3)。実測でも、このフォントが入っていない Mac で
+        # 警告が出なかった。`FontFace` で local() を実際にロードして判定する
+        # (Codex レビュー指摘)
         await pg.set_content('<html><body>x</body></html>')
-        if not await pg.evaluate('document.fonts.check(\'16px "Noto Sans CJK JP"\')'):
+        probe = '''(async () => {
+          try { await new FontFace('ProbeCJK', 'local("Noto Sans CJK JP")').load(); return true; }
+          catch (e) { return false; }
+        })()'''
+        if not await pg.evaluate(probe):
             print('warning: "Noto Sans CJK JP" が見つかりません — 字形と改行が'
                   'コミット済みのスクリーンショットと変わります', file=sys.stderr)
         for s in SHOTS:
