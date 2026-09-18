@@ -58,6 +58,13 @@ final class RecordingSetup: ObservableObject {
     /// サムネイルを撮るウィンドウ数の上限 (1 枚ごとに SCScreenshotManager の撮影が走るため)
     private static let thumbnailLimit = 24
     private static let ownBundleID = Bundle.main.bundleIdentifier
+#if APPSTORE
+    /// 保存先を bookmark に記録できなかったときの警告。**比較に使うので定数にしている** —
+    /// 選び直しが成功したらこの警告だけを消すため (cubic レビュー指摘)
+    private static let bookmarkFailureNotice =
+        "保存先を変更しました。ただし記録できなかったため、"
+        + "次にアプリを起動したときは既定の保存先に戻ります"
+#endif
 
     init() {
 #if APPSTORE
@@ -266,8 +273,13 @@ final class RecordingSetup: ObservableObject {
             // このプロセスでは選んだ保存先を使えるが、次回起動では既定に戻るため
             // (CodeRabbit レビュー指摘)
             if !SandboxOutputDirectory.persist(url) {
-                notice = "保存先を変更しました。ただし記録できなかったため、"
-                    + "次にアプリを起動したときは既定の保存先に戻ります"
+                notice = Self.bookmarkFailureNotice
+            } else if notice == Self.bookmarkFailureNotice {
+                // 前回の «持ち越せなかった» 警告は、選び直しが成功した時点で嘘になる。
+                // **他の理由の通知は消さない** — 設定ファイルの読み込みエラーのような、
+                // 保存先とは無関係で消えては困る警告が同じ notice に出る
+                // (cubic レビュー指摘。提案の «成功したら nil» はそれらも巻き込む)
+                notice = nil
             }
 #endif
             request.outputDirectory = url
