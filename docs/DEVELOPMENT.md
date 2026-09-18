@@ -310,9 +310,14 @@ KILDE_GUI_SELFTEST_RECORD=3 KILDE_GUI_SELFTEST_AUDIO=none \
 新しいコンテナを作って確認します:
 
 ```sh
+set -o pipefail   # grep の 0 で «セルフテストが落ちた» を見逃さない (cubic レビュー指摘)
+# **バンドル ID は実行のたびに変える。** 同じ ID で再実行すると前回のコンテナに残った
+# config と bookmark が復元され、«新しいコンテナの既定値» を確かめられない
+# (シェルからは他アプリのコンテナを TCC で消せないので、消すより変えるほうが確実)
+SBID="com.takezou621.KildeGUI.sbcheck$(date +%H%M%S)"
 xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI-AppStore -configuration Debug build \
   CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual \
-  PRODUCT_BUNDLE_IDENTIFIER=com.takezou621.KildeGUI.sbcheck \
+  PRODUCT_BUNDLE_IDENTIFIER="$SBID" \
   -derivedDataPath /tmp/kilde-mas-sbcheck
 KILDE_GUI_SELFTEST_NOTIFY=1 \
   /tmp/kilde-mas-sbcheck/Build/Products/Debug/KildeGUI.app/Contents/MacOS/KildeGUI \
@@ -322,9 +327,9 @@ KILDE_GUI_SELFTEST_NOTIFY=1 \
 #   どちらかが /Users/<you>/Library/Containers/… を指したら **失敗** (リジェクトの再発)
 ```
 
-検証用に作ったコンテナ (`…KildeGUI.sbcheck`) は「システム設定 > 一般 > ストレージ >
-アプリケーション」から、または Finder で `~/Library/Containers/` を開いて削除します
-(シェルからは TCC で消せません)。残っていても実害はありません。
+検証のたびに空のコンテナが増えます (`…KildeGUI.sbcheck<時刻>`)。**シェルからは TCC で
+消せない**ので、「システム設定 > 一般 > ストレージ > アプリケーション」から、または
+Finder で `~/Library/Containers/` を開いて削除してください。残っていても実害はありません。
 
 確認ポイント:
 
