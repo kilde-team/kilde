@@ -319,12 +319,26 @@ xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI-AppStore -configuration 
   CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual \
   PRODUCT_BUNDLE_IDENTIFIER="$SBID" \
   -derivedDataPath /tmp/kilde-mas-sbcheck
-KILDE_GUI_SELFTEST_NOTIFY=1 \
-  /tmp/kilde-mas-sbcheck/Build/Products/Debug/KildeGUI.app/Contents/MacOS/KildeGUI \
-  | grep -E "outputDirectory|revealFallback"
+# 判定は **サブシェル** で行う — NG でも手元の対話シェルが落ちない。終了コードで
+# CI にも埋め込める
+(
+  set -o pipefail
+  out="$(KILDE_GUI_SELFTEST_NOTIFY=1 \
+    /tmp/kilde-mas-sbcheck/Build/Products/Debug/KildeGUI.app/Contents/MacOS/KildeGUI)" || exit 1
+  echo "$out" | grep -E "outputDirectory|revealFallback"
+  # **値まで見る。** grep はキー名が出れば 0 を返すので、パスがコンテナを指していても
+  # 「成功」に見えてしまう (CodeRabbit レビュー指摘)
+  if echo "$out" | grep -qE "^selftest: (outputDirectory|revealFallback)=.*/Library/Containers/"; then
+      echo "NG: 保存先がコンテナを指している (2.4.5(i) リジェクトの再発)" >&2
+      exit 1
+  fi
+  echo "OK: 保存先はユーザーから見えるパス"
+)
+echo "検証の終了コード: $?"
 # → selftest: outputDirectory=/Users/<you>/Movies
 #   selftest: revealFallback=/Users/<you>/Movies select=false
-#   どちらかが /Users/<you>/Library/Containers/… を指したら **失敗** (リジェクトの再発)
+#   OK: 保存先はユーザーから見えるパス
+#   検証の終了コード: 0
 ```
 
 検証のたびに空のコンテナが増えます (`…KildeGUI.sbcheck<時刻>`)。**シェルからは TCC で

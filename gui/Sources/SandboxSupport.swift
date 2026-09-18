@@ -209,24 +209,36 @@ enum SandboxOutputDirectory {
     /// (採用すると失敗が録画開始まで表面化しない — cubic レビュー指摘)
     @discardableResult
     static func persist(_ url: URL) -> Bool {
+        // 同じ URL の選び直し。既にアクセスを開始しているので start を重ねない
+        // (重ねると sandbox extension がリークし、保存先の変更を繰り返したときに
+        // 新規の powerbox 許可が失敗しうる — cubic レビュー指摘)
+        if accessedURL == url {
+            updateBookmark(for: url)
+            return true
+        }
+        // **新しいアクセスを先に取る。** 古いアクセスを先に解放すると、新しい取得に
+        // 失敗したときに «選択は採用されない (呼び出し側が false で弾く) のに、
+        // 古い保存先のアクセスだけ失われる» 状態になり、**次の録画が開始できなくなる**
+        // (CodeRabbit レビュー指摘)。失敗時は bookmark もアクセスも一切触らない
+        guard url.startAccessingSecurityScopedResource() else { return false }
+        updateBookmark(for: url)
+        accessedURL?.stopAccessingSecurityScopedResource()
+        accessedURL = url
+        return true
+    }
+
+    /// 選択された保存先の bookmark を保存する。
+    /// 作成に失敗したときは **古い bookmark を残さない** — 残すと次回起動で
+    /// «選んだ覚えのない前の保存先» が黙って復元される (cubic レビュー指摘)
+    private static func updateBookmark(for url: URL) {
         if let data = try? url.bookmarkData(
             options: .withSecurityScope,
             includingResourceValuesForKeys: nil,
             relativeTo: nil) {
             UserDefaults.standard.set(data, forKey: bookmarkKey)
         } else {
-            // 作成に失敗したときは **古い bookmark を残さない** — 残すと次回起動で
-            // «選んだ覚えのない前の保存先» が黙って復元される (cubic レビュー指摘)
             UserDefaults.standard.removeObject(forKey: bookmarkKey)
         }
-        if accessedURL == url { return true }
-        accessedURL?.stopAccessingSecurityScopedResource()
-        if url.startAccessingSecurityScopedResource() {
-            accessedURL = url
-            return true
-        }
-        accessedURL = nil
-        return false
     }
 }
 #endif

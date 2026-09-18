@@ -58,8 +58,8 @@ kilde は**個人情報を含むいかなるデータも収集しません**。�
 
 ### 第三者への提供
 
-録画・録音したデータ、およびあなたの個人情報を第三者へ提供することはありません
-(そもそも収集していません)。
+録画・録音したデータと、あなたがアプリに入力した内容 (保存先・ホットキーなどの設定) を
+第三者へ提供することはありません (そもそも収集していません)。
 
 ただし、**直接配布版の GUI が更新を確認するとき**は、上の「ネットワーク通信」の
 とおり GitHub へ接続します。この通信で IP アドレスやアプリのバージョンなどが
@@ -129,8 +129,9 @@ Settings such as the save location and audio sources are stored only on your Mac
 
 ### Sharing with third parties
 
-Your recordings and personal information are never shared with third parties
-(none of it is collected in the first place).
+Your recordings, and what you enter in the app (the save location, the hotkey
+and other settings), are never shared with third parties (none of it is
+collected in the first place).
 
 One exception is worth stating plainly: **when the directly distributed GUI checks
 for updates**, it connects to GitHub as described under "Network access", which
