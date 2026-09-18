@@ -29,6 +29,10 @@ def main() -> int:
         print(f"error: {contents_path} が見つかりません", file=sys.stderr)
         return 1
     images = json.loads(contents_path.read_text(encoding="utf-8"))["images"]
+    # **先に全部そろっているか確かめる。** 1 枚ずつコピーしながら不足を記録すると、
+    # 終了コード 1 で止まっても asset catalog は新旧が混ざった状態で残り、次の MAS
+    # ビルドに «一部だけ新しいアイコン» が入る (cubic レビュー指摘)
+    plan = []
     missing = []
     for image in images:
         filename = image.get("filename")
@@ -38,15 +42,18 @@ def main() -> int:
         # 16/32/64/128/256/512/1024 は render.py の PLAN と過不足なく一致する
         pixels = int(image["size"].split("x")[0]) * int(image["scale"].rstrip("x"))
         source = PNG / f"icon_{pixels}.png"
-        if not source.exists():
+        if source.exists():
+            plan.append((source, filename))
+        else:
             missing.append(source.name)
-            continue
-        shutil.copyfile(source, ICONSET / filename)
-        print(f"{source.name} -> {filename}")
     if missing:
         print("error: PNG が足りません: " + ", ".join(sorted(set(missing)))
-              + " (先に icon.py と render.py を実行してください)", file=sys.stderr)
+              + " (先に icon.py と render.py を実行してください。"
+              + "asset catalog は変更していません)", file=sys.stderr)
         return 1
+    for source, filename in plan:
+        shutil.copyfile(source, ICONSET / filename)
+        print(f"{source.name} -> {filename}")
     return 0
 
 

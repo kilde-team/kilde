@@ -263,8 +263,18 @@ xcodebuild -exportArchive \
     -allowProvisioningUpdates \
     ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"}
 
-EXPORTED="$(find "$EXPORT_DIR" -maxdepth 1 -name '*.pkg' | head -1)"
-[ -n "$EXPORTED" ] && [ -f "$EXPORTED" ] || die ".pkg が書き出されませんでした ($EXPORT_DIR を確認してください)"
+# glob で拾う。`find … | head -1` は **.pkg が 2 つ以上あると head が先に閉じて
+# find が SIGPIPE で落ち、`set -o pipefail` がそれを拾って中断する** (cubic レビュー指摘。
+# 指摘にあった「BSD find に -maxdepth が無い」は macOS 26 では再現しない — 理由は違うが
+# glob のほうが堅いので採用した)
+EXPORTED=""
+for candidate in "$EXPORT_DIR"/*.pkg; do
+    if [ -f "$candidate" ]; then
+        EXPORTED="$candidate"
+        break
+    fi
+done
+[ -n "$EXPORTED" ] || die ".pkg が書き出されませんでした ($EXPORT_DIR を確認してください)"
 PKG="$OUTPUT_DIR/$(basename "$EXPORTED")"
 mv -f "$EXPORTED" "$PKG"
 rm -rf "$EXPORT_DIR"
