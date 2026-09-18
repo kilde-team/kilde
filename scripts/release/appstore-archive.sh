@@ -89,12 +89,16 @@ fi
 if [ -n "$STAMP_BUILD" ] && ! [[ "$STAMP_BUILD" =~ ^[0-9]+([.][0-9]+){0,2}$ ]]; then
     die "--build は整数 (またはドット区切り整数) で指定してください: $STAMP_BUILD"
 fi
-# CFBundleShortVersionString も同じ形 (1〜3 個の非負整数をドット区切り、18 文字以内)。
-# "0.4.0-beta" のような接尾辞付きは App Store Connect が拒否する — build 番号と同じく
-# アーカイブ一式を作らせてから弾かれないよう、開始前に検証する (cubic / CodeRabbit 指摘)
-if [ -n "$STAMP_VERSION" ] && { ! [[ "$STAMP_VERSION" =~ ^[0-9]+([.][0-9]+){0,2}$ ]] \
+# CFBundleShortVersionString は **3 個の整数をドット区切り** が Apple の規定
+# ("The required format is three period-separated integers" — Information Property List
+# リファレンス)。1〜3 個を許すのは CFBundleVersion のほうで、2 つのキーの仕様は違う
+# (Codex レビュー指摘。cubic / CodeRabbit の «1〜3 個» という指摘もこの混同だった)。
+# 実サーバーは 0.4 のような 2 要素も受理するが、**事前検証は公開された契約に合わせる**。
+# "0.4.0-beta" のような接尾辞付きも当然拒否される — アーカイブ一式を作らせてから
+# 弾かれないよう、開始前に検証する
+if [ -n "$STAMP_VERSION" ] && { ! [[ "$STAMP_VERSION" =~ ^[0-9]+([.][0-9]+){2}$ ]] \
     || [ "${#STAMP_VERSION}" -gt 18 ]; }; then
-    die "--version は 1〜3 個の整数をドット区切りで指定してください (18 文字以内): $STAMP_VERSION"
+    die "--version は 3 個の整数をドット区切りで指定してください (例 0.4.0、18 文字以内): $STAMP_VERSION"
 fi
 # --upload は «そのまま App Store Connect に載る» 経路。バージョンを差し込まずに走らせると
 # Info.plist の古い値 (リポジトリ上の 0.1.0 / build 1) でアーカイブしてアップロードまで進み、

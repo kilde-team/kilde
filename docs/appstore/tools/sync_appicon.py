@@ -72,19 +72,25 @@ def main() -> int:
             staged.append((source.name, temporary, ICONSET / filename))
         backup = staging_path / "_backup"
         backup.mkdir()
+        # (target, 元から存在したか) — **存在しなかった target を消すために必要**。
+        # backup が無いことをもって「戻すものが無い」と素通しすると、欠けていた
+        # アイコンを作った状態で catalog が残る (Codex レビュー指摘)。このスクリプトは
+        # 欠けた catalog の補修にも使えるので、その経路を塞いでおく
         replaced = []
         try:
             for source_name, temporary, target in staged:
-                if target.exists():
+                existed = target.exists()
+                if existed:
                     shutil.copyfile(target, backup / target.name)
                 os.replace(temporary, target)
-                replaced.append(target)
+                replaced.append((target, existed))
                 print(f"{source_name} -> {target.name}")
         except Exception:
-            for target in replaced:
-                saved = backup / target.name
-                if saved.exists():
-                    shutil.copyfile(saved, target)
+            for target, existed in replaced:
+                if existed:
+                    os.replace(backup / target.name, target)
+                else:
+                    target.unlink(missing_ok=True)
             print("error: 置換に失敗したため、元のアイコンに戻しました", file=sys.stderr)
             raise
     return 0
