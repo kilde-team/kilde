@@ -46,43 +46,55 @@ enum SandboxSupport {
     ///
     /// 実 `~/Movies` を指せば表示も Finder の表示先もユーザーのフォルダになり、
     /// `com.apple.security.assets.movies.read-write` があるので書き込みも通る
-    /// (2026-09-18 実測)
+    /// (2026-09-18 実測)。
+    ///
+    /// **この関数はコンテナ内のパスを決して返さない。** 「書ける場所へ退く」ために
+    /// コンテナを返すのはリジェクト理由そのもの — ~/Movies が使えない異常時は
+    /// 録画開始時にエラーにして、ユーザーに「変更…」で選び直させるほうが正しい
+    /// (Codex レビュー指摘)
     static func userVisibleMoviesDirectory() -> URL {
         let fileManager = FileManager.default
-        let containerMovies = fileManager.urls(for: .moviesDirectory, in: .userDomainMask).first
         // コンテナ内 Movies が実 ~/Movies への symlink なら、解決するだけで実パスになる
-        if let containerMovies {
+        if let containerMovies = fileManager.urls(for: .moviesDirectory, in: .userDomainMask).first {
             let resolved = containerMovies.resolvingSymlinksInPath()
             if !isInsideContainer(resolved) { return resolved }
         }
         // symlink でなければ実ホームから組む (新規コンテナはこちら)
         let movies = realHomeDirectory().appendingPathComponent("Movies", isDirectory: true)
         var isDirectory: ObjCBool = false
-        if fileManager.fileExists(atPath: movies.path, isDirectory: &isDirectory),
-           isDirectory.boolValue {
-            return movies
+        if !(fileManager.fileExists(atPath: movies.path, isDirectory: &isDirectory)
+            && isDirectory.boolValue) {
+            // ~/Movies が消されているのは標準の macOS では起きないが、あれば作る。
+            // **作れなくてもこのパスを返す** — 上記のとおりコンテナへは退かない
+            try? fileManager.createDirectory(at: movies, withIntermediateDirectories: true)
         }
-        // ~/Movies が消されている場合は作る。それも通らなければ **書ける場所** へ退く —
-        // 保存先として使えない実ホーム直下 (サンドボックスでは書けない) を返すより、
-        // コンテナ内でも録画が成立するほうがまし
-        if (try? fileManager.createDirectory(at: movies, withIntermediateDirectories: true)) != nil {
-            return movies
-        }
-        return containerMovies ?? URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+        return movies
     }
 
     /// 保存先のパスを「ユーザーから見えるパス」へ正規化する。
     ///
     /// config.json に**コンテナ内のパスが残っている**ことがある — リジェクトされた版で
-    /// «この音声・保存先の選択を既定にする» を押すと、コンテナのパスがそのまま保存されるため。
-    /// コンテナ外のパス (NSOpenPanel で選んだ保存先) は触らない — security-scoped な
-    /// アクセスはその URL に紐づいており、別のパスに書き換えるとアクセス権を失う
+    /// «この音声・保存先の選択を既定にする» を押すと、コンテナのパスがそのまま保存されるため
     static func userVisible(_ url: URL) -> URL {
-        guard isInsideContainer(url) else { return url }
-        let resolved = url.resolvingSymlinksInPath()
-        // 解決してもコンテナ内 (= Movies 以外のコンテナ内ディレクトリ) なら、
-        // ユーザーがアクセスできる場所ではないので既定へ戻す
-        return isInsideContainer(resolved) ? userVisibleMoviesDirectory() : resolved
+        let standardized = url.standardizedFileURL
+        let resolved = standardized.resolvingSymlinksInPath()
+        // **実体**がコンテナ内ならユーザーはアクセスできないので既定へ戻す。
+        // 判定を解決後に行うのは、`~/Movies/Archive` のような «コンテナ外に見えて
+        // 中身はコンテナ» の symlink を取りこぼさないため (Codex レビュー指摘)
+        if isInsideContainer(resolved) { return userVisibleMoviesDirectory() }
+        // url 自体がコンテナ内の symlink (…/Data/Movies → ~/Movies) なら解決結果を使う
+        if isInsideContainer(standardized) { return resolved }
+        // コンテナ外のパスは **そのまま返す** — NSOpenPanel で選んだ URL を書き換えると
+        // security-scoped なアクセス権を失う
+        return url
+    }
+
+    /// url が (symlink を解決した実体も含めて) コンテナ内を指すか。
+    /// bookmark から復元した URL の検査に使う
+    static func pointsInsideContainer(_ url: URL) -> Bool {
+        let standardized = url.standardizedFileURL
+        return isInsideContainer(standardized)
+            || isInsideContainer(standardized.resolvingSymlinksInPath())
     }
 
     /// サンドボックスのコンテナ (`…/Library/Containers/<id>/Data`)。サンドボックスが
@@ -90,8 +102,14 @@ enum SandboxSupport {
     ///
     /// `NSHomeDirectory()` をそのままコンテナと見なしてはいけない — 非サンドボックス実行では
     /// 実ホームが返るので、`~/Desktop` や `~/Movies` まで「コンテナ内」と誤判定し、
-    /// ユーザーが選んだ保存先を既定へ巻き戻してしまう
+    /// ユーザーが選んだ保存先を既定へ巻き戻してしまう。
+    /// `APP_SANDBOX_CONTAINER_ID` はサンドボックス下でだけ設定される (2026-09-18 実測)。
+    /// パス形の確認と **両方**揃って初めてコンテナと見なす — 環境変数は子プロセスへ
+    /// 継承されうるため、単独では «サンドボックスアプリが起動した非サンドボックスの
+    /// 子プロセス» を誤判定する
     private static var containerDataDirectory: String? {
+        guard ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] != nil
+        else { return nil }
         let home = NSHomeDirectory()
         return home.contains("/Library/Containers/") ? home : nil
     }
@@ -107,12 +125,16 @@ enum SandboxSupport {
 
     /// 実ホームディレクトリ。`NSHomeDirectory()` はサンドボックス下でコンテナを返すため
     /// 使えない — パスワードデータベース (getpwuid) はサンドボックスの影響を受けず、
-    /// 実ホームを返す (2026-09-18 実測)
+    /// 実ホームを返す (2026-09-18 実測)。
+    /// 取れなかったときは `/Users/<ログイン名>` を組む — **コンテナのホームで代用しない**
+    /// (コンテナを保存先にするのが今回のリジェクト原因なので、その経路を残さない)
     private static func realHomeDirectory() -> URL {
         if let pw = getpwuid(getuid()), let dir = pw.pointee.pw_dir {
-            return URL(fileURLWithPath: String(cString: dir), isDirectory: true)
+            let home = URL(fileURLWithPath: String(cString: dir), isDirectory: true)
+            if !isInsideContainer(home) { return home }
         }
-        return URL(fileURLWithPath: NSHomeDirectory(), isDirectory: true)
+        return URL(fileURLWithPath: "/Users", isDirectory: true)
+            .appendingPathComponent(NSUserName(), isDirectory: true)
     }
 }
 
@@ -151,6 +173,16 @@ enum SandboxOutputDirectory {
             bookmarkDataIsStale: &stale),
             url.startAccessingSecurityScopedResource()
         else { return nil }
+        // 0.3.0 (2) までの既定は **コンテナ内の** Movies だった。当時「変更…」を開いて
+        // その既定をそのまま選ぶと、コンテナのパスが bookmark に残る。復元すると
+        // config 側の正規化 (SandboxSupport.userVisible) を打ち消して録画が再び
+        // コンテナへ落ちる — Guideline 2.4.5(i) の再発になる (Codex レビュー指摘)。
+        // 開始したアクセスを閉じ、bookmark ごと捨てて既定 (~/Movies) に任せる
+        if SandboxSupport.pointsInsideContainer(url) {
+            url.stopAccessingSecurityScopedResource()
+            UserDefaults.standard.removeObject(forKey: bookmarkKey)
+            return nil
+        }
         // ディレクトリの移動等で stale になった bookmark は «この起動では解決できても
         // 次の起動では解決できない» 状態。解決できた今の URL から作り直して永続化し、
         // 保存先が黙って ~/Movies に戻るのを防ぐ (cubic レビュー指摘)

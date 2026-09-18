@@ -107,7 +107,10 @@ App Store Connect のプライバシーポリシー URL には
 
 **対応**: MAS ビルドの既定保存先を `SandboxSupport.userVisibleMoviesDirectory()`
 経由にし、実 `~/Movies` を指すようにした (symlink 解決 → だめなら `getpwuid` の実ホーム)。
-`config.json` に残った古いコンテナ内パスも `SandboxSupport.userVisible(_:)` で正規化する。
+`config.json` に残った古いコンテナ内パスも `SandboxSupport.userVisible(_:)` で正規化し、
+コンテナ内を指す古い security-scoped bookmark は復元時に破棄する (Codex レビュー指摘。
+0.3.0 (2) までの既定をそのまま「変更…」で選んでいると、bookmark にコンテナのパスが
+残っていて正規化を打ち消すため)。
 検証手順は docs/DEVELOPMENT.md の「App Store 配布ビルドのビルドと検証」、
 地雷としての記録は CLAUDE.md §5.17。
 
@@ -118,7 +121,7 @@ Recordings are saved to the user's ~/Movies folder by default (entitlement:
 com.apple.security.assets.movies.read-write). The save location is shown in the
 recording panel and can be changed at any time with the "変更…" (Change…) button,
 which opens a standard NSOpenPanel; the choice is persisted with a security-scoped
-bookmark. Nothing the user creates is stored in the app container — the container
-holds only the app's own settings (config.json).
+bookmark. The app container holds only the app's own settings (config.json) — no
+user-created files are written there.
 ```
 
