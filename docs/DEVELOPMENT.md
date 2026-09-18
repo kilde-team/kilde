@@ -325,10 +325,11 @@ xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI-AppStore -configuration 
   set -o pipefail
   out="$(KILDE_GUI_SELFTEST_NOTIFY=1 \
     /tmp/kilde-mas-sbcheck/Build/Products/Debug/KildeGUI.app/Contents/MacOS/KildeGUI)" || exit 1
-  # 期待する 2 行が **出ていること** を必須にする。出力が空でも「NG が無いから OK」に
+  # 期待する 2 行が **絶対パスの値つきで出ていること** を必須にする。行の存在だけを
+  # 見ると、出力が空のときも、値が空や相対パスのときも「NG が無いから OK」に
   # なってしまうため (cubic レビュー指摘)
-  echo "$out" | grep -E "^selftest: outputDirectory=" || exit 1
-  echo "$out" | grep -E "^selftest: revealFallback=" || exit 1
+  echo "$out" | grep -E "^selftest: outputDirectory=/[^[:space:]]" || exit 1
+  echo "$out" | grep -E "^selftest: revealFallback=/[^[:space:]]" || exit 1
   # **値まで見る。** grep はキー名が出れば 0 を返すので、パスがコンテナを指していても
   # 「成功」に見えてしまう (CodeRabbit レビュー指摘)
   if echo "$out" | grep -qE "^selftest: (outputDirectory|revealFallback)=.*/Library/Containers/"; then
