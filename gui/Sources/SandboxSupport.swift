@@ -204,20 +204,29 @@ enum SandboxOutputDirectory {
     /// 保存先を **変更** したときは旧 URL のアクセスをここで解放する —
     /// 録画済みファイルは既に開かれている (開いた fd は sandbox extension の
     /// 取り消しで無効にならない) ので、書きかけへの影響はない
-    static func persist(_ url: URL) {
+    /// 戻り値は «この保存先を使えるか» — false は security-scoped アクセスを
+    /// 取得できなかったということ。呼び出し側は選択を採用してはいけない
+    /// (採用すると失敗が録画開始まで表面化しない — cubic レビュー指摘)
+    @discardableResult
+    static func persist(_ url: URL) -> Bool {
         if let data = try? url.bookmarkData(
             options: .withSecurityScope,
             includingResourceValuesForKeys: nil,
             relativeTo: nil) {
             UserDefaults.standard.set(data, forKey: bookmarkKey)
+        } else {
+            // 作成に失敗したときは **古い bookmark を残さない** — 残すと次回起動で
+            // «選んだ覚えのない前の保存先» が黙って復元される (cubic レビュー指摘)
+            UserDefaults.standard.removeObject(forKey: bookmarkKey)
         }
-        if accessedURL == url { return }
+        if accessedURL == url { return true }
         accessedURL?.stopAccessingSecurityScopedResource()
         if url.startAccessingSecurityScopedResource() {
             accessedURL = url
-        } else {
-            accessedURL = nil
+            return true
         }
+        accessedURL = nil
+        return false
     }
 }
 #endif
