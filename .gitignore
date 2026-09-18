@@ -20,3 +20,8 @@ gui/*.xcodeproj/xcuserdata/
 *.o
 *.d
 /dist/
+
+# App Store 素材の中間成果物 (納品物は AppIcon.appiconset と icon/kilde-icon-*.svg)
+docs/appstore/png/
+docs/appstore/icon/icon-*.svg
+docs/appstore/tools/__pycache__/

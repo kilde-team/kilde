@@ -28,7 +28,7 @@ kilde は**個人情報を含むいかなるデータも収集しません**。�
 | 権限 | 用途 |
 |---|---|
 | 画面収録 | 画面・ウィンドウの映像とシステム音声を録るため |
-| マイク | 自分の声を録音するため (マイクを使う設定のときだけ要求します) |
+| マイク | 選んだマイク・入力デバイス (内蔵マイク、外部マイク、BlackHole などの仮想デバイスを含む) の音声を録るため。入力デバイスを 1 つ以上選んだときだけ要求します |
 | ファイルとフォルダ (保存先) | 録画ファイルを指定の場所に書き込むため |
 
 これらの権限で得たデータは、上記「録画・録音したデータ」のとおりローカルの
@@ -43,8 +43,8 @@ kilde は**個人情報を含むいかなるデータも収集しません**。�
 
 - **Mac App Store 版**: ネットワーク通信を行いません (アプリにネットワーク接続の
   権限がありません)。アップデートは App Store を通じて配信されます
-- **直接配布版 (GitHub Releases / Homebrew)**: アップデートの確認のため、
-  自動更新ライブラリ Sparkle が GitHub 上の更新情報
+- **直接配布版の GUI (GitHub Releases の `kilde-<version>-macos.zip`)**: アップデートの
+  確認のため、自動更新ライブラリ Sparkle が GitHub 上の更新情報
   (`https://github.com/kilde-team/kilde/releases/latest/download/appcast.xml`) を
   取得します。この通信では、一般的な HTTP 通信と同じく IP アドレスやアプリの
   バージョンなどが GitHub に伝わりますが、開発者がそれを受け取ることはありません。
@@ -52,10 +52,19 @@ kilde は**個人情報を含むいかなるデータも収集しません**。�
   [GitHub のプライバシーステートメント](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement)
   に従います。定期的な自動確認を行うかどうかは、Sparkle が表示する確認ダイアログで
   選べます (手動の「アップデートを確認」は押したときだけ通信します)
+- **Homebrew で入れた `kilde` コマンド (CLI)**: Sparkle を含みません。CLI 自身が
+  ネットワーク通信を行うことはなく、更新は `brew upgrade` を実行したときに
+  Homebrew が行います
 
 ### 第三者への提供
 
-データを収集しないため、第三者へ提供するデータはありません。
+録画・録音したデータ、およびあなたの個人情報を第三者へ提供することはありません
+(そもそも収集していません)。
+
+ただし、**直接配布版の GUI が更新を確認するとき**は、上の「ネットワーク通信」の
+とおり GitHub へ接続します。この通信で IP アドレスやアプリのバージョンなどが
+GitHub に送信されます (取り扱いは GitHub のプライバシーステートメントに従います)。
+Mac App Store 版と CLI にはこの通信はありません。
 
 ### 本ポリシーの変更
 
@@ -91,7 +100,7 @@ developer.
 | Permission | Purpose |
 |---|---|
 | Screen Recording | To capture screen or window video and system audio |
-| Microphone | To record your voice (requested only when you choose to record the microphone) |
+| Microphone | To record audio from the input devices you select — a built-in or external microphone, or a virtual device such as BlackHole. Requested only when you select at least one input device |
 | Files and folders (save location) | To write recordings to the location you choose |
 
 Data obtained through these permissions is stored only in local files, as
@@ -106,18 +115,28 @@ Settings such as the save location and audio sources are stored only on your Mac
 
 - **Mac App Store version**: makes no network connections (the app has no
   network entitlement). Updates are delivered through the App Store
-- **Directly distributed version (GitHub Releases / Homebrew)**: to check for
-  updates, the Sparkle update framework downloads the update feed from GitHub
+- **Directly distributed GUI (the `kilde-<version>-macos.zip` on GitHub Releases)**:
+  to check for updates, the Sparkle update framework downloads the update feed from GitHub
   (`https://github.com/kilde-team/kilde/releases/latest/download/appcast.xml`).
   As with any HTTP request, GitHub receives information such as your IP address
   and the app version; the developer does not receive it. GitHub handles it under
   the [GitHub General Privacy Statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement).
   Sparkle asks whether to check for updates automatically, and you can decline
   ("Check for Updates" connects only when you click it)
+- **The `kilde` command-line tool installed with Homebrew**: does not include
+  Sparkle. The CLI itself makes no network connections; updates happen when you
+  run `brew upgrade`
 
 ### Sharing with third parties
 
-Because no data is collected, no data is shared with third parties.
+Your recordings and personal information are never shared with third parties
+(none of it is collected in the first place).
+
+One exception is worth stating plainly: **when the directly distributed GUI checks
+for updates**, it connects to GitHub as described under "Network access", which
+sends information such as your IP address and the app version to GitHub (handled
+under the GitHub General Privacy Statement). The Mac App Store version and the CLI
+make no such connection.
 
 ### Changes to this policy
 

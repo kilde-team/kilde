@@ -26,6 +26,12 @@ Mac App Store 配布 (App Store Connect の App レコード `com.takezou621.Kil
 | `gui/project.yml` | `ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon` と `sources` への `Resources/Assets.xcassets` |
 | `gui/Resources/Info.plist` | `CFBundleIconName` = `AppIcon` |
 
+**`icon.py` → `render.py` は asset catalog を更新しない。** PNG を作り直したら
+`python3 sync_appicon.py` で `png/` の 7 サイズを `AppIcon.appiconset` の 10 ファイルへ
+反映すること — 忘れると「アイコンを作り直したのに MAS 成果物は旧版のまま」になる
+(cubic / CodeRabbit レビュー指摘)。対応付けは `Contents.json` の `size` × `scale` から
+機械的に決まる (16/32/64/128/256/512/1024 が過不足なく対応する)。
+
 `LSUIElement` で Dock には出ないが、Finder・通知・「システム設定 > プライバシーとセキュリティ」
 の一覧・App Store の製品ページではこのアイコンが使われる。
 
@@ -43,10 +49,18 @@ Noto Sans CJK JP で、macOS 実機の SF Pro / ヒラギノとは字形が違�
 | `02-recording.png` | 録画中の経過時間・レベルメーター |
 | `03-window-capture.png` | ウィンドウ単位の収録 |
 | `04-audio-only.png` | 音声のみ (M4A) |
-| `05-safe-finish.png` | どの終了経路でもファイルを仕上げる |
+| `05-safe-finish.png` | 停止・アプリ終了のどちらでもファイルを仕上げる |
 
+- **訴求は実装の保証範囲を超えない**。05 の文言は「停止・アプリ終了」に限定してある —
+  DESIGN.md §5 は**プロセス異常終了時を保証対象外**としているので、「どう終わっても」の
+  ような書き方はしない (cubic レビュー指摘)
+- **モックは全セクションを描かない**。訴求に関係する部分 (収録対象・音声・保存先) に
+  絞ってあり、実機のパネルにある「グローバルホットキー」「ログイン時に起動」は
+  `panel_done()` 以外では省いている。**実機キャプチャへ差し替えるときは全体が入る**ので、
+  ドラフトと実機の縦の情報量が違う点に注意すること
 - **他社の商標を画面に入れない**。ウィンドウ一覧のサンプルは `com.example.*` の
-  一般名にしてある。実機キャプチャに差し替えるときも、Zoom / Google Meet / Teams などの
+  一般名にしてあり、入力デバイスの例も「外部マイク (USB)」のような一般名にしてある
+  (実在の製品名は入れない — cubic レビュー指摘)。実機キャプチャに差し替えるときも、Zoom / Google Meet / Teams などの
   ウィンドウ名・バンドル ID・ロゴが写り込まないようにすること (App Store の審査で
   指摘されうる)
 - リポジトリに入っているのは 256 色に最適化した版 (5 枚で約 2.5MB)。UI 画像なので
@@ -65,14 +79,21 @@ python3 -m pip install playwright && python3 -m playwright install chromium
 cd docs/appstore/tools
 python3 icon.py ../icon          # SVG を書き出す (3 バリアント)
 python3 render.py                # SVG -> PNG (16〜1024px)
+python3 sync_appicon.py          # PNG -> gui/Resources/.../AppIcon.appiconset (§1)
 python3 build.py                 # スクリーンショット 5 枚 (2880x1800) を screenshots/ へ
 ```
 
-- `png/` と `icon.py` が書き出す `icon-*.svg` は中間成果物 (コミットしない)。
+- `build.py` は **"Noto Sans CJK JP" が無い環境では警告を出す**。フォントが変わると
+  字幅と改行が変わり、コミット済みの画像と同じ絵にならない (フォントをリポジトリに
+  同梱しないのは Noto CJK が 16MB 級のため。cubic レビュー指摘)
+
+- `png/` と `icon.py` が書き出す `icon-*.svg` は中間成果物 (コミットしない。
+  `png/` は `.gitignore` 済み — `git add -A` で紛れ込まないようにするため)。
   コミットされている `icon/kilde-icon-*.svg` は納品物の別名コピー (§1)
 - **スクリーンショットをコミットするときは 256 色に最適化する**
-  (`pngquant --force --strip *.png` を `screenshots/` で実行。リポジトリに入って
-  いる版はこれで約 2.5MB/5 枚に抑えてある — §2)
+  (`pngquant --force --ext .png --strip *.png` を `screenshots/` で実行。
+  **`--ext .png` が要る** — `--force` だけでは元を置き換えず `*-fs8.png` を別に作る
+  (2026-09-18 実測)。リポジトリに入っている版はこれで約 2.4MB/5 枚に抑えてある — §2)
 
 `panel.py` がパネルの再現部分。`ContentView.swift` を変えたら、スクリーンショットを
 撮り直す前にこちらも合わせること (幅 380pt・padding 12・セクション間 14 は SwiftUI 側の値)。

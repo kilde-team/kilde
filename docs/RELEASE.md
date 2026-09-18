@@ -210,7 +210,7 @@ GUI は **直接配布 (Sparkle 自動更新) と Mac App Store の 2 チャネ�
 両方ともバンドル ID は `com.takezou621.KildeGUI` で、App Store 版は
 `KildeGUI-AppStore` ターゲットからビルドします。App Store 版の要件:
 
-- **App Sandbox が必須** — `Resources/KildeGUI-AppStore.entitlements`
+- **App Sandbox が必須** — `gui/Resources/KildeGUI-AppStore.entitlements`
   (app-sandbox + マイク + `~/Movies` + ユーザー選択ファイル + app-scope bookmark)
 - **Sparkle を含めない** — ストア外自己更新の仕組みのため審査で拒否される。
   `UpdaterCoordinator.swift` 全体が `#if !APPSTORE` で、MAS ビルドでは
@@ -246,9 +246,11 @@ scripts/release/appstore-archive.sh --version 0.4.0 --build 42
 確認してから次へ進む) → `exportOptions.plist` 生成 → `.pkg` 書き出し
 (または `--upload` でアップロードまで) を行う。
 
-- `--build` は**前回の App Store 提出より大きい値が必須** (Sparkle の
-  CFBundleVersion 単調増加と同じ契約。リポジトリには提出番号を追跡する仕組みが
-  無いので、提出のたびに人手で管理する)
+- `--build` は **App Store Connect にアップロード済みの最大値より大きい値が必須**
+  (Sparkle の CFBundleVersion 単調増加と同じ契約)。基準は «前回の提出» ではない —
+  提出せずに残っているアップロード済み build (TestFlight 用など) があると、
+  それより大きくないと拒否される (cubic レビュー指摘)。リポジトリには番号を追跡する
+  仕組みが無いので、ASC の「TestFlight > macOS ビルド」で最大値を見てから決める
 - 証明書 (`Apple Distribution` と Mac Installer) とプロビジョニングプロファイルは
   `-allowProvisioningUpdates` が**自動作成する** — 手動での証明書発行は不要。
   API キーを渡さなければ Xcode の Apple ID セッションが使われる (開発機ならこれで
@@ -277,7 +279,9 @@ scripts/release/appstore-archive.sh --version 0.4.0 --build 42
 
 アップロードの方法が `--upload` (xcodebuild が直接アップロード) で失敗する環境
 (ネットワーク制限など) では、`--upload` 無しで書き出した `.pkg` を Transporter app
-や `altool` でアップロードできる。
+でアップロードできる。`xcrun altool --upload-app` も **Xcode 26 でまだ動く**
+(`xcrun altool --version` → 27.0.5 (2.1) を実測。cubic の「Xcode 26 では実行できない」は
+この環境では再現しなかった) が、Apple は非推奨としているので Transporter を先に試すこと。
 
 ## GitHub でのリリース自動化
 

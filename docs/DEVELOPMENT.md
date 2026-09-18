@@ -276,14 +276,22 @@ xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI-AppStore \
 **`~/Movies` 配下**にします。サンドボックスでは tmp やホーム直下には書けず、
 書けるのはアプリコンテナ・`~/Movies` (entitlement)・NSOpenPanel で選んだ場所だけです:
 
+**署名の選び方** — 2 つのコマンドは同じではありません。`kilde-dev` 証明書がある環境では
+そちらを使ってください。ad-hoc 署名は TCC がビルドのたびにアプリを別物と見なすため、
+画面収録・マイクの許可を再起動のたびに付け直すことになります (cubic レビュー指摘。
+§3 の kilde-dev 作成手順を参照):
+
 ```sh
-# kilde-dev 証明書があれば CODE_SIGNING_ALLOWED=NO を外して普通に署名ビルドしてよい。
-# 無い環境では ad-hoc + Hardened Runtime オフでローカル起動だけ可能にする
-# (App Sandbox 自体は entitlement なので ad-hoc でも有効。TCC トグルの安定性は
-#  kilde-dev の方が良い — §3 の kilde-dev 作成手順を参照)
+# (A) kilde-dev 証明書がある環境 — project.yml の既定のまま署名する。TCC が安定する
+xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI-AppStore -configuration Debug build \
+  -derivedDataPath /tmp/kilde-mas
+
+# (B) 証明書が無い環境 — ad-hoc + Hardened Runtime オフでローカル起動だけ可能にする
+#     (App Sandbox 自体は entitlement なので ad-hoc でも有効。TCC の許可は毎回付け直し)
 xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI-AppStore -configuration Debug build \
   CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual ENABLE_HARDENED_RUNTIME=NO \
   -derivedDataPath /tmp/kilde-mas
+
 mkdir -p ~/Movies/kilde-selftest
 KILDE_GUI_SELFTEST_RECORD=3 KILDE_GUI_SELFTEST_AUDIO=none \
   KILDE_GUI_SELFTEST_OUTPUT="$HOME/Movies/kilde-selftest" \

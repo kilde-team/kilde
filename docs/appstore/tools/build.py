@@ -171,9 +171,9 @@ SHOTS = [
                  "ログイン時に自動起動して録り逃さない"],
          body=panel.panel_audio_only()),
     dict(name="05-safe-finish",
-         h1='どう終わっても、<br><span class="hl">壊れたファイルを残さない</span>。',
-         sub="停止しても、アプリを終了しても、アップデートの再起動でも。書き込み中のファイルは必ず仕上げてから終了します。",
-         points=["終了経路によらずファイルをファイナライズ",
+         h1='停止しても終了しても、<br><span class="hl">壊れたファイルを残さない</span>。',
+         sub="停止ボタンでも、メニューからの終了でも。書き込み中のファイルは仕上げてから終了します。",
+         points=["停止・アプリ終了のどちらでもファイナライズ",
                  "最近の録画から Finder へワンクリック",
                  "オープンソース (MIT) / データ収集なし"],
          body=panel.panel_done()),
@@ -186,6 +186,15 @@ async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch()
         pg = await b.new_page(viewport={"width": 1440, "height": 900}, device_scale_factor=2)
+        # 描画フォントは実行環境に依存する (CSS の font-family は "Noto Sans CJK JP" →
+        # "Helvetica Neue" → sans-serif)。入っていない環境で再生成すると字幅と改行が
+        # 変わり、同じ絵にならない。**黙って別物を作らない**ために警告を出す
+        # (cubic レビュー指摘)。リポジトリ同梱は Noto CJK が 16MB 級で割に合わないため、
+        # 「気づける」ことで担保する
+        await pg.set_content('<html><body>x</body></html>')
+        if not await pg.evaluate('document.fonts.check(\'16px "Noto Sans CJK JP"\')'):
+            print('warning: "Noto Sans CJK JP" が見つかりません — 字形と改行が'
+                  'コミット済みのスクリーンショットと変わります', file=sys.stderr)
         for s in SHOTS:
             await pg.set_content(page(None, s["h1"], s["sub"], s["points"], s["body"],
                                       icon_uri, s.get("menubar_recording", False)))

@@ -94,6 +94,13 @@ final class RecordingSetup: ObservableObject {
         // request を作り直して復元結果を上書きする (CodeRabbit レビュー指摘)
         if let restored = SandboxOutputDirectory.restore() {
             request.outputDirectory = restored
+        } else if !FileManager.default.isWritableFile(atPath: request.outputDirectory.path) {
+            // bookmark が無い・復元できない (外付けを外した等) とき、config に残った
+            // 保存先はサンドボックスから開けないことがある。そのままだと録画のたびに
+            // 開始前で失敗し、既定へ戻る手段もユーザーに見えない (cubic レビュー指摘)。
+            // `isWritableFile` はサンドボックスの権限を反映する — movies エンタイトルメント
+            // だけのとき ~/Movies=true, ~/Desktop=false になることを実測 (2026-09-18)
+            request.outputDirectory = fallback
         }
 #endif
         hotkeyDraft = config.hotkey ?? ""

@@ -66,11 +66,11 @@ def panel_setup():
       <div class="checks">
         <div class="ck">{check(True)}<span>システム音声 (相手の声・アプリの音)</span></div>
         <div class="ck">{check(True)}<span>マイク (既定の入力デバイス)</span></div>
-        <div class="ck">{check(False)}<span>Shure MV7</span></div>
+        <div class="ck">{check(False)}<span>外部マイク (USB)</span></div>
       </div>''')
     body += section("複数の音声ソース", seg(["1 トラックに合成", "ソースごとに分離"], 0))
     body += section("保存先", f'''
-      <div class="line">{sym("folder","#C9CED6")}<span>~/Movies/kilde</span><span class="spacer"></span>
+      <div class="line">{sym("folder","#C9CED6")}<span>~/Movies</span><span class="spacer"></span>
         <span class="btn">変更…</span></div>
       <div class="link">この音声・保存先の選択を既定にする</div>''')
     body += '<div class="startwrap">' + \
@@ -107,7 +107,7 @@ def panel_done():
     body += f'''
       <div class="result">
         <div class="ok">{sym("check","#30D158",14)}<span>保存しました</span></div>
-        <div class="dim sm path">~/Movies/kilde/kilde-20260916-142201.mp4</div>
+        <div class="dim sm path">~/Movies/kilde-20260916-142201.mp4</div>
       </div>'''
     body += section("グローバルホットキー", f'''
       <div class="line">{sym("keyboard","#C9CED6")}
@@ -137,7 +137,7 @@ def panel_audio_only():
       </div>''')
     body += section("複数の音声ソース", seg(["1 トラックに合成", "ソースごとに分離"], 1))
     body += section("保存先", f'''
-      <div class="line">{sym("folder","#C9CED6")}<span>~/Movies/kilde</span><span class="spacer"></span>
+      <div class="line">{sym("folder","#C9CED6")}<span>~/Movies</span><span class="spacer"></span>
         <span class="btn">変更…</span></div>''')
     body += section("起動", f'<div class="ck">{check(True)}<span>ログイン時に kilde を起動する</span></div>')
     body += '<div class="startwrap">' + \

@@ -89,6 +89,19 @@ fi
 if [ -n "$STAMP_BUILD" ] && ! [[ "$STAMP_BUILD" =~ ^[0-9]+([.][0-9]+){0,2}$ ]]; then
     die "--build は整数 (またはドット区切り整数) で指定してください: $STAMP_BUILD"
 fi
+# CFBundleShortVersionString も同じ形 (1〜3 個の非負整数をドット区切り、18 文字以内)。
+# "0.4.0-beta" のような接尾辞付きは App Store Connect が拒否する — build 番号と同じく
+# アーカイブ一式を作らせてから弾かれないよう、開始前に検証する (cubic / CodeRabbit 指摘)
+if [ -n "$STAMP_VERSION" ] && { ! [[ "$STAMP_VERSION" =~ ^[0-9]+([.][0-9]+){0,2}$ ]] \
+    || [ "${#STAMP_VERSION}" -gt 18 ]; }; then
+    die "--version は 1〜3 個の整数をドット区切りで指定してください (18 文字以内): $STAMP_VERSION"
+fi
+# --upload は «そのまま App Store Connect に載る» 経路。バージョンを差し込まずに走らせると
+# Info.plist の古い値 (リポジトリ上の 0.1.0 / build 1) でアーカイブしてアップロードまで進み、
+# build 番号の重複で拒否されるまで高コストなビルドを費やす (cubic レビュー指摘)
+if [ "$UPLOAD" = true ] && { [ -z "$STAMP_VERSION" ] || [ -z "$STAMP_BUILD" ]; }; then
+    die "--upload には --version と --build の両方が必要です"
+fi
 
 # 相対パスの --output-dir は **cd "$GUI_DIR" の前に**絶対化する — 後から解決すると
 # gui/ 配下に書かれてしまう (cubic レビュー指摘)
@@ -234,18 +247,27 @@ if [ "$UPLOAD" = true ]; then
     exit 0
 fi
 
-# .pkg として書き出す (Transporter / ASC ウェブからの手動アップロード用)
+# .pkg として書き出す (Transporter / ASC ウェブからの手動アップロード用)。
+# **書き出しは毎回空のサブディレクトリへ行う** — OUTPUT_DIR に直接出すと、前回の
+# KildeGUI.pkg が残っている状態で今回の書き出し名が変わった (または書き出しが
+# 何も作らなかった) ときに、古いパッケージを «完成品» として返してしまう
+# (cubic レビュー指摘)
+EXPORT_DIR="$OUTPUT_DIR/export"
+rm -rf "$EXPORT_DIR"
+mkdir -p "$EXPORT_DIR"
 log ".pkg を書き出し"
 xcodebuild -exportArchive \
     -archivePath "$ARCHIVE_PATH" \
-    -exportPath "$OUTPUT_DIR" \
+    -exportPath "$EXPORT_DIR" \
     -exportOptionsPlist "$EXPORT_OPTIONS" \
     -allowProvisioningUpdates \
     ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"}
 
-PKG="$OUTPUT_DIR/KildeGUI.pkg"
-[ -f "$PKG" ] || PKG="$(find "$OUTPUT_DIR" -maxdepth 1 -name '*.pkg' | head -1)"
-[ -n "$PKG" ] && [ -f "$PKG" ] || die ".pkg が見つかりません ($OUTPUT_DIR を確認してください)"
+EXPORTED="$(find "$EXPORT_DIR" -maxdepth 1 -name '*.pkg' | head -1)"
+[ -n "$EXPORTED" ] && [ -f "$EXPORTED" ] || die ".pkg が書き出されませんでした ($EXPORT_DIR を確認してください)"
+PKG="$OUTPUT_DIR/$(basename "$EXPORTED")"
+mv -f "$EXPORTED" "$PKG"
+rm -rf "$EXPORT_DIR"
 log "完成: $PKG"
 echo "appstore: アップロードは --upload か、この .pkg を Transporter 等で"
 echo "appstore: アップロードしてください。Info.plist に差し込んだバージョンは終了時に元へ戻りました"

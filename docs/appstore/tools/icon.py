@@ -91,7 +91,12 @@ def build(variant):
 
 if __name__ == "__main__":
     import sys, pathlib
-    out = pathlib.Path(sys.argv[1])
+    arg = pathlib.Path(sys.argv[1])
+    # 相対パスは **スクリプト位置基準** で解決する。カレントディレクトリ基準だと
+    # リポジトリルートから実行したときに render.py の入力先 (docs/appstore/icon) 以外へ
+    # 書き、PNG の再生成が古いアイコンを処理してしまう (cubic レビュー指摘)。
+    # render.py / build.py が既にこの方式 (cubic レビュー指摘)
+    out = arg if arg.is_absolute() else pathlib.Path(__file__).resolve().parent / arg
     out.mkdir(parents=True, exist_ok=True)
     for v in ("full", "mid", "small"):
         (out / f"icon-{v}.svg").write_text(build(v))

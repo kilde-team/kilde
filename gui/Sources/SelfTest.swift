@@ -34,6 +34,13 @@ enum SelfTest {
             reportUpdateSetup(updater: updater)
             return
         }
+#else
+        // MAS ビルドには Sparkle が無いので検証できない。**黙って素通ししない** —
+        // 素通しすると「終了しないセルフテスト」になり、直接起動したプロセスが
+        // 常駐する (検証スクリプトがハングする。cubic レビュー指摘)
+        if env["KILDE_GUI_SELFTEST_UPDATE"] == "1" {
+            fail("KILDE_GUI_SELFTEST_UPDATE は MAS ビルドでは使えません (Sparkle 非搭載)")
+        }
 #endif
         // KILDE_GUI_SELFTEST_PERMISSIONS=1: 構成ごとに「何の権限を要求するか」を出して終わる (issue #19)。
         // 実際に TCC の許可を取り消さないと確かめられない部分 (案内の見た目) は人の目に頼るしかないが、
