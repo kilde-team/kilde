@@ -34,6 +34,18 @@ CLI のワンコマンドとメニューバーアプリで実現します。
 - ビルドには macOS 26 SDK を持つツールチェーンが必要 (エンジンが macOS 26 の API
   `captureHDRRecordingPreservedSDRHDR10` を参照するため。実行は引き続き macOS 14+ に対応)
 
+### Mac App Store
+
+メニューバーアプリは Mac App Store から入手できます。ワンクリックでインストールでき、
+App Store が自動で更新します:
+
+<a href="https://apps.apple.com/jp/app/id6812783176">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/appstore/badge/mac-app-store-badge-ja-white.svg">
+    <img src="docs/appstore/badge/mac-app-store-badge-ja-black.svg" alt="Mac App Store からダウンロード" height="40">
+  </picture>
+</a>
+
 ### Homebrew
 
 ```sh
