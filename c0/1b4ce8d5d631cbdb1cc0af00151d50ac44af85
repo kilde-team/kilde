@@ -1,0 +1,31 @@
+gui/project.yml
+  s_54dbfd11ff578a::t_d19a43a1b3eddf 43-45
+  s_54dbfd11ff578a::t_3ebf69c838590e 152-154
+  s_54dbfd11ff578a::t_81e3859b68e8b8 102
+  s_54dbfd11ff578a::t_3dbcdcc5c2af59 123-125
+  s_54dbfd11ff578a::t_02e0a5fe39aae7 64-68
+  s_54dbfd11ff578a::t_b82d40d610f1c2 42,46-50
+  s_54dbfd11ff578a::t_059ea4f2a0d931 103
+  s_54dbfd11ff578a::t_349f0302298583 155
+gui/Sources/AppDelegate.swift
+  s_54dbfd11ff578a::t_64dd066462710f 69-78
+  s_54dbfd11ff578a::t_a20255cf6c900b 5
+gui/Resources/GoogleService-Info.plist
+  s_54dbfd11ff578a::t_eb3221ce8d1fb0 1-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c01b4ce8d5d631cbdb1cc0af00151d50ac44af85",
+  "prompts": {},
+  "sessions": {
+    "s_54dbfd11ff578a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cb032393-97e9-432a-a309-22cc34540e90",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
