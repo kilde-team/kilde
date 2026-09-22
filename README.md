@@ -41,6 +41,18 @@ The project is split across two repositories (issue #115):
   the macOS 26 API `captureHDRRecordingPreservedSDRHDR10`; runtime still
   supports macOS 14+)
 
+### Mac App Store
+
+The menu bar app is on the Mac App Store — installs in one click and the App
+Store keeps it up to date automatically:
+
+<a href="https://apps.apple.com/app/id6812783176">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/appstore/badge/mac-app-store-badge-en-white.svg">
+    <img src="docs/appstore/badge/mac-app-store-badge-en-black.svg" alt="Download on the Mac App Store" height="40">
+  </picture>
+</a>
+
 ### Homebrew
 
 ```sh
