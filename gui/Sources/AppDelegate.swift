@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import SwiftUI
 import KildeCore
+import FirebaseCore
 
 /// メニューバーのステータス項目とポップオーバーの管理。
 /// MenuBarExtra (.window) が macOS 26 で開かないため AppKit で手動管理する
@@ -65,6 +66,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.shared = self
+        // Firebase Analytics (issue #135)。GoogleService-Info.plist を読んで計測を始める。
+        // 失敗 (ファイル無し・不正) でも録画機能は止めない — configure() は例外を出さず
+        // ログに残るのみなので、ここで握りつぶす処理は足さない
+        // セルフテストでは実利用のイベントを送らない — Sparkle と同じ方針
+        // (updaterStartsAtLaunch のコメント参照)
+        let isSelfTest = ProcessInfo.processInfo.environment.keys
+            .contains { $0.hasPrefix("KILDE_GUI_SELFTEST_") }
+        if !isSelfTest {
+            FirebaseApp.configure()
+        }
         // 通知の許可要求はここで 1 回だけ。拒否されても録画は完全に動くので、
         // 失敗として扱わない (通知が出ないだけ)
         notifier.start()

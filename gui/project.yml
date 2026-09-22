@@ -39,6 +39,15 @@ packages:
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle.git
     exactVersion: 2.10.0
+  # 利用状況の計測 (issue #135)。IDFA を収集しないためリンクするのは
+  # FirebaseAnalyticsCore (GoogleAppMeasurementCore = Ad ID サポート無し)。
+  # Firebase 11 までの FirebaseAnalyticsWithoutAdId は 12 でこの名前に統合された —
+  # 名前が存在しないため xcodegen 生成後のビルドが「Missing package product」で落ちる
+  # バージョンを固定する理由は上の 2 パッケージと同じ: 浮動参照だと上流の push が
+  # このリポジトリの変更なしに GUI ビルドを壊しうるため
+  firebase-ios-sdk:
+    url: https://github.com/firebase/firebase-ios-sdk.git
+    exactVersion: 12.19.2
 
 targets:
   KildeGUI:
@@ -51,6 +60,11 @@ targets:
       # (両者は INFOPLIST_FILE / CODE_SIGN_ENTITLEMENTS から参照される設定ファイルで、
       # バンドル直下に置かれるものではない)
       - path: Resources/Assets.xcassets
+        buildPhase: resources
+      # Firebase の設定ファイル (issue #135)。バンドル直下に置くべきファイルなので
+      # リソースとして«個別指定»する — Resources ディレクトリごと入れると Info.plist と
+      # entitlements までコピーされる既存の罠 (上記コメント) を踏まないため
+      - path: Resources/GoogleService-Info.plist
         buildPhase: resources
     settings:
       base:
@@ -85,6 +99,8 @@ targets:
         product: KildeCore
       - package: Sparkle
         product: Sparkle
+      - package: firebase-ios-sdk
+        product: FirebaseAnalyticsCore
 
   # App Store 配布用ターゲット (issue #126)。直接配布の KildeGUI と**同じ Sources を
   # 条件コンパイルで共有**し、ガイドライン上の必須差分だけを持つ:
@@ -103,6 +119,9 @@ targets:
       - Sources
       # アイコンは KildeGUI と同じカタログを使う (App Store 審査はアイコン必須)
       - path: Resources/Assets.xcassets
+        buildPhase: resources
+      # Firebase の設定ファイル (issue #135)。KildeGUI と同じ理由で個別指定
+      - path: Resources/GoogleService-Info.plist
         buildPhase: resources
     settings:
       base:
@@ -130,3 +149,7 @@ targets:
     dependencies:
       - package: kilde-cli-swift
         product: KildeCore
+      # Analytics は Sparkle と違って MAS でも許可されるため両ターゲットで共有する
+      # (issue #135)。Sparkle を MAS に入れない条件 (APPSTORE) はここでは関係ない
+      - package: firebase-ios-sdk
+        product: FirebaseAnalyticsCore
