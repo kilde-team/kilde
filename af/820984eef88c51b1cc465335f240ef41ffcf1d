@@ -1,0 +1,31 @@
+README.ja.md
+  s_3b5532545d6ab6::t_db618d31d9c728 37-41,48
+  s_3b5532545d6ab6::t_0059ac25490cb5 42-47
+README.md
+  s_3b5532545d6ab6::t_c278252b26dca6 44-48,55
+  s_3b5532545d6ab6::t_ad33497d488508 49-54
+docs/appstore/badge/mac-app-store-badge-en-black.svg
+  s_3b5532545d6ab6::t_651d526035380b 1-51
+docs/appstore/badge/mac-app-store-badge-en-white.svg
+  s_3b5532545d6ab6::t_4258b362be6cff 1-49
+docs/appstore/badge/mac-app-store-badge-ja-black.svg
+  s_3b5532545d6ab6::t_ed43483198d713 1-38
+docs/appstore/badge/mac-app-store-badge-ja-white.svg
+  s_3b5532545d6ab6::t_26df5b6885939b 1-40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "af820984eef88c51b1cc465335f240ef41ffcf1d",
+  "prompts": {},
+  "sessions": {
+    "s_3b5532545d6ab6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "69fb3d1c-2a25-45cf-9f24-068f955e3bb6",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
