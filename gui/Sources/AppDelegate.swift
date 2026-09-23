@@ -67,10 +67,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.shared = self
         // Firebase Analytics (issue #135)。GoogleService-Info.plist を読んで計測を始める。
-        // 失敗 (ファイル無し・不正) でも録画機能は止めない — configure() は例外を出さず
-        // ログに残るのみなので、ここで握りつぶす処理は足さない
-        // セルフテストでは実利用のイベントを送らない — Sparkle と同じ方針
-        // (updaterStartsAtLaunch のコメント参照)
+        // **plist が無い・不正な場合 configure() は NSException を投げて起動即クラッシュ
+        // する** (Swift から捕捉できない)。握りつぶしのガードは足さない — plist は
+        // 両ターゲットの resources に必須で、漏れは開発時の初回起動で即気づく方が、
+        // 計測が黙って欠けるより安全
+        // セルフテストでは実利用のイベントを送らない。**Sparkle と分岐は違う** —
+        // Sparkle は KILDE_GUI_SELFTEST_UPDATE=1 でも起動する (updaterStartsAtLaunch)
+        // が、Firebase は全セルフテストで起動しない
         let isSelfTest = ProcessInfo.processInfo.environment.keys
             .contains { $0.hasPrefix("KILDE_GUI_SELFTEST_") }
         if !isSelfTest {
