@@ -1,0 +1,33 @@
+gui/project.yml
+  s_54dbfd11ff578a::t_f100ee63098eee 72-75,140
+  s_54dbfd11ff578a::t_a190fc73690791 76
+  s_54dbfd11ff578a::t_302b9b1b041010 139
+  s_54dbfd11ff578a::t_c9bfe6a025e694 141
+  s_54dbfd11ff578a::t_14699cca280f7f 46-54,105-108,114-115,162-163,170-173
+PRIVACY.md
+  s_54dbfd11ff578a::t_0498d1c65978e7 3,13-24,53-55,74-82,101-113,141-143,162-172
+gui/Resources/GoogleService-Info.plist
+  s_54dbfd11ff578a::t_229f392db23df5 1-30
+gui/Resources/Info.plist
+  s_54dbfd11ff578a::t_d9ca3e7108e69e 45-48,50
+gui/Resources/KildeGUI-AppStore.entitlements
+  s_54dbfd11ff578a::t_6901725ec4acd9 28-33
+gui/Sources/AppDelegate.swift
+  s_54dbfd11ff578a::t_3f10f32492dbae 5-10,74-93
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5526dd77754d67a031a7322f6224826ff414546e",
+  "prompts": {},
+  "sessions": {
+    "s_54dbfd11ff578a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cb032393-97e9-432a-a309-22cc34540e90",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
