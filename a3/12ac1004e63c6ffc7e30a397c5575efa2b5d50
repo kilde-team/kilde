@@ -1,0 +1,21 @@
+gui/Sources/AppDelegate.swift
+  s_54dbfd11ff578a::t_e89a17e830018d 86-90
+  s_54dbfd11ff578a::t_5db9ba7c3493ef 9
+  s_54dbfd11ff578a::t_cecb4786711a48 5-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a312ac1004e63c6ffc7e30a397c5575efa2b5d50",
+  "prompts": {},
+  "sessions": {
+    "s_54dbfd11ff578a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cb032393-97e9-432a-a309-22cc34540e90",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
