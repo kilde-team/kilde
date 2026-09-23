@@ -366,11 +366,12 @@ while IFS= read -r -d '' item; do
     # 許可リストで判定する: 署名があるものは Apple Distribution でなければ止める。Apple Development
     # だけを弾くと、アドホック署名や Developer ID など別の証明書の署名が素通りする (CodeRabbit レビュー指摘)
     case "$info" in
-        *"Authority=Apple Distribution"*) ;;
+        # チームも照合する — 別チームの配布証明書でもプロファイルの証明書とは一致しない (cubic レビュー指摘)
+        *"Authority=Apple Distribution"*"TeamIdentifier=$TEAM_ID"*) ;;
         *"Authority=Apple Development"*)
             die "Apple Development の署名が残っています: ${item#"$APP_IN_PKG"/}" ;;
         *)
-            die "Apple Distribution 以外の署名があります: ${item#"$APP_IN_PKG"/} ($(sed -n -E '/^(Authority|Signature)=/{p;q;}' <<<"$info"))" ;;
+            die "このチーム ($TEAM_ID) の Apple Distribution 以外の署名があります: ${item#"$APP_IN_PKG"/} ($(sed -n -E '/^(Authority|Signature)=/{p;q;}' <<<"$info"))" ;;
     esac
 done < <(find "$APP_IN_PKG" \( \
     \( -type d \( -name '*.app' -o -name '*.framework' -o -name '*.bundle' -o -name '*.xpc' \
