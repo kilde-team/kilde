@@ -59,7 +59,7 @@ final class RecordingNotifier: NSObject {
                          completion: @escaping () -> Void = {}) {
         let identifier = UUID().uuidString
         let content = UNMutableNotificationContent()
-        content.title = "録画を保存しました"
+        content.title = String(localized: "録画を保存しました")
         // 本文はファイル名 + 長さ + サイズ。パス全体は長すぎて通知に収まらないので
         // ファイル名だけにし、場所は Finder 表示で見せる。
         // サイズが分からない (進捗が 1 度も来ない短い録画) ときは、`0 bytes` と
@@ -82,7 +82,7 @@ final class RecordingNotifier: NSObject {
     /// ポップオーバーを開くまで何も見えず、メニューバーは待機アイコンに戻るだけになる
     func notifyFailed(message: String, completion: @escaping () -> Void = {}) {
         let content = UNMutableNotificationContent()
-        content.title = "録画に失敗しました"
+        content.title = String(localized: "録画に失敗しました")
         content.body = message
         content.sound = .default
         post(identifier: UUID().uuidString, content: content, completion: completion)

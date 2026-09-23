@@ -361,6 +361,35 @@ Finder で `~/Library/Containers/` を開いて削除してください。残っ
   (§3 の kilde-dev の注意と同じ)。審査相当の確認は
   `scripts/release/appstore-archive.sh` が Apple Distribution で自動署名する
 
+### UI 文字列のローカライズ (issue #137)
+
+GUI は **文字列カタログ** `gui/Resources/Localizable.xcstrings` で
+ja / en / zh-Hans / ko / es を扱う。ソース言語は ja で、**コード中の日本語の
+リテラルがそのままキー兼 ja の値になる** (ja のエントリはカタログに書かない)。
+
+- SwiftUI の `Text` / `Label` / `Button` / `.help` などに渡す**リテラルは
+  `LocalizedStringKey` として自動的にカタログを引く** — コードの変更は不要
+- `String` として扱われる場所 (`UNNotificationContent.title`、
+  `NSStatusItem` の toolTip、`setup.notice` など) は
+  **`String(localized: "…")` で明示的に包む**。包み忘れるとその文字列だけ
+  どの言語でも ja のまま出る
+- 補間 (`\(error)` など) を含むキーの書式指定子は Int なら `%lld`、
+  それ以外は `%@`。**全言語で指定子の種類と順序を一致させる**こと —
+  食い違うと実行時にフォーマットが壊れる
+- キーを足したらカタログの 4 言語すべてに翻訳を足す。Xcode のカタログ
+  エディタで編集するのが安全 (JSON 直編集はエスケープに注意)。
+  キーは `extractionState: "manual"` でも**新規キーはビルド時に自動で
+  追加される** ("manual" が抑えるのは既存キーの自動更新・自動削除) —
+  ビルド後にカタログへ新規キーが入っていないか確認し、翻訳を足す。
+  一方ソースの日本語リテラルを**変えたら**キー自体が変わり、
+  4 言語の翻訳を手で移し替える (古いキーは自動では消えないので手で削除。
+  放置すると使われないキーが残る)
+- 開発者向けの文字列 (セルフテストの `fail()` メッセージ、stderr の
+  WARNING、エンジン由来のエラー本文) は**ローカライズ対象外**
+- 対応言語の一覧は `Info.plist` の `CFBundleLocalizations` と揃える。
+  新言語を足すときは lproj の生成を確認する (ビルド後に
+  `KildeGUI.app/Contents/Resources/<lang>.lproj/Localizable.strings` があること)
+
 ## 4. エンジンと CLI の開発
 
 `KildeCore` (録画エンジン) と `kilde` (CLI) の開発は

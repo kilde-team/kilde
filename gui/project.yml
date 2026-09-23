@@ -8,6 +8,10 @@ options:
   deploymentTarget:
     macOS: "14.0"
   createIntermediateGroups: true
+  # ソースの文字列リテラルが日本語 (翻訳の source language) であることを
+  # Xcode に伝える。無いと既定値 en 扱いになり、Localizable.xcstrings の
+  # ja エントリが «翻訳先» として扱われる
+  developmentLanguage: ja
 
 # 分離先リポジトリ kilde-team/kilde-cli-swift (kilde#115) をリモート依存として
 # 追加し、KildeCore 製品だけをリンクする。CLI 分離後、kilde リポジトリ自体は
@@ -60,6 +64,10 @@ targets:
       # (両者は INFOPLIST_FILE / CODE_SIGN_ENTITLEMENTS から参照される設定ファイルで、
       # バンドル直下に置かれるものではない)
       - path: Resources/Assets.xcassets
+        buildPhase: resources
+      # 文字列カタログ (issue #137)。ja がキー兼既定値、en / zh-Hans / ko / es を収録。
+      # SwiftUI のリテラルは LocalizedStringKey としてこのカタログを引く
+      - path: Resources/Localizable.xcstrings
         buildPhase: resources
       # Firebase の設定ファイル (issue #135)。バンドル直下に置くべきファイルなので
       # リソースとして«個別指定»する — Resources ディレクトリごと入れると Info.plist と
@@ -123,6 +131,10 @@ targets:
       - Sources
       # アイコンは KildeGUI と同じカタログを使う (App Store 審査はアイコン必須)
       - path: Resources/Assets.xcassets
+        buildPhase: resources
+      # KildeGUI と同じ文字列カタログ (issue #137)。片方だけだと MAS 版だけ
+      # 英語・中国語等が出ない (ja のキーがそのまま表示される)
+      - path: Resources/Localizable.xcstrings
         buildPhase: resources
       # Firebase の設定ファイル (issue #135)。KildeGUI と同じ理由で個別指定
       - path: Resources/GoogleService-Info.plist

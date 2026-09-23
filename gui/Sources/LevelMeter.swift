@@ -40,7 +40,8 @@ struct LevelMeter: View {
             .animation(.linear(duration: 0.15), value: fraction)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(label) のレベル")
+        // String の label を含むので SwiftUI の暗黙ローカライズが効かない — 明示的に解決する
+        .accessibilityLabel(String(localized: "\(label) のレベル"))
         .accessibilityValue(String(format: "%.0f dB", 20 * log10(max(peak, 1e-6))))
     }
 }

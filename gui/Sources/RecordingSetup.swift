@@ -60,10 +60,10 @@ final class RecordingSetup: ObservableObject {
     private static let ownBundleID = Bundle.main.bundleIdentifier
 #if APPSTORE
     /// 保存先を bookmark に記録できなかったときの警告。**比較に使うので定数にしている** —
-    /// 選び直しが成功したらこの警告だけを消すため (cubic レビュー指摘)
-    private static let bookmarkFailureNotice =
-        "保存先を変更しました。ただし記録できなかったため、"
-        + "次にアプリを起動したときは既定の保存先に戻ります"
+    /// 選び直しが成功したらこの警告だけを消すため (cubic レビュー指摘)。
+    /// String(localized:) は言語がプロセス内で不変なので、比較の安定性は保たれる
+    private static let bookmarkFailureNotice = String(
+        localized: "保存先を変更しました。ただし記録できなかったため、次にアプリを起動したときは既定の保存先に戻ります")
 #endif
 
     init() {
@@ -86,7 +86,7 @@ final class RecordingSetup: ObservableObject {
             config = try ConfigStore.load()
         } catch {
             // 壊れた設定でも GUI 自体は開けるようにし、録画開始時に CLI と同じエラーを出す
-            notice = "設定ファイルを読めません (既定値で表示します): \(error)"
+            notice = String(localized: "設定ファイルを読めません (既定値で表示します): \(error)")
         }
         request = RecordRequest.initial(config: config, fallbackDirectory: fallback)
 #if APPSTORE
@@ -134,16 +134,16 @@ final class RecordingSetup: ObservableObject {
         // 無条件に塞ぐと、**SCK を一切使わないマイクのみの録音まで画面列挙の完了待ちに
         // なる** — Recorder はその構成で SCK に触れないので、待たせる理由が無い
         if usesScreenCapture && loading {
-            return "画面/ウィンドウの一覧を読み込み中です"
+            return String(localized: "画面/ウィンドウの一覧を読み込み中です")
         }
         if usesScreenCapture && enumerationsRunning > 0 {
-            return "画面/ウィンドウの列挙中です (録画開始と同時に行うと両方が止まります)"
+            return String(localized: "画面/ウィンドウの列挙中です (録画開始と同時に行うと両方が止まります)")
         }
         if request.target == .audioOnly && request.audioSourceCount == 0 {
-            return "音声ソースが選ばれていません (録れるものがありません)"
+            return String(localized: "音声ソースが選ばれていません (録れるものがありません)")
         }
         if !permissions.missing(for: request).isEmpty {
-            return "権限が足りないため開始できません"
+            return String(localized: "権限が足りないため開始できません")
         }
         return nil
     }
@@ -163,9 +163,9 @@ final class RecordingSetup: ObservableObject {
             let updated = try request.savingDefaults(into: try ConfigStore.load())
             try ConfigStore.save(updated)
             config = updated
-            notice = "既定値として保存しました (\(ConfigStore.fileURL.path))"
+            notice = String(localized: "既定値として保存しました (\(ConfigStore.fileURL.path))")
         } catch {
-            notice = "既定値を保存できません: \(error)"
+            notice = String(localized: "既定値を保存できません: \(error)")
         }
     }
 
@@ -194,11 +194,11 @@ final class RecordingSetup: ObservableObject {
             config = updated
             hotkeyDraft = trimmed
             notice = trimmed.isEmpty
-                ? "ホットキーを無効にしました"
-                : "ホットキーを \(trimmed) に設定しました"
+                ? String(localized: "ホットキーを無効にしました")
+                : String(localized: "ホットキーを \(trimmed) に設定しました")
             return (true, onDisk)
         } catch {
-            notice = "ホットキーを保存できません: \(error)"
+            notice = String(localized: "ホットキーを保存できません: \(error)")
             return (false, onDisk)
         }
     }
@@ -213,7 +213,7 @@ final class RecordingSetup: ObservableObject {
             config = updated
             hotkeyDraft = previous ?? ""
         } catch {
-            notice = "ホットキーの設定を元に戻せません: \(error)"
+            notice = String(localized: "ホットキーの設定を元に戻せません: \(error)")
         }
     }
 
@@ -240,15 +240,15 @@ final class RecordingSetup: ObservableObject {
             if enabled {
                 try SMAppService.mainApp.register()
                 notice = SMAppService.mainApp.status == .requiresApproval
-                    ? "ログイン項目の承認が必要です (システム設定 → 一般 → ログイン項目 で許可してください)"
-                    : "ログイン時に起動します"
+                    ? String(localized: "ログイン項目の承認が必要です (システム設定 → 一般 → ログイン項目 で許可してください)")
+                    : String(localized: "ログイン時に起動します")
             } else {
                 try SMAppService.mainApp.unregister()
-                notice = "ログイン時の起動を解除しました"
+                notice = String(localized: "ログイン時の起動を解除しました")
             }
             objectWillChange.send()
         } catch {
-            notice = "ログイン項目を変更できません: \(error)"
+            notice = String(localized: "ログイン項目を変更できません: \(error)")
         }
     }
 
@@ -259,7 +259,7 @@ final class RecordingSetup: ObservableObject {
         panel.canCreateDirectories = true
         panel.allowsMultipleSelection = false
         panel.directoryURL = request.outputDirectory
-        panel.prompt = "選択"
+        panel.prompt = String(localized: "選択")
         // LSUIElement のアプリはアクティブでないとパネルが他のウィンドウの後ろに出る
         NSApp.activate(ignoringOtherApps: true)
         if panel.runModal() == .OK, let url = panel.url {
@@ -376,7 +376,7 @@ final class RecordingSetup: ObservableObject {
         guard enumerationsRunning < Self.maxConcurrentEnumerations else {
             // 前の列挙が返ってこないまま上限に達した (権限プロンプト保留中など)。
             // enumerationsRunning は 0 に戻らないので、録画開始もこの間は止まる
-            loadError = "画面/ウィンドウの列挙が応答しません。画面収録の権限確認が保留になっていないか確認してください"
+            loadError = String(localized: "画面/ウィンドウの列挙が応答しません。画面収録の権限確認が保留になっていないか確認してください")
             return
         }
         enumerationInFlight = true
@@ -442,7 +442,7 @@ final class RecordingSetup: ObservableObject {
             // 古い一覧を残したままタイムアウトのエラーを出すと、表示とエラーが食い違う
             displays = []
             windows = []
-            loadError = "画面/ウィンドウの列挙がタイムアウトしました。画面収録の権限確認が保留になっていないか確認し、再度更新してください"
+            loadError = String(localized: "画面/ウィンドウの列挙がタイムアウトしました。画面収録の権限確認が保留になっていないか確認し、再度更新してください")
             return
         }
         switch result {
@@ -474,7 +474,7 @@ final class RecordingSetup: ObservableObject {
             // 画面収録の権限が無いとここに来る (オンボーディングは issue #19)
             displays = []
             windows = []
-            loadError = "画面/ウィンドウの列挙に失敗しました (画面収録の権限を確認してください): \(error)"
+            loadError = String(localized: "画面/ウィンドウの列挙に失敗しました (画面収録の権限を確認してください): \(error)")
         }
     }
 

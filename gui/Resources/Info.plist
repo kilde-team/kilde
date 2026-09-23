@@ -4,6 +4,18 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>ja</string>
+	<!-- 対応言語の宣言 (issue #137)。文字列カタログ Localizable.xcstrings と揃える —
+	     ja は開発地域 (キー兼既定値)、en / zh-Hans / ko / es を収録する。
+	     この宣言が無いと、システムと App Store が対応言語を正しく認識できず、
+	     ユーザーの言語設定でアプリが日本語のまま表示されることがある -->
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>ja</string>
+		<string>en</string>
+		<string>zh-Hans</string>
+		<string>ko</string>
+		<string>es</string>
+	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<!-- アセットカタログのアイコン名。macOS 11 以降と Mac App Store は
