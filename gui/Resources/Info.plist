@@ -42,11 +42,12 @@
 	<string>1</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
-	<!-- 輸出コンプライアンス (App Store Connect)。kilde は暗号化 API を使わず、App Store 版は
-	     ネットワーク接続のエンタイトルメントも持たない (直接配布版の Sparkle も OS の HTTPS と
-	     署名検証だけで免除対象) ため「免除対象外の暗号化なし」= false。
+	<!-- 輸出コンプライアンス (App Store Connect)。kilde は暗号化 API を使わない。
+	     App Store 版は Firebase Analytics の送信 (issue #135) で外向き接続
+	     (com.apple.security.network.client) のエンタイトルメントを持つが、
+	     すべて OS 標準の HTTPS で免除対象のため「免除対象外の暗号化なし」= false。
 	     このキーが無いとアップロードのたびに ASC で申告を求められ、ビルドが
-	     「コンプライアンスがありません」で止まる。暗号化や独自通信を足したら見直すこと -->
+	     「コンプライアンスがありません」で止まる。独自の暗号化を足したら見直すこと -->
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<!-- メニューバーのみのアプリ: Dock に出さない (DESIGN.md §9) -->

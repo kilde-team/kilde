@@ -1,6 +1,6 @@
 # プライバシーポリシー / Privacy Policy
 
-最終更新日 / Last updated: 2026-09-16
+最終更新日 / Last updated: 2026-09-23
 
 対象: kilde (macOS 用の画面・音声録画アプリ `Kilde` と `kilde` コマンドライン)
 
@@ -10,9 +10,18 @@
 
 ### 収集する情報
 
-kilde は**個人情報を含むいかなるデータも収集しません**。解析 (アナリティクス)、
-トラッキング、広告、クラッシュレポートの送信は行いません。開発者のサーバーへ
-データを送ることもありません。
+kilde は**録画・録音の内容や設定を収集しません**。
+広告やクラッシュレポートの送信は行いません。
+
+GUI アプリ (直接配布版・Mac App Store 版の両方) は、アプリの利用状況の解析を
+Google の **Firebase Analytics** で行います。収集するのは起動回数・利用頻度・
+アプリのバージョン・OS のバージョン・デバイスの種類・IP アドレスから推定される
+大まかな地域などの利用統計で、**録画の内容 (映像・音声・ファイル名・保存先) や
+あなたの設定 (ホットキー・保存先など) は含まれません**。これらのデータは
+Google のサーバーに送信され、取り扱いは
+[Google のプライバシーポリシー](https://policies.google.com/privacy) に従います。
+開発者が取得できるのは集計された利用統計のみです。
+`kilde` コマンドラインは解析を行いません。
 
 ### 録画・録音したデータ
 
@@ -41,8 +50,9 @@ kilde は**個人情報を含むいかなるデータも収集しません**。�
 
 ### ネットワーク通信
 
-- **Mac App Store 版**: ネットワーク通信を行いません (アプリにネットワーク接続の
-  権限がありません)。アップデートは App Store を通じて配信されます
+- **Mac App Store 版**: 上の「収集する情報」のとおり、Firebase Analytics が
+  利用統計を Google のサーバーへ送信します。アップデートは App Store を通じて
+  配信されます
 - **直接配布版の GUI (GitHub Releases の `kilde-<version>-macos.zip`)**: アップデートの
   確認のため、自動更新ライブラリ Sparkle が GitHub 上の更新情報
   (`https://github.com/kilde-team/kilde/releases/latest/download/appcast.xml`) を
@@ -61,10 +71,15 @@ kilde は**個人情報を含むいかなるデータも収集しません**。�
 録画・録音したデータと、あなたがアプリに入力した内容 (保存先・ホットキーなどの設定) を
 第三者へ提供することはありません (そもそも収集していません)。
 
-ただし、**直接配布版の GUI が更新を確認するとき**は、上の「ネットワーク通信」の
-とおり GitHub へ接続します。この通信で IP アドレスやアプリのバージョンなどが
-GitHub に送信されます (取り扱いは GitHub のプライバシーステートメントに従います)。
-Mac App Store 版と CLI にはこの通信はありません。
+ただし次の 2 点は通信が発生します:
+
+- **GUI アプリが利用統計を送るとき**: 上の「収集する情報」のとおり Firebase Analytics
+  が Google のサーバーへ接続します (直接配布版・Mac App Store 版とも)
+- **直接配布版の GUI が更新を確認するとき**: 上の「ネットワーク通信」のとおり
+  GitHub へ接続します。この通信で IP アドレスやアプリのバージョンなどが
+  GitHub に送信されます (取り扱いは GitHub のプライバシーステートメントに従います)
+
+CLI にはこれらの通信はありません。
 
 ### 本ポリシーの変更
 
@@ -83,9 +98,19 @@ https://github.com/kilde-team/kilde/issues
 
 ### Information we collect
 
-kilde **does not collect any data, including personal information**. It has no
-analytics, tracking, advertising, or crash reporting, and it sends no data to the
-developer.
+kilde **never collects your recordings or your settings**. It has no
+advertising or crash reporting.
+
+The GUI app (both the directly distributed and the Mac App Store version) uses
+Google's **Firebase Analytics** to measure app usage. What is collected is usage
+statistics such as launch counts, usage frequency, app version, OS version,
+device model, and a coarse region estimated from your IP address. **It never
+includes the content of your recordings (video, audio, file names, save
+locations) or your settings (hotkeys, save locations, and so on).** These data
+are sent to Google's servers and handled under
+[Google's privacy policy](https://policies.google.com/privacy). The developer
+only sees aggregated usage statistics. The `kilde` command-line tool does no
+analytics.
 
 ### Your recordings
 
@@ -113,8 +138,9 @@ Settings such as the save location and audio sources are stored only on your Mac
 
 ### Network access
 
-- **Mac App Store version**: makes no network connections (the app has no
-  network entitlement). Updates are delivered through the App Store
+- **Mac App Store version**: Firebase Analytics sends usage statistics to
+  Google's servers as described under "Information we collect". Updates are
+  delivered through the App Store
 - **Directly distributed GUI (the `kilde-<version>-macos.zip` on GitHub Releases)**:
   to check for updates, the Sparkle update framework downloads the update feed from GitHub
   (`https://github.com/kilde-team/kilde/releases/latest/download/appcast.xml`).
@@ -133,11 +159,17 @@ Your recordings, and what you enter in the app (the save location, the hotkey
 and other settings), are never shared with third parties (none of it is
 collected in the first place).
 
-One exception is worth stating plainly: **when the directly distributed GUI checks
-for updates**, it connects to GitHub as described under "Network access", which
-sends information such as your IP address and the app version to GitHub (handled
-under the GitHub General Privacy Statement). The Mac App Store version and the CLI
-make no such connection.
+Two kinds of connections are made:
+
+- **When the GUI app sends usage statistics**: Firebase Analytics connects to
+  Google's servers as described under "Information we collect" (both the directly
+  distributed and the Mac App Store version)
+- **When the directly distributed GUI checks for updates**: it connects to
+  GitHub as described under "Network access", which sends information such as
+  your IP address and the app version to GitHub (handled under the GitHub
+  General Privacy Statement)
+
+The CLI makes neither connection.
 
 ### Changes to this policy
 
