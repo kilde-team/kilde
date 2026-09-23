@@ -1,0 +1,29 @@
+README.ja.md
+  s_9b3f29c8629884::t_f13905b5b2a6a9 161-162
+README.zh-CN.md
+  s_9b3f29c8629884::t_82aec7812b275d 249-250
+docs/DESIGN.md
+  s_9b3f29c8629884::t_e9c3051f8c6d34 460-462
+README.md
+  s_9b3f29c8629884::t_0958e6e0b6f273 273-274
+README.ko.md
+  s_9b3f29c8629884::t_7a9abe94a09f97 261-262
+README.es.md
+  s_9b3f29c8629884::t_31239a7ec32751 285-286
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b79d622287a5c354aa76bae0ab1faa554ad30fb2",
+  "prompts": {},
+  "sessions": {
+    "s_9b3f29c8629884": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6e2aa4e-0667-4664-b3d5-4cbdb1b81a6e",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
