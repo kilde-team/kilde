@@ -158,8 +158,8 @@ kilde config set locale ja-JP
 kilde config show                    # 現在値と既定値 (unset <key> で既定に戻す / path でファイルの場所)
 
 設定キーは `outputDirectory` / `defaultAudioSources` / `audioTracks` / `codec` /
-`fps` / `showsCursor` / `hotkey` / `transcribe` / `transcriptFormat` / `locale`
-の 10 種 (英語版 README と同じ一覧)。
+`format` / `videoBitrate` / `audioBitrate` / `fps` / `showsCursor` / `hotkey` /
+`transcribe` / `transcriptFormat` / `locale` の 13 種 (英語版 README と同じ一覧)。
 
 kilde devices         # ディスプレイ / ウィンドウ / オーディオ機器の一覧
 kilde doctor          # 権限と環境の診断

@@ -258,8 +258,8 @@ kilde config path
 ```
 
 지원하는 키는 `outputDirectory`, `defaultAudioSources`, `audioTracks`,
-`codec`, `fps`, `showsCursor`, `hotkey`, `transcribe`, `transcriptFormat`,
-`locale`입니다.
+`codec`, `format`, `videoBitrate`, `audioBitrate`, `fps`, `showsCursor`,
+`hotkey`, `transcribe`, `transcriptFormat`, `locale`입니다.
 
 녹화 설정은 다음 순서(높음→낮음)로 해석됩니다:
 

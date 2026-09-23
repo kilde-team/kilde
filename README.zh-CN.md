@@ -246,8 +246,8 @@ kilde config path
 ```
 
 支持的键为 `outputDirectory`、`defaultAudioSources`、`audioTracks`、
-`codec`、`fps`、`showsCursor`、`hotkey`、`transcribe`、`transcriptFormat`
-和 `locale`。
+`codec`、`format`、`videoBitrate`、`audioBitrate`、`fps`、`showsCursor`、
+`hotkey`、`transcribe`、`transcriptFormat` 和 `locale`。
 
 录制设置的解析顺序（从高到低）：
 

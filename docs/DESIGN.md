@@ -457,6 +457,9 @@ cubic レビュー指摘)。値は CLI 引数と同じ文字列表現。
 | `defaultAudioSources` | 文字列の配列 (`["system", "mic"]`、`["none"]` で音声なし) | `--audio` |
 | `audioTracks` | `mixed` / `separate` | `--audio-tracks` |
 | `codec` | `h264` / `hevc` / `prores` | `--codec` |
+| `format` | `mov` / `mp4` | `--format` (設定は出力パスの拡張子より弱い)。音声のみには効かない (M4A 固定)。未設定のときはエンジン既定 mp4 (kilde-cli-swift#24) |
+| `videoBitrate` | `8m` / `2500k` / `8000000` 形式 | `--video-bitrate`。`codec: prores` との組合せは録画開始前に終了コード 1 (kilde-cli-swift#21) |
+| `audioBitrate` | `192k` / `128000` 形式 | `--audio-bitrate` (kilde-cli-swift#21) |
 | `fps` | 1 以上の整数 | `--fps` |
 | `showsCursor` | 真偽値 | `--cursor` / `--no-cursor` |
 | `hotkey` | `cmd+shift+r` 形式の文字列 | `--hotkey`。cmd / shift / opt / ctrl と英数字、F1〜F12、主要キーに対応 (fn はハードウェアにインターセプトされるため不可) |

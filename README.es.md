@@ -282,8 +282,8 @@ kilde config path
 ```
 
 Las claves admitidas son `outputDirectory`, `defaultAudioSources`,
-`audioTracks`, `format`, `codec`, `fps`, `showsCursor`, `hotkey`,
-`transcribe`, `transcriptFormat` y `locale`.
+`audioTracks`, `format`, `codec`, `videoBitrate`, `audioBitrate`, `fps`,
+`showsCursor`, `hotkey`, `transcribe`, `transcriptFormat` y `locale`.
 
 La configuración de grabación se resuelve en este orden, de mayor a menor
 prioridad:

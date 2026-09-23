@@ -270,8 +270,8 @@ kilde config path
 ```
 
 The supported keys are `outputDirectory`, `defaultAudioSources`, `audioTracks`,
-`codec`, `fps`, `showsCursor`, `hotkey`, `transcribe`, `transcriptFormat`, and
-`locale`.
+`codec`, `format`, `videoBitrate`, `audioBitrate`, `fps`, `showsCursor`,
+`hotkey`, `transcribe`, `transcriptFormat`, and `locale`.
 
 Recording settings are resolved in this order, from highest to lowest priority:
 
