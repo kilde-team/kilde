@@ -103,13 +103,24 @@ python3 build.py                 # スクリーンショット 5 枚 (2880x1800)
 
 ## 4. App Store Connect 側の状態
 
-App レコードは作成済み (Apple ID `6812783176`)。プライバシー (データ収集なし)・
+App レコードは作成済み (Apple ID `6812783176`)。プライバシー (App Privacy)・
 年齢区分 (4+)・カテゴリ (ユーティリティ / 仕事効率化)・著作権は入力済み。
 **0.3.0 (2) を 2026-09-16 に提出し、2026-09-17 にリジェクトされた** (§5)。
-プライバシーポリシーの本文はリポジトリ直下の `PRIVACY.md` (issue #128)。
-App Store Connect のプライバシーポリシー URL には
-`https://github.com/kilde-team/kilde/blob/main/PRIVACY.md` を指定する
-(main にマージされるまでは 404 になるので、URL の差し替えはマージ後に行う)。
+App Privacy は Firebase Analytics (#136) に合わせて「おおよその場所・デバイス ID・製品の操作」
+(いずれもアナリティクス目的、ユーザに関連付けない、トラッキングなし) で公開済み (2026-09-23。
+それまでは「データ収集なし」)。
+プライバシーポリシーの本文はリポジトリ直下の `PRIVACY.md` (issue #128) で、利用者向けには
+kilde.site (リポジトリ kilde-team/kilde-site) が同じ内容を公開している。App Store Connect の
+プライバシーポリシー URL は **kilde.site を指定している** (ja は `https://kilde.site/ja/privacy/`、
+他ロケールは `https://kilde.site/privacy/`)。アプリのデータの扱いを変えたら PRIVACY.md と
+kilde.site の両方を更新すること。
+
+ロケール別の URL (2026-09-23 に ASC で確認・設定済み):
+
+| ロケール | サポート URL / マーケティング URL | プライバシーポリシー URL |
+|---|---|---|
+| ja | `https://kilde.site/ja/` | `https://kilde.site/ja/privacy/` |
+| en-US / zh-Hans / ko / es-ES | `https://kilde.site/` | `https://kilde.site/privacy/` |
 
 製品ページのローカライズ (ja / en / zh-Hans / ko / es) の正本は
 [metadata/](metadata/README.md) (issue #137)。ASC 側で直接編集せず、

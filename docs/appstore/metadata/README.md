@@ -8,11 +8,28 @@ App レコード (`com.takezou621.KildeGUI`, Apple ID `6812783176`) の App Stor
 
 | ロケール | ファイル | 状態 |
 |---|---|---|
-| 日本語 (ja) | [metadata-ja.md](metadata-ja.md) | 提出済みの内容を正本化 |
-| 英語 (en-US) | [metadata-en.md](metadata-en.md) | 提出済みの内容を正本化 |
-| 簡体字中国語 (zh-Hans) | [metadata-zh-Hans.md](metadata-zh-Hans.md) | issue #137 で追加 |
-| 韓国語 (ko) | [metadata-ko.md](metadata-ko.md) | issue #137 で追加 |
-| スペイン語 (es-ES) | [metadata-es.md](metadata-es.md) | issue #137 で追加 |
+| 日本語 (ja) | [metadata-ja.md](metadata-ja.md) | 0.3.0 で審査通過・配信中の ASC 登録内容を転記 (2026-09-23) |
+| 英語 (en-US) | [metadata-en.md](metadata-en.md) | issue #137 で新規作成、2026-09-23 に ASC へ登録 (0.4.0 から) |
+| 簡体字中国語 (zh-Hans) | [metadata-zh-Hans.md](metadata-zh-Hans.md) | issue #137 で追加、2026-09-23 に ASC へ登録 (0.4.0 から) |
+| 韓国語 (ko) | [metadata-ko.md](metadata-ko.md) | issue #137 で追加、2026-09-23 に ASC へ登録 (0.4.0 から) |
+| スペイン語 (es-ES) | [metadata-es.md](metadata-es.md) | issue #137 で追加、2026-09-23 に ASC へ登録 (0.4.0 から) |
+
+## ASC の現状 (2026-09-23 時点)
+
+- **ja は ASC が先にあった**。#137 で書いた metadata-ja.md は ASC の登録内容と別物だったため、
+  ASC の文面に合わせて書き直した (名前 `Kilde`、サブタイトル・キーワードは 0.3.0 の審査通過版、
+  説明は 0.4.0 用に Firebase Analytics の開示と MAS 版の設定保存先を反映したもの)。ja の名前だけ「先頭を `kilde` に統一」の方針から外れているが、配信中の
+  アプリ名を変えると検索・認知に影響するため、変える場合は別途判断する
+- en-US / zh-Hans / ko / es-ES は 0.4.0 (提出準備中) に登録済み。説明は各ファイルの 80 桁の
+  折り返し改行を段落内でつないで転記した (ASC は改行をそのまま表示するため)
+- **キーワード欄の残数表示は文字数で数える** (ja は 71 文字 / 180 バイトで 0.3.0 が受理・審査
+  通過)。下の「100 バイト」はそれより厳しい安全側の目安として残す
+- App Privacy は Firebase Analytics に合わせて「おおよその場所・デバイス ID・製品の操作
+  (いずれもアナリティクス目的、ユーザに関連付けない、トラッキングなし)」で公開済み
+- **0.4.0 の ja スクリーンショットは `../screenshots/` の現行 5 枚に差し替えた**。0.3.0 に
+  登録されていたのはそれ以前のモックで、05 は「どう終わっても」の見出しと直接配布版にしか無い
+  アップデート欄、01 は「保存先の選択は CLI の既定値としても共有」、05 は「データ収集なし」を
+  含んでいた。ASC にアップロードするときは 1 枚ずつ順に上げる (まとめて上げると並び順が崩れる)
 
 ## ASC での追加手順
 
