@@ -32,10 +32,13 @@ El proyecto está dividido en dos repositorios (issue #115):
   con Ctrl+C
 - ⌨️ Inicia y detiene la grabación con un atajo de teclado global mientras usas
   otra app
+- 📝 Transcribe grabaciones a archivos sidecar en markdown/SRT/VTT/texto/JSON,
+  íntegramente en el dispositivo (macOS 26+)
 
 ## Instalación
 
 - macOS 14 o posterior
+- La transcripción requiere **macOS 26 o posterior**
 - Los binarios publicados son **compilaciones arm64 (Apple Silicon)** — los Mac
   Intel no son compatibles por ahora
 - Las pruebas en tiempo de ejecución se realizan actualmente en macOS 26 sobre
@@ -107,9 +110,10 @@ Usa los demás comandos para descubrir objetivos de captura, inspeccionar una
 grabación y gestionar los valores predeterminados persistentes:
 
 ```sh
-kilde devices      # Lista pantallas, ventanas y dispositivos de audio
-kilde inspect FILE # Muestra las pistas y los niveles de audio de una grabación
-kilde config show  # Muestra los valores configurados y los predeterminados vigentes
+kilde devices         # Lista pantallas, ventanas y dispositivos de audio
+kilde inspect FILE    # Muestra las pistas y los niveles de audio de una grabación
+kilde transcribe FILE # Transcribe una grabación a un archivo sidecar (macOS 26+)
+kilde config show     # Muestra los valores configurados y los predeterminados vigentes
 ```
 
 ## Ejemplos de grabación
@@ -201,6 +205,30 @@ un `--duration` que pediste; un `--hotkey` explícito no avisa, porque esperar
 es lo que pediste. Para grabar sin supervisión, elimina la tecla configurada
 con `kilde config unset hotkey`.
 
+### Transcribir después de grabar
+
+Añade `--transcribe` y kilde transcribe la grabación a un archivo sidecar
+(`meeting.md`) en cuanto el archivo de grabación queda finalizado (macOS 26+,
+sin necesidad del permiso de Reconocimiento del habla):
+
+```sh
+kilde rec --transcribe --preset meeting meeting.mov
+```
+
+La transcripción se ejecuta íntegramente en tu Mac (en el dispositivo) — ni el
+audio ni el texto transcrito se envían a ningún sitio. Empieza solo cuando el
+archivo de grabación está completo, así que un fallo o una interrupción nunca
+tocan la grabación en sí. Pulsar Ctrl+C mientras se transcribe interrumpe solo
+la transcripción — el archivo de grabación permanece en el disco y el código de
+salida sigue siendo `0`. Un *fallo* de la transcripción (por ejemplo un entorno
+o idioma no admitido, o un fallo al descargar el modelo) sale con código `1`,
+porque lo pediste explícitamente. `--transcript-format md|srt|vtt|txt|json`
+elige el formato del sidecar y `--locale ja-JP` elige el idioma. En una
+grabación `--no-video --audio-tracks separate`, las dos pistas de audio se
+transcriben con etiquetas de hablante («相手» para la pista del audio del
+sistema, «自分» para la del micrófono). También puedes transcribir una
+grabación ya existente con `kilde transcribe FILE`.
+
 ### ¿Por qué no se requiere BlackHole?
 
 kilde usa la captura nativa de audio del sistema de ScreenCaptureKit, así que
@@ -230,6 +258,8 @@ Entre las opciones habituales:
   retrocede a `mov`)
 - `--cursor` o `--no-cursor`, `--countdown SECONDS`, `--preset meeting` y
   `--hotkey SHORTCUT`
+- `--transcribe` (con `--transcript-format` y `--locale`) para transcribir la
+  grabación a un archivo sidecar una vez finalizada (macOS 26+)
 - `-o PATH` o `--output PATH` como alternativa a la ruta de salida posicional
 
 ## Configuración
@@ -243,13 +273,17 @@ kilde config set outputDirectory ~/Movies/kilde
 kilde config set defaultAudioSources system,mic
 kilde config set showsCursor false   # Para mostrarlo solo una vez, kilde rec --cursor
 kilde config set hotkey cmd+shift+r  # Inicia rec en modo de espera de atajo (ver abajo)
+kilde config set transcribe true     # Transcribe cada grabación al detenerse
+kilde config set transcriptFormat srt
+kilde config set locale ja-JP
 kilde config show
 kilde config unset hotkey
 kilde config path
 ```
 
 Las claves admitidas son `outputDirectory`, `defaultAudioSources`,
-`audioTracks`, `format`, `codec`, `fps`, `showsCursor` y `hotkey`.
+`audioTracks`, `format`, `codec`, `fps`, `showsCursor`, `hotkey`,
+`transcribe`, `transcriptFormat` y `locale`.
 
 La configuración de grabación se resuelve en este orden, de mayor a menor
 prioridad:
@@ -287,8 +321,8 @@ de grabar con el estado de salida `1`.
 
 | Código | Significado |
 |---:|---|
-| `0` | Éxito, incluida una grabación detenida de forma segura por SIGINT, SIGTERM o SIGHUP |
-| `1` | Otro fallo en tiempo de ejecución, incluida una configuración no válida |
+| `0` | Éxito, incluida una grabación detenida de forma segura por SIGINT, SIGTERM o SIGHUP. Interrumpir con Ctrl+C la transcripción posterior de `rec --transcribe` también sale con código `0` — el archivo de grabación permanece en el disco |
+| `1` | Otro fallo en tiempo de ejecución, incluida una configuración no válida. Un fallo de la transcripción posterior de `rec --transcribe` (entorno o idioma no admitido, fallo al descargar el modelo, fallo al escribir el sidecar) también sale con código `1` — el archivo de grabación permanece en el disco, pero la transcripción la pediste explícitamente |
 | `2` | Falta un permiso |
 | `3` | No se encontró la pantalla, la ventana o el dispositivo de audio |
 | `64` | Error de análisis de la línea de comandos o de validación de opciones, como `rec --fps 0` |

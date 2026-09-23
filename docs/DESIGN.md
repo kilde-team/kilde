@@ -254,10 +254,11 @@ M1 実装 (`kilde --help` / `kilde <subcommand> --help`) と一致させてい�
 ```
 kilde rec [<出力パス>]                     録画 / 録音の開始 (Ctrl+C で安全に停止)
 kilde devices [--no-windows]              ディスプレイ / ウィンドウ / オーディオ機器の一覧
-kilde doctor                              権限と環境の診断 (不足していれば権限を要求)
+kilde doctor                              権限と環境の診断 (不足していれば権限を要求。文字起こしの利用可否も表示)
 kilde audio monitor [status|setup|teardown]
                                           マルチ出力デバイス "kilde Monitor" の管理 (既定 status)
 kilde inspect <file>                      録画ファイルのトラック構成と音声レベル (RMS / peak)
+kilde transcribe <file>                   録音・録画ファイルを文字起こししてサイドカーに出力 (kilde-cli-swift#37)
 kilde config [show|set|unset|path]        設定ファイル ~/.kilde/config.json の表示・変更 (既定 show)
 ```
 
@@ -285,6 +286,30 @@ kilde config [show|set|unset|path]        設定ファイル ~/.kilde/config.jso
 | `--countdown <sec>` | `0` | 開始前カウントダウン。hotkey (CLI 引数) との併用は引数検証エラー (終了コード 64)、設定 `hotkey` との組合せは終了コード 1 で拒否 — 待機モードではカウントダウンが待機開始前に消費され、録画の開始を守れなくなるため |
 | `--preset meeting` | なし | `--audio system --audio mic` + mixed。`--window` 未指定なら on-screen ウィンドウを面積順に列挙して対話選択 (空欄 Enter = ディスプレイ全体)。EOF (非対話実行) と 3 回連続の無効入力は終了コード 1 で中止。明示した `--audio` / `--audio-tracks` はプリセットより優先。プリセットは設定ファイルより優先。`--region` とは併用不可 |
 | `--hotkey <key>` | なし (設定 `hotkey`) | `cmd+shift+r` 形式のグローバルホットキーで開始 / 停止。指定時は録画ファイルを作らず待機し、待機中の Ctrl+C は成功 (0) で終了する。録画開始後のホットキーと Ctrl+C はどちらも `Recorder.stop()` で安全に停止する。`--countdown` との併用不可 (上記参照)。他のプロセス (常駐した GUI など) が同じキーを先に登録していると登録できず、**明示した `--hotkey` は終了コード 1 で失敗する**。設定 `hotkey` 由来のときだけ警告のうえ即時録画へ縮退する (ただし可否判定のプローブがキーを解除できなかった場合は縮退せず失敗する — キーを握ったまま録画しないため)。**`--duration` とは併用できる** — 待機の解除後から数える (issue #97)。詳細は下の「ホットキーの排他」「`--duration` と待機モード」参照 |
+| `--transcribe` / `--no-transcribe` | off (設定 `transcribe`) | 停止後に録音・録画ファイルを文字起こししてサイドカーに出力する (kilde-cli-swift#38。macOS 26 以上。それ未満では文字起こしのみ終了コード 1)。**文字起こしは録画ファイルのファイナライズ完了後に始める**ので、失敗・中止が録画ファイルに影響することはない。**文字起こし中の Ctrl+C / SIGTERM / SIGHUP は文字起こしだけを中断し、録画ファイルは残したまま終了コード 0** (`kilde transcribe` と同じ契約)。`--audio-tracks separate` で録った 2 トラック録音はトラック順に「相手」「自分」の話者ラベル付き (kilde-cli-swift#35)。**`--no-video` と `--audio-tracks separate` の組合せで話者ラベル付きになる**。ホットキー待機経路 (`--hotkey`) でも停止後に実行する |
+| `--transcript-format <md\|srt\|vtt\|txt\|json>` | `md` (設定 `transcriptFormat`) | `--transcribe` のサイドカー出力形式。不正値は引数検証エラー (終了コード 64)。**`--transcribe` (または設定 `transcribe=true`) が無いと効果がない** — 無効なまま指定すると実行時に `⚠` を出す (設定 `transcribe=false` で打ち消された場合も含む) |
+| `--locale <BCP 47>` | 端末の言語設定 (設定 `locale`) | `--transcribe` の書き起こし言語 (`ja-JP`。`ja_JP` も受ける。空文字は引数検証エラー 64)。対応外ロケール・未取得モデルの扱いは `kilde transcribe` と同じ (`kilde doctor` で対応ロケールを確認できる)。文字起こしが無効なときの指定は黙って無視せず `⚠` を出す |
+
+### `kilde transcribe` オプション (kilde-cli-swift#37)
+
+録音・録画ファイルを文字起こししてサイドカー出力する。
+オンデバイス処理 (SpeechAnalyzer / SpeechTranscriber) のため macOS 26 以上が必要で、
+それ未満・対応環境でなければ分かりやすいエラー (終了コード 1) で終わる。
+Speech recognition 権限は不要。
+
+| オプション | 既定 | 説明 |
+|-----------|------|------|
+| `<file>` | (必須) | 文字起こしする録音・録画ファイル。存在しなければ終了コード 1 |
+| `--locale <BCP 47>` | 端末の言語設定 | 書き起こし言語 (`ja-JP`。`ja_JP` も受ける)。対応外ロケールは終了コード 1 (`kilde doctor` の [transcribe] で対応ロケールと取得状況を確認できる) |
+| `--format <md\|srt\|vtt\|txt\|json>` | `md` | 出力形式。**優先順位は `--format` > `--output` の拡張子 > md**。不正値は引数検証エラー (終了コード 64) |
+| `--output, -o <path>` | 入力ファイルの隣のサイドカー | 出力先のベースパス。実際の拡張子は形式に揃うため、`--output out.txt --format md` のような不一致では `⚠` を 1 行出して `out.md` に書き出す。同名ファイルは上書きせず `-2`, `-3` … に退避する (既存録画を壊さないため) |
+
+終了コードの割当: ファイル不在・文字起こしの失敗・対応外ロケールは **1** (「その他の
+失敗」— 3 は入力デバイス・ウィンドウ指定ミスの契約なので音声トラック欠けでも使わない)。
+不正な `--format` は **64**。**Ctrl+C / SIGTERM / SIGHUP は正規の中止操作で、
+rec と同じく終了コード 0** — 中途半端な出力ファイルは書き出さない。言語モデルが
+未取得のロケールでは起動後に Apple からダウンロードし、進捗を表示する (ここでの
+Ctrl+C も 0 で中止)。
 
 #### 同時起動と SCK の排他 (issue #70)
 
@@ -435,6 +460,9 @@ cubic レビュー指摘)。値は CLI 引数と同じ文字列表現。
 | `fps` | 1 以上の整数 | `--fps` |
 | `showsCursor` | 真偽値 | `--cursor` / `--no-cursor` |
 | `hotkey` | `cmd+shift+r` 形式の文字列 | `--hotkey`。cmd / shift / opt / ctrl と英数字、F1〜F12、主要キーに対応 (fn はハードウェアにインターセプトされるため不可) |
+| `transcribe` | 真偽値 | `--transcribe` / `--no-transcribe` (kilde-cli-swift#38)。**GUI (kilde#145) も同じキーを使う** — キー名は kilde-cli-swift#38 が定義する |
+| `transcriptFormat` | `md` / `srt` / `vtt` / `txt` / `json` | `--transcript-format`。小文字へ正規化して保存する (`--format` と同じ) |
+| `locale` | BCP 47 の文字列 (`ja-JP`) | `--locale`。実在性は録画後の実行時に判定する (対応外ロケールは終了コード 1) |
 
 - 優先順位: **CLI 引数 > `--preset` > 環境変数 > 設定ファイル > 既定値**。
   **この鎖に入る環境変数は `KILDE_OUTPUT_DIR` (録画の保存先) だけ**で、設定
@@ -530,6 +558,12 @@ kilde rec --duration 30s --codec hevc out.mov
 
 # ターミナルにフォーカスがなくても cmd+shift+r で開始 / 停止
 kilde rec --hotkey cmd+shift+r out.mov
+
+# 録った会議を文字起こし (Markdown でサイドカー出力 → 会議.mov の隣に 会議.md)
+kilde transcribe 会議.mov
+
+# 英語の会議を SRT で出力
+kilde transcribe --locale en-US --format srt meeting.mov
 ```
 
 ### コンソール出力
@@ -551,8 +585,8 @@ kilde rec --hotkey cmd+shift+r out.mov
 
 | コード | 意味 |
 |-------|------|
-| `0` | 成功。**Ctrl+C / SIGTERM / SIGHUP / `--duration` による停止も、ファイナライズが完了すれば 0**。**録画が始まる前 (準備中) の停止も 0** — ファイルは作られず「録画は開始されませんでした」とだけ出す (issue #56)。**ただし `cleanupWarnings` が空でない場合は 1** — monitor の既定出力を復元できなかった場合や、**replayd に停止を伝えられなかった場合** (issue #107) が該当する。停止操作そのものは成功していても、後始末に問題が残っているので 0 で隠さない |
-| `1` | その他の失敗 (`KilError.failed`: ファイナライズ失敗、映像ありモードの 0 フレーム、monitor の復元失敗、meeting の選択中止など) |
+| `0` | 成功。**Ctrl+C / SIGTERM / SIGHUP / `--duration` による停止も、ファイナライズが完了すれば 0**。**録画が始まる前 (準備中) の停止も 0** — ファイルは作られず「録画は開始されませんでした」とだけ出す (issue #56)。**ただし `cleanupWarnings` が空でない場合は 1** — monitor の既定出力を復元できなかった場合や、**replayd に停止を伝えられなかった場合** (issue #107) が該当する。停止操作そのものは成功していても、後始末に問題が残っているので 0 で隠さない。`kilde transcribe` の Ctrl+C 中止 (録画ファイルを書いていないため出力は残らない) も 0 (kilde-cli-swift#37)。**`rec --transcribe` の文字起こし中の Ctrl+C / SIGTERM / SIGHUP も 0** — 正規の中止操作で、録画ファイルは保存済み (kilde-cli-swift#38) |
+| `1` | その他の失敗 (`KilError.failed`: ファイナライズ失敗、映像ありモードの 0 フレーム、monitor の復元失敗、meeting の選択中止など)。`kilde transcribe` ではファイル不在・文字起こしの失敗・対応外ロケール・macOS 26 未満もここに写像する (`TranscriptionError.kilError` — すべて 1。`.noAudioTrack` を 3 にしないのは、3 が「入力デバイス・ウィンドウ指定ミス」の契約だから)。**`rec --transcribe` の文字起こし失敗もここ** — 録画は成功しているのでファイルは残るが、`--transcribe` は明示要求なので黙って 0 にすると「終わったつもり」を生む (非対応環境・対応外ロケール・モデルダウンロード失敗・サイドカー書き出し失敗が該当。kilde-cli-swift#38) |
 | `2` | 権限不足 (画面収録 / マイク) |
 | `3` | デバイス・ウィンドウ・ディスプレイが見つからない (BlackHole 未導入を含む) |
 | `64` | 引数・オプションの検証エラー (swift-argument-parser の既定。`validate()` の `ValidationError` と未知のオプション) |

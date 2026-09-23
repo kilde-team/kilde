@@ -26,10 +26,13 @@ CLI のワンコマンドとメニューバーアプリで実現します。
 - 🎙️ 録音 (音声のみ) モード (`--no-video`) — ドライバ追加不要
 - 🛡️ Ctrl+C でもファイルが必ずファイナライズされる安全な停止
 - ⌨️ グローバルホットキーで、他アプリの操作中でも録画を開始 / 停止
+- 📝 録画を端末内で文字起こしし、markdown / SRT / VTT / テキスト / JSON の
+  サイドカーファイルに出力 (macOS 26+)
 
 ## インストール
 
 - 要件: macOS 14+ (動作検証は macOS 26 / Apple Silicon)
+- 文字起こしには **macOS 26 以降**が必要
 - リリースバイナリは **arm64 (Apple Silicon) ビルド**です — 現時点で Intel Mac は非対応
 - ビルドには macOS 26 SDK を持つツールチェーンが必要 (エンジンが macOS 26 の API
   `captureHDRRecordingPreservedSDRHDR10` を参照するため。実行は引き続き macOS 14+ に対応)
@@ -121,6 +124,21 @@ kilde rec --hotkey cmd+shift+r 会議.mov
 # --hotkey を明示したときは待機が目的なので出さない。
 # 無人で録るなら kilde config unset hotkey で設定のキーを外す
 
+# 停止後に録画ファイルを文字起こししてサイドカー (会議.md) を出力
+#   端末内 (on-device) で処理され、音声も書き起こしテキストも送信されない
+#   (macOS 26 以上。Speech recognition 権限は不要)。文字起こしは録画ファイルの
+#   完成後に始まるため、失敗や中断が録画ファイルに影響することはない。
+#   文字起こし中の Ctrl+C は文字起こしだけを中断し、録画ファイルは残る
+#   (終了コード 0)。文字起こしの失敗 (非対応環境・対応外ロケール・モデルの
+#   ダウンロード失敗など) は明示的に要求しているので終了コード 1
+#   --transcript-format md|srt|vtt|txt|json で形式、--locale ja-JP で言語を指定
+#   --no-video --audio-tracks separate の 2 トラック録音では話者ラベル付き
+#   (システム音声側 = 相手、マイク側 = 自分)
+kilde rec --transcribe --preset meeting 会議.mov
+
+# 既存の録画ファイルをあとから文字起こしする
+kilde transcribe 会議.mov
+
 # 既定値を設定ファイル (~/.kilde/config.json) で変更
 #   KILDE_CONFIG_DIR で config.json と monitor-state.json の保存先を差し替え可能
 #   (絶対パスか ~ 始まりのみ。相対パスはエラー)
@@ -134,14 +152,19 @@ kilde config set outputDirectory ~/Movies/kilde
 kilde config set defaultAudioSources system,mic
 kilde config set showsCursor false   # その回だけ写したいときは kilde rec --cursor
 kilde config set hotkey cmd+shift+r  # rec をホットキー待機で起動 (下記の排他に注意)
+kilde config set transcribe true     # 停止するたびに文字起こしする
+kilde config set transcriptFormat srt
+kilde config set locale ja-JP
 kilde config show                    # 現在値と既定値 (unset <key> で既定に戻す / path でファイルの場所)
 
 設定キーは `outputDirectory` / `defaultAudioSources` / `audioTracks` / `codec` /
-`fps` / `showsCursor` / `hotkey` の 7 種 (英語版 README と同じ一覧)。
+`fps` / `showsCursor` / `hotkey` / `transcribe` / `transcriptFormat` / `locale`
+の 10 種 (英語版 README と同じ一覧)。
 
-kilde devices      # ディスプレイ / ウィンドウ / オーディオ機器の一覧
-kilde doctor       # 権限と環境の診断
-kilde inspect FILE # 録画ファイルのトラック構成と音声レベル
+kilde devices         # ディスプレイ / ウィンドウ / オーディオ機器の一覧
+kilde doctor          # 権限と環境の診断
+kilde inspect FILE    # 録画ファイルのトラック構成と音声レベル
+kilde transcribe FILE # 録画ファイルを文字起こししてサイドカーに出力 (macOS 26+)
 ```
 
 ## 開発
