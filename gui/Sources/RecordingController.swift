@@ -195,7 +195,7 @@ final class RecordingController: ObservableObject {
         case .failed(let error, let partialFileExists):
             var message = "\(error)"
             if partialFileExists, let outputURL {
-                message += "\n不完全なファイルが残っています: \(outputURL.path)"
+                message += "\n" + String(localized: "不完全なファイルが残っています: \(outputURL.path)")
             }
             phase = .failed(message)
             // ホットキーで他アプリの前面から始めた録画は、失敗しても画面上に何も出ない。

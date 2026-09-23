@@ -52,6 +52,10 @@ targets:
       # バンドル直下に置かれるものではない)
       - path: Resources/Assets.xcassets
         buildPhase: resources
+      # 文字列カタログ (issue #137)。ja がキー兼既定値、en / zh-Hans / ko / es を収録。
+      # SwiftUI のリテラルは LocalizedStringKey としてこのカタログを引く
+      - path: Resources/Localizable.xcstrings
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.takezou621.KildeGUI
@@ -103,6 +107,10 @@ targets:
       - Sources
       # アイコンは KildeGUI と同じカタログを使う (App Store 審査はアイコン必須)
       - path: Resources/Assets.xcassets
+        buildPhase: resources
+      # KildeGUI と同じ文字列カタログ (issue #137)。片方だけだと MAS 版だけ
+      # 英語・中国語等が出ない (ja のキーがそのまま表示される)
+      - path: Resources/Localizable.xcstrings
         buildPhase: resources
     settings:
       base:

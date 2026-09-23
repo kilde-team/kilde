@@ -111,6 +111,11 @@ App Store Connect のプライバシーポリシー URL には
 `https://github.com/kilde-team/kilde/blob/main/PRIVACY.md` を指定する
 (main にマージされるまでは 404 になるので、URL の差し替えはマージ後に行う)。
 
+製品ページのローカライズ (ja / en / zh-Hans / ko / es) の正本は
+[metadata/](metadata/README.md) (issue #137)。ASC 側で直接編集せず、
+まずここのファイルを更新してから転記する。スクリーンショットは現状 ja の
+みで、未登録ロケールは ASC がフォールバック表示する (§metadata README の注意)。
+
 ## 5. 審査の履歴
 
 ### 0.3.0 (2) — Guideline 2.4.5(i) でリジェクト (2026-09-17)

@@ -229,7 +229,8 @@ struct ContentView: View {
                     if let first = setup.windows.first {
                         setup.request.target = .window(id: first.windowID)
                     } else {
-                        setup.notice = "収録できるウィンドウが見つかりません (更新ボタンで一覧を取り直せます)"
+                        setup.notice = String(
+                            localized: "収録できるウィンドウが見つかりません (更新ボタンで一覧を取り直せます)")
                     }
                 case .audioOnly:
                     setup.request.target = .audioOnly
@@ -286,7 +287,7 @@ struct ContentView: View {
 
     private func windowTitle(_ window: WindowInfo) -> String {
         if let title = window.title, !title.isEmpty { return title }
-        return "(タイトルなし)"
+        return String(localized: "(タイトルなし)")
     }
 
     private func thumbnail(for window: WindowInfo) -> some View {
@@ -423,7 +424,7 @@ struct ContentView: View {
             setup.notice = nil
             recording.start(options)
         } catch {
-            setup.notice = "開始できません: \(error)"
+            setup.notice = String(localized: "開始できません: \(error)")
         }
     }
 
@@ -559,8 +560,8 @@ struct ContentView: View {
     /// Recorder のソースラベル (system / mic / dev:<名前>) を表示名にする
     private func sourceName(_ label: String) -> String {
         switch label {
-        case "system": return "システム音声"
-        case "mic": return "マイク"
+        case "system": return String(localized: "システム音声")
+        case "mic": return String(localized: "マイク")
         default: return label.hasPrefix("dev:") ? String(label.dropFirst("dev:".count)) : label
         }
     }
@@ -639,7 +640,9 @@ struct ContentView: View {
 
     // MARK: - 部品
 
-    private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+    // タイトルは LocalizedStringKey で受け、Text() の評価時に言語に応じて解決する
+    // (String で受けるとどの言語でも ja のキーがそのまま出てしまう)
+    private func section<Content: View>(_ title: LocalizedStringKey, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(.caption)

@@ -159,7 +159,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         do {
             source = try HotkeySettings.resolve(explicit: nil, config: setup.config)
         } catch {
-            setup.notice = "ホットキーの設定を解釈できません: \(error)"
+            setup.notice = String(localized: "ホットキーの設定を解釈できません: \(error)")
             if revert != nil { setup.restoreHotkey(previous) }
             return
         }
@@ -178,7 +178,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 try monitor.start()
                 replacement = monitor
             } catch {
-                setup.notice = "ホットキーを登録できません (旧設定のままにします): \(error)"
+                setup.notice = String(localized: "ホットキーを登録できません (旧設定のままにします): \(error)")
                 if revert != nil { setup.restoreHotkey(previous) }
                 return
             }
@@ -212,7 +212,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             hotkeyMonitor = nil
             return true
         }
-        setup.notice = "前のホットキーを解除できませんでした (もう一度「適用」を押すと再試行します)"
+        setup.notice = String(
+            localized: "前のホットキーを解除できませんでした (もう一度「適用」を押すと再試行します)")
         return false
     }
 
@@ -239,7 +240,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             setup.notice = nil
             recording.start(options)
         } catch {
-            setup.notice = "開始できません: \(error)"
+            setup.notice = String(localized: "開始できません: \(error)")
             showPopover()
         }
     }
@@ -275,11 +276,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .starting:
             symbol = "record.circle"
             tint = .systemOrange
-            title = "準備中"
+            title = String(localized: "準備中")
         case .finalizing:
             symbol = "record.circle"
             tint = .systemOrange
-            title = "保存中"
+            title = String(localized: "保存中")
         case .idle, .finished, .failed:
             symbol = "record.circle"
             tint = nil
@@ -294,7 +295,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             string: title.isEmpty ? "" : " \(title)",
             attributes: [.font: NSFont.monospacedDigitSystemFont(ofSize: NSFont.systemFontSize,
                                                                  weight: .regular)])
-        button.toolTip = title.isEmpty ? "kilde" : "kilde — \(title)"
+        // ツールチップは String なので明示的にローカライズする (title は上で解決済み)
+        button.toolTip = title.isEmpty
+            ? "kilde"
+            : String(localized: "kilde — \(title)")
     }
 }
 
