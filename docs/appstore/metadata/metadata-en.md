@@ -2,19 +2,19 @@
 
 ## App name (≤30)
 
-```
+```text
 kilde: Screen & Voice Recorder
 ```
 
 ## Subtitle (≤30)
 
-```
+```text
 Record what QuickTime can't
 ```
 
 ## Description
 
-```
+```text
 kilde records your screen and audio together — an open-source screen and audio
 recorder for macOS. It captures the system audio that QuickTime Player's
 screen recorder cannot, in one click.
@@ -49,12 +49,12 @@ Learn more at https://github.com/kilde-team/kilde
 
 ## Keywords (≤100)
 
-```
+```text
 screen recorder,system audio,meeting,record,Zoom,audio recording,microphone,window capture,mp4
 ```
 
 ## What's New (template)
 
-```
+```text
 Summarize this version's changes in 1–3 lines (fixes and new features).
 ```

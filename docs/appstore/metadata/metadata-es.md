@@ -2,19 +2,19 @@
 
 ## Nombre de la app (≤30)
 
-```
+```text
 kilde — Grabadora de pantalla
 ```
 
 ## Subtítulo (≤30)
 
-```
+```text
 Audio del sistema + micrófono
 ```
 
 ## Descripción
 
-```
+```text
 kilde graba la pantalla y el audio juntos: una herramienta de código abierto
 para macOS que captura, con un clic, el audio del sistema que la grabadora
 de pantalla de QuickTime Player no puede registrar.
@@ -53,7 +53,7 @@ comandos `kilde`. Más información en https://github.com/kilde-team/kilde
 
 ## Palabras clave (≤100 bytes)
 
-```
+```text
 grabadora de pantalla,grabar pantalla,audio del sistema,reunión,Zoom,grabar audio,micrófono
 ```
 
@@ -63,6 +63,6 @@ caracteres — «ventana» se eliminó porque excedía por 1 byte y ya lo cubre
 
 ## Novedades (plantilla)
 
-```
+```text
 Resume los cambios de esta versión en 1–3 líneas (correcciones y novedades).
 ```

@@ -27,8 +27,9 @@ App レコード (`com.takezou621.KildeGUI`, Apple ID `6812783176`) の App Stor
    UTF-8 バイト長** が上限 (Apple の App Store Connect リファレンス:
    "You can provide up to 100 bytes of content") — 日本語・韓国語・中国語は
    1 文字 3 バイト、スペイン語のアクセント付き文字は 2 バイト。
-   `python3 -c "print(len(open('metadata-ja.md').read().split('```')[1].encode('utf-8')))"`
-   のようにコードブロックの中身のバイト数を確認する。プロモーションテキストは
+   `python3 -c 'import re;print([len(x.encode("utf-8")) for x in re.findall(r"```text\n(.*?)\n```", open("metadata-ja.md").read(), re.S)])'`
+   のように 5 つのコードブロックの中身のバイト数を一覧で確認する
+   (出力の 4 番目がキーワード — 100 以下を確認する)。プロモーションテキストは
    正本が無いため入力しない (任意項目 — 使う場合はまずここにセクションを足してから転記する)
 4. 「プライバシーポリシーの URL」「サポート URL」は**ロケールごとに**
    入力する (どちらもローカライズ可能な項目 — Apple のヘルプ:
