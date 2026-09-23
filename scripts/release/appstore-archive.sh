@@ -316,13 +316,22 @@ for candidate in "$VERIFY_DIR"/pkg/*/Payload/KildeGUI.app "$VERIFY_DIR"/pkg/*/Pa
 done
 [ -n "$APP_IN_PKG" ] || die ".pkg の中に KildeGUI.app が見つかりません ($VERIFY_DIR を確認してください)"
 codesign --verify --deep --strict "$APP_IN_PKG" || die ".pkg の中の KildeGUI.app の署名が無効です"
+# codesign の出力は変数に受けてから判定する。`codesign … | grep -q` は、grep が一致した
+# 時点で閉じたパイプに codesign が書いて SIGPIPE で落ち、`set -o pipefail` のもとでは
+# 一致していても失敗扱いになる (2026-09-23 実測: 正しく Apple Distribution で署名された
+# .pkg を「署名されていません」と判定した)
 while IFS= read -r -d '' item; do
-    if codesign -dvv "$item" 2>&1 | grep -q 'Authority=Apple Development'; then
-        die "Apple Development の署名が残っています: ${item#"$APP_IN_PKG"/}"
-    fi
+    info="$(codesign -dvv "$item" 2>&1 || true)"
+    case "$info" in
+        *"Authority=Apple Development"*)
+            die "Apple Development の署名が残っています: ${item#"$APP_IN_PKG"/}" ;;
+    esac
 done < <(find "$APP_IN_PKG" \( -name '*.app' -o -name '*.framework' -o -name '*.bundle' -o -name '*.dylib' \) -print0)
-codesign -dvv "$APP_IN_PKG" 2>&1 | grep -q 'Authority=Apple Distribution' \
-    || die ".pkg の中の KildeGUI.app が Apple Distribution で署名されていません"
+info="$(codesign -dvv "$APP_IN_PKG" 2>&1 || true)"
+case "$info" in
+    *"Authority=Apple Distribution"*) ;;
+    *) die ".pkg の中の KildeGUI.app が Apple Distribution で署名されていません" ;;
+esac
 rm -rf "$VERIFY_DIR"
 log "検証 OK: .pkg の署名はすべて Apple Distribution"
 log "完成: $PKG"
