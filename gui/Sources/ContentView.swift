@@ -153,6 +153,9 @@ struct ContentView: View {
                 .labelsHidden()
                 .disabled(setup.request.audioSourceCount < 2)
             }
+            section("文字起こし") {
+                transcriptionSection
+            }
             section("保存先") {
                 outputRow
             }
@@ -389,6 +392,124 @@ struct ContentView: View {
         // .some(previous) を渡すことで «失敗したら巻き戻す» を明示する
         // (previous 自体が nil = 未設定だった場合も巻き戻しの対象)
         AppDelegate.shared?.applyHotkeyFromConfig(revert: .some(previous))
+    }
+
+    // MARK: - 文字起こし (issue #145)
+
+    /// 「録画後に文字起こし」の設定。値は CLI と同じ `~/.kilde/config.json` の
+    /// `transcribe` / `locale` / `transcriptFormat` に入るため、ここで変えると
+    /// `kilde rec` の既定も変わる。変更は即座に保存する (ホットキーの「適用」のような
+    /// 確定操作を挟まない — トグルと Picker の UI に確認ボタンを足すと操作が2段になるうえ、
+    /// 「閉じたのに保存していない」状態を作ってしまう)。
+    /// macOS 26 未満 (Transcriber.isSupported == false) では操作を無効化し、
+    /// 理由を 1 行出すだけで構成を変えない — セクションごと隠すと、
+    /// 機能の存在自体が分からなくなる (issue の受け入れ条件 [2] はどちらでもよい)
+    private var transcriptionSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle("録画後に文字起こし", isOn: transcribeBinding)
+                .toggleStyle(.checkbox)
+                // 非対応環境でも OFF への変更は許す — config.json の手編集等で
+                // transcribe=true が残っている機械では、トグルが「チェック付き・無効」の
+                // まま凍ると解除できず、理由文だけではなぜチェックが付いているか分からない
+                .disabled(!setup.transcriptionAvailable && !setup.transcribeEnabled)
+                // MAS 版の ConfigStore は SandboxSupport がコンテナ内へ退避させるため
+                // ~/.kilde/config.json (CLI と共有) ではない — 「CLI の kilde rec にも
+                // 効く」系の文言は MAS 版では誤りになるので分岐する
+                #if APPSTORE
+                .help("このアプリの設定に保存します (録画後の文字起こしの実行は今後のバージョンで対応予定)")
+                #else
+                .help("~/.kilde/config.json に保存します (CLI の kilde rec の既定値も変わります)")
+                #endif
+            if setup.transcriptionAvailable && setup.transcribeEnabled {
+                Picker("言語", selection: transcriptLocaleBinding) {
+                    Text("自動 (端末の言語設定)").tag(String?.none)
+                    Text("日本語 (ja-JP)").tag(String?.some("ja-JP"))
+                    Text("英語 (en-US)").tag(String?.some("en-US"))
+                    // 手で編集した config.json に他の言語が入っているときは、
+                    // 選択を壊さないようにその値も選択肢に出す
+                    if let custom = setup.transcriptLocale,
+                       custom != "ja-JP", custom != "en-US" {
+                        Text(custom).tag(String?.some(custom))
+                    }
+                }
+                Picker("出力形式", selection: transcriptFormatBinding) {
+                    ForEach(TranscriptOutputFormat.allCases, id: \.self) { format in
+                        Text(Self.formatLabel(format)).tag(format)
+                    }
+                }
+                // 合成 1 トラックでは話者の区別が付かない。ソース数に関係なく案内を出す —
+                // 1 ソース構成でもトラックが合成なら話者ラベルは付かず、足すべき選択
+                // (「複数の音声ソース」+「ソースごとに分離」) は同じだから。既定値は変えない (issue の指定)
+                if setup.request.trackPolicy != .separate {
+                    Label("話者ラベルを付けるには「複数の音声ソース」で「ソースごとに分離」を選んでください",
+                          systemImage: "person.wave.2")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                // 保存したキーは CLI が録画ごとに読む。GUI 録画からの文字起こし実行は
+                // エンジンに実行入口が無いため未対応 — 別 issue で対応する。
+                // MAS 版は ConfigStore がコンテナ内に退避されるため CLI にも適用の
+                // 文言は誤りになる (#if で分岐)
+                #if APPSTORE
+                Text("録画後の文字起こしの実行はこのビルドではまだ対応していません (今後のバージョンで対応予定)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                #else
+                Text("設定は CLI (kilde rec) での録画にも適用されます。GUI 録画への文字起こしは今後のバージョンで対応予定です")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                #endif
+            }
+            if let reason = setup.transcriptionUnsupportedReason {
+                Text(reason)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    /// Binding の set で保存まで行う。onChange で保存すると、保存失敗時の巻き戻しが
+    /// 再び onChange を発火させて保存を再試行してしまう (値が戻った瞬間にもう一回走る)。
+    /// set の中で直接呼べば巻き戻しは表示の更新だけで済む
+    private var transcribeBinding: Binding<Bool> {
+        Binding(
+            get: { setup.transcribeEnabled },
+            set: {
+                setup.transcribeEnabled = $0
+                setup.saveTranscriptionSetting(.enable)
+            })
+    }
+
+    private var transcriptLocaleBinding: Binding<String?> {
+        Binding(
+            get: { setup.transcriptLocale },
+            set: {
+                setup.transcriptLocale = $0
+                setup.saveTranscriptionSetting(.locale)
+            })
+    }
+
+    private var transcriptFormatBinding: Binding<TranscriptOutputFormat> {
+        Binding(
+            get: { setup.transcriptFormat },
+            set: {
+                setup.transcriptFormat = $0
+                setup.saveTranscriptionSetting(.format)
+            })
+    }
+
+    private static func formatLabel(_ format: TranscriptOutputFormat) -> String {
+        switch format {
+        case .markdown: return String(localized: "Markdown (.md)")
+        case .srt: return String(localized: "SubRip 字幕 (.srt)")
+        case .vtt: return String(localized: "WebVTT 字幕 (.vtt)")
+        case .txt: return String(localized: "プレーンテキスト (.txt)")
+        case .json: return String(localized: "JSON (.json)")
+        }
     }
 
     // MARK: - 開始・結果

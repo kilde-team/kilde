@@ -117,6 +117,122 @@
         }
       }
     },
+    "JSON (.json)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "JSON (.json)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "JSON (.json)"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "JSON (.json)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "JSON (.json)"
+          }
+        }
+      }
+    },
+    "Markdown (.md)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Markdown (.md)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Markdown (.md)"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Markdown (.md)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Markdown (.md)"
+          }
+        }
+      }
+    },
+    "SubRip 字幕 (.srt)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SubRip subtitles (.srt)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subtítulos SubRip (.srt)"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SubRip 자막 (.srt)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SubRip 字幕 (.srt)"
+          }
+        }
+      }
+    },
+    "WebVTT 字幕 (.vtt)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WebVTT subtitles (.vtt)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subtítulos WebVTT (.vtt)"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WebVTT 자막 (.vtt)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WebVTT 字幕 (.vtt)"
+          }
+        }
+      }
+    },
     "kilde — %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -200,6 +316,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "点击“请求权限”后会显示确认对话框"
+          }
+        }
+      }
+    },
+    "この環境では文字起こしを利用できません (macOS 26 以降で、対応言語の音声データが必要です)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcription is not available in this environment (requires macOS 26 or later and speech data for a supported language)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La transcripción no está disponible en este entorno (requiere macOS 26 o posterior y datos de voz de un idioma compatible)"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 환경에서는 텍스트 변환을 사용할 수 없습니다 (macOS 26 이상 및 지원 언어의 음성 데이터가 필요합니다)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此环境无法使用文字转写（需要 macOS 26 或更高版本以及所支持语言的语音数据）"
           }
         }
       }
@@ -693,6 +838,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在完成文件…"
+          }
+        }
+      }
+    },
+    "プレーンテキスト (.txt)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plain text (.txt)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Texto sin formato (.txt)"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "일반 텍스트 (.txt)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "纯文本 (.txt)"
           }
         }
       }
@@ -1364,6 +1538,35 @@
         }
       }
     },
+    "出力形式" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Output format"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Formato de salida"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "출력 형식"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "输出格式"
+          }
+        }
+      }
+    },
     "前のホットキーを解除できませんでした (もう一度「適用」を押すと再試行します)" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1509,6 +1712,93 @@
         }
       }
     },
+    "文字起こし" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcription"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcripción"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "텍스트 변환"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文字转写"
+          }
+        }
+      }
+    },
+    "文字起こしの設定を保存できません: %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not save transcription settings: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se han podido guardar los ajustes de transcripción: %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "텍스트 변환 설정을 저장할 수 없습니다: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法保存文字转写设置：%@"
+          }
+        }
+      }
+    },
+    "文字起こしは macOS 26 以降で利用できます" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcription requires macOS 26 or later"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La transcripción requiere macOS 26 o posterior"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "텍스트 변환은 macOS 26 이상에서 사용할 수 있습니다"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "文字转写需要 macOS 26 或更高版本"
+          }
+        }
+      }
+    },
     "既定値として保存しました (%@)" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1563,6 +1853,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无法保存默认值：%@"
+          }
+        }
+      }
+    },
+    "日本語 (ja-JP)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Japanese (ja-JP)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Japonés (ja-JP)"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "일본어 (ja-JP)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日语 (ja-JP)"
           }
         }
       }
@@ -1944,6 +2263,64 @@
         }
       }
     },
+    "自動 (端末の言語設定)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic (device language)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automático (idioma del dispositivo)"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "자동 (기기 언어)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动（设备语言）"
+          }
+        }
+      }
+    },
+    "英語 (en-US)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "English (en-US)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inglés (en-US)"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "영어 (en-US)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "英语 (en-US)"
+          }
+        }
+      }
+    },
     "複数の音声ソース" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1969,6 +2346,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "多个音频源"
+          }
+        }
+      }
+    },
+    "言語" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Language"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Idioma"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "언어"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "语言"
+          }
+        }
+      }
+    },
+    "設定は CLI (kilde rec) での録画にも適用されます。GUI 録画への文字起こしは今後のバージョンで対応予定です" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These settings also apply to recordings made with the CLI (kilde rec). Transcription of GUI recordings is planned for a future version."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estos ajustes también se aplican a las grabaciones hechas con la CLI (kilde rec). La transcripción de las grabaciones de la GUI llegará en una versión futura."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 설정은 CLI (kilde rec) 녹화에도 적용됩니다. GUI 녹화의 텍스트 변환은 향후 버전에서 지원될 예정입니다."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这些设置也适用于通过 CLI (kilde rec) 进行的录制。GUI 录制的文字转写将在未来版本中支持。"
           }
         }
       }
@@ -2056,6 +2491,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "请求权限"
+          }
+        }
+      }
+    },
+    "話者ラベルを付けるには「複数の音声ソース」で「ソースごとに分離」を選んでください" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To label speakers, choose “Separate per source” under “Multiple audio sources”."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Para etiquetar a los hablantes, elige «Separar por fuente» en «Múltiples fuentes de audio»."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "화자 레이블을 붙이려면 ‘여러 오디오 소스’에서 ‘소스별로 분리’를 선택하세요."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如需标注说话人，请在“多个音频源”中选择“按源分轨”。"
           }
         }
       }
@@ -2230,6 +2694,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "录制过程中安装更新时，会先停止录制，待文件保存完成后再重新启动。"
+          }
+        }
+      }
+    },
+    "録画後に文字起こし" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcribe after recording"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcribir tras la grabación"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "녹화 후 텍스트 변환"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录制后转写文字"
           }
         }
       }
@@ -2433,6 +2926,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ (build %@)"
+          }
+        }
+      }
+    },
+    "このアプリの設定に保存します (録画後の文字起こしの実行は今後のバージョンで対応予定)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saved in this app's settings (post-recording transcription will arrive in a future version)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存在此应用的设置中 (录制后的转写执行将在未来版本中提供)"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 앱의 설정에 저장됩니다 (녹음 후 전사 실행은 향후 버전에서 지원 예정)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se guarda en la configuración de esta app (la transcripción tras la grabación llegará en una versión futura)"
+          }
+        }
+      }
+    },
+    "録画後の文字起こしの実行はこのビルドではまだ対応していません (今後のバージョンで対応予定)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Post-recording transcription is not yet available in this build (planned for a future version)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此版本尚不支持录制后的转写执行 (计划在未来版本中提供)"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 빌드에서는 녹음 후 전사 실행이 아직 지원되지 않습니다 (향후 버전에서 지원 예정)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La transcripción tras la grabación aún no está disponible en esta compilación (prevista para una versión futura)"
           }
         }
       }

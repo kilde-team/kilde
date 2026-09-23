@@ -29,6 +29,15 @@ final class RecordingSetup: ObservableObject {
     /// 入力途中の "cmd+" のような不完全な文字列で登録を試みないため
     @Published var hotkeyDraft = ""
 
+    /// 「録画後に文字起こし」のオン/オフ (issue #145)。CLI と同じ `transcribe` キーに
+    /// 保存するため、GUI で変えた内容は `kilde rec` の既定にもなる。
+    /// 未設定 (nil) は CLI の既定と同じオフとして扱う
+    @Published var transcribeEnabled = false
+    /// 文字起こしの言語 (BCP 47)。nil は「自動」— CLI の省略時と同じく端末の言語設定に従う
+    @Published var transcriptLocale: String?
+    /// 文字起こし結果のサイドカー形式。CLI と同じ `transcriptFormat` キーに保存する
+    @Published var transcriptFormat: TranscriptOutputFormat = .markdown
+
     /// 設定ファイル (~/.kilde/config.json) の内容。CLI と共有する (issue #14)
     private(set) var config = KildeConfig()
 
@@ -111,6 +120,34 @@ final class RecordingSetup: ObservableObject {
         }
 #endif
         hotkeyDraft = config.hotkey ?? ""
+        transcribeEnabled = config.transcribe ?? false
+        transcriptLocale = Self.normalizedLocale(config.locale)
+        transcriptFormat = config.transcriptFormat
+            .flatMap(TranscriptOutputFormat.init(rawValue:)) ?? .markdown
+    }
+
+    /// この環境で文字起こしが使えるか。判定は KildeCore の `Transcriber.isSupported`
+    /// (macOS 26 以上かつ SpeechTranscriber 利用可能) に任せる — 自前で OS バージョンを
+    /// 見ると、SpeechTranscriber が対応しない環境を «対応している» と誤表示する
+    var transcriptionAvailable: Bool { Transcriber.isSupported }
+
+    /// 文字起こしが使えないときの案内文。使えるなら nil
+    var transcriptionUnsupportedReason: String? {
+        if transcriptionAvailable { return nil }
+        // isSupported が false でも理由は 2 通りある。旧 macOS なら案内で足りるが、
+        // macOS 26 以上なのに使えない場合は音声データ (対応ロケール) の問題なので文言を分ける
+        if #available(macOS 26, *) {
+            return String(localized: "この環境では文字起こしを利用できません (macOS 26 以降で、対応言語の音声データが必要です)")
+        }
+        return String(localized: "文字起こしは macOS 26 以降で利用できます")
+    }
+
+    /// config の locale を UI の選択値へ正規化する。空・空白のみは「自動」(nil) と同じ扱いにする —
+    /// 手で編集した config.json に空文字が入っていても Picker が壊れないようにするため
+    private static func normalizedLocale(_ value: String?) -> String? {
+        guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty
+        else { return nil }
+        return trimmed
     }
 
     // MARK: - 開始できるか (issue #20)
@@ -215,6 +252,71 @@ final class RecordingSetup: ObservableObject {
         } catch {
             notice = String(localized: "ホットキーの設定を元に戻せません: \(error)")
         }
+    }
+
+    // MARK: - 文字起こし (issue #145)
+
+    /// 保存時に書き戻すキー。変更箇所だけを書くための指定 (saveTranscriptionSetting を参照)
+    enum TranscriptionSettingKey {
+        case enable
+        case locale
+        case format
+    }
+
+    /// 文字起こし設定のうち、変更されたキーだけを CLI と同じ設定ファイルに書き戻す。
+    /// トグルと Picker の変更時に呼ぶ (即時保存)。
+    ///
+    /// 3 キーをまとめて書くと、GUI 起動後に CLI 側 (kilde config set 等) で変更された
+    /// 他のキーを**起動時スナップショットで握りつぶす** — GUI はメニューバー常駐のため
+    /// 立ち上がったまま長時間経つので、この窓は実際に開いている。
+    /// saveHotkey を「触ったキーだけ」の書き込みに絞ったのと同じ理由
+    ///
+    /// load → 書き換え → save の順で行うのも saveHotkey と同じで、GUI を開いている間に
+    /// CLI 側で変更された他のキーを壊さないため。保存に失敗したら変更されたキーの表示を
+    /// **直前に読んだ** config の値へ戻す — load 自体が失敗した場合に限り起動時スナップショット
+    /// (`config`) を使う。save 失敗時点でファイルの実体は `updated` の内容
+    /// (CLI 側の変更込み) なので、古いスナップショットへ戻すと表示が実体とずれる。
+    /// 戻さないと「保存したつもり」の選択が次回起動で消え、ずれが続く。成功時は通知を
+    /// 出さない (chooseOutputDirectory と同じ方針 — 通知は bookmarkFailureNotice のような
+    /// 消えては困る常設警告の受け皿なので、トグル操作のたびに上書きすると警告が消える)
+    func saveTranscriptionSetting(_ key: TranscriptionSettingKey) {
+        // load に成功したら巻き戻しの基準は新鮮な config (CLI 側の変更を反映した実体) に切り替える
+        var rollbackConfig = config
+        do {
+            var updated = try ConfigStore.load()
+            rollbackConfig = updated
+            switch key {
+            case .enable: updated.transcribe = transcribeEnabled
+            case .locale: updated.locale = transcriptLocale
+            case .format: updated.transcriptFormat = transcriptFormat.rawValue
+            }
+            try ConfigStore.save(updated)
+            config = updated
+        } catch {
+            notice = String(localized: "文字起こしの設定を保存できません: \(error)")
+            config = rollbackConfig
+            switch key {
+            case .enable: transcribeEnabled = rollbackConfig.transcribe ?? false
+            case .locale: transcriptLocale = Self.normalizedLocale(rollbackConfig.locale)
+            case .format: transcriptFormat = rollbackConfig.transcriptFormat
+                .flatMap(TranscriptOutputFormat.init(rawValue:)) ?? .markdown
+            }
+        }
+    }
+
+    /// パネルを開くたびに表示中の 3 キーを設定ファイルから読み直す (AppDelegate.showPopover から呼ぶ)。
+    /// setup はアプリ起動時に 1 回だけ生成され、パネルを閉じて開き直しても init は走らない。
+    /// そのため起動後に CLI (`kilde config set` 等) で変更された値を表示が握り続け、
+    /// このままユーザーがトグルを触ると**古い表示値**が保存されてしまう — 開いた時点で
+    /// 実体へ追従させておく (保存経路が load から始まるのは saveTranscriptionSetting のとおりで、
+    /// ここは表示の再同期だけを担う)
+    func reloadTranscriptionSettings() {
+        guard let fresh = try? ConfigStore.load() else { return }
+        config = fresh
+        transcribeEnabled = fresh.transcribe ?? false
+        transcriptLocale = Self.normalizedLocale(fresh.locale)
+        transcriptFormat = fresh.transcriptFormat
+            .flatMap(TranscriptOutputFormat.init(rawValue:)) ?? .markdown
     }
 
     // MARK: - ログイン時に起動 (issue #20)
