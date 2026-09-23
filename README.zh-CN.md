@@ -42,7 +42,7 @@ kilde 可以录制屏幕以及 **QuickTime Player 的屏幕录制无法捕捉的
 <a href="https://apps.apple.com/app/id6812783176">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/appstore/badge/mac-app-store-badge-en-white.svg">
-    <img src="docs/appstore/badge/mac-app-store-badge-en-black.svg" alt="Download on the Mac App Store" height="40">
+    <img src="docs/appstore/badge/mac-app-store-badge-en-black.svg" alt="在 Mac App Store 下载" height="40">
   </picture>
 </a>
 

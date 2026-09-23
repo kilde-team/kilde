@@ -44,7 +44,7 @@ App Store가 자동으로 업데이트합니다:
 <a href="https://apps.apple.com/app/id6812783176">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/appstore/badge/mac-app-store-badge-en-white.svg">
-    <img src="docs/appstore/badge/mac-app-store-badge-en-black.svg" alt="Download on the Mac App Store" height="40">
+    <img src="docs/appstore/badge/mac-app-store-badge-en-black.svg" alt="Mac App Store에서 다운로드" height="40">
   </picture>
 </a>
 

@@ -51,11 +51,15 @@ La app comparte el mismo motor de grabación que la herramienta de línea de
 comandos `kilde`. Más información en https://github.com/kilde-team/kilde
 ```
 
-## Palabras clave (≤100)
+## Palabras clave (≤100 bytes)
 
 ```
-grabadora de pantalla,grabar pantalla,audio del sistema,reunión,Zoom,grabar audio,micrófono,ventana
+grabadora de pantalla,grabar pantalla,audio del sistema,reunión,Zoom,grabar audio,micrófono
 ```
+
+(93 bytes. El límite del campo de palabras clave es 100 **bytes**, no 100
+caracteres — «ventana» se eliminó porque excedía por 1 byte y ya lo cubre
+«grabadora de pantalla». Ver el README de metadata)
 
 ## Novedades (plantilla)
 

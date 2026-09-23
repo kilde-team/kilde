@@ -116,7 +116,7 @@ kilde config show  # Muestra los valores configurados y los predeterminados vige
 
 Graba toda la pantalla (predeterminado) o una parte. `--region` acepta
 `x,y,w,h` en puntos con el origen arriba a la izquierda. El ancho y el alto se
-redondean a valores pares por H.264; una región fuera de la pantalla falla
+redondean hacia abajo a valores pares por H.264; una región fuera de la pantalla falla
 antes de empezar a grabar (código 1), y los valores mal formados o menores de
 2 puntos son errores de argumentos (código 64). No se puede combinar con
 `--window`, `--no-video` ni `--preset meeting`:
@@ -249,7 +249,7 @@ kilde config path
 ```
 
 Las claves admitidas son `outputDirectory`, `defaultAudioSources`,
-`audioTracks`, `codec`, `fps`, `showsCursor` y `hotkey`.
+`audioTracks`, `format`, `codec`, `fps`, `showsCursor` y `hotkey`.
 
 La configuración de grabación se resuelve en este orden, de mayor a menor
 prioridad:

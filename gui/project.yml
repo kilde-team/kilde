@@ -8,6 +8,10 @@ options:
   deploymentTarget:
     macOS: "14.0"
   createIntermediateGroups: true
+  # ソースの文字列リテラルが日本語 (翻訳の source language) であることを
+  # Xcode に伝える。無いと既定値 en 扱いになり、Localizable.xcstrings の
+  # ja エントリが «翻訳先» として扱われる
+  developmentLanguage: ja
 
 # 分離先リポジトリ kilde-team/kilde-cli-swift (kilde#115) をリモート依存として
 # 追加し、KildeCore 製品だけをリンクする。CLI 分離後、kilde リポジトリ自体は
