@@ -1,0 +1,21 @@
+docs/appstore/metadata/README.md
+  s_54dbfd11ff578a::t_a62362a0adcf06 40-42
+docs/appstore/metadata/metadata-en.md
+  s_54dbfd11ff578a::t_7f371799375663 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "667a6bb1dc9dd5203d836b1cf26d62c0c7e920e3",
+  "prompts": {},
+  "sessions": {
+    "s_54dbfd11ff578a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cb032393-97e9-432a-a309-22cc34540e90",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
