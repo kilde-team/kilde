@@ -2,6 +2,11 @@ import AppKit
 import Combine
 import SwiftUI
 import KildeCore
+// Analytics の API (Analytics クラス) は FirebaseAnalytics モジュールにある。
+// SPM 製品 FirebaseAnalyticsCore はリンク用の dummy で import できない —
+// 製品依存は FirebaseAnalyticsCore のまま (GoogleAppMeasurementCore が実体で
+// IDFA を収集しない)、import だけが transitive モジュール名になる
+import FirebaseAnalytics
 import FirebaseCore
 
 /// メニューバーのステータス項目とポップオーバーの管理。
@@ -78,6 +83,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .contains { $0.hasPrefix("KILDE_GUI_SELFTEST_") }
         if !isSelfTest {
             FirebaseApp.configure()
+            // macOS は iOS と違い UIApplicationDelegate swizzling が無く、configure() だけでは
+            // Analytics が初期化されない (2026-09-23 実測: configure() のみだと Analytics の
+            // シンボルが参照されずフレームワークがプロセスにロードも接続もされない)。
+            // 起動イベントを明示的に送ることで初期化を起動し、最初のイベントも確実に残す
+            Analytics.logEvent("app_open", parameters: nil)
         }
         // 通知の許可要求はここで 1 回だけ。拒否されても録画は完全に動くので、
         // 失敗として扱わない (通知が出ないだけ)
