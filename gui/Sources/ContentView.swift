@@ -408,7 +408,10 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 4) {
             Toggle("録画後に文字起こし", isOn: transcribeBinding)
                 .toggleStyle(.checkbox)
-                .disabled(!setup.transcriptionAvailable)
+                // 非対応環境でも OFF への変更は許す — config.json の手編集等で
+                // transcribe=true が残っている機械では、トグルが「チェック付き・無効」の
+                // まま凍ると解除できず、理由文だけではなぜチェックが付いているか分からない
+                .disabled(!setup.transcriptionAvailable && !setup.transcribeEnabled)
                 .help("~/.kilde/config.json に保存します (CLI の kilde rec の既定値も変わります)")
             if setup.transcriptionAvailable && setup.transcribeEnabled {
                 Picker("言語", selection: transcriptLocaleBinding) {
@@ -461,7 +464,7 @@ struct ContentView: View {
             get: { setup.transcribeEnabled },
             set: {
                 setup.transcribeEnabled = $0
-                setup.saveTranscriptionSettings()
+                setup.saveTranscriptionSetting(.enable)
             })
     }
 
@@ -470,7 +473,7 @@ struct ContentView: View {
             get: { setup.transcriptLocale },
             set: {
                 setup.transcriptLocale = $0
-                setup.saveTranscriptionSettings()
+                setup.saveTranscriptionSetting(.locale)
             })
     }
 
@@ -479,7 +482,7 @@ struct ContentView: View {
             get: { setup.transcriptFormat },
             set: {
                 setup.transcriptFormat = $0
-                setup.saveTranscriptionSettings()
+                setup.saveTranscriptionSetting(.format)
             })
     }
 

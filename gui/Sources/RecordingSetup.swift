@@ -256,28 +256,45 @@ final class RecordingSetup: ObservableObject {
 
     // MARK: - 文字起こし (issue #145)
 
-    /// 文字起こしの設定を CLI と同じキー (transcribe / transcriptFormat / locale) で
-    /// 設定ファイルに保存する。トグルと Picker の変更時に呼ぶ (即時保存)。
+    /// 保存時に書き戻すキー。変更箇所だけを書くための指定 (saveTranscriptionSetting を参照)
+    enum TranscriptionSettingKey {
+        case enable
+        case locale
+        case format
+    }
+
+    /// 文字起こし設定のうち、変更されたキーだけを CLI と同じ設定ファイルに書き戻す。
+    /// トグルと Picker の変更時に呼ぶ (即時保存)。
     ///
-    /// load → 書き換え → save の順で行うのは saveHotkey と同じで、GUI を開いている間に
-    /// CLI 側で変更された他のキーを壊さないため。保存に失敗したら画面の選択を
+    /// 3 キーをまとめて書くと、GUI 起動後に CLI 側 (kilde config set 等) で変更された
+    /// 他のキーを**起動時スナップショットで握りつぶす** — GUI はメニューバー常駐のため
+    /// 立ち上がったまま長時間経つので、この窓は実際に開いている。
+    /// saveHotkey を「触ったキーだけ」の書き込みに絞ったのと同じ理由
+    ///
+    /// load → 書き換え → save の順で行うのも saveHotkey と同じで、GUI を開いている間に
+    /// CLI 側で変更された他のキーを壊さないため。保存に失敗したら変更されたキーの表示を
     /// 前回読んだ config の値へ戻す — 戻さないと「保存したつもり」の選択が次回起動で
-    /// 消え、表示と実体がずれ続ける
-    func saveTranscriptionSettings() {
+    /// 消え、表示と実体がずれ続ける。成功時は通知を出さない (chooseOutputDirectory と同じ
+    /// 方針 — 通知は bookmarkFailureNotice のような消えては困る常設警告の受け皿なので、
+    /// トグル操作のたびに上書きすると警告が消える)
+    func saveTranscriptionSetting(_ key: TranscriptionSettingKey) {
         do {
             var updated = try ConfigStore.load()
-            updated.transcribe = transcribeEnabled
-            updated.transcriptFormat = transcriptFormat.rawValue
-            updated.locale = transcriptLocale
+            switch key {
+            case .enable: updated.transcribe = transcribeEnabled
+            case .locale: updated.locale = transcriptLocale
+            case .format: updated.transcriptFormat = transcriptFormat.rawValue
+            }
             try ConfigStore.save(updated)
             config = updated
-            notice = String(localized: "文字起こしの設定を保存しました")
         } catch {
             notice = String(localized: "文字起こしの設定を保存できません: \(error)")
-            transcribeEnabled = config.transcribe ?? false
-            transcriptLocale = Self.normalizedLocale(config.locale)
-            transcriptFormat = config.transcriptFormat
+            switch key {
+            case .enable: transcribeEnabled = config.transcribe ?? false
+            case .locale: transcriptLocale = Self.normalizedLocale(config.locale)
+            case .format: transcriptFormat = config.transcriptFormat
                 .flatMap(TranscriptOutputFormat.init(rawValue:)) ?? .markdown
+            }
         }
     }
 

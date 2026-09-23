@@ -1741,35 +1741,6 @@
         }
       }
     },
-    "文字起こしの設定を保存しました" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Transcription settings saved"
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ajustes de transcripción guardados"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "텍스트 변환 설정을 저장했습니다"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已保存文字转写设置"
-          }
-        }
-      }
-    },
     "文字起こしの設定を保存できません: %@" : {
       "extractionState" : "manual",
       "localizations" : {
