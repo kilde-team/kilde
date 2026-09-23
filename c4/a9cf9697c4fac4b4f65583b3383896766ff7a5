@@ -1,0 +1,29 @@
+gui/Resources/KildeGUI-AppStore.entitlements
+  s_54dbfd11ff578a::t_dc65bfcd7047b1 28-33
+PRIVACY.md
+  s_54dbfd11ff578a::t_2e735bdd8a5023 3
+  s_54dbfd11ff578a::t_64e97cdfdd0aa0 74-82
+  s_54dbfd11ff578a::t_d78bc16a0ce658 13-24
+  s_54dbfd11ff578a::t_8e91ac851e4b1e 101-113
+  s_54dbfd11ff578a::t_e1906a69f6aa85 141-143
+  s_54dbfd11ff578a::t_3924d390a55e2b 162-172
+  s_54dbfd11ff578a::t_b77dbed5c0468c 53-55
+gui/Sources/AppDelegate.swift
+  s_54dbfd11ff578a::t_7b246ead786231 70-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c4a9cf9697c4fac4b4f65583b3383896766ff7a5",
+  "prompts": {},
+  "sessions": {
+    "s_54dbfd11ff578a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cb032393-97e9-432a-a309-22cc34540e90",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
