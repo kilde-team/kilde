@@ -1,0 +1,30 @@
+gui/Sources/ContentView.swift
+  s_3a51da2be45cb2::t_c931e58bae5e24 419,441-442,452
+  s_3a51da2be45cb2::t_26a34499b439bc 440,443,451,453-455,459
+  s_3a51da2be45cb2::t_2a80a8a7254c44 415-418,420,422
+  s_3a51da2be45cb2::t_f64d2740dd0cb1 456-458,464
+gui/Resources/Localizable.xcstrings
+  s_3a51da2be45cb2::t_23aa45608959c3 2932-2989
+gui/Sources/AppDelegate.swift
+  s_3a51da2be45cb2::t_c931e58bae5e24 286
+  s_3a51da2be45cb2::t_0b442e3423eb8d 285,287-289
+gui/Sources/RecordingSetup.swift
+  s_3a51da2be45cb2::t_5e7fb8bc93aa75 276-281,283-284,287,297,299-301,307-319
+  s_3a51da2be45cb2::t_ed9b81dea309bd 320-321
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3c22c75b0cbfe90547add87d9fc4f06363522dc6",
+  "prompts": {},
+  "sessions": {
+    "s_3a51da2be45cb2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ba7e9907-f416-4a3a-9bb2-181950213de7",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
