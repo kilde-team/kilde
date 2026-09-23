@@ -33,9 +33,9 @@ packages:
     # を消すため)。エンジンの更新を取り込むときは revision を新コミットに更新する。
     # kilde-cli-swift#10 のタグ整備後は from: "0.2.0" への切替を推奨
     # (成立条件は kilde-cli-swift#8 スパイク記録を参照)
-    # 5518a5d: 録画の既定コンテナが mp4 になったコミット (kilde-cli-swift#24)。
-    # これより前の pin では GUI も既定 mov で録る
-    revision: 5518a5d79826c5e0f918f57d8d19e719ac44eb83
+    # 53ddd1d: 文字起こし (transcribe) 対応版のコミット (kilde-cli-swift#34〜#38)。
+    # GUI の文字起こし実装にはエンジン側の新しい revision が必要 (kilde#149)
+    revision: 53ddd1dc177f247220ee702b63c6d0014fe58815
   # GUI の自動更新 (issue #122)。Sparkle 2 のバイナリターゲット (macOS 12+) で、
   # リンクすると Sparkle.framework が Contents/Frameworks に埋め込まれる。
   # バージョンを固定する理由は kilde-cli-swift と同じ: 浮動参照だと上流の push が
