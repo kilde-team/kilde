@@ -1,6 +1,6 @@
 # プライバシーポリシー / Privacy Policy
 
-最終更新日 / Last updated: 2026-09-23
+最終更新日 / Last updated: 2026-09-24
 
 対象: kilde (macOS 用の画面・音声録画アプリ `Kilde` と `kilde` コマンドライン)
 
@@ -29,6 +29,12 @@ Google のサーバーに送信され、取り扱いは
   **あなたが指定した保存先 (アプリの既定は `~/Movies`、コマンドラインは指定した場所) のファイルにだけ**書き込まれます
 - 録画ファイルがアプリによってネットワークへ送られることはありません。
   ファイルの共有・削除はあなたの管理下にあります
+- **文字起こし機能 (macOS 26 以降)**: 録画の音声をテキストに書き起こす機能は、
+  macOS が提供する音声認識 (Speech framework) で**あなたの Mac 上 (オンデバイス) で
+  処理**されます。録音した音声も、書き起こしたテキストも、kilde や Apple を含む
+  第三者へ送信されません (端末内で書き起こし言語モデルをダウンロードする通信を除く。
+  詳細は下の「ネットワーク通信」を参照)。書き起こしテキストは録画ファイルと同じ場所の
+  サイドカーファイルにだけ書き込まれます
 - 会議などを録画する場合は、参加者の同意を得るなど、お住まいの地域の法令に
   従ってください
 
@@ -62,24 +68,37 @@ Google のサーバーに送信され、取り扱いは
   [GitHub のプライバシーステートメント](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement)
   に従います。定期的な自動確認を行うかどうかは、Sparkle が表示する確認ダイアログで
   選べます (手動の「アップデートを確認」は押したときだけ通信します)
-- **Homebrew で入れた `kilde` コマンド (CLI)**: Sparkle を含みません。CLI 自身が
-  ネットワーク通信を行うことはなく、更新は `brew upgrade` を実行したときに
-  Homebrew が行います
+- **文字起こしの言語モデル (macOS 26 以降・すべての配布形態)**: 文字起こし機能は
+  端末内で処理されますが、書き起こす言語のモデルがまだ端末に無い場合、kilde が
+  Apple からその言語モデルをダウンロードします。モデルはシステムが管理しており、
+  しばらく使われないものは削除されることがあるため、このダウンロードは再び起こる
+  ことがあります。この通信では録音した
+  音声も書き起こしテキストも送信されず、モデル本体の取得のみが行われます
+  (一般的なネットワーク通信と同じく IP アドレスは Apple に伝わります。Apple による
+  データの取り扱いは [Apple のプライバシーポリシー](https://www.apple.com/legal/privacy/)
+  に従います)
+- **Homebrew で入れた `kilde` コマンド (CLI)**: Sparkle を含みません。上の言語モデルの
+  ダウンロードを除いてネットワーク通信は行わず、更新は `brew upgrade` を実行した
+  ときに Homebrew が行います
 
 ### 第三者への提供
 
 録画・録音したデータと、あなたがアプリに入力した内容 (保存先・ホットキーなどの設定) を
 第三者へ提供することはありません (そもそも収集していません)。
 
-ただし次の 2 点は通信が発生します:
+ただし次の 3 点は通信が発生します:
 
 - **GUI アプリが利用統計を送るとき**: 上の「収集する情報」のとおり Firebase Analytics
   が Google のサーバーへ接続します (直接配布版・Mac App Store 版とも)
 - **直接配布版の GUI が更新を確認するとき**: 上の「ネットワーク通信」のとおり
   GitHub へ接続します。この通信で IP アドレスやアプリのバージョンなどが
   GitHub に送信されます (取り扱いは GitHub のプライバシーステートメントに従います)
+- **文字起こしの言語モデルをダウンロードするとき**: 上の「ネットワーク通信」の
+  とおり Apple へ接続します。録音した音声と書き起こしテキストは送信されません
+  (macOS 26 以降の文字起こし機能で、モデルが未取得の言語を文字起こしするとき。
+  未使用のモデルはシステムが削除することがあるため、再び起こることがあります)
 
-CLI にはこれらの通信はありません。
+CLI には Firebase Analytics と Sparkle の通信はありません。
 
 ### 本ポリシーの変更
 
@@ -117,6 +136,12 @@ analytics.
 - Screen video, system audio, and microphone audio are processed on your Mac and
   written **only to files in the location you choose** (`~/Movies` by default in the app; wherever you specify on the command line)
 - The app never uploads your recordings. Sharing and deleting them is up to you
+- **Transcription (macOS 26 or later)**: transcribing a recording's audio to text
+  runs **on your Mac (on device)** using the speech recognition built into macOS.
+  Neither your audio nor the transcript text is ever sent to kilde or to any
+  third party, including Apple (except for the download of the transcription
+  language model described under "Network access" below). The transcript is
+  written only to sidecar files next to the recording
 - When you record meetings or calls, follow the laws where you live, such as
   getting consent from other participants
 
@@ -149,9 +174,17 @@ Settings such as the save location and audio sources are stored only on your Mac
   the [GitHub General Privacy Statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement).
   Sparkle asks whether to check for updates automatically, and you can decline
   ("Check for Updates" connects only when you click it)
+- **Transcription language models (macOS 26 or later, all distribution channels)**:
+  transcription runs on device, but if the language model for the language you
+  transcribe is not on your Mac, kilde downloads it from Apple. The system
+  manages these models and may remove one that has not been used in a while, so
+  this download can happen more than once. Your audio and the transcript text are not sent;
+  only the model itself is transferred (as with any network request, your IP
+  address reaches Apple, which handles it under
+  [Apple's privacy policy](https://www.apple.com/legal/privacy/))
 - **The `kilde` command-line tool installed with Homebrew**: does not include
-  Sparkle. The CLI itself makes no network connections; updates happen when you
-  run `brew upgrade`
+  Sparkle. Apart from the language-model download above, the CLI makes no
+  network connections; updates happen when you run `brew upgrade`
 
 ### Sharing with third parties
 
@@ -159,7 +192,7 @@ Your recordings, and what you enter in the app (the save location, the hotkey
 and other settings), are never shared with third parties (none of it is
 collected in the first place).
 
-Two kinds of connections are made:
+Three kinds of connections are made:
 
 - **When the GUI app sends usage statistics**: Firebase Analytics connects to
   Google's servers as described under "Information we collect" (both the directly
@@ -168,8 +201,13 @@ Two kinds of connections are made:
   GitHub as described under "Network access", which sends information such as
   your IP address and the app version to GitHub (handled under the GitHub
   General Privacy Statement)
+- **When a transcription language model is downloaded**: it connects to Apple
+  as described under "Network access". Your audio and the transcript text are
+  not sent (this happens when you transcribe in a language whose model is not
+  yet on your Mac, on macOS 26 or later; it can happen again, because the
+  system may remove a model that has not been used in a while)
 
-The CLI makes neither connection.
+The CLI makes neither the Firebase Analytics nor the Sparkle connection.
 
 ### Changes to this policy
 

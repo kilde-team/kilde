@@ -26,10 +26,13 @@ kilde 可以录制屏幕以及 **QuickTime Player 的屏幕录制无法捕捉的
 - 🎙️ 用 `--no-video` 只录音频，无需安装额外的驱动
 - 🛡️ 即使按 Ctrl+C 停止录制，也能安全地完成文件的收尾写入
 - ⌨️ 通过全局快捷键，在操作其他应用的同时开始/停止录制
+- 📝 在设备上将录制内容转写为 markdown / SRT / VTT / 文本 / JSON 的
+  sidecar 文件 (macOS 26+)
 
 ## 安装
 
 - 需要 macOS 14 或更高版本
+- 转写需要 **macOS 26 或更高版本**
 - 发布的二进制是 **arm64（Apple Silicon）构建** — 目前不支持 Intel Mac
 - 运行时目前是在 Apple Silicon 的 macOS 26 上进行测试
 - 构建需要带 macOS 26 SDK 的工具链（引擎引用了 macOS 26 的 API
@@ -92,9 +95,10 @@ kilde rec demo.mov
 使用其他命令可以发现可录制的对象、检查录制文件、管理持久的录制默认值：
 
 ```sh
-kilde devices      # 列出显示器、窗口和音频设备
-kilde inspect FILE # 显示录制文件中的音轨和音频电平
-kilde config show  # 显示已配置的值和生效的默认值
+kilde devices         # 列出显示器、窗口和音频设备
+kilde inspect FILE    # 显示录制文件中的音轨和音频电平
+kilde transcribe FILE # 将录制文件转写为 sidecar 文件 (macOS 26+)
+kilde config show     # 显示已配置的值和生效的默认值
 ```
 
 ## 录制示例
@@ -176,6 +180,24 @@ kilde rec --hotkey cmd+shift+r meeting.mov
 则不提示，因为等待正是你要求的。要无人值守录制，请用
 `kilde config unset hotkey` 移除配置中的快捷键。
 
+### 录制后转写
+
+加上 `--transcribe` 后，录制文件完成时会立即转写为 sidecar 文件（`meeting.md`）
+(macOS 26+，无需 Speech recognition 权限)：
+
+```sh
+kilde rec --transcribe --preset meeting meeting.mov
+```
+
+转写完全在你的 Mac 上（设备内）进行 — 音频和转写文本都不会发送到任何地方。
+转写只在录制文件完成后才开始，因此失败或中断都不会影响录制本身。在转写进行
+中按 Ctrl+C 只会中断转写 — 录制文件仍保留在磁盘上，退出码仍然是 `0`。转写
+*失败*（例如不支持的环境或语言、模型下载失败）则以 `1` 退出，因为这是你明确
+要求的。`--transcript-format md|srt|vtt|txt|json` 选择 sidecar 格式，
+`--locale ja-JP` 选择语言。在 `--no-video --audio-tracks separate` 的录制中，
+两条音轨会带说话人标签转写（系统声音轨 = "相手"，麦克风轨 = "自分"）。也可以
+用 `kilde transcribe FILE` 转写已有的录制文件。
+
 ### 为什么不需要 BlackHole？
 
 kilde 使用 ScreenCaptureKit 的原生系统声音采集，因此普通的屏幕和音频
@@ -201,6 +223,8 @@ kilde 使用 ScreenCaptureKit 的原生系统声音采集，因此普通的屏�
   ProRes 不能封装进 MP4，因此单独的 `--codec prores` 会回退到 `mov`）
 - `--cursor` 或 `--no-cursor`、`--countdown SECONDS`、`--preset meeting`
   和 `--hotkey SHORTCUT`
+- `--transcribe`（与 `--transcript-format`、`--locale` 配合）：录制文件完成后
+  将其转写为 sidecar 文件 (macOS 26+)
 - `-o PATH` 或 `--output PATH`，位置参数输出路径的替代写法
 
 ## 配置
@@ -213,13 +237,17 @@ kilde config set outputDirectory ~/Movies/kilde
 kilde config set defaultAudioSources system,mic
 kilde config set showsCursor false   # 只想这一次显示指针时用 kilde rec --cursor
 kilde config set hotkey cmd+shift+r  # 让 rec 以快捷键等待模式启动（见下文的互斥说明）
+kilde config set transcribe true     # 每次停止时转写
+kilde config set transcriptFormat srt
+kilde config set locale ja-JP
 kilde config show
 kilde config unset hotkey
 kilde config path
 ```
 
 支持的键为 `outputDirectory`、`defaultAudioSources`、`audioTracks`、
-`codec`、`fps`、`showsCursor` 和 `hotkey`。
+`codec`、`format`、`videoBitrate`、`audioBitrate`、`fps`、`showsCursor`、
+`hotkey`、`transcribe`、`transcriptFormat` 和 `locale`。
 
 录制设置的解析顺序（从高到低）：
 
@@ -250,8 +278,8 @@ kilde config path
 
 | 退出码 | 含义 |
 |---:|---|
-| `0` | 成功，包括被 SIGINT、SIGTERM 或 SIGHUP 安全停止的录制 |
-| `1` | 其他运行时错误，包括无效配置 |
+| `0` | 成功，包括被 SIGINT、SIGTERM 或 SIGHUP 安全停止的录制。用 Ctrl+C 中断 `rec --transcribe` 的录制后转写同样以 `0` 退出 — 录制文件保留在磁盘上 |
+| `1` | 其他运行时错误，包括无效配置。`rec --transcribe` 的录制后转写失败（不支持的环境或语言、模型下载失败、sidecar 写入失败）同样以 `1` 退出 — 录制文件仍在，但转写是你明确要求的 |
 | `2` | 缺少权限 |
 | `3` | 找不到显示器、窗口或音频设备 |
 | `64` | 命令行解析或选项校验错误，例如 `rec --fps 0` |

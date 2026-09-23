@@ -27,10 +27,13 @@ kilde는 화면과 **QuickTime Player의 화면 녹화로는 잡을 수 없는 �
 - 🎙️ `--no-video`로 오디오만 녹음 — 추가 드라이버 불필요
 - 🛡️ Ctrl+C로 중단해도 파일이 반드시 안전하게 파이널라이즈됨
 - ⌨️ 전역 단축키로 다른 앱을 쓰면서도 녹화 시작/중지
+- 📝 녹화물을 온디바이스에서 전사해 markdown / SRT / VTT / 텍스트 / JSON 사이드카
+  파일로 출력 (macOS 26+)
 
 ## 설치
 
 - macOS 14 이상
+- 전사는 **macOS 26 이상**이 필요합니다
 - 릴리스 바이너리는 **arm64 (Apple Silicon) 빌드**입니다 — 현재 Intel Mac은 미지원
 - 실행 테스트는 현재 Apple Silicon의 macOS 26에서 수행
 - 빌드에는 macOS 26 SDK를 포함한 툴체인이 필요합니다 (엔진이 macOS 26 API
@@ -98,9 +101,10 @@ kilde rec demo.mov
 있습니다:
 
 ```sh
-kilde devices      # 디스플레이, 창, 오디오 기기 목록
-kilde inspect FILE # 녹화 파일의 트랙 구성과 오디오 레벨 표시
-kilde config show  # 설정된 값과 적용 중인 기본값 표시
+kilde devices         # 디스플레이, 창, 오디오 기기 목록
+kilde inspect FILE    # 녹화 파일의 트랙 구성과 오디오 레벨 표시
+kilde transcribe FILE # 녹화 파일을 전사해 사이드카 파일로 출력 (macOS 26+)
+kilde config show     # 설정된 값과 적용 중인 기본값 표시
 ```
 
 ## 녹화 예시
@@ -185,6 +189,26 @@ kilde는 stderr에 경고를 출력합니다. 명시적인 `--hotkey`는 대기�
 동작이므로 조용히 유지됩니다. 무인으로 녹화하려면
 `kilde config unset hotkey`로 설정의 단축키를 제거하세요.
 
+### 녹화 후 전사
+
+`--transcribe`를 붙이면 녹화 파일이 완성되는 즉시 사이드카 파일(`meeting.md`)로
+전사합니다 (macOS 26+, Speech recognition 권한 불필요):
+
+```sh
+kilde rec --transcribe --preset meeting meeting.mov
+```
+
+전사는 전부 내 Mac에서(온디바이스) 실행됩니다 — 오디오도 전사 텍스트도 어디로도
+전송되지 않습니다. 전사는 녹화 파일이 완성된 *후에만* 시작되므로 실패나 중단이
+녹화 자체에 영향을 주지 않습니다. 전사 중의 Ctrl+C는 전사만 중단합니다 — 녹화
+파일은 디스크에 남고 종료 코드는 여전히 `0`입니다. 전사 *실패*(지원되지 않는
+환경이나 언어, 모델 다운로드 실패 등)는 `1`로 종료합니다 — 명시적으로 요청했기
+때문입니다. `--transcript-format md|srt|vtt|txt|json`으로 사이드카 형식을,
+`--locale ja-JP`로 언어를 지정합니다. `--no-video --audio-tracks separate`
+녹화에서는 두 오디오 트랙이 화자 레이블과 함께 전사됩니다 (시스템 사운드 트랙 =
+"相手", 마이크 트랙 = "自分"). 기존 녹화 파일은 `kilde transcribe FILE`로 전사할
+수도 있습니다.
+
 ### BlackHole이 필수가 아닌 이유는?
 
 kilde는 ScreenCaptureKit의 네이티브 시스템 사운드 캡처를 사용하므로,
@@ -211,6 +235,8 @@ BlackHole이 필요한 것은 monitor 모드처럼 녹음하면서 같은 소리
   ProRes는 MP4에 담을 수 없으므로 단독 `--codec prores`는 `mov`로 폴백)
 - `--cursor` 또는 `--no-cursor`, `--countdown SECONDS`, `--preset meeting`,
   `--hotkey SHORTCUT`
+- `--transcribe` (`--transcript-format` 및 `--locale`과 함께): 녹화 파일이
+  완성된 후 사이드카 파일로 전사 (macOS 26+)
 - `-o PATH` 또는 `--output PATH`: 위치 인자 출력 경로의 대안
 
 ## 설정
@@ -223,13 +249,17 @@ kilde config set outputDirectory ~/Movies/kilde
 kilde config set defaultAudioSources system,mic
 kilde config set showsCursor false   # 이번 한 번만 커서를 보이려면 kilde rec --cursor
 kilde config set hotkey cmd+shift+r  # rec를 단축키 대기 모드로 시작 (아래 상호배제 참조)
+kilde config set transcribe true     # 정지할 때마다 전사
+kilde config set transcriptFormat srt
+kilde config set locale ja-JP
 kilde config show
 kilde config unset hotkey
 kilde config path
 ```
 
 지원하는 키는 `outputDirectory`, `defaultAudioSources`, `audioTracks`,
-`codec`, `fps`, `showsCursor`, `hotkey`입니다.
+`codec`, `format`, `videoBitrate`, `audioBitrate`, `fps`, `showsCursor`,
+`hotkey`, `transcribe`, `transcriptFormat`, `locale`입니다.
 
 녹화 설정은 다음 순서(높음→낮음)로 해석됩니다:
 
@@ -262,8 +292,8 @@ kilde config path
 
 | 코드 | 의미 |
 |---:|---|
-| `0` | 성공. SIGINT, SIGTERM, SIGHUP으로 안전하게 중지된 녹화 포함 |
-| `1` | 기타 런타임 오류. 잘못된 설정 포함 |
+| `0` | 성공. SIGINT, SIGTERM, SIGHUP으로 안전하게 중지된 녹화 포함. `rec --transcribe`의 녹화 후 전사를 Ctrl+C로 중단해도 `0`으로 종료 — 녹화 파일은 디스크에 남습니다 |
+| `1` | 기타 런타임 오류. 잘못된 설정 포함. `rec --transcribe`의 녹화 후 전사 실패(지원되지 않는 환경이나 언어, 모델 다운로드 실패, 사이드카 쓰기 실패)도 `1`로 종료 — 녹화 파일은 남지만 전사는 명시적으로 요청한 것이므로 |
 | `2` | 권한 없음 |
 | `3` | 디스플레이, 창 또는 오디오 기기를 찾을 수 없음 |
 | `64` | 명령줄 파싱 또는 옵션 검증 오류. 예: `rec --fps 0` |
