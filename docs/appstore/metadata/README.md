@@ -62,7 +62,14 @@ App レコード (`com.takezou621.KildeGUI`, Apple ID `6812783176`) の App Stor
   `Record what QuickTime can't` で 0.4.0 (5) がリジェクトされた (2026-09-23、issue #179)。
   「QuickTime では録れない」のような比較は「標準の画面収録では録れない」
   (en: "the built-in screen recording") のような一般表現で書く。
-  転記前に `grep -niE 'quicktime|facetime|siri' metadata-*.md` が空であることを確認する
+  転記前に下のコマンドが何も出力しないことを確認する。**これは既知の名前の機械チェックで網羅ではない**
+  (Apple の製品・サービス名は多い)。文面を変えたら、比較・訴求に Apple の製品名を
+  使っていないかを人の目でも確認する (CodeRabbit レビュー指摘)
+
+  ```sh
+  # ASC に転記するコードブロックの中身だけを見る (見出しの「App Store」を拾わないため)
+  python3 -c 'import re,glob;pat=re.compile(r"quicktime|facetime|imovie|final cut|garageband|keynote|siri|icloud|airdrop|airplay|iphone|ipad|apple ?(tv|watch|music|vision|pay)|app store",re.I);[print(f,m.group()) for f in sorted(glob.glob("metadata-*.md")) for b in re.findall(r"```text\n(.*?)\n```",open(f).read(),re.S) for m in pat.finditer(b)]'
+  ```
 - **スクリーンショットはロケールごとに独立**。未登録のロケールは ASC が
   別ロケールのものをフォールバック表示する。現行の 5 枚は日本語 UI の
   モック (`../README.md` §2) なので、当面は ja のみ登録し、他ロケールは
