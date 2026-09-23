@@ -10,8 +10,8 @@
 
 ### 収集する情報
 
-kilde は**録画・録音の内容を含む、個人情報にあたるデータを一切収集しません**。
-広告やトラッキング、クラッシュレポートの送信も行いません。
+kilde は**録画・録音の内容や設定を収集しません**。
+広告やクラッシュレポートの送信は行いません。
 
 GUI アプリ (直接配布版・Mac App Store 版の両方) は、アプリの利用状況の解析を
 Google の **Firebase Analytics** で行います。収集するのは起動回数・利用頻度・
@@ -98,8 +98,8 @@ https://github.com/kilde-team/kilde/issues
 
 ### Information we collect
 
-kilde **never collects your recordings or any personal data**. It has no
-advertising, tracking, or crash reporting.
+kilde **never collects your recordings or your settings**. It has no
+advertising or crash reporting.
 
 The GUI app (both the directly distributed and the Mac App Store version) uses
 Google's **Firebase Analytics** to measure app usage. What is collected is usage

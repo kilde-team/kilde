@@ -94,6 +94,10 @@ targets:
         # ルートパッケージ (swift-tools-version:5.10) が使う言語モード 5 に揃える
         SWIFT_VERSION: "5"
         MACOSX_DEPLOYMENT_TARGET: "14.0"
+        # Firebase 公式の手順どおり -ObjC を付ける。無いと Analytics の ObjC クラス
+        # が「参照されない」扱いで dead-strip され、configure() しても Analytics が
+        # 初期化されない (issue #135)。CocoaPods は自動で付けるが XcodeGen は付かない
+        OTHER_LDFLAGS: -ObjC
     dependencies:
       - package: kilde-cli-swift
         product: KildeCore
@@ -143,6 +147,8 @@ targets:
         CODE_SIGN_ENTITLEMENTS: Resources/KildeGUI-AppStore.entitlements
         SWIFT_VERSION: "5"
         MACOSX_DEPLOYMENT_TARGET: "14.0"
+        # KildeGUI と同じ -ObjC の理由 (issue #135)
+        OTHER_LDFLAGS: -ObjC
         # Sparkle 経路 (UpdaterCoordinator など) を除外する条件。!APPSTORE 側に
         # Sparkle 実装を置くため、ここを消すと MAS ビルドが Sparkle に依存して失敗する
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: APPSTORE

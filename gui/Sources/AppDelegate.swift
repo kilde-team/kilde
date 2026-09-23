@@ -83,10 +83,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .contains { $0.hasPrefix("KILDE_GUI_SELFTEST_") }
         if !isSelfTest {
             FirebaseApp.configure()
-            // macOS は iOS と違い UIApplicationDelegate swizzling が無く、configure() だけでは
-            // Analytics が初期化されない (2026-09-23 実測: configure() のみだと Analytics の
-            // シンボルが参照されずフレームワークがプロセスにロードも接続もされない)。
-            // 起動イベントを明示的に送ることで初期化を起動し、最初のイベントも確実に残す
+            // Analytics の初期化は project.yml の OTHER_LDFLAGS: -ObjC に依存する。
+            // -ObjC が無いと Analytics の ObjC クラスが「どこからも参照されない」扱いで
+            // dead-strip され、configure() してもフレームワークが初期化されない
+            // (2026-09-23 実測: -ObjC を付けると configure() 単独で Analytics started)。
+            // macOS には UIApplicationDelegate swizzling が無く app_open は自動送信
+            // されないので、最初のイベントとして明示的に送る
             Analytics.logEvent("app_open", parameters: nil)
         }
         // 通知の許可要求はここで 1 回だけ。拒否されても録画は完全に動くので、
