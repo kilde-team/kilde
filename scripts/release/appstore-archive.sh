@@ -64,6 +64,22 @@ EOF
 log() { echo "appstore: $*"; }
 die() { echo "appstore: エラー: $*" >&2; exit 1; }
 
+# 後始末は 1 つの EXIT trap にまとめる。bash の trap は同じシグナルに設定し直すと前のものを
+# 上書きするので、Info.plist の復元と .pkg 検証用の一時ディレクトリの削除を別々に trap すると
+# どちらかが消える (cubic レビュー指摘)
+PLIST_BACKUP=""
+VERIFY_DIR=""
+cleanup() {
+    if [ -n "$PLIST_BACKUP" ] && [ -f "$PLIST_BACKUP" ]; then
+        cp "$PLIST_BACKUP" "${PLIST:?}" && rm -f "$PLIST_BACKUP"
+    fi
+    if [ -n "$VERIFY_DIR" ]; then
+        rm -rf "$VERIFY_DIR"
+    fi
+    return 0
+}
+trap cleanup EXIT
+
 while [ $# -gt 0 ]; do
     case "$1" in
         --upload) UPLOAD=true ;;
@@ -154,9 +170,14 @@ xcodebuild -resolvePackageDependencies
 # — 失敗・中断後に古い MAS のバージョン番号が残るのを防ぐ (cubic レビュー指摘)
 PLIST="$GUI_DIR/Resources/Info.plist"
 if [ -n "$STAMP_VERSION" ] || [ -n "$STAMP_BUILD" ]; then
-    PLIST_BACKUP="$(mktemp)"
-    cp "$PLIST" "$PLIST_BACKUP"
-    trap 'cp "$PLIST_BACKUP" "$PLIST" && rm -f "$PLIST_BACKUP"' EXIT
+    # バックアップが完全に取れてから PLIST_BACKUP に入れる — 先に入れると、コピーに失敗して
+    # 終了したとき cleanup が空のファイルで Info.plist を上書きしてしまう (cubic レビュー指摘)
+    backup="$(mktemp)"
+    if ! cp "$PLIST" "$backup"; then
+        rm -f "$backup"
+        die "Info.plist を退避できません: $PLIST"
+    fi
+    PLIST_BACKUP="$backup"
 fi
 if [ -n "$STAMP_VERSION" ]; then
     log "CFBundleShortVersionString=$STAMP_VERSION を差し込み"
@@ -212,6 +233,37 @@ codesign -d --entitlements :- "$APP_IN_ARCHIVE" > "$ENTITLEMENTS_PLIST" 2>/dev/n
 [ "$(plutil -extract 'com\.apple\.security\.app-sandbox' raw -o - "$ENTITLEMENTS_PLIST" 2>/dev/null)" = "true" ] \
     || die "アーカイブで App Sandbox が有効ではありません (entitlement の値を確認してください)"
 log "検証 OK: Sparkle 無し・App Sandbox 有効"
+
+# SPM のリソースバンドル (Firebase / GoogleUtilities / Promises / nanopb の *.bundle) は
+# コードを持たない (Contents/MacOS が無い) が、アーカイブ時に Apple Development で署名される。
+# -exportArchive のクラウド署名は Mach-O (アプリ本体・Frameworks) だけを Apple Distribution で
+# 署名し直し、これらのバンドルは Apple Development のまま .pkg に入る。ASC はそれを
+# ITMS-90284 (Invalid Code Signing — must be signed with the certificate that is contained in
+# the provisioning profile) で拒否する (2026-09-23 実測、0.4.0 を Transporter で上げたとき 13 件)。
+# コードの無いバンドルは署名不要のリソースなので署名を外し、エクスポートで付け直される
+# アプリ本体の署名にリソースとして封入させる。コードを含むバンドルが来たらこの前提が
+# 崩れるので止める
+for bundle in "$APP_IN_ARCHIVE"/Contents/Resources/*.bundle; do
+    [ -d "$bundle" ] || continue
+    # コードの置き場所は Contents/MacOS に限らない。Frameworks・XPCServices・入れ子の
+    # app / framework / dylib のどれかがあればコードを含むとみなして止める (cubic レビュー指摘)
+    if [ -e "$bundle/Contents/MacOS" ] || [ -e "$bundle/Contents/Frameworks" ] \
+        || [ -e "$bundle/Contents/XPCServices" ] \
+        || [ -n "$(find "$bundle" \( -name '*.app' -o -name '*.framework' -o -name '*.dylib' \) -print -quit)" ]; then
+        die "コードを含むリソースバンドルがあります: $(basename "$bundle") (署名方針を見直してください)"
+    fi
+    if [ -d "$bundle/Contents/_CodeSignature" ]; then
+        rm -rf "$bundle/Contents/_CodeSignature"
+        log "リソースバンドルの署名を外した: $(basename "$bundle")"
+    fi
+done
+# 外し漏れの確認。--upload は書き出した .pkg が手元に残らず後段の .pkg 検証を通らないので、
+# 両方の経路でここを最後の確認にする (cubic レビュー指摘)
+# find の失敗 (読み取りエラーなど) を「残り無し」と取り違えないよう、終了ステータスを見る
+# (プロセス置換だと find の失敗が while の入力終端と区別できない — cubic レビュー指摘)
+leftovers="$(find "$APP_IN_ARCHIVE/Contents/Resources" -name _CodeSignature)" \
+    || die "リソースの署名の残りを確認できません: $APP_IN_ARCHIVE/Contents/Resources"
+[ -z "$leftovers" ] || die "リソースに署名が残っています: ${leftovers//"$APP_IN_ARCHIVE"\//}"
 
 # exportOptions はアップロード / .pkg 書き出しの両方で使う。signingStyle automatic
 # により、プロファイルが無ければ -allowProvisioningUpdates が作成する
@@ -282,6 +334,60 @@ done
 PKG="$OUTPUT_DIR/$(basename "$EXPORTED")"
 mv -f "$EXPORTED" "$PKG"
 rm -rf "$EXPORT_DIR"
+
+# 書き出した .pkg の中身を検証する。ASC に上げて初めて ITMS-90284 で落ちるのを避けるため、
+# アプリ全体の署名が有効で、Apple Development の署名が 1 つも残っていないことを確かめる
+VERIFY_DIR="$(mktemp -d)"  # 削除は cleanup (EXIT trap) が行う
+pkgutil --expand-full "$PKG" "$VERIFY_DIR/pkg" >/dev/null || die ".pkg を展開できません: $PKG"
+APP_IN_PKG=""
+for candidate in "$VERIFY_DIR"/pkg/*/Payload/KildeGUI.app "$VERIFY_DIR"/pkg/*/Payload/Applications/KildeGUI.app; do
+    if [ -d "$candidate" ]; then
+        APP_IN_PKG="$candidate"
+        break
+    fi
+done
+[ -n "$APP_IN_PKG" ] || die ".pkg の中に KildeGUI.app が見つかりません ($VERIFY_DIR を確認してください)"
+codesign --verify --deep --strict "$APP_IN_PKG" || die ".pkg の中の KildeGUI.app の署名が無効です"
+# codesign の出力は変数に受けてから判定する。`codesign … | grep -q` は、grep が一致した
+# 時点で閉じたパイプに codesign が書いて SIGPIPE で落ち、`set -o pipefail` のもとでは
+# 一致していても失敗扱いになる (2026-09-23 実測: 正しく Apple Distribution で署名された
+# .pkg を「署名されていません」と判定した)
+# 走査対象はコード署名を持ちうるものすべて: バンドル形式 (app / framework / bundle / xpc /
+# appex / plugin / systemextension)、dylib、実行ファイル (Contents/MacOS と Helpers の中身)。
+# codesign が失敗したときは「未署名」(コードの無いリソースバンドルなど) だけを許し、
+# それ以外の検査失敗は合格扱いにせず止める (cubic レビュー指摘)
+while IFS= read -r -d '' item; do
+    if ! info="$(codesign -dvv "$item" 2>&1)"; then
+        case "$info" in
+            *"not signed at all"*) continue ;;
+            *) die "署名を検査できない項目があります: ${item#"$APP_IN_PKG"/} ($info)" ;;
+        esac
+    fi
+    # -dvv はメタデータを読むだけなので、署名そのものの有効性も項目ごとに確かめる (CodeRabbit レビュー指摘)
+    if ! verify_info="$(codesign --verify --strict "$item" 2>&1)"; then
+        die "署名が無効な項目があります: ${item#"$APP_IN_PKG"/} ($verify_info)"
+    fi
+    # 許可リストで判定する: 署名があるものは Apple Distribution でなければ止める。Apple Development
+    # だけを弾くと、アドホック署名や Developer ID など別の証明書の署名が素通りする (CodeRabbit レビュー指摘)
+    case "$info" in
+        # チームも照合する — 別チームの配布証明書でもプロファイルの証明書とは一致しない (cubic レビュー指摘)
+        *"Authority=Apple Distribution"*"TeamIdentifier=$TEAM_ID"*) ;;
+        *"Authority=Apple Development"*)
+            die "Apple Development の署名が残っています: ${item#"$APP_IN_PKG"/}" ;;
+        *)
+            die "このチーム ($TEAM_ID) の Apple Distribution 以外の署名があります: ${item#"$APP_IN_PKG"/} ($(sed -n -E '/^(Authority|Signature)=/{p;q;}' <<<"$info"))" ;;
+    esac
+done < <(find "$APP_IN_PKG" \( \
+    \( -type d \( -name '*.app' -o -name '*.framework' -o -name '*.bundle' -o -name '*.xpc' \
+        -o -name '*.appex' -o -name '*.plugin' -o -name '*.systemextension' \) \) \
+    -o \( -type f \( -name '*.dylib' -o -path '*/Contents/MacOS/*' -o -path '*/Contents/Helpers/*' \) \) \
+    \) -print0)
+info="$(codesign -dvv "$APP_IN_PKG" 2>&1 || true)"
+case "$info" in
+    *"Authority=Apple Distribution"*) ;;
+    *) die ".pkg の中の KildeGUI.app が Apple Distribution で署名されていません" ;;
+esac
+log "検証 OK: .pkg の署名はすべて Apple Distribution"
 log "完成: $PKG"
 echo "appstore: アップロードは --upload か、この .pkg を Transporter 等で"
 echo "appstore: アップロードしてください。Info.plist に差し込んだバージョンは終了時に元へ戻りました"
