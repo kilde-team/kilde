@@ -282,6 +282,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showPopover() {
         guard let button = statusItem?.button, let popover, !popover.isShown else { return }
+        // setup は起動時に 1 回だけ生成され、パネルの再オープンでは init が走らない。
+        // 開いている間に CLI 側で変更された文字起こし設定を古い表示が握り続けると、
+        // このままトグルを触ったとき古い値が保存される — 開くたびに config から
+        // 再読み込みして表示を実体へ追従させる (reloadTranscriptionSettings のコメント参照)
+        setup.reloadTranscriptionSettings()
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         // NSPopover の内容は key window にならないため didBecomeKey では拾えない。
         // 開くたびに通知して一覧を更新させる (閉じている間のウィンドウ・デバイスの増減を拾う)

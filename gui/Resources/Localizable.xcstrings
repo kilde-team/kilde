@@ -2929,6 +2929,64 @@
           }
         }
       }
+    },
+    "このアプリの設定に保存します (録画後の文字起こしの実行は今後のバージョンで対応予定)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saved in this app's settings (post-recording transcription will arrive in a future version)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存在此应用的设置中 (录制后的转写执行将在未来版本中提供)"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 앱의 설정에 저장됩니다 (녹음 후 전사 실행은 향후 버전에서 지원 예정)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se guarda en la configuración de esta app (la transcripción tras la grabación llegará en una versión futura)"
+          }
+        }
+      }
+    },
+    "録画後の文字起こしの実行はこのビルドではまだ対応していません (今後のバージョンで対応予定)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Post-recording transcription is not yet available in this build (planned for a future version)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此版本尚不支持录制后的转写执行 (计划在未来版本中提供)"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 빌드에서는 녹음 후 전사 실행이 아직 지원되지 않습니다 (향후 버전에서 지원 예정)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La transcripción tras la grabación aún no está disponible en esta compilación (prevista para una versión futura)"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

@@ -273,13 +273,18 @@ final class RecordingSetup: ObservableObject {
     ///
     /// load → 書き換え → save の順で行うのも saveHotkey と同じで、GUI を開いている間に
     /// CLI 側で変更された他のキーを壊さないため。保存に失敗したら変更されたキーの表示を
-    /// 前回読んだ config の値へ戻す — 戻さないと「保存したつもり」の選択が次回起動で
-    /// 消え、表示と実体がずれ続ける。成功時は通知を出さない (chooseOutputDirectory と同じ
-    /// 方針 — 通知は bookmarkFailureNotice のような消えては困る常設警告の受け皿なので、
-    /// トグル操作のたびに上書きすると警告が消える)
+    /// **直前に読んだ** config の値へ戻す — load 自体が失敗した場合に限り起動時スナップショット
+    /// (`config`) を使う。save 失敗時点でファイルの実体は `updated` の内容
+    /// (CLI 側の変更込み) なので、古いスナップショットへ戻すと表示が実体とずれる。
+    /// 戻さないと「保存したつもり」の選択が次回起動で消え、ずれが続く。成功時は通知を
+    /// 出さない (chooseOutputDirectory と同じ方針 — 通知は bookmarkFailureNotice のような
+    /// 消えては困る常設警告の受け皿なので、トグル操作のたびに上書きすると警告が消える)
     func saveTranscriptionSetting(_ key: TranscriptionSettingKey) {
+        // load に成功したら巻き戻しの基準は新鮮な config (CLI 側の変更を反映した実体) に切り替える
+        var rollbackConfig = config
         do {
             var updated = try ConfigStore.load()
+            rollbackConfig = updated
             switch key {
             case .enable: updated.transcribe = transcribeEnabled
             case .locale: updated.locale = transcriptLocale
@@ -289,13 +294,29 @@ final class RecordingSetup: ObservableObject {
             config = updated
         } catch {
             notice = String(localized: "文字起こしの設定を保存できません: \(error)")
+            config = rollbackConfig
             switch key {
-            case .enable: transcribeEnabled = config.transcribe ?? false
-            case .locale: transcriptLocale = Self.normalizedLocale(config.locale)
-            case .format: transcriptFormat = config.transcriptFormat
+            case .enable: transcribeEnabled = rollbackConfig.transcribe ?? false
+            case .locale: transcriptLocale = Self.normalizedLocale(rollbackConfig.locale)
+            case .format: transcriptFormat = rollbackConfig.transcriptFormat
                 .flatMap(TranscriptOutputFormat.init(rawValue:)) ?? .markdown
             }
         }
+    }
+
+    /// パネルを開くたびに表示中の 3 キーを設定ファイルから読み直す (AppDelegate.showPopover から呼ぶ)。
+    /// setup はアプリ起動時に 1 回だけ生成され、パネルを閉じて開き直しても init は走らない。
+    /// そのため起動後に CLI (`kilde config set` 等) で変更された値を表示が握り続け、
+    /// このままユーザーがトグルを触ると**古い表示値**が保存されてしまう — 開いた時点で
+    /// 実体へ追従させておく (保存経路が load から始まるのは saveTranscriptionSetting のとおりで、
+    /// ここは表示の再同期だけを担う)
+    func reloadTranscriptionSettings() {
+        guard let fresh = try? ConfigStore.load() else { return }
+        config = fresh
+        transcribeEnabled = fresh.transcribe ?? false
+        transcriptLocale = Self.normalizedLocale(fresh.locale)
+        transcriptFormat = fresh.transcriptFormat
+            .flatMap(TranscriptOutputFormat.init(rawValue:)) ?? .markdown
     }
 
     // MARK: - ログイン時に起動 (issue #20)
