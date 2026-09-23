@@ -1,0 +1,84 @@
+docs/appstore/metadata/metadata-ko.md
+  s_54dbfd11ff578a::t_cedd57ae24bc77 1-59
+docs/appstore/metadata/metadata-es.md
+  s_54dbfd11ff578a::t_33781cbf5b772d 1-64
+docs/appstore/metadata/metadata-ja.md
+  s_54dbfd11ff578a::t_3258727281d33c 1-57
+docs/appstore/README.md
+  s_54dbfd11ff578a::t_fabcaffdc88f5f 114-118
+gui/Sources/RecordingNotifier.swift
+  s_54dbfd11ff578a::t_d540d389794709 85
+  s_54dbfd11ff578a::t_addacfaf8a008a 62
+docs/DEVELOPMENT.md
+  s_54dbfd11ff578a::t_5d653ba46985f7 364-386
+gui/Sources/ContentView.swift
+  s_54dbfd11ff578a::t_b31450f5f17320 290
+  s_54dbfd11ff578a::t_33683dfed86030 643-645
+  s_54dbfd11ff578a::t_5dc89a44fcb8d2 232-233
+  s_54dbfd11ff578a::t_56fd0f9f98e362 427
+  s_54dbfd11ff578a::t_b7e4e8888f7fc6 563-564
+README.md
+  s_54dbfd11ff578a::t_bdfe50c98dc546 1
+gui/Sources/LevelMeter.swift
+  s_54dbfd11ff578a::t_fa448b750320ea 43-44
+gui/Resources/Info.plist
+  s_54dbfd11ff578a::t_08a75b184602a6 7-18
+  s_54dbfd11ff578a::t_4b00a638f81781 45-47,49
+README.es.md
+  s_54dbfd11ff578a::t_1905d35b7b6c77 1-382
+README.zh-CN.md
+  s_54dbfd11ff578a::t_2a7fb64682700f 1-333
+docs/appstore/metadata/metadata-en.md
+  s_54dbfd11ff578a::t_47b38d2c98dc21 1-60
+gui/project.yml
+  s_54dbfd11ff578a::t_f10db2956bb49d 55-58
+  s_54dbfd11ff578a::t_b9ac61a9f69e8c 111-114
+docs/appstore/metadata/README.md
+  s_54dbfd11ff578a::t_baad0547923d2a 1-39
+gui/Sources/RecordingController.swift
+  s_54dbfd11ff578a::t_4c7f3cdba88be2 198
+README.ko.md
+  s_54dbfd11ff578a::t_77b9702421d716 1-349
+README.ja.md
+  s_54dbfd11ff578a::t_b10ece52b4361d 1
+gui/Sources/AppDelegate.swift
+  s_54dbfd11ff578a::t_56eb500caa37d0 283
+  s_54dbfd11ff578a::t_4f3869fc84ecb2 243
+  s_54dbfd11ff578a::t_9b09062bb3a0f1 298-301
+  s_54dbfd11ff578a::t_cd9c87f53a80cc 181
+  s_54dbfd11ff578a::t_399f80055ac0db 215-216
+  s_54dbfd11ff578a::t_e4f0b4454388b4 162
+  s_54dbfd11ff578a::t_87a6e03b96ef6b 279
+docs/appstore/metadata/metadata-zh-Hans.md
+  s_54dbfd11ff578a::t_d3f6b83fdd67fe 1-57
+gui/Sources/RecordingSetup.swift
+  s_54dbfd11ff578a::t_6ff9ad9f8ce54d 477
+  s_54dbfd11ff578a::t_5a6944f5ead4a8 197-198,201
+  s_54dbfd11ff578a::t_21af932d298ae7 445
+  s_54dbfd11ff578a::t_87ee3c92c61e5b 89
+  s_54dbfd11ff578a::t_cc7eb2fb51340b 137,140,143,146
+  s_54dbfd11ff578a::t_68304b78bbf0de 216
+  s_54dbfd11ff578a::t_86b1f450365158 379
+  s_54dbfd11ff578a::t_dfedc4c7141bbd 166,168
+  s_54dbfd11ff578a::t_c87c67fbb46352 63-66
+  s_54dbfd11ff578a::t_08dfe64d0ad669 243-244,247,251
+  s_54dbfd11ff578a::t_d9ade4db77c231 262
+gui/Resources/Localizable.xcstrings
+  s_54dbfd11ff578a::t_fcd3ce33d1c948 1-2413
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "445ae231c02a73c64a70be05e096382062d6f350",
+  "prompts": {},
+  "sessions": {
+    "s_54dbfd11ff578a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cb032393-97e9-432a-a309-22cc34540e90",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
