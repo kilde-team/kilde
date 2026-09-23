@@ -170,8 +170,14 @@ xcodebuild -resolvePackageDependencies
 # — 失敗・中断後に古い MAS のバージョン番号が残るのを防ぐ (cubic レビュー指摘)
 PLIST="$GUI_DIR/Resources/Info.plist"
 if [ -n "$STAMP_VERSION" ] || [ -n "$STAMP_BUILD" ]; then
-    PLIST_BACKUP="$(mktemp)"
-    cp "$PLIST" "$PLIST_BACKUP"
+    # バックアップが完全に取れてから PLIST_BACKUP に入れる — 先に入れると、コピーに失敗して
+    # 終了したとき cleanup が空のファイルで Info.plist を上書きしてしまう (cubic レビュー指摘)
+    backup="$(mktemp)"
+    if ! cp "$PLIST" "$backup"; then
+        rm -f "$backup"
+        die "Info.plist を退避できません: $PLIST"
+    fi
+    PLIST_BACKUP="$backup"
 fi
 if [ -n "$STAMP_VERSION" ]; then
     log "CFBundleShortVersionString=$STAMP_VERSION を差し込み"
@@ -239,7 +245,11 @@ log "検証 OK: Sparkle 無し・App Sandbox 有効"
 # 崩れるので止める
 for bundle in "$APP_IN_ARCHIVE"/Contents/Resources/*.bundle; do
     [ -d "$bundle" ] || continue
-    if [ -e "$bundle/Contents/MacOS" ]; then
+    # コードの置き場所は Contents/MacOS に限らない。Frameworks・XPCServices・入れ子の
+    # app / framework / dylib のどれかがあればコードを含むとみなして止める (cubic レビュー指摘)
+    if [ -e "$bundle/Contents/MacOS" ] || [ -e "$bundle/Contents/Frameworks" ] \
+        || [ -e "$bundle/Contents/XPCServices" ] \
+        || [ -n "$(find "$bundle" \( -name '*.app' -o -name '*.framework' -o -name '*.dylib' \) -print -quit)" ]; then
         die "コードを含むリソースバンドルがあります: $(basename "$bundle") (署名方針を見直してください)"
     fi
     if [ -d "$bundle/Contents/_CodeSignature" ]; then
@@ -249,9 +259,11 @@ for bundle in "$APP_IN_ARCHIVE"/Contents/Resources/*.bundle; do
 done
 # 外し漏れの確認。--upload は書き出した .pkg が手元に残らず後段の .pkg 検証を通らないので、
 # 両方の経路でここを最後の確認にする (cubic レビュー指摘)
-while IFS= read -r -d '' leftover; do
-    die "リソースに署名が残っています: ${leftover#"$APP_IN_ARCHIVE"/}"
-done < <(find "$APP_IN_ARCHIVE/Contents/Resources" -name _CodeSignature -print0)
+# find の失敗 (読み取りエラーなど) を「残り無し」と取り違えないよう、終了ステータスを見る
+# (プロセス置換だと find の失敗が while の入力終端と区別できない — cubic レビュー指摘)
+leftovers="$(find "$APP_IN_ARCHIVE/Contents/Resources" -name _CodeSignature)" \
+    || die "リソースの署名の残りを確認できません: $APP_IN_ARCHIVE/Contents/Resources"
+[ -z "$leftovers" ] || die "リソースに署名が残っています: ${leftovers//"$APP_IN_ARCHIVE"\//}"
 
 # exportOptions はアップロード / .pkg 書き出しの両方で使う。signingStyle automatic
 # により、プロファイルが無ければ -allowProvisioningUpdates が作成する
