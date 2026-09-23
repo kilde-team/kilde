@@ -1,0 +1,19 @@
+scripts/release/appstore-archive.sh
+  s_ff77621fa0aefa::t_a42578d9bdec81 366-367,369,372-373
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "06f107dd32e024adc2d2160d94dd7ad5798cdb12",
+  "prompts": {},
+  "sessions": {
+    "s_ff77621fa0aefa": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b5242f9b-9d47-43f4-b767-f941b55fa7aa",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
