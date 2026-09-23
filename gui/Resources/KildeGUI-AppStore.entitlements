@@ -25,5 +25,11 @@
 	     アクセスはプロセスの生存中限り -->
 	<key>com.apple.security.files.bookmarks.app-scope</key>
 	<true/>
+	<!-- Firebase Analytics が利用統計を Google のサーバーへ送るための外向き接続。
+	     App Sandbox 下では無いと接続自体が拒否され、MAS 版だけ黙って解析イベントが
+	     届かなくなる (cubic レビュー指摘)。MAS リリース前の App Privacy 申告の
+	     更新が前提 -->
+	<key>com.apple.security.network.client</key>
+	<true/>
 </dict>
 </plist>

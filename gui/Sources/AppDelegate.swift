@@ -2,6 +2,12 @@ import AppKit
 import Combine
 import SwiftUI
 import KildeCore
+// Analytics の API (Analytics クラス) は FirebaseAnalytics モジュールにある。
+// SPM 製品 FirebaseAnalyticsCore はリンク用の dummy で import できない —
+// 製品依存は FirebaseAnalyticsCore のまま (GoogleAppMeasurementCore が実体で
+// IDFA を収集しない)、import だけが transitive モジュール名になる
+import FirebaseAnalytics
+import FirebaseCore
 
 /// メニューバーのステータス項目とポップオーバーの管理。
 /// MenuBarExtra (.window) が macOS 26 で開かないため AppKit で手動管理する
@@ -65,6 +71,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.shared = self
+        // Firebase Analytics (issue #135)。GoogleService-Info.plist を読んで計測を始める。
+        // **plist が無い・不正な場合 configure() は NSException を投げて起動即クラッシュ
+        // する** (Swift から捕捉できない)。握りつぶしのガードは足さない — plist は
+        // 両ターゲットの resources に必須で、漏れは開発時の初回起動で即気づく方が、
+        // 計測が黙って欠けるより安全
+        // セルフテストでは実利用のイベントを送らない。**Sparkle と分岐は違う** —
+        // Sparkle は KILDE_GUI_SELFTEST_UPDATE=1 でも起動する (updaterStartsAtLaunch)
+        // が、Firebase は全セルフテストで起動しない
+        let isSelfTest = ProcessInfo.processInfo.environment.keys
+            .contains { $0.hasPrefix("KILDE_GUI_SELFTEST_") }
+        if !isSelfTest {
+            FirebaseApp.configure()
+            // Analytics の初期化は project.yml の OTHER_LDFLAGS: -ObjC に依存する。
+            // -ObjC が無いと Analytics の ObjC クラスが「どこからも参照されない」扱いで
+            // dead-strip され、configure() してもフレームワークが初期化されない
+            // (2026-09-23 実測: -ObjC を付けると configure() 単独で Analytics started)。
+            // macOS には UIApplicationDelegate swizzling が無く app_open は自動送信
+            // されないので、最初のイベントとして明示的に送る
+            Analytics.logEvent("app_open", parameters: nil)
+        }
         // 通知の許可要求はここで 1 回だけ。拒否されても録画は完全に動くので、
         // 失敗として扱わない (通知が出ないだけ)
         notifier.start()
