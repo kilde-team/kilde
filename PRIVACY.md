@@ -70,7 +70,9 @@ Google のサーバーに送信され、取り扱いは
   選べます (手動の「アップデートを確認」は押したときだけ通信します)
 - **文字起こしの言語モデル (macOS 26 以降・すべての配布形態)**: 文字起こし機能は
   端末内で処理されますが、書き起こす言語のモデルがまだ端末に無い場合、kilde が
-  初回利用時に Apple からその言語モデルをダウンロードします。この通信では録音した
+  Apple からその言語モデルをダウンロードします。モデルはシステムが管理しており、
+  しばらく使われないものは削除されることがあるため、このダウンロードは再び起こる
+  ことがあります。この通信では録音した
   音声も書き起こしテキストも送信されず、モデル本体の取得のみが行われます
   (一般的なネットワーク通信と同じく IP アドレスは Apple に伝わります。Apple による
   データの取り扱いは [Apple のプライバシーポリシー](https://www.apple.com/legal/privacy/)
@@ -93,7 +95,8 @@ Google のサーバーに送信され、取り扱いは
   GitHub に送信されます (取り扱いは GitHub のプライバシーステートメントに従います)
 - **文字起こしの言語モデルをダウンロードするとき**: 上の「ネットワーク通信」の
   とおり Apple へ接続します。録音した音声と書き起こしテキストは送信されません
-  (macOS 26 以降の文字起こし機能を、モデルが未取得の言語で初めて使うとき)
+  (macOS 26 以降の文字起こし機能で、モデルが未取得の言語を文字起こしするとき。
+  未使用のモデルはシステムが削除することがあるため、再び起こることがあります)
 
 CLI には Firebase Analytics と Sparkle の通信はありません。
 
@@ -173,8 +176,9 @@ Settings such as the save location and audio sources are stored only on your Mac
   ("Check for Updates" connects only when you click it)
 - **Transcription language models (macOS 26 or later, all distribution channels)**:
   transcription runs on device, but if the language model for the language you
-  transcribe is not on your Mac yet, kilde downloads it from Apple the first
-  time you use that language. Your audio and the transcript text are not sent;
+  transcribe is not on your Mac, kilde downloads it from Apple. The system
+  manages these models and may remove one that has not been used in a while, so
+  this download can happen more than once. Your audio and the transcript text are not sent;
   only the model itself is transferred (as with any network request, your IP
   address reaches Apple, which handles it under
   [Apple's privacy policy](https://www.apple.com/legal/privacy/))
@@ -199,8 +203,9 @@ Three kinds of connections are made:
   General Privacy Statement)
 - **When a transcription language model is downloaded**: it connects to Apple
   as described under "Network access". Your audio and the transcript text are
-  not sent (this happens the first time you transcribe in a language whose
-  model is not yet on your Mac, on macOS 26 or later)
+  not sent (this happens when you transcribe in a language whose model is not
+  yet on your Mac, on macOS 26 or later; it can happen again, because the
+  system may remove a model that has not been used in a while)
 
 The CLI makes neither the Firebase Analytics nor the Sparkle connection.
 
