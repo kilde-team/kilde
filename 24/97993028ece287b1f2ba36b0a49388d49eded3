@@ -1,0 +1,25 @@
+gui/Sources/AppDelegate.swift
+  s_54dbfd11ff578a::t_c28975fe3ac188 86-91
+PRIVACY.md
+  s_54dbfd11ff578a::t_53631d90bbbe40 13-14
+  s_54dbfd11ff578a::t_8bc19a89077d52 101-102
+gui/project.yml
+  s_54dbfd11ff578a::t_09aa24ab42d424 97-100
+  s_54dbfd11ff578a::t_5eda6ff33d6e5f 150-151
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2497993028ece287b1f2ba36b0a49388d49eded3",
+  "prompts": {},
+  "sessions": {
+    "s_54dbfd11ff578a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cb032393-97e9-432a-a309-22cc34540e90",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
