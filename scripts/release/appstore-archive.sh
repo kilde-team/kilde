@@ -364,8 +364,9 @@ while IFS= read -r -d '' item; do
         esac
     fi
     # -dvv はメタデータを読むだけなので、署名そのものの有効性も項目ごとに確かめる (CodeRabbit レビュー指摘)
-    codesign --verify --strict "$item" 2>/dev/null \
-        || die "署名が無効な項目があります: ${item#"$APP_IN_PKG"/}"
+    if ! verify_info="$(codesign --verify --strict "$item" 2>&1)"; then
+        die "署名が無効な項目があります: ${item#"$APP_IN_PKG"/} ($verify_info)"
+    fi
     # 許可リストで判定する: 署名があるものは Apple Distribution でなければ止める。Apple Development
     # だけを弾くと、アドホック署名や Developer ID など別の証明書の署名が素通りする (CodeRabbit レビュー指摘)
     case "$info" in
