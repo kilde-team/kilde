@@ -325,7 +325,7 @@ Release の作成は `v*` タグの push に限定しています。
 
 workflow は kilde-cli-swift を **revision 固定**で checkout します
 (`release.yml` の `ref:`。現在は GUI (`gui/project.yml` の pin) と同じ
-`5518a5d79826c5e0f918f57d8d19e719ac44eb83`)。pin は「リリース成果物がどのコミットで
+`53ddd1dc177f247220ee702b63c6d0014fe58815`)。pin は「リリース成果物がどのコミットで
 ビルドされたか」を追跡可能にするための固定で、GUI と release が同じエンジンを参照する
 契約です。**更新するときは `gui/project.yml` と `release.yml` の `ref:` を同じ PR で
 必ず揃えてください** (片方だけ更新すると、GUI と CLI が別のエンジン revision で
