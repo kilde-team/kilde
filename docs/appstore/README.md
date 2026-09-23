@@ -115,6 +115,13 @@ kilde.site (リポジトリ kilde-team/kilde-site) が同じ内容を公開し�
 他ロケールは `https://kilde.site/privacy/`)。アプリのデータの扱いを変えたら PRIVACY.md と
 kilde.site の両方を更新すること。
 
+ロケール別の URL (2026-09-23 に ASC で確認・設定済み):
+
+| ロケール | サポート URL / マーケティング URL | プライバシーポリシー URL |
+|---|---|---|
+| ja | `https://kilde.site/ja/` | `https://kilde.site/ja/privacy/` |
+| en-US / zh-Hans / ko / es-ES | `https://kilde.site/` | `https://kilde.site/privacy/` |
+
 製品ページのローカライズ (ja / en / zh-Hans / ko / es) の正本は
 [metadata/](metadata/README.md) (issue #137)。ASC 側で直接編集せず、
 まずここのファイルを更新してから転記する。スクリーンショットは現状 ja の
