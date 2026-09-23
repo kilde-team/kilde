@@ -29,6 +29,15 @@ final class RecordingSetup: ObservableObject {
     /// 入力途中の "cmd+" のような不完全な文字列で登録を試みないため
     @Published var hotkeyDraft = ""
 
+    /// 「録画後に文字起こし」のオン/オフ (issue #145)。CLI と同じ `transcribe` キーに
+    /// 保存するため、GUI で変えた内容は `kilde rec` の既定にもなる。
+    /// 未設定 (nil) は CLI の既定と同じオフとして扱う
+    @Published var transcribeEnabled = false
+    /// 文字起こしの言語 (BCP 47)。nil は「自動」— CLI の省略時と同じく端末の言語設定に従う
+    @Published var transcriptLocale: String?
+    /// 文字起こし結果のサイドカー形式。CLI と同じ `transcriptFormat` キーに保存する
+    @Published var transcriptFormat: TranscriptOutputFormat = .markdown
+
     /// 設定ファイル (~/.kilde/config.json) の内容。CLI と共有する (issue #14)
     private(set) var config = KildeConfig()
 
@@ -111,6 +120,34 @@ final class RecordingSetup: ObservableObject {
         }
 #endif
         hotkeyDraft = config.hotkey ?? ""
+        transcribeEnabled = config.transcribe ?? false
+        transcriptLocale = Self.normalizedLocale(config.locale)
+        transcriptFormat = config.transcriptFormat
+            .flatMap(TranscriptOutputFormat.init(rawValue:)) ?? .markdown
+    }
+
+    /// この環境で文字起こしが使えるか。判定は KildeCore の `Transcriber.isSupported`
+    /// (macOS 26 以上かつ SpeechTranscriber 利用可能) に任せる — 自前で OS バージョンを
+    /// 見ると、SpeechTranscriber が対応しない環境を «対応している» と誤表示する
+    var transcriptionAvailable: Bool { Transcriber.isSupported }
+
+    /// 文字起こしが使えないときの案内文。使えるなら nil
+    var transcriptionUnsupportedReason: String? {
+        if transcriptionAvailable { return nil }
+        // isSupported が false でも理由は 2 通りある。旧 macOS なら案内で足りるが、
+        // macOS 26 以上なのに使えない場合は音声データ (対応ロケール) の問題なので文言を分ける
+        if #available(macOS 26, *) {
+            return String(localized: "この環境では文字起こしを利用できません (macOS 26 以降で、対応言語の音声データが必要です)")
+        }
+        return String(localized: "文字起こしは macOS 26 以降で利用できます")
+    }
+
+    /// config の locale を UI の選択値へ正規化する。空・空白のみは「自動」(nil) と同じ扱いにする —
+    /// 手で編集した config.json に空文字が入っていても Picker が壊れないようにするため
+    private static func normalizedLocale(_ value: String?) -> String? {
+        guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty
+        else { return nil }
+        return trimmed
     }
 
     // MARK: - 開始できるか (issue #20)
@@ -214,6 +251,33 @@ final class RecordingSetup: ObservableObject {
             hotkeyDraft = previous ?? ""
         } catch {
             notice = String(localized: "ホットキーの設定を元に戻せません: \(error)")
+        }
+    }
+
+    // MARK: - 文字起こし (issue #145)
+
+    /// 文字起こしの設定を CLI と同じキー (transcribe / transcriptFormat / locale) で
+    /// 設定ファイルに保存する。トグルと Picker の変更時に呼ぶ (即時保存)。
+    ///
+    /// load → 書き換え → save の順で行うのは saveHotkey と同じで、GUI を開いている間に
+    /// CLI 側で変更された他のキーを壊さないため。保存に失敗したら画面の選択を
+    /// 前回読んだ config の値へ戻す — 戻さないと「保存したつもり」の選択が次回起動で
+    /// 消え、表示と実体がずれ続ける
+    func saveTranscriptionSettings() {
+        do {
+            var updated = try ConfigStore.load()
+            updated.transcribe = transcribeEnabled
+            updated.transcriptFormat = transcriptFormat.rawValue
+            updated.locale = transcriptLocale
+            try ConfigStore.save(updated)
+            config = updated
+            notice = String(localized: "文字起こしの設定を保存しました")
+        } catch {
+            notice = String(localized: "文字起こしの設定を保存できません: \(error)")
+            transcribeEnabled = config.transcribe ?? false
+            transcriptLocale = Self.normalizedLocale(config.locale)
+            transcriptFormat = config.transcriptFormat
+                .flatMap(TranscriptOutputFormat.init(rawValue:)) ?? .markdown
         }
     }
 
