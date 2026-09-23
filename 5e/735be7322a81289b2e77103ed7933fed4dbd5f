@@ -1,0 +1,22 @@
+PRIVACY.md
+  s_9b3f29c8629884::t_da57227fbc484a 98-99
+  s_9b3f29c8629884::t_ed6cd2c3364196 206-208
+  s_9b3f29c8629884::t_f22e0755bcc8b2 73-75
+  s_9b3f29c8629884::t_371d4fac34ec3e 179-181
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5e735be7322a81289b2e77103ed7933fed4dbd5f",
+  "prompts": {},
+  "sessions": {
+    "s_9b3f29c8629884": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f6e2aa4e-0667-4664-b3d5-4cbdb1b81a6e",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
