@@ -1,0 +1,21 @@
+docs/appstore/metadata/README.md
+  s_96929f71e485e5::t_e7a4b49b8afc51 11-28
+docs/appstore/metadata/metadata-ja.md
+  s_96929f71e485e5::t_f7b4128783dd94 3-7,11,17,23-52,55-58,61,64-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d81b9f3477ad0320185a36ebbc3d79f67a86c3ce",
+  "prompts": {},
+  "sessions": {
+    "s_96929f71e485e5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "s_96929f71e485e5",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
