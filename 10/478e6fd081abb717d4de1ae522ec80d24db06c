@@ -1,0 +1,25 @@
+gui/project.yml
+  s_c56f5148218ed3::t_c4310a76308fae 36-38
+.github/workflows/release.yml
+  s_c56f5148218ed3::t_115c58a0eb839f 50
+CLAUDE.md
+  s_c56f5148218ed3::t_d75e7635775d20 82
+docs/RELEASE.md
+  s_c56f5148218ed3::t_d42e2aba8c0aac 328
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "10478e6fd081abb717d4de1ae522ec80d24db06c",
+  "prompts": {},
+  "sessions": {
+    "s_c56f5148218ed3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d8177a0d-22a6-436c-9617-cd445658a2e6",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
