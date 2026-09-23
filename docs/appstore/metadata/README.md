@@ -58,6 +58,11 @@ App レコード (`com.takezou621.KildeGUI`, Apple ID `6812783176`) の App Stor
 
 ## 注意
 
+- **Apple の製品・サービス名を入れない** (Guideline 5.2.5)。en-US のサブタイトル
+  `Record what QuickTime can't` で 0.4.0 (5) がリジェクトされた (2026-09-23、issue #179)。
+  「QuickTime では録れない」のような比較は「標準の画面収録では録れない」
+  (en: "the built-in screen recording") のような一般表現で書く。
+  転記前に `grep -niE 'quicktime|facetime|siri' metadata-*.md` が空であることを確認する
 - **スクリーンショットはロケールごとに独立**。未登録のロケールは ASC が
   別ロケールのものをフォールバック表示する。現行の 5 枚は日本語 UI の
   モック (`../README.md` §2) なので、当面は ja のみ登録し、他ロケールは
