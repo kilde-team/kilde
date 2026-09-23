@@ -37,3 +37,6 @@ App レコード (`com.takezou621.KildeGUI`, Apple ID `6812783176`) の App Stor
   テンプレートを置く。提出時にその版の変更点を各言語で書く
 - アプリ名の先頭は全ロケールで `kilde` に統一する (brew / CLI / GitHub と
   同じ綴りで検索・参照できるようにするため)
+- アプリ名は 30 文字上限。en の `kilde — Screen & Voice Recorder` は
+  em dash + 両側スペースで 31 文字になるため **`kilde: Screen & Voice Recorder`**
+  (ちょうど 30 文字) を使う — 他ロケールは em dash 形式のまま 30 文字以内に収まる

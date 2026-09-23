@@ -3,7 +3,7 @@
 ## App name (≤30)
 
 ```
-kilde — Screen & Voice Recorder
+kilde: Screen & Voice Recorder
 ```
 
 ## Subtitle (≤30)
