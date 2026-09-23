@@ -9,7 +9,7 @@ kilde — Grabadora de pantalla
 ## Subtítulo (≤30)
 
 ```
-Graba lo que QuickTime no puede
+Audio del sistema + micrófono
 ```
 
 ## Descripción
@@ -54,7 +54,7 @@ comandos `kilde`. Más información en https://github.com/kilde-team/kilde
 ## Palabras clave (≤100)
 
 ```
-grabadora pantalla,grabar pantalla,audio del sistema,reunión,Zoom,grabar audio,micrófono,ventana
+grabadora de pantalla,grabar pantalla,audio del sistema,reunión,Zoom,grabar audio,micrófono,ventana
 ```
 
 ## Novedades (plantilla)

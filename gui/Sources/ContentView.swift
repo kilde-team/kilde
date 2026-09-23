@@ -201,12 +201,13 @@ struct ContentView: View {
     }
 
     /// CFBundleShortVersionString と CFBundleVersion (Sparkle の sparkle:version と
-    /// 同じ値) を並べて出す。ビルド番号はリリースごとに単調増加する
+    /// 同じ値) を並べて出す。ビルド番号はリリースごとに単調増加する。
+    /// String として連結されるため SwiftUI の暗黙ローカライズが効かない — 明示的に解決する
     private var currentVersion: String {
         let info = Bundle.main.infoDictionary ?? [:]
         let short = info["CFBundleShortVersionString"] as? String ?? "?"
         let build = info["CFBundleVersion"] as? String ?? "?"
-        return "\(short) (build \(build))"
+        return String(localized: "\(short) (build \(build))")
     }
 
     private var mode: Mode {
