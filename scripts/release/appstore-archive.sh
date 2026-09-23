@@ -363,9 +363,14 @@ while IFS= read -r -d '' item; do
             *) die "署名を検査できない項目があります: ${item#"$APP_IN_PKG"/} ($info)" ;;
         esac
     fi
+    # 許可リストで判定する: 署名があるものは Apple Distribution でなければ止める。Apple Development
+    # だけを弾くと、アドホック署名や Developer ID など別の証明書の署名が素通りする (CodeRabbit レビュー指摘)
     case "$info" in
+        *"Authority=Apple Distribution"*) ;;
         *"Authority=Apple Development"*)
             die "Apple Development の署名が残っています: ${item#"$APP_IN_PKG"/}" ;;
+        *)
+            die "Apple Distribution 以外の署名があります: ${item#"$APP_IN_PKG"/} ($(sed -n -E '/^(Authority|Signature)=/{p;q;}' <<<"$info"))" ;;
     esac
 done < <(find "$APP_IN_PKG" \( \
     \( -type d \( -name '*.app' -o -name '*.framework' -o -name '*.bundle' -o -name '*.xpc' \
