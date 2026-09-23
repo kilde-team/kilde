@@ -1,0 +1,42 @@
+docs/appstore/metadata/metadata-es.md
+  s_54dbfd11ff578a::t_a2e87d54257f98 54,57,60-62
+  s_54dbfd11ff578a::t_a4de739f34a799 63
+README.es.md
+  s_54dbfd11ff578a::t_2ab1db2e72abfc 119
+  s_54dbfd11ff578a::t_0aa2e9b111ca01 252
+docs/DEVELOPMENT.md
+  s_54dbfd11ff578a::t_76d6652b9e5656 381-385
+README.ko.md
+  s_54dbfd11ff578a::t_6431cfb7a9de8f 47
+docs/appstore/metadata/README.md
+  s_54dbfd11ff578a::t_25c7529c16234c 24,26-32
+gui/Resources/Localizable.xcstrings
+  s_54dbfd11ff578a::t_33173d704bbeec 776
+  s_54dbfd11ff578a::t_5160b1b104d5d8 434
+README.zh-CN.md
+  s_54dbfd11ff578a::t_600a38fde21257 45
+docs/appstore/metadata/metadata-ja.md
+  s_54dbfd11ff578a::t_19ba7c652e13ef 47,50,53-55
+  s_54dbfd11ff578a::t_c0f572e38fdbea 56
+docs/appstore/metadata/metadata-ko.md
+  s_54dbfd11ff578a::t_03ab5850f4fa8a 49,52,55-57
+  s_54dbfd11ff578a::t_4b0bd6acb4ef01 58
+gui/project.yml
+  s_54dbfd11ff578a::t_d23bf9598e1871 11-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "49621328ca5b5eefecd08a49213671600fc8b7b4",
+  "prompts": {},
+  "sessions": {
+    "s_54dbfd11ff578a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "cb032393-97e9-432a-a309-22cc34540e90",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
