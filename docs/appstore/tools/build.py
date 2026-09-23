@@ -144,7 +144,7 @@ def page(eyebrow, h1, sub, points, body, icon_uri, menubar_recording=False):
 SHOTS = [
     dict(name="01-capture-system-and-mic",
          h1='システム音声とマイクを、<br><span class="hl">1 本のファイル</span>に。',
-         sub="QuickTime では録れない「相手の声」を、自分の声と一緒に。メニューバーからワンクリックで。",
+         sub="標準の画面収録では録れない「相手の声」を、自分の声と一緒に。メニューバーからワンクリックで。",
          points=["画面・ウィンドウ・音声のみを選んで収録",
                  "1 トラック合成／ソースごとに分離を切り替え",
                  "選んだ音声と保存先は次回も保持"],
