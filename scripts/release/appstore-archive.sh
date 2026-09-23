@@ -213,6 +213,26 @@ codesign -d --entitlements :- "$APP_IN_ARCHIVE" > "$ENTITLEMENTS_PLIST" 2>/dev/n
     || die "アーカイブで App Sandbox が有効ではありません (entitlement の値を確認してください)"
 log "検証 OK: Sparkle 無し・App Sandbox 有効"
 
+# SPM のリソースバンドル (Firebase / GoogleUtilities / Promises / nanopb の *.bundle) は
+# コードを持たない (Contents/MacOS が無い) が、アーカイブ時に Apple Development で署名される。
+# -exportArchive のクラウド署名は Mach-O (アプリ本体・Frameworks) だけを Apple Distribution で
+# 署名し直し、これらのバンドルは Apple Development のまま .pkg に入る。ASC はそれを
+# ITMS-90284 (Invalid Code Signing — must be signed with the certificate that is contained in
+# the provisioning profile) で拒否する (2026-09-23 実測、0.4.0 を Transporter で上げたとき 13 件)。
+# コードの無いバンドルは署名不要のリソースなので署名を外し、エクスポートで付け直される
+# アプリ本体の署名にリソースとして封入させる。コードを含むバンドルが来たらこの前提が
+# 崩れるので止める
+for bundle in "$APP_IN_ARCHIVE"/Contents/Resources/*.bundle; do
+    [ -d "$bundle" ] || continue
+    if [ -e "$bundle/Contents/MacOS" ]; then
+        die "コードを含むリソースバンドルがあります: $(basename "$bundle") (署名方針を見直してください)"
+    fi
+    if [ -d "$bundle/Contents/_CodeSignature" ]; then
+        rm -rf "$bundle/Contents/_CodeSignature"
+        log "リソースバンドルの署名を外した: $(basename "$bundle")"
+    fi
+done
+
 # exportOptions はアップロード / .pkg 書き出しの両方で使う。signingStyle automatic
 # により、プロファイルが無ければ -allowProvisioningUpdates が作成する
 if [ "$UPLOAD" = true ]; then
@@ -282,6 +302,29 @@ done
 PKG="$OUTPUT_DIR/$(basename "$EXPORTED")"
 mv -f "$EXPORTED" "$PKG"
 rm -rf "$EXPORT_DIR"
+
+# 書き出した .pkg の中身を検証する。ASC に上げて初めて ITMS-90284 で落ちるのを避けるため、
+# アプリ全体の署名が有効で、Apple Development の署名が 1 つも残っていないことを確かめる
+VERIFY_DIR="$(mktemp -d)"
+pkgutil --expand-full "$PKG" "$VERIFY_DIR/pkg" >/dev/null || die ".pkg を展開できません: $PKG"
+APP_IN_PKG=""
+for candidate in "$VERIFY_DIR"/pkg/*/Payload/KildeGUI.app "$VERIFY_DIR"/pkg/*/Payload/Applications/KildeGUI.app; do
+    if [ -d "$candidate" ]; then
+        APP_IN_PKG="$candidate"
+        break
+    fi
+done
+[ -n "$APP_IN_PKG" ] || die ".pkg の中に KildeGUI.app が見つかりません ($VERIFY_DIR を確認してください)"
+codesign --verify --deep --strict "$APP_IN_PKG" || die ".pkg の中の KildeGUI.app の署名が無効です"
+while IFS= read -r -d '' item; do
+    if codesign -dvv "$item" 2>&1 | grep -q 'Authority=Apple Development'; then
+        die "Apple Development の署名が残っています: ${item#"$APP_IN_PKG"/}"
+    fi
+done < <(find "$APP_IN_PKG" \( -name '*.app' -o -name '*.framework' -o -name '*.bundle' -o -name '*.dylib' \) -print0)
+codesign -dvv "$APP_IN_PKG" 2>&1 | grep -q 'Authority=Apple Distribution' \
+    || die ".pkg の中の KildeGUI.app が Apple Distribution で署名されていません"
+rm -rf "$VERIFY_DIR"
+log "検証 OK: .pkg の署名はすべて Apple Distribution"
 log "完成: $PKG"
 echo "appstore: アップロードは --upload か、この .pkg を Transporter 等で"
 echo "appstore: アップロードしてください。Info.plist に差し込んだバージョンは終了時に元へ戻りました"
