@@ -1,0 +1,23 @@
+gui/Sources/ContentView.swift
+  s_3a51da2be45cb2::t_4cde9e65b13d8e 411-414
+  s_3a51da2be45cb2::t_7d6d4a39525145 467,476,485
+gui/Sources/RecordingSetup.swift
+  s_3a51da2be45cb2::t_cd600c6d36ff58 259-265
+  s_3a51da2be45cb2::t_247ddab47f8ae2 266-272,274-275,277-280,283-287,292-295,297
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "24a38f822a1b256611d2e5c6db3a9b9eb1aed28e",
+  "prompts": {},
+  "sessions": {
+    "s_3a51da2be45cb2": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ba7e9907-f416-4a3a-9bb2-181950213de7",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
