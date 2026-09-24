@@ -16,8 +16,8 @@ Audio del sistema + micrófono
 
 ```text
 kilde graba la pantalla y el audio juntos: una herramienta de código abierto
-para macOS que captura, con un clic, el audio del sistema que la grabadora
-de pantalla de QuickTime Player no puede registrar.
+para macOS que captura, con un clic, el audio del sistema que la grabación
+de pantalla integrada no puede registrar.
 
 PARA REUNIONES
 Graba reuniones de Zoom, Google Meet o Teams mezclando las voces de los

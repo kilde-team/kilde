@@ -63,6 +63,9 @@ Noto Sans CJK JP で、macOS 実機の SF Pro / ヒラギノとは字形が違�
   収録対象・音声、`panel_audio_only` (04) はそれに「起動」を加えたもの、`panel_done` (05) は
   保存完了・「グローバルホットキー」・最近の録画。実機のパネルはこれらを**すべて同時に**
   表示するので、**実機キャプチャへ差し替えるときは縦の情報量が変わる**点に注意すること
+- **Apple の製品名 (QuickTime など) を画面の文言に入れない**。「QuickTime では録れない」は
+  Guideline 5.2.5 でリジェクトされた (0.4.0 (5)、§5)。比較は「標準の画面収録」のような
+  一般表現で書く
 - **他社の商標を画面に入れない**。ウィンドウ一覧のサンプルは `com.example.*` の
   一般名にしてあり、入力デバイスの例も「外部マイク (USB)」のような一般名にしてある
   (実在の製品名は入れない — cubic レビュー指摘)。実機キャプチャに差し替えるときも、Zoom / Google Meet / Teams などの
@@ -171,3 +174,22 @@ user-created files are written there.
 [review-notes.md](review-notes.md)** — 保存先の説明に加え、文字起こし (issue #148)
 のオンデバイス処理・言語モデルの取得 (モデルが端末に無い場合)・権限の目的と
 テスト手順を含む統合版。
+
+### 0.4.0 (5) — Guideline 5.2.5 でリジェクト (2026-09-23)
+
+> The app's metadata includes content that is similar to designs or terms used for
+> Apple products and services … Terms for QuickTime in the app subtitle in an
+> inappropriate manner.
+
+**原因**: en-US のサブタイトル `Record what QuickTime can't` (ko も `QuickTime이 못 잡는
+소리까지`) が Apple の製品名を訴求に使っていた。0.3.0 の ja サブタイトルには QuickTime が
+無かったため、0.4.0 で en / zh-Hans / ko / es を追加したときに初めて審査に掛かった。
+
+**対応** (issue #179): 指摘はサブタイトルだけだが、Apple の文面は「images and terms」なので、
+再リジェクトを避けるためメタデータ全体から QuickTime を除いた — en / ko のサブタイトル、
+en / es / ko / zh-Hans の説明 (「標準の画面収録では録れない」系の一般表現に置換。ja の
+説明が最初からこの書き方)、ja スクリーンショット 01 の本文 (`tools/build.py`)。
+**App Store のメタデータ (名前・サブタイトル・説明・キーワード・スクリーンショット) には
+Apple の製品・サービス名 (QuickTime / FaceTime / Siri など) を比較・訴求の対象として
+入れない** (§2 の「他社の商標を画面に入れない」と同じ扱い)。README 等リポジトリの
+ドキュメントはメタデータではないので対象外。
