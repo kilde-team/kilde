@@ -1,0 +1,43 @@
+CLAUDE.md
+  s_ffa3ec82b71851::t_10c82e707807fd 57-60,196-202
+PRIVACY.md
+  s_ffa3ec82b71851::t_bd305647b6c84a 41-43,156-159
+docs/DESIGN.md
+  s_ffa3ec82b71851::t_ceeb260bc59bcd 755-789
+docs/DEVELOPMENT.md
+  s_ffa3ec82b71851::t_b7759019746187 295-319
+gui/Resources/Localizable.xcstrings
+  s_ffa3ec82b71851::t_e20daf147ef6a8 3338-3627
+gui/Sources/AppDelegate.swift
+  s_ffa3ec82b71851::t_ec2da46d175023 39-42,126,180-185
+gui/Sources/ContentView.swift
+  s_ffa3ec82b71851::t_ef3ddda1a40d93 15-16,182-184,411-438,834-851
+gui/Sources/MeetingAutoRecorder.swift
+  s_ffa3ec82b71851::t_1f977e915ec4bf 1-253
+gui/Sources/MeetingDetector.swift
+  s_ffa3ec82b71851::t_2d4307be39554d 1-323
+gui/Sources/RecordingNotifier.swift
+  s_ffa3ec82b71851::t_a1003b70849d80 139-154
+gui/Sources/RecordingSetup.swift
+  s_ffa3ec82b71851::t_52c59820cfa831 202-207
+gui/Sources/SelfTest.swift
+  s_ffa3ec82b71851::t_cac3ced3160db1 81-85
+gui/Sources/SelfTestMeeting.swift
+  s_ffa3ec82b71851::t_72fbc29832a88b 1-138
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "efdcfa10af678b5b96ae4e079cd41472ea9fe21c",
+  "prompts": {},
+  "sessions": {
+    "s_ffa3ec82b71851": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "7317b6dc-48df-4a9f-ab54-cce938a3aec9",
+        "model": "auto"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
