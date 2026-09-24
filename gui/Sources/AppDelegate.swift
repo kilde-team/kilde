@@ -30,6 +30,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let recording = RecordingController()
     private let setup = RecordingSetup()
     private let permissions = PermissionsModel()
+    /// 録画後の文字起こし (issue #146)。録画と同じく AppDelegate が持つ —
+    /// パネルを閉じても処理が続く (TranscriptionCoordinator のコメント参照)
+    private let transcription = TranscriptionCoordinator()
     /// 録画完了通知 (issue #20)。UNUserNotificationCenter はデリゲートを弱参照するので、
     /// ここで生存期間を持つ
     private let notifier = RecordingNotifier()
@@ -108,7 +111,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         p.behavior = .transient
         p.contentViewController = NSHostingController(
             rootView: ContentView(
-                setup: setup, recording: recording, permissions: permissions, updater: updater))
+                setup: setup, recording: recording, permissions: permissions, updater: updater,
+                transcription: transcription))
         popover = p
         item.button?.target = self
         item.button?.action = #selector(togglePopover)
@@ -121,6 +125,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
+        // 録画完了 → 文字起こしキューへ (issue #146)。@Published は willSet で新値を
+        // 流すが、この時点で RecordingController は completed イベントの処理中なので
+        // 出力ファイルは確定済み。.failed は録画ファイルが不完全 (または無い) ので
+        // 文字起こししない。選択値は**録画が終わったとき**の setup の値で確定する
+        // («開始したとき» ではない — 録画中に選択を変えるとこちらが優先される)。
+        // enqueue した時点で Job にコピーされるので、実行が後になった場合 (キュー) の
+        // その後の設定変更に引きずられない
+        recording.$phase
+            .sink { [weak self] phase in
+                guard let self, case .finished(let url) = phase else { return }
+                guard self.setup.transcribeEnabled, self.setup.transcriptionAvailable else { return }
+                self.transcription.enqueue(TranscriptionCoordinator.Job(
+                    recordingURL: url,
+                    format: self.setup.transcriptFormat,
+                    localeID: self.setup.transcriptLocale))
+            }
+            .store(in: &cancellables)
+
+        // 文字起こしの開始・終了でメニューバーの表示を取り直す。
+        // 進捗 (パーセント) はメニューバーに出さない — «処理中» と分かれば十分で、
+        // 0.5 秒間隔の数値更新はステータス項目の幅のちらつきを招く
+        transcription.$running.combineLatest(transcription.$queue)
+            .sink { [weak self] _, _ in
+                guard let self else { return }
+                // @Published は willSet で通知するため、この場で isBusy を読むと
+                // **古い値**になる。とりわけ最後のジョブの完了 (running=nil) では
+                // この後 @Published が更新されないので、同期的に読むと «文字起こし中»
+                // 表示が残り続ける。全更新が済んだ次の MainActor ひと仕事で読み直す
+                Task { @MainActor in
+                    self.updateStatusItem(phase: self.recording.phase, elapsed: self.recording.elapsed)
+                }
+            }
+            .store(in: &cancellables)
+
         applyHotkeyFromConfig()
 
         // セルフテストは 1 回ランループを回してから始める — applicationDidFinishLaunching の
@@ -129,7 +167,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self else { return }
             SelfTest.runIfRequested(
                 setup: self.setup, recording: self.recording, permissions: self.permissions,
-                updater: self.updater,
+                updater: self.updater, transcription: self.transcription,
                 popover: SelfTest.PopoverControl(
                     show: { [weak self] in self?.showPopover() },
                     // performClose は「閉じる要求」なので transient の popover では
@@ -152,6 +190,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             return .terminateLater
         }
+        // **文字起こし中は終了を待たない。** サイドカーの書き出しは
+        // TranscriptWriter が最後に 1 回だけ原子的に行う (一時ファイル + rename) ので、
+        // 途中で終了しても壊れたファイルは残らない。モデルの取得も «部分インストール»
+        // が無く中断は無害。長時間の文字起こしで終了を保留すると «終了できないアプリ»
+        // になるため、録画のファイナライズ待ち (壊れたファイルを残す) とは扱いを変える。
+        // 未書き出しの文字起こし結果は失われるが、再試行は録画ファイルが残っている限り
+        // 可能 (サイドカーだけの損失)
         guard recording.isActive else { return .terminateNow }
         recording.whenSessionEnds {
             NSApp.reply(toApplicationShouldTerminate: true)
@@ -299,23 +344,42 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let symbol: String
         let tint: NSColor?
         let title: String
+        // 文字起こし (issue #146)。**録画が進行中なら録画の表示が優先** — «今何を
+        // しているか» で失うものが大きいのは録画であり、文字起こしは録画が終わって
+        // から走るもの。録画中に文字起こしが並走してもアイコンは録画を示す。
+        // 録画の進行判定は **引数の phase から計算する** — この関数は @Published の
+        // willSet sink から呼ばれるため、recording.isActive (phase プロパティ) は
+        // まだ前の値を見る。録画が .finished になった瞬間 (willSet) に isActive は
+        // まだ true なので «録画終了 → 文字起こし表示» への切替がこの後一切
+        // 駆動されず、«文字起こし中» が永続的に欠落する
+        let recordingActive: Bool
         switch phase {
-        case .recording:
-            symbol = "record.circle.fill"
-            tint = .systemRed
-            title = RecordingController.formatElapsed(elapsed)
-        case .starting:
-            symbol = "record.circle"
-            tint = .systemOrange
-            title = String(localized: "準備中")
-        case .finalizing:
-            symbol = "record.circle"
-            tint = .systemOrange
-            title = String(localized: "保存中")
-        case .idle, .finished, .failed:
-            symbol = "record.circle"
-            tint = nil
-            title = ""
+        case .starting, .recording, .finalizing: recordingActive = true
+        case .idle, .finished, .failed: recordingActive = false
+        }
+        if !recordingActive, transcription.isBusy {
+            symbol = "waveform"
+            tint = .systemPurple
+            title = String(localized: "文字起こし中")
+        } else {
+            switch phase {
+            case .recording:
+                symbol = "record.circle.fill"
+                tint = .systemRed
+                title = RecordingController.formatElapsed(elapsed)
+            case .starting:
+                symbol = "record.circle"
+                tint = .systemOrange
+                title = String(localized: "準備中")
+            case .finalizing:
+                symbol = "record.circle"
+                tint = .systemOrange
+                title = String(localized: "保存中")
+            case .idle, .finished, .failed:
+                symbol = "record.circle"
+                tint = nil
+                title = ""
+            }
         }
         let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "kilde")
         // template のまま contentTintColor で色を付ける (待機中はライト/ダークの自動反転に任せる)
