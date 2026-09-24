@@ -232,11 +232,19 @@ scripts/release/appstore-archive.sh --version 0.4.0 --build 42 --upload # ASC �
 
 # ASC API キーを使う場合 (CI など Apple ID でログインできない環境)。
 # キーの作り方は §2 と同じ。**キーにはクラウド署名の権限 (App Manager 以上) が必要**
-export AC_API_KEY="$HOME/private/AuthKey_ABC123.p8"
-export AC_API_KEY_ID=ABC123
-export AC_API_ISSUER=00000000-0000-0000-0000-000000000000
+export KILDE_ASC_API_KEY="$HOME/private/AuthKey_ABC123.p8"
+export KILDE_ASC_API_KEY_ID=ABC123
+export KILDE_ASC_API_ISSUER=00000000-0000-0000-0000-000000000000
 scripts/release/appstore-archive.sh --version 0.4.0 --build 42
 ```
+
+**API キーの変数名は sign.sh (notarization) の `AC_API_KEY*` と分けてある**。
+以前は同じ `AC_API_KEY*` を読んでいたため、notarization 用のキーを export したままの
+シェルで実行すると、クラウド署名の権限を持たないそのキーが黙って使われ、アーカイブが
+終わった後のエクスポートで "Cloud signing permission error" / "No signing certificate
+\"Mac App Distribution\"" になった (0.5.0 build 6 の初回、2026-09-25 実測)。
+現在のスクリプトは `AC_API_KEY*` を読まず、設定されていれば「使わない」旨をログに出す。
+エクスポートに失敗したときは原因の候補 (キーの権限 / Xcode のサインイン切れ) を表示して止まる
 
 スクリプトは xcodegen → パッケージ解決 →
 バージョン差し込み (plutil。**追跡対象の Info.plist への書き換えだが、スクリプトが
@@ -254,8 +262,9 @@ scripts/release/appstore-archive.sh --version 0.4.0 --build 42
 - 証明書 (`Apple Distribution` と Mac Installer) とプロビジョニングプロファイルは
   `-allowProvisioningUpdates` が**自動作成する** — 手動での証明書発行は不要。
   API キーを渡さなければ Xcode の Apple ID セッションが使われる (開発機ならこれで
-  十分。v0.3.0 build 1 の .pkg 生成で実測)。API キーを渡すのにクラウド署名の権限が
-  無いと .pkg 書き出しが "Cloud signing permission error" で失敗する (Xcode 26 実測)
+  十分。v0.3.0 build 1 の .pkg 生成で実測)。API キー (`KILDE_ASC_API_KEY*`) を渡すのに
+  クラウド署名の権限が無いと .pkg 書き出しが "Cloud signing permission error" で失敗する
+  (Xcode 26 実測)
 - アーカイブ段階の署名は Apple Development (自動署名)。**ここで Apple Distribution を
   指定すると「conflicting provisioning settings」で xcodebuild が失敗する** —
   配布署名は `-exportArchive` 時に適用される (スクリプトが差し替える。Xcode 26 実測)
