@@ -25,10 +25,13 @@
 	     アクセスはプロセスの生存中限り -->
 	<key>com.apple.security.files.bookmarks.app-scope</key>
 	<true/>
-	<!-- Firebase Analytics が利用統計を Google のサーバーへ送るための外向き接続。
-	     App Sandbox 下では無いと接続自体が拒否され、MAS 版だけ黙って解析イベントが
-	     届かなくなる (cubic レビュー指摘)。MAS リリース前の App Privacy 申告の
-	     更新が前提 -->
+	<!-- 外向き接続。2 つの用途: (1) Firebase Analytics が利用統計を Google の
+	     サーバーへ送る。App Sandbox 下では無いと接続自体が拒否され、MAS 版だけ
+	     黙って解析イベントが届かなくなる (cubic レビュー指摘)。
+	     (2) 文字起こしの言語モデルの取得 (issue #148)。SpeechTranscriber の
+	     installModelAsset が Apple のサーバーからモデルをダウンロードする —
+	     文字起こし自体は完全オンデバイスだが、初回のモデル取得だけは外向き
+	     接続が要る。Firebase を外すときはこのキーを消さないこと -->
 	<key>com.apple.security.network.client</key>
 	<true/>
 </dict>

@@ -4,6 +4,10 @@ Mac App Store 配布 (App Store Connect の App レコード `com.takezou621.Kil
 ビジュアル素材の置き場です。**アイコンは本番の成果物**、**スクリーンショットは実機
 キャプチャに差し替えるまでのドラフト**という位置づけが違うので、混同しないこと。
 
+**審査用レビューノートの正本は [review-notes.md](review-notes.md)** (issue #148)。
+App Store Connect の App Review Information → Notes に転記する文案 (英語本文 +
+日本語参考訳) と、記載内容の根拠を置く。提出時にここを更新し、ASC 側を同じ内容に揃えること。
+
 ## 1. アプリアイコン (本番)
 
 意匠のベクタは `icon/kilde-icon-*.svg`。ビルドに入るのは
@@ -162,3 +166,7 @@ which opens a standard NSOpenPanel; the choice is persisted with a security-scop
 bookmark. The app container holds only the app's own settings (config.json) — no
 user-created files are written there.
 ```
+
+上記は 0.3.0 (2) 再提出時の保存先説明。**以降の提出で Notes に貼る正本は
+[review-notes.md](review-notes.md)** — 保存先の説明に加え、文字起こし (issue #148)
+のオンデバイス処理・言語モデルの初回取得・権限の目的とテスト手順を含む統合版。

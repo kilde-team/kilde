@@ -232,7 +232,23 @@ codesign -d --entitlements :- "$APP_IN_ARCHIVE" > "$ENTITLEMENTS_PLIST" 2>/dev/n
     || die "アーカイブのエンタイトルメントを取得できません"
 [ "$(plutil -extract 'com\.apple\.security\.app-sandbox' raw -o - "$ENTITLEMENTS_PLIST" 2>/dev/null)" = "true" ] \
     || die "アーカイブで App Sandbox が有効ではありません (entitlement の値を確認してください)"
-log "検証 OK: Sparkle 無し・App Sandbox 有効"
+# MAS 版が録画と文字起こし (issue #148) を成立させるのに必須のエンタイトルメント。
+# 欠けてもビルドは通り、壊れ方は実行時だけ (無音トラック・コンテナ内保存・モデル
+# 取得失敗) のため、ここで値を見ないと黙って壊れた配布物になる
+REQUIRED_ENTITLEMENTS=(
+    'com.apple.security.device.audio-input'
+    'com.apple.security.assets.movies.read-write'
+    'com.apple.security.files.user-selected.read-write'
+    'com.apple.security.files.bookmarks.app-scope'
+    'com.apple.security.network.client'
+)
+for key in "${REQUIRED_ENTITLEMENTS[@]}"; do
+    # plutil -extract はドットを keypath 区切りにするためエスケープする
+    escaped=${key//./\\.}
+    [ "$(plutil -extract "$escaped" raw -o - "$ENTITLEMENTS_PLIST" 2>/dev/null)" = "true" ] \
+        || die "アーカイブのエンタイトルメントに $key=true がありません (KildeGUI-AppStore.entitlements を確認してください)"
+done
+log "検証 OK: Sparkle 無し・App Sandbox 有効・録画/文字起こし用エンタイトルメント 5 キー有効"
 
 # SPM のリソースバンドル (Firebase / GoogleUtilities / Promises / nanopb の *.bundle) は
 # コードを持たない (Contents/MacOS が無い) が、アーカイブ時に Apple Development で署名される。
