@@ -95,7 +95,15 @@ enum SelfTest {
             fflush(stdout)
             let deadline = Date().addingTimeInterval(20)
             while Date() < deadline {
-                if !popover.isShown() { popover.show() }
+                if !popover.isShown() {
+                    // 別アプリがフォーカスを取ると transient の popover が閉じる。
+                    // 非アクティブのままでは再表示されないので、都度アクティブ化してから張り直す
+                    NSApp.activate(ignoringOtherApps: true)
+                    popover.show()
+                    guard popover.isShown() else {
+                        fail("ポップオーバーを再度開けませんでした (isShown=false)")
+                    }
+                }
                 RunLoop.main.run(until: Date().addingTimeInterval(0.5))
             }
             exit(0)
