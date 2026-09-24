@@ -622,7 +622,8 @@ enum SelfTest {
         transcription.enqueue(TranscriptionCoordinator.Job(
             recordingURL: inputURL,
             format: setup.transcriptFormat,
-            localeID: setup.transcriptLocale))
+            localeID: setup.transcriptLocale,
+            recordingDuration: nil))
         // lastCompletion / lastFailure の更新は Swift Concurrency で届くため
         // RunLoop.main.run では観測できない (reportNotifyTargets のコメントと同じ理由) —
         // await で待つ。完了時の終了処理 (サイドカー検査と exit) は
@@ -737,7 +738,8 @@ enum SelfTest {
         transcription.enqueue(TranscriptionCoordinator.Job(
             recordingURL: inputURL,
             format: setup.transcriptFormat,
-            localeID: setup.transcriptLocale))
+            localeID: setup.transcriptLocale,
+            recordingDuration: nil))
         transcription.cancelAll()
         Task { @MainActor in
             // cancelAll は running を即 nil にしない設計 («止まっている途中» を

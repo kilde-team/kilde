@@ -146,7 +146,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.transcription.enqueue(TranscriptionCoordinator.Job(
                     recordingURL: url,
                     format: self.setup.transcriptFormat,
-                    localeID: self.setup.transcriptLocale))
+                    localeID: self.setup.transcriptLocale,
+                    // 録画の長さ。計測 (issue #153) の区分だけに使う。elapsed は
+                    // .finished の時点で最後の progress 値のまま (次の start() まで
+                    // リセットされない)。progress は 0.5 秒周期なので実長より最大
+                    // 0.5 秒短いが、区分 (1 分 / 5 分…) の精度には影響しない
+                    recordingDuration: self.recording.elapsed))
             }
             .store(in: &cancellables)
 
