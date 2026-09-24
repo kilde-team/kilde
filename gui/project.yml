@@ -33,6 +33,181 @@ packages:
     # を消すため)。エンジンの更新を取り込むときは revision を新コミットに更新する。
     # kilde-cli-swift#10 のタグ整備後は from: "0.2.0" への切替を推奨
     # (成立条件は kilde-cli-swift#8 スパイク記録を参照)
+    # 4d2f251: 単一ウィンドウ収録で子ウィンドウを含めない (kilde-cli-swift#51 —
+    # Zoom の会議ウィンドウが縮小・合成されて写る問題) と、文字起こしの PCM を
+    # little endian に固定 (kilde-cli-swift#39) を含む (kilde#199)。
+    # 以前の 53ddd1d は文字起こし対応版 (kilde-cli-swift#34〜#38、kilde#149)
+    revision: 4d2f251535ed6e907fea185e116ed9b9eb1392b3
+  # GUI の自動更新 (issue #122)。Sparkle 2 のバイナリターゲット (macOS 12+) で、
+  # リンクすると Sparkle.framework が Contents/Frameworks に埋め込まれる。
+  # バージョンを固定する理由は kilde-cli-swift と同じ: 浮動参照だと上流の push が
+  # このリポジトリの変更なしに GUI ビルドを壊しうるため
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle.git
+    exactVersion: 2.10.0
+  # 利用状況の計測 (issue #135)。IDFA を収集しないためリンクするのは
+  # FirebaseAnalyticsCore (GoogleAppMeasurementCore = Ad ID サポート無し)。
+  # Firebase 11 までの FirebaseAnalyticsWithoutAdId は 12 でこの名前に統合された —
+  # 名前が存在しないため xcodegen 生成後のビルドが「Missing package product」で落ちる
+  # バージョンを固定する理由は上の 2 パッケージと同じ: 浮動参照だと上流の push が
+  # このリポジトリの変更なしに GUI ビルドを壊しうるため
+  firebase-ios-sdk:
+    url: https://github.com/firebase/firebase-ios-sdk.git
+    exactVersion: 12.19.2
+
+targets:
+  KildeGUI:
+    type: application
+    platform: macOS
+    sources:
+      - Sources
+      # アセットカタログ «だけ» を明示して足す。Resources ディレクトリごと入れると
+      # Info.plist と entitlements までリソースとしてバンドルにコピーされてしまう
+      # (両者は INFOPLIST_FILE / CODE_SIGN_ENTITLEMENTS から参照される設定ファイルで、
+      # バンドル直下に置かれるものではない)
+      - path: Resources/Assets.xcassets
+        buildPhase: resources
+      # 文字列カタログ (issue #137)。ja がキー兼既定値、en / zh-Hans / ko / es を収録。
+      # SwiftUI のリテラルは LocalizedStringKey としてこのカタログを引く
+      - path: Resources/Localizable.xcstrings
+        buildPhase: resources
+      # Firebase の設定ファイル (issue #135)。バンドル直下に置くべきファイルなので
+      # リソースとして«個別指定»する — Resources ディレクトリごと入れると Info.plist と
+      # entitlements までコピーされる既存の罠 (上記コメント) を踏まないため
+      - path: Resources/GoogleService-Info.plist
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.takezou621.KildeGUI
+        # アプリアイコン。Assets.xcassets の AppIcon を使う。Info.plist 側の
+        # CFBundleIconName と対で必要 — 片方だけだとアイコンが付かないまま通る
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        PRODUCT_NAME: KildeGUI
+        INFOPLIST_FILE: Resources/Info.plist
+        # 開発用の自己署名証明書で署名する (作成手順は docs/DEVELOPMENT.md)。
+        # TCC 権限 (画面収録等) はコード署名でアプリを識別するため、ad-hoc 署名の
+        # ままだとビルドのたびに権限の付与し直しを要求される
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: kilde-dev
+        # Xcode 26 の Debug ビルドは EF debug dylib (KildeGUI.debug.dylib) に本体を
+        # 分離するが、手動署名との組合せで dyld が「異なる Team ID」でロードを拒否し
+        # 起動直後に落ちる。無効化してコードを本体に直接リンクする
+        ENABLE_DEBUG_DYLIB: NO
+        # 配布 (issue #23) での Developer ID 署名・notarization の前提。
+        ENABLE_HARDENED_RUNTIME: YES
+        # Hardened Runtime 下でマイク・入力デバイス (MicStream) を使うには
+        # com.apple.security.device.audio-input が必須 (issue #18)。欠けると
+        # クラッシュもエラーもなく無音のトラックになる
+        CODE_SIGN_ENTITLEMENTS: Resources/KildeGUI.entitlements
+        # SWIFT_VERSION は swift-tools-version とは別物の「言語モード」指定で、
+        # 有効値は 4 / 4.2 / 5 / 6 のみ (5.10 は invalid とされる)。
+        # ルートパッケージ (swift-tools-version:5.10) が使う言語モード 5 に揃える
+        SWIFT_VERSION: "5"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        # Firebase 公式の手順どおり -ObjC を付ける。無いと Analytics の ObjC クラス
+        # が「参照されない」扱いで dead-strip され、configure() しても Analytics が
+        # 初期化されない (issue #135)。CocoaPods は自動で付けるが XcodeGen は付かない
+        OTHER_LDFLAGS: -ObjC
+    dependencies:
+      - package: kilde-cli-swift
+        product: KildeCore
+      - package: Sparkle
+        product: Sparkle
+      - package: firebase-ios-sdk
+        product: FirebaseAnalyticsCore
+
+  # App Store 配布用ターゲット (issue #126)。直接配布の KildeGUI と**同じ Sources を
+  # 条件コンパイルで共有**し、ガイドライン上の必須差分だけを持つ:
+  # - App Sandbox 必須 → Resources/KildeGUI-AppStore.entitlements
+  # - Sparkle (ストア外自己更新) は MAS で禁止 → パッケージ依存に入れず、
+  #   APPSTORE コンパイル条件で UpdaterCoordinator 等の Sparkle 経路を除外する
+  # バンドル ID は直接配布版と同じ (デュアルチャネルの標準構成)。TCC の画面収録権限は
+  # 署名チーム単位で効くため、権限は両ビルドで共有される
+  # 注意: PRODUCT_NAME は KildeGUI と同じため、**ビルド成果物は -derivedDataPath で
+  # 分離すること**。同じ DerivedData を使い回すと、先にビルドした KildeGUI の
+  # Sparkle.framework が成果物に残り、「MAS 版に Sparkle が無い」を受け入れ条件が崩れる
+  KildeGUI-AppStore:
+    type: application
+    platform: macOS
+    sources:
+      - Sources
+      # アイコンは KildeGUI と同じカタログを使う (App Store 審査はアイコン必須)
+      - path: Resources/Assets.xcassets
+        buildPhase: resources
+      # KildeGUI と同じ文字列カタログ (issue #137)。片方だけだと MAS 版だけ
+      # 英語・中国語等が出ない (ja のキーがそのまま表示される)
+      - path: Resources/Localizable.xcstrings
+        buildPhase: resources
+      # Firebase の設定ファイル (issue #135)。KildeGUI と同じ理由で個別指定
+      - path: Resources/GoogleService-Info.plist
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.takezou621.KildeGUI
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        PRODUCT_NAME: KildeGUI
+        INFOPLIST_FILE: Resources/Info.plist
+        # ローカル開発は kilde-dev で署名する (KildeGUI と同じ — TCC が同一識別で
+        # 権限を引き継ぐ)。アーカイブ時は appstore-archive.sh が自動署名
+        # (Apple Development) に差し替え、配布署名 (Apple Distribution) は
+        # -exportArchive 時に signingStyle=automatic + -allowProvisioningUpdates が
+        # 適用する。**アーカイブ段階で Apple Distribution を指定すると
+        # 「automatic signing と競合する」で xcodebuild が失敗する** (Xcode 26 実測)
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: kilde-dev
+        # KildeGUI と同じ Xcode 26 の EF debug dylib 問題への対策 (上記参照)
+        ENABLE_DEBUG_DYLIB: NO
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_ENTITLEMENTS: Resources/KildeGUI-AppStore.entitlements
+        SWIFT_VERSION: "5"
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        # KildeGUI と同じ -ObjC の理由 (issue #135)
+        OTHER_LDFLAGS: -ObjC
+        # Sparkle 経路 (UpdaterCoordinator など) を除外する条件。!APPSTORE 側に
+        # Sparkle 実装を置くため、ここを消すと MAS ビルドが Sparkle に依存して失敗する
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: APPSTORE
+    dependencies:
+      - package: kilde-cli-swift
+        product: KildeCore
+      # Analytics は Sparkle と違って MAS でも許可されるため両ターゲットで共有する
+      # (issue #135)。Sparkle を MAS に入れない条件 (APPSTORE) はここでは関係ない
+      - package: firebase-ios-sdk
+        product: FirebaseAnalyticsCore
+# KildeGUI — メニューバーアプリ (DESIGN.md §9 / §10, issue #17)
+#
+# .xcodeproj は生成物なのでコミットしない。次で生成する:
+#   cd gui && xcodegen
+name: KildeGUI
+options:
+  bundleIdPrefix: com.takezou621
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+  # ソースの文字列リテラルが日本語 (翻訳の source language) であることを
+  # Xcode に伝える。無いと既定値 en 扱いになり、Localizable.xcstrings の
+  # ja エントリが «翻訳先» として扱われる
+  developmentLanguage: ja
+
+# 分離先リポジトリ kilde-team/kilde-cli-swift (kilde#115) をリモート依存として
+# 追加し、KildeCore 製品だけをリンクする。CLI 分離後、kilde リポジトリ自体は
+# SPM パッケージを持たない。
+# リモート参照の実証は kilde-cli-swift#8 スパイクで完了 (SPM / Xcode 両経路で
+# ビルド・実行時リンクを確認)。unsafeFlags は kilde 実行ターゲットにのみ付いており、
+# GUI が消費する KildeCore 製品のビルドには影響しない。
+# 本リポジトリは private 依存を持つため、パッケージ解決には kilde-team の
+# メンバー権限 (git 認証) が必要 — 外部のクローン・CI では解決できない
+# 制約: KildeCore (の依存閉包) に unsafeFlags が入ると、バージョン指定の依存では
+# ビルドできなくなる (kilde-cli-swift#8 / kilde#115)。branch 参照の間は気づけない
+# ため、unsafeFlags は kilde 実行ターゲットに限定して維持すること
+packages:
+  kilde-cli-swift:
+    url: https://github.com/kilde-team/kilde-cli-swift.git
+    # 移行期は revision 固定 (cubic レビュー指摘)。branch: main の浮動参照だと
+    # kilde-cli-swift 側の push が kilde リポジトリの変更なしに GUI のビルドを壊し、
+    # 解決コミットも記録されない (xcodegen が .xcodeproj 再生成時に Package.resolved
+    # を消すため)。エンジンの更新を取り込むときは revision を新コミットに更新する。
+    # kilde-cli-swift#10 のタグ整備後は from: "0.2.0" への切替を推奨
+    # (成立条件は kilde-cli-swift#8 スパイク記録を参照)
     # 53ddd1d: 文字起こし (transcribe) 対応版のコミット (kilde-cli-swift#34〜#38)。
     # GUI の文字起こし実装にはエンジン側の新しい revision が必要 (kilde#149)
     revision: 53ddd1dc177f247220ee702b63c6d0014fe58815
