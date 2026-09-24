@@ -312,6 +312,12 @@ open KildeGUI.xcodeproj # 在 Xcode 中运行 KildeGUI scheme
 也会读取。复选框通过 `SMAppService` 将应用注册为登录时启动，macOS 可能
 会要求你在系统设置中批准。
 
+只有直接分发版（GitHub Releases / Homebrew，或从源码构建）才与 CLI 共享
+配置文件。Mac App Store 版运行在 App Sandbox 中，无法读取 `~/.kilde`，
+设置保存在应用自己的容器内
+（`~/Library/Containers/com.takezou621.KildeGUI/Data/Library/Application Support/kilde/`），
+因此初始值、全局快捷键等设置不会与 `kilde rec` 共享。
+
 ## 开发
 
 - 引擎和 CLI（`KildeCore`、`kilde`）：在
