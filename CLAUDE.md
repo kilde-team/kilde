@@ -200,6 +200,11 @@ Info.plist 埋め込みの `unsafeFlags`、SDK シンボルの CI 確認) は
     また**自動で始めた録画だけを自動で止める** (`MeetingAutoRecorder.ownsSession`) —
     手動の録画を会議の終了で止めない。マイク使用の判定 (`kAudioProcessPropertyIsRunningInput`)
     は macOS 14.2+ の API なので `#available` の内側に置く (デプロイ対象は 14.0)
+19. **appstore-archive.sh に notarization 用の `AC_API_KEY*` を渡さない**。App Store 用の
+    API キーは `KILDE_ASC_API_KEY*` (別名) でしか受け取らない。同じ名前を読んでいた頃は、
+    sign.sh 用に export したままのシェルで実行するとクラウド署名の権限の無いキーが黙って
+    使われ、アーカイブ後のエクスポートが "Cloud signing permission error" で落ちた
+    (0.5.0 build 6、2026-09-25)。変数名を sign.sh と «揃える» 方向に戻さないこと
 
 ## 6. 作業の進め方 — issue 駆動 (共通ルールは AGENTS.md)
 
