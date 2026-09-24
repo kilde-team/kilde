@@ -213,6 +213,12 @@ Finder で該当ファイルを選択表示する。パネルには保存先の�
 ログイン時起動のチェックボックスは `SMAppService` で登録する (macOS がシステム設定での
 承認を求めることがある)。
 
+設定ファイルを CLI と共有するのは直接配布版 (GitHub Releases / Homebrew、または
+ソースからのビルド) だけ。Mac App Store 版は App Sandbox で動くため `~/.kilde` を
+読めず、設定をアプリのコンテナ内
+(`~/Library/Containers/com.takezou621.KildeGUI/Data/Library/Application Support/kilde/`) に保存する。
+そのため初期値やホットキーなどの設定は `kilde rec` と共有されない。
+
 ## ロードマップ
 
 - **M0** ✅ 技術スパイク (ScreenCaptureKit の音声経路の検証)
