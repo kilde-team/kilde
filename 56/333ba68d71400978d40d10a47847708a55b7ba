@@ -1,0 +1,20 @@
+scripts/release/appstore-archive.sh
+  s_bac8baf9ac9e8b::t_851ff75d629538 252,257
+  s_bac8baf9ac9e8b::t_c6ef59550485c5 230-231
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "56333ba68d71400978d40d10a47847708a55b7ba",
+  "prompts": {},
+  "sessions": {
+    "s_bac8baf9ac9e8b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb14f038-937e-4691-a802-be3264c6d43e",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
