@@ -1,0 +1,43 @@
+gui/Sources/AppDelegate.swift
+  s_349c5a2f762c9a::t_14d490855feb68 101-107
+gui/Sources/ContentView.swift
+  s_349c5a2f762c9a::t_4b72c29c752eb5 691-693,701-714,716-718,725-755
+  s_349c5a2f762c9a::t_2591842799ba44 756-758
+gui/Sources/SelfTest.swift
+  s_349c5a2f762c9a::t_bb8e5202de735f 549-553
+  s_349c5a2f762c9a::t_93e65da6f283f8 509
+  s_349c5a2f762c9a::t_14902bd3050b7e 456-495,501-503
+  s_349c5a2f762c9a::t_b37a78df380d01 375
+  s_349c5a2f762c9a::t_80dc7c41265a1e 526-548,554-572
+gui/Sources/RecordingSetup.swift
+  s_349c5a2f762c9a::t_f886df8adb009a 511-513
+  s_349c5a2f762c9a::t_2444bb2aea70c1 498-510,514-531
+  s_349c5a2f762c9a::t_74d8b0606342d6 477-479
+  s_349c5a2f762c9a::t_64aae5ba15a57c 18-28
+  s_349c5a2f762c9a::t_ea2c7ac081a804 435-439,447,453-461,474-476,480-481
+gui/Sources/TranscriptionCoordinator.swift
+  s_349c5a2f762c9a::t_0a32fa90ff8a51 234-238
+  s_349c5a2f762c9a::t_a10605e2e95865 70-76,78-85,87-88,93-98
+  s_349c5a2f762c9a::t_32b7a6d6014339 99-100
+gui/Sources/RecordingNotifier.swift
+  s_349c5a2f762c9a::t_c3e528b2fc7ffd 226-228,238-240,246,248-255
+  s_349c5a2f762c9a::t_5c1fda4109c223 30-38
+  s_349c5a2f762c9a::t_95807c8b2adccb 46-67
+  s_349c5a2f762c9a::t_d1521bad735f22 111-135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c58ec2cec8937a97c9075d63a2ab9e483015fec2",
+  "prompts": {},
+  "sessions": {
+    "s_349c5a2f762c9a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "4f5ff417-38d1-4e11-b958-7522651a9a82",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
