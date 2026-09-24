@@ -7,9 +7,10 @@ import KildeCore
 struct MeetingObservation {
     let audio: [MeetingDetector.AudioActivity]
     let windows: [MeetingDetector.WindowCandidate]
-    /// 自動録画中の会議ウィンドウがまだあるか (自動録画中でなければ nil)
+    /// 自動録画中の会議ウィンドウがまだあるか (自動録画中でない、または問い合わせに
+    /// 失敗して不明なら nil)
     let watchedExists: Bool?
-    /// suppressed のうち、もう存在しないウィンドウ
+    /// suppressed のうち、**存在しないと確認できた**ウィンドウ (不明なものは含めない)
     let closed: Set<UInt32>
 }
 
@@ -78,6 +79,10 @@ final class MeetingAutoRecorder: ObservableObject {
     private var missingCount = 0
     private var silentSince: Date?
     private var stopRequested = false
+    /// 開始通知の保留。**実際に収録が始まった (.recording) ときに出す** —
+    /// start() を呼んだ時点ではまだ準備中で、デバイス解決などで失敗しうる。
+    /// 先に出すと «開始しました» の直後に «失敗しました» が届く (CodeRabbit レビュー指摘)
+    private var pendingStartNotice: (meeting: MeetingDetector.DetectedMeeting, micIncluded: Bool)?
     private var cancellables: Set<AnyCancellable> = []
 
     init(setup: RecordingSetup, recording: RecordingController,
@@ -124,8 +129,8 @@ final class MeetingAutoRecorder: ObservableObject {
         MeetingObservation(
             audio: MeetingDetector.probeAudio(),
             windows: MeetingDetector.probeWindows(),
-            watchedExists: watching.map(MeetingDetector.windowExists),
-            closed: suppressed.filter { !MeetingDetector.windowExists($0) })
+            watchedExists: watching.flatMap(MeetingDetector.windowExists),
+            closed: suppressed.filter { MeetingDetector.windowExists($0) == false })
     }
 
     private func tick() {
@@ -207,11 +212,11 @@ final class MeetingAutoRecorder: ObservableObject {
             missingCount = 0
             silentSince = nil
             activeMeeting = meeting
+            pendingStartNotice = (meeting, request.captureMic)
             updateTimer()
             recording.start(options)
-            notifier.notifyAutoRecordingStarted(
-                appName: meeting.appName, title: meeting.title, micIncluded: request.captureMic)
         } catch {
+            pendingStartNotice = nil
             notifier.notifyFailed(message: String(localized: "会議の自動録画を開始できません: \(error)"))
         }
     }
@@ -219,10 +224,12 @@ final class MeetingAutoRecorder: ObservableObject {
     /// 自動録画中の終了判定。ウィンドウが閉じた、または会議アプリの音声が長く止まった
     private func watchForEnd(_ observation: MeetingObservation) {
         guard let meeting = activeMeeting, !stopRequested else { return }
-        if observation.watchedExists == false {
-            missingCount += 1
-        } else {
-            missingCount = 0
+        // 不明 (nil) のときは数えも戻しもしない — 一時的な問い合わせ失敗で
+        // 停止に近づけず、直前の «見つからない» も帳消しにしない
+        switch observation.watchedExists {
+        case false?: missingCount += 1
+        case true?: missingCount = 0
+        case nil: break
         }
         if MeetingDetector.isAudioActive(for: meeting.rule, in: observation.audio) {
             silentSince = nil
@@ -245,8 +252,17 @@ final class MeetingAutoRecorder: ObservableObject {
             ownsSession = false
             stopRequested = false
             activeMeeting = nil
+            // 収録に至らなかったセッションの開始通知は出さない (失敗の通知だけが届く)
+            pendingStartNotice = nil
             updateTimer()
-        case .starting, .recording, .finalizing:
+        case .recording:
+            if let notice = pendingStartNotice {
+                pendingStartNotice = nil
+                notifier.notifyAutoRecordingStarted(
+                    appName: notice.meeting.appName, title: notice.meeting.title,
+                    micIncluded: notice.micIncluded)
+            }
+        case .starting, .finalizing:
             break
         }
     }

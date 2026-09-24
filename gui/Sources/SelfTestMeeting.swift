@@ -127,7 +127,7 @@ extension SelfTest {
               + "titled=\(liveWindows.filter { !$0.title.isEmpty }.count)")
         if let detected = MeetingDetector.evaluate(audio: liveAudio, windows: liveWindows) {
             print("selftest: meeting detected app=\(detected.appName) window=\(detected.windowID) "
-                  + "title=\(detected.title) exists=\(MeetingDetector.windowExists(detected.windowID))")
+                  + "title=\(detected.title) exists=\(MeetingDetector.windowExists(detected.windowID).map { "\($0)" } ?? "unknown")")
         } else {
             print("selftest: meeting detected=none")
         }

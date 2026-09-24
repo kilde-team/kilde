@@ -314,10 +314,15 @@ enum MeetingDetector {
 
     /// ウィンドウがまだ存在するか (画面外・他のスペース・最小化も «存在する» に含める)。
     /// 会議の終了判定に使う — Zoom は画面共有中に会議ウィンドウを隠すので、
-    /// on-screen だけを見ると共有を始めた瞬間に «会議が終わった» と誤判定する
-    static func windowExists(_ windowID: UInt32) -> Bool {
+    /// on-screen だけを見ると共有を始めた瞬間に «会議が終わった» と誤判定する。
+    ///
+    /// **問い合わせ自体が失敗したら nil (不明) を返す。** CGWindowListCopyWindowInfo は
+    /// GUI のセキュリティセッションの外などで nil を返す。これを «存在しない» と読むと、
+    /// 一時的な失敗で自動録画を止めたり、抑止中の会議を «閉じた» とみなして録り直したりする
+    /// (CodeRabbit レビュー指摘)
+    static func windowExists(_ windowID: UInt32) -> Bool? {
         guard let list = CGWindowListCopyWindowInfo(.optionIncludingWindow, CGWindowID(windowID))
-                as? [[String: Any]] else { return false }
+                as? [[String: Any]] else { return nil }
         return list.contains { ($0[kCGWindowNumber as String] as? Int) == Int(windowID) }
     }
 }
