@@ -7,8 +7,8 @@ import KildeCore
 struct MeetingObservation {
     let audio: [MeetingDetector.AudioActivity]
     let windows: [MeetingDetector.WindowCandidate]
-    /// 観測を始めた時点で録画中だったか。観測は非同期なので、適用までの間に
-    /// 手動録画が終わると «録画中に始まった会議» を見落とす (CodeRabbit レビュー指摘)
+    /// 観測を始めた時点で録画中だったか。観測は非同期なので、適用までの間に録画の状態が
+    /// 変わりうる — 変わった周期は判定を見送る (apply のコメント参照)
     let recordingWasActive: Bool
     /// 自動録画中の会議ウィンドウがまだあるか (自動録画中でない、または問い合わせに
     /// 失敗して不明なら nil)
@@ -175,9 +175,16 @@ final class MeetingAutoRecorder: ObservableObject {
             candidate = nil
             return
         }
-        // 観測開始時と今のどちらかで録画中なら «手動録画中に始まった会議» として扱う
-        // (観測中に手動録画が終わっても、観測中に録画が始まっても取りこぼさない)
-        if observation.recordingWasActive || recording.isActive {
+        // 観測は非同期なので、その間に録画の状態が変わることがある。変わった周期は
+        // «会議が手動録画と重なったか» を決められない — 開始時の値で抑止すると録画終了後に
+        // 始まった会議まで録らなくなり、今の値だけを見ると録画中に始まった会議を録り始める
+        // (どちらも CodeRabbit レビュー指摘)。**判定を次の周期に送る** (状態が変わらない
+        // 周期で決める)。2 秒の周期を 1 回見送るだけなので、取りこぼしは起きない
+        if observation.recordingWasActive != recording.isActive {
+            candidate = nil
+            return
+        }
+        if recording.isActive {
             // 手動で録っている最中に始まった会議。その録画が終わった後に
             // 同じ会議を勝手に録り始めない (ユーザーは既に自分で録っている)
             suppressed.insert(detected.windowID)
