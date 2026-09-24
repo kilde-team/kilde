@@ -321,8 +321,20 @@ enum MeetingDetector {
     /// 一時的な失敗で自動録画を止めたり、抑止中の会議を «閉じた» とみなして録り直したりする
     /// (CodeRabbit レビュー指摘)
     static func windowExists(_ windowID: UInt32) -> Bool? {
-        guard let list = CGWindowListCopyWindowInfo(.optionIncludingWindow, CGWindowID(windowID))
+        allWindowIDs().map { $0.contains(windowID) }
+    }
+
+    /// 存在するすべてのウィンドウの ID (画面外・他のスペース・最小化を含む)。
+    /// 問い合わせに失敗したら nil。
+    ///
+    /// **`.optionIncludingWindow` 単独では問い合わせない。** Apple のドキュメント上、
+    /// このオプションは above/below の指定と組み合わせないと意味のある結果を返さない
+    /// 契約で、存在するウィンドウが空配列で返りうる — それを «閉じた» と読むと会議中に
+    /// 自動録画が止まる (CodeRabbit レビュー指摘)。`.optionAll` で一覧を取り、
+    /// 自動録画中のウィンドウと抑止中のウィンドウをまとめて 1 回の問い合わせで判定する
+    static func allWindowIDs() -> Set<UInt32>? {
+        guard let list = CGWindowListCopyWindowInfo(.optionAll, kCGNullWindowID)
                 as? [[String: Any]] else { return nil }
-        return list.contains { ($0[kCGWindowNumber as String] as? Int) == Int(windowID) }
+        return Set(list.compactMap { ($0[kCGWindowNumber as String] as? Int).map(UInt32.init) })
     }
 }

@@ -126,11 +126,13 @@ final class MeetingAutoRecorder: ObservableObject {
 
     /// 観測は MainActor の外で行う (CGWindowList・CoreAudio の呼び出しで UI を止めない)
     nonisolated static func observe(watching: UInt32?, suppressed: Set<UInt32>) async -> MeetingObservation {
-        MeetingObservation(
+        // 存在確認はウィンドウ全体の一覧 1 回で済ませる (問い合わせ失敗なら nil = 不明)
+        let existing = MeetingDetector.allWindowIDs()
+        return MeetingObservation(
             audio: MeetingDetector.probeAudio(),
             windows: MeetingDetector.probeWindows(),
-            watchedExists: watching.flatMap(MeetingDetector.windowExists),
-            closed: suppressed.filter { MeetingDetector.windowExists($0) == false })
+            watchedExists: watching.flatMap { id in existing.map { $0.contains(id) } },
+            closed: existing.map { ids in suppressed.filter { !ids.contains($0) } } ?? [])
     }
 
     private func tick() {
