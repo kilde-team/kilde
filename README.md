@@ -346,6 +346,13 @@ configuration file, so `kilde rec` picks it up as well. A checkbox registers
 the app to launch at login through `SMAppService`, which macOS may ask you to
 approve in System Settings.
 
+The configuration file is shared with the CLI only by the directly distributed
+app (GitHub Releases / Homebrew, or a build from source). The Mac App Store
+version runs in the App Sandbox and cannot read `~/.kilde`: it keeps its
+settings inside its own container
+(`~/Library/Containers/com.takezou621.KildeGUI/Data/Library/Application Support/kilde/`), so its
+initial values, hotkey, and other settings are not shared with `kilde rec`.
+
 ## Development
 
 - Engine and CLI (`KildeCore`, `kilde`): developed in
