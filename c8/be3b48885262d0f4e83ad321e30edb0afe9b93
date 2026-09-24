@@ -1,0 +1,27 @@
+gui/Sources/SelfTest.swift
+  s_ca2d21e2e69650::t_03c44023d96ac5 38-43
+  s_ca2d21e2e69650::t_5d5ae57bd9d090 783-789
+  s_ca2d21e2e69650::t_5bf4e052c8f820 707-710
+  s_ca2d21e2e69650::t_6c5221ef9d3eb6 843-856,858,868-872
+  s_ca2d21e2e69650::t_1067487e67bbb1 891
+  s_ca2d21e2e69650::t_767091a3f3eab6 906-915,919-924,929
+docs/DEVELOPMENT.md
+  s_ca2d21e2e69650::t_0de00a219d019e 234-240
+  s_ca2d21e2e69650::t_7dc22853e03336 225-226,229,231
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c8be3b48885262d0f4e83ad321e30edb0afe9b93",
+  "prompts": {},
+  "sessions": {
+    "s_ca2d21e2e69650": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f515da53-98de-4323-96b6-cdd89c57b422",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
