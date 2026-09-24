@@ -128,8 +128,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 録画完了 → 文字起こしキューへ (issue #146)。@Published は willSet で新値を
         // 流すが、この時点で RecordingController は completed イベントの処理中なので
         // 出力ファイルは確定済み。.failed は録画ファイルが不完全 (または無い) ので
-        // 文字起こししない。«録画したときの選択» をスナップショットして渡す —
-        // 実行は後になることがある (キュー) ので、その間の設定変更に引きずられない
+        // 文字起こししない。選択値は**録画が終わったとき**の setup の値で確定する
+        // («開始したとき» ではない — 録画中に選択を変えるとこちらが優先される)。
+        // enqueue した時点で Job にコピーされるので、実行が後になった場合 (キュー) の
+        // その後の設定変更に引きずられない
         recording.$phase
             .sink { [weak self] phase in
                 guard let self, case .finished(let url) = phase else { return }

@@ -62,6 +62,10 @@ final class TranscriptionCoordinator: ObservableObject {
     var isBusy: Bool { running != nil || !queue.isEmpty }
 
     private var task: Task<Void, Never>?
+    /// 実行の世代。pump が新しいジョブを始めるたびに増える。Task は同一性比較
+    /// (===) できないため、cancelAll の hung 観測が «自分が cancel した実行»
+    /// か «猶予中に始まった次の実行» かを区別するのに使う
+    private var runGeneration = 0
 
     /// 録画完了時に AppDelegate から呼ぶ。実行は pump() が担当し、
     /// 先に走っている文字起こしがあれば待ち行列に入るだけ
@@ -73,10 +77,32 @@ final class TranscriptionCoordinator: ObservableObject {
     /// «中止»。待機中のジョブを捨て、実行中は Task.cancel() で止める。
     /// running/runPhase は execute の catch 経由でクリアされるまで残す —
     /// ここで即 nil にすると «止まっている途中» に UI が «何もしていない» に見え、
-    /// 中止が実際に効いたか分からなくなる
+    /// 中止が実際に効いたか分からなくなる。
+    ///
+    /// 例外: エンジンの SpeechAnalyzer 初期化 (prepareSession) はキャンセルの
+    /// 通知窓の外で走るため、この初期化中に cancel すると Task は CancellationError
+    /// を投げず await で止まり続ける (実測 — エンジンは pin 固定で直せない)。
+    /// Task は強制終了できないので、猶予を過ぎても running が同じ Task のまま
+    /// 戻らなければ hung とみなして UI 状態だけ手動で戻す。execute の
+    /// finish/fail は `running?.id == job.id` の guard で弾かれるため、hung の
+    /// Task が後から戻ってきても状態を壊さない
     func cancelAll() {
         queue.removeAll()
+        let cancelledGeneration = runGeneration
+        let hadRunningTask = task != nil
         task?.cancel()
+        guard hadRunningTask else { return }
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            guard let self else { return }
+            // 猶予中に catch 経由で running が空になり、後続ジョブが pump で
+            // 始まっていれば世代が進んでいる — 次の実行は触らず何もしない
+            guard self.running != nil, self.runGeneration == cancelledGeneration else { return }
+            self.running = nil
+            self.runPhase = nil
+            self.task = nil
+            self.pump()
+        }
     }
 
     /// 最後の失敗ジョブを先頭に戻して再実行する。
@@ -93,6 +119,7 @@ final class TranscriptionCoordinator: ObservableObject {
         guard running == nil, !queue.isEmpty else { return }
         let job = queue.removeFirst()
         running = job
+        runGeneration += 1
         // 最初の進捗が届くまでの仮表示。モデル取得なのか文字起こしなのかは
         // execute が modelAssetStatus の結果で確定させる
         runPhase = .preparingModel(progress: 0)
@@ -131,6 +158,13 @@ final class TranscriptionCoordinator: ObservableObject {
                     }
                 }
                 self?.setPhase(.transcribing(progress: 0), for: job)
+                // エンジンの SpeechAnalyzer 初期化は withTaskCancellationHandler
+                // の登録前に走り、**この窓で cancel されると中止が届かず
+                // CancellationError も投げずに await で止まり続ける** (実測)。
+                // cancel 済みの Task が初期化に入るのをここで防ぐ — 初期化
+                // 実行中に cancel された場合の残りは cancelAll 側の hung 観測
+                // タイムアウトで閉じる
+                try Task.checkCancellation()
                 let transcriber = Transcriber(localeIdentifier: localeID)
                 // speakers: nil — トラック数からエンジン側が自動判定する
                 // (1 トラック / 合成 = ラベルなし、2 トラック (separate) = 0: 相手 / 1: 自分)
@@ -141,6 +175,10 @@ final class TranscriptionCoordinator: ObservableObject {
                             self?.setPhase(.transcribing(progress: progress), for: job)
                         }
                     })
+                // transcribeWithSpeakers は Task.cancel() を見て CancellationError で
+                // 中止するが、キャンセル直後に正常完了して返る狭いレースも排除できない。
+                // «中止» したのにサイドカーが書かれる経路を write の直前で閉じる
+                try Task.checkCancellation()
                 // TranscriptWriter.write は **最後に 1 回だけ原子的に書く**
                 // (一時ファイル + rename)。キャンセルでここへ届かなければサイドカーは
                 // 残らない — «キャンセルで出力ファイルが残らない» の根拠

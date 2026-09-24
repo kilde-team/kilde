@@ -194,12 +194,49 @@ KILDE_GUI_SELFTEST_TRANSCRIBE=1 KILDE_GUI_SELFTEST_TRANSCRIBE_INPUT=/tmp/kilde-t
 ```
 
 **このセルフテストで「通った」にできないもの**: «録画完了 → 自動で文字起こしが
-積まれる» の配線 (実録画が要るため) と、オフラインでのモデル取得失敗と再試行
-(ネットワークの再現が要るため)。前者は録画セルフテストの後に出る文字起こしの
-表示で目視、後者は録画機能への影響がないことを構造 (録画完了の購読と
-TranscriptionCoordinator の切り離し) で担保しています。進捗は 10 秒ごとに
+積まれる» の配線 (実録画が要るため — 後述の `RECORD_TRANSCRIBE=1` で確かめられる) と、
+オフラインでのモデル取得失敗と再試行 (ネットワークの再現が要るため)。後者は
+録画機能への影響がないことを構造 (録画完了の購読と TranscriptionCoordinator の
+切り離し) で担保しています。«中止» の経路は `TRANSCRIBE_CANCEL=1` (後述) で
+確かめられます。進捗は 10 秒ごとに
 `selftest: waiting phase=…` として出ます — 初回実行は言語モデルの取得に
 数分かかることがあります。
+
+`KILDE_GUI_SELFTEST_TRANSCRIBE_CANCEL=1` は録画せず、**«中止» の経路**を確かめて
+終わります (issue #146 の受け入れ条件 «キャンセルで出力ファイルが残らず、録画ファイルは
+残る» の回帰)。`TRANSCRIBE_INPUT` で渡した音声を enqueue して**直後に cancelAll** し、
+(1) running が空に戻る、(2) 完了・失敗の表示が立たない (キャンセルは失敗に数えない設計)、
+(3) サイドカーが残らない、の 3 点を見ます。**«直後» にするのは最悪ケースのため** —
+エンジンの SpeechAnalyzer 初期化はキャンセル通知窓の外で走るため、この窓での中止は
+Task が hung しうる (実測) で、このテストは hung を 5 秒で打ち切る観測タイムアウトの
+復帰経路も通します。入力は cancelAll 前に完了する競合を避けるため長め (目安 30 秒) を
+渡してください:
+
+```sh
+# 長めの入力 (目安 30 秒)。短いと cancelAll 前に文字起こしが完了してしまう
+say -v Kyoko -o /tmp/kilde-cancel-test.aiff "文字起こしの中止テストです。(以下 30 秒分の読み上げ)"
+afconvert -f m4af -d aac /tmp/kilde-cancel-test.aiff /tmp/kilde-cancel-test.m4a
+KILDE_GUI_SELFTEST_TRANSCRIBE_CANCEL=1 KILDE_GUI_SELFTEST_TRANSCRIBE_INPUT=/tmp/kilde-cancel-test.m4a \
+  "$APP/Contents/MacOS/KildeGUI"
+# → selftest: cancelled cleanly (no completion, no failure, no sidecar) (exit 0)
+```
+
+録画セルフテストに `KILDE_GUI_SELFTEST_RECORD_TRANSCRIBE=1` を付けると、**実録画の
+完了から «AppDelegate が文字起こしを自動で積む» 配線、文字起こし、サイドカー書き出し
+までを 1 回で確かめて終わります** (TRANSCRIBE 単体では確かめられない «録画完了 →
+自動 enqueue» の経路)。録画中に音を載せるには、別ターミナルから `say -v Kyoko "…"` を
+鳴らします (システム音声として録れます)。実行手順とスリープ・音声デバイスの注意は
+録画セルフテストと同じ (このセクションの上と「検証時の環境の注意」) です:
+
+```sh
+# 録画 12 秒の間に、別ターミナルで say -v Kyoko "…読み上げ…" を鳴らす
+KILDE_GUI_SELFTEST_RECORD=12 KILDE_GUI_SELFTEST_RECORD_TRANSCRIBE=1 \
+  KILDE_GUI_SELFTEST_OUTPUT=/tmp \
+  "$APP/Contents/MacOS/KildeGUI"
+# → selftest: finished /tmp/kilde-….mp4 bytes=…
+#   selftest: waiting for transcription of kilde-….mp4
+#   selftest: transcribed segments->kilde-….md bytes=… (exit 0)
+```
 
 ### 検証時の環境の注意
 
