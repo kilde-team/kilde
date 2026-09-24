@@ -1,0 +1,21 @@
+gui/Resources/Localizable.xcstrings
+  s_bac8baf9ac9e8b::t_f8a02cc87c6199 706,712,2493
+gui/Sources/ContentView.swift
+  s_bac8baf9ac9e8b::t_56a9a44953ccd6 39-45,444,450,455-465
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5f45412e48025d5b49af874fc0c9883964fe8ecc",
+  "prompts": {},
+  "sessions": {
+    "s_bac8baf9ac9e8b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb14f038-937e-4691-a802-be3264c6d43e",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
