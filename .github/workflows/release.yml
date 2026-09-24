@@ -36,14 +36,14 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           # 認証情報を .git/config に残さない (zizmor artipacked — kilde#201)。
           # 後続 step は git の認証を使わない: Release の作成は gh + GH_TOKEN (env)
           persist-credentials: false
 
       - name: Checkout kilde-cli-swift (CLI / KildeCore engine)
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           # CLI のソース本体。kilde リポジトリには GUI・配布・ドキュメントしか
           # 残っていない (kilde#115 / #118)。path は sign.sh の既定 (KILDE_CLI_DIR
@@ -116,6 +116,11 @@ jobs:
         run: swift build -c release --package-path kilde-cli-swift
 
       - name: Verify embedded Info.plist survived the build
+        # バージョンは env 経由で渡す。run: に ${{ }} を直接展開するとテンプレート展開が
+        # シェルの構文として解釈される (zizmor template-injection、issue #203)。
+        # 値は自分の step の出力なので実害は低いが、他の step (VERSION env) と形を揃える
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           # リンカの -sectcreate で Info.plist が埋め込まれていること (CLAUDE.md §5-7)。
           # バージョン差し込みが実行ファイルに届いているかもここで確認する
@@ -123,7 +128,7 @@ jobs:
             || { echo "Info.plist の埋め込みが失敗"; exit 1; }
           PLIST="$(otool -P kilde-cli-swift/.build/release/kilde | awk '/^<\?xml/ {f=1} f' \
             | plutil -extract CFBundleShortVersionString raw -o - -)"
-          [ "$PLIST" = "${{ steps.version.outputs.version }}" ] \
+          [ "$PLIST" = "$VERSION" ] \
             || { echo "埋め込みバージョンが不一致: $PLIST"; exit 1; }
           kilde-cli-swift/.build/release/kilde --version
 
