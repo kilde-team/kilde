@@ -743,7 +743,10 @@ struct ContentView: View {
                 transcription.enqueue(TranscriptionCoordinator.Job(
                     recordingURL: item.url,
                     format: setup.transcriptFormat,
-                    localeID: setup.transcriptLocale))
+                    localeID: setup.transcriptLocale,
+                    // 後から文字起こしする録画は録音長を持たないため nil (計測では長さ区分を送らない)。
+                    // SelfTest の Job 生成と同じ扱い。
+                    recordingDuration: nil))
             } label: {
                 Image(systemName: "waveform")
                     .foregroundStyle(busy ? Color(nsColor: .disabledControlTextColor) : .secondary)
