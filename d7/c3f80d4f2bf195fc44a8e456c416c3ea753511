@@ -1,0 +1,19 @@
+gui/Sources/AppDelegate.swift
+  s_323487eefe74c8::t_ab3ed336e3c0f6 150-156
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d7c3f80d4f2bf195fc44a8e456c416c3ea753511",
+  "prompts": {},
+  "sessions": {
+    "s_323487eefe74c8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a5c24b3f-22ab-49c6-bc7a-8292338e1d68",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
