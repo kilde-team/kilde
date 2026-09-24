@@ -362,6 +362,14 @@ configuración, así que `kilde rec` también lo lee. Una casilla registra la ap
 para que se inicie al iniciar sesión mediante `SMAppService`; macOS puede
 pedirte aprobarlo en Ajustes del Sistema.
 
+El archivo de configuración solo se comparte con el CLI en la versión de
+distribución directa (GitHub Releases / Homebrew, o compilada desde el código
+fuente). La versión del Mac App Store se ejecuta en el App Sandbox y no puede
+leer `~/.kilde`: guarda sus ajustes dentro de su propio contenedor
+(`~/Library/Containers/com.takezou621.KildeGUI/Data/Library/Application Support/kilde/`), por lo que
+los valores iniciales, el atajo global y los demás ajustes no se comparten con
+`kilde rec`.
+
 ## Desarrollo
 
 - Motor y CLI (`KildeCore`, `kilde`): se desarrollan en
