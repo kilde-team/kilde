@@ -37,6 +37,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # 認証情報を .git/config に残さない (zizmor artipacked — kilde#201)。
+          # 後続 step は git の認証を使わない: Release の作成は gh + GH_TOKEN (env)
+          persist-credentials: false
 
       - name: Checkout kilde-cli-swift (CLI / KildeCore engine)
         uses: actions/checkout@v4
@@ -52,6 +56,10 @@ jobs:
           # fine-grained PAT (contents:read) を使う
           token: ${{ secrets.KILDE_CLI_SWIFT_TOKEN }}
           path: kilde-cli-swift
+          # PAT を kilde-cli-swift/.git/config に残さない (zizmor artipacked — kilde#201)。
+          # この checkout の git 認証を使う後続 step は無い — SwiftPM の clone には
+          # 下の step が global config の url 置換で別に PAT を渡している
+          persist-credentials: false
 
       # actions/checkout の token は checkout 先リポジトリの .git/config にしか
       # 反映されない。署名ブランチでは sign.sh が xcodebuild で GUI をビルドし、
@@ -275,7 +283,9 @@ jobs:
           TAG="v$VERSION"
           # 成果物の zip は実ファイルから取る (ブランチで名前が変わるため。
           # 現在はどちらも kilde-<ver>-macos.zip)
-          ARTIFACT="$(ls dist/*.zip 2>/dev/null | head -1)"
+          # ls の出力を解析しない (ShellCheck SC2012 — kilde#201)。dist/*.zip と同じく
+          # 直下だけを見て、名前順の先頭を採る (find は列挙順が不定なので sort する)
+          ARTIFACT="$(find dist -maxdepth 1 -type f -name '*.zip' 2>/dev/null | sort | head -1)"
           [ -n "$ARTIFACT" ] || { echo "dist/ に zip が無い — ビルド/署名 step を確認"; exit 1; }
           NOTES="$(mktemp)"
           {
