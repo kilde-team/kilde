@@ -1,0 +1,21 @@
+gui/Sources/AppDelegate.swift
+  s_323487eefe74c8::t_6f2743b60445bb 349-360
+gui/Sources/SelfTest.swift
+  s_323487eefe74c8::t_9d4d4f93e60108 587-597
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "15541ec4d2cc5cad7d673b377e8d0c19b03a495f",
+  "prompts": {},
+  "sessions": {
+    "s_323487eefe74c8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a5c24b3f-22ab-49c6-bc7a-8292338e1d68",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
