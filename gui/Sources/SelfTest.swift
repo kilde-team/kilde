@@ -372,6 +372,7 @@ enum SelfTest {
             // 同じディレクトリを指しているのに別の文字列になり、検証側で比較できない
             setup.request.outputDirectory = URL(fileURLWithPath: dir, isDirectory: true)
                 .resolvingSymlinksInPath()
+            Self.plantRecentRecordingFixtures(in: setup.request.outputDirectory)
         }
         print("selftest: outputDirectory=\(setup.request.outputDirectory.path)")
 
@@ -452,21 +453,60 @@ enum SelfTest {
             }
             print("selftest: scanFinished=\(setup.recentScanFinished)")
             print("selftest: recentCount=\(setup.recentRecordings.count)")
-            for url in setup.recentRecordings {
-                print("selftest: recent=\(url.lastPathComponent)")
+            for item in setup.recentRecordings {
+                print("selftest: recent=\(item.url.lastPathComponent)"
+                    + " transcript=\(item.transcriptURL.map { $0.lastPathComponent } ?? "(なし)")")
+            }
+
+            // 設置した 4 パターンが «期待のサイドカー判定» に一致するか (issue #147)。
+            // KILDE_GUI_SELFTEST_OUTPUT が指定されたときだけ設置する —
+            // ユーザーの実ディレクトリに検証用ファイルを残さないため
+            if ProcessInfo.processInfo.environment["KILDE_GUI_SELFTEST_OUTPUT"] != nil {
+                let expected: [String: String?] = [
+                    // 既定名のサイドカー
+                    "kilde-selftest-take1.mov": "kilde-selftest-take1.md",
+                    // 連番退避 (TranscriptWriter.write が既定名を避けて作る形)
+                    "kilde-selftest-take2.mov": "kilde-selftest-take2-2.md",
+                    // サイドカー無し
+                    "kilde-selftest-take3.mov": nil,
+                    // 非数字接尾辞は «退避» と誤判定させない
+                    "kilde-selftest-take4.mov": nil,
+                ]
+                let byName = Dictionary(uniqueKeysWithValues: setup.recentRecordings.map {
+                    ($0.url.lastPathComponent, $0.transcriptURL?.lastPathComponent)
+                })
+                for (recording, expectedSidecar) in expected {
+                    guard let actual = byName[recording] else {
+                        print("selftest: transcriptMatch=false reason=recordingMissing"
+                            + " \(recording)")
+                        fflush(stdout)
+                        fail("最近の録画に \(recording) が現れません"
+                            + " (走査のフィルタか limit が退行している可能性)")
+                        continue
+                    }
+                    let ok = actual == expectedSidecar
+                    print("selftest: transcriptMatch=\(ok) \(recording)"
+                        + " expect=\(expectedSidecar ?? "(なし)")"
+                        + " actual=\(actual ?? "(なし)")")
+                    if !ok {
+                        fail("\(recording) のサイドカー判定が期待と一致しません"
+                            + " (expect=\(expectedSidecar ?? "nil") actual=\(actual ?? "nil"))")
+                    }
+                }
             }
 
             // Finder に渡す URL は **実装本体 (RecordingNotifier.revealTarget) に決めさせる**。
             // ここで分岐を書き写すと、実装が退行してもこの検証は通ってしまう
             if let first = setup.recentRecordings.first {
-                let target = RecordingNotifier.revealTarget(for: first)
-                print("selftest: revealTarget=\(target.url.path) select=\(target == .select(first))")
+                let target = RecordingNotifier.revealTarget(for: first.url)
+                print("selftest: revealTarget=\(target.url.path)"
+                    + " select=\(target == .select(first.url))")
             }
             // 欠損ファイルの URL は **列挙で得た URL から作る** — outputDirectory は
             // 環境変数の文字列由来で /tmp のままだが、列挙結果は解決済みの
             // /private/tmp を返す。同じディレクトリなのに文字列が違うので、
             // 基準を揃えないと検証側で比較できない
-            let baseDirectory = setup.recentRecordings.first?.deletingLastPathComponent()
+            let baseDirectory = setup.recentRecordings.first?.url.deletingLastPathComponent()
                 ?? setup.request.outputDirectory
             let missing = baseDirectory.appendingPathComponent("kilde-does-not-exist.mov")
             let fallback = RecordingNotifier.revealTarget(for: missing)
@@ -481,6 +521,53 @@ enum SelfTest {
             }
             exit(0)
         }
+    }
+
+    /// «最近の録画» のサイドカー検出を確かめるための 4 パターンを
+    /// KILDE_GUI_SELFTEST_OUTPUT のディレクトリに置く (issue #147)。
+    ///
+    /// **KILDE_GUI_SELFTEST_OUTPUT が指定されたときだけ** 呼ぶ — ユーザーの実
+    /// ディレクトリに検証用のファイルを残さないため。走査は中身を見ない
+    /// (拡張子と `kilde-` 接頭辞で拾う) ので、録画の中身は空でよい。
+    /// サイドカーの中身も走査では読まれないが、«開く» で手動確認したときに
+    /// 何のファイルか分かるように 1 行入れておく
+    @MainActor
+    private static func plantRecentRecordingFixtures(in directory: URL) {
+        // (録画ファイル, サイドカー) の組。サイドカー名が検出ロジックの入力になる
+        let fixtures: [(recording: String, sidecar: String?)] = [
+            ("kilde-selftest-take1.mov", "kilde-selftest-take1.md"),      // 既定名
+            ("kilde-selftest-take2.mov", "kilde-selftest-take2-2.md"),    // 連番退避
+            ("kilde-selftest-take3.mov", nil),                            // サイドカー無し
+            // 非数字の接尾辞 — «退避» と誤判定してはいけない
+            ("kilde-selftest-take4.mov", "kilde-selftest-take4-note.md"),
+        ]
+        let previous = Date(timeIntervalSinceNow: -60)
+        for fixture in fixtures {
+            let recording = directory.appendingPathComponent(fixture.recording)
+            do {
+                try Data().write(to: recording, options: .atomic)
+                // 更新日時を実時刻より過去 (60 秒前) にする — 走査は新しい方から
+                // recentLimit (5) 件に切るので、直前に録った実録画と競合しても
+                // 実録画を優先させる。一覧から漏れたら
+                // transcriptMatch=false reason=recordingMissing で失敗になるので、
+                // 漏れは黙って成功にならない
+                try FileManager.default.setAttributes(
+                    [.modificationDate: previous], ofItemAtPath: recording.path)
+            } catch {
+                fail("検証用の録画ファイルを作成できません (\(fixture.recording)): \(error)")
+            }
+            if let sidecar = fixture.sidecar {
+                let body = "# selftest \(fixture.recording)\n"
+                do {
+                    try body.data(using: .utf8)?.write(
+                        to: directory.appendingPathComponent(sidecar), options: .atomic)
+                } catch {
+                    fail("検証用のサイドカーを作成できません (\(sidecar)): \(error)")
+                }
+            }
+        }
+        print("selftest: fixturesPlanted=4 in=\(directory.path)")
+        fflush(stdout)
     }
 
     /// 文字起こし経路の検証 (KILDE_GUI_SELFTEST_TRANSCRIBE=1、issue #146)。

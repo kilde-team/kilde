@@ -27,6 +27,15 @@ final class RecordingNotifier: NSObject {
     /// (@MainActor 隔離のままだと Swift 6 言語モードでエラーになる)
     nonisolated static let urlKey = "kilde.outputPath"
 
+    /// 文字起こし完了通知のカテゴリ (issue #147)。«開く» / «Finder で表示» の 2 アクションを
+    /// 持つ。id は固定文字列 — 登録済みカテゴリと content.categoryIdentifier の突き合わせに
+    /// 使うだけなので、文言の変更に引きずられない
+    nonisolated static let transcriptCategoryID = "kilde.transcript.completed"
+    /// «開く» のアクション id。既定のバナー全体のクリックと同じ動作 (ファイルを開く) にする
+    private nonisolated static let transcriptOpenActionID = "kilde.transcript.open"
+    /// «Finder で表示» のアクション id。録画完了通知と同じ選択表示にする
+    private nonisolated static let transcriptRevealActionID = "kilde.transcript.reveal"
+
     private let center = UNUserNotificationCenter.current()
 
     /// アプリ起動時に 1 回呼ぶ。許可ダイアログはここで出る。
@@ -34,6 +43,28 @@ final class RecordingNotifier: NSObject {
     func start() {
         center.delegate = self
         center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
+        // 文字起こし完了通知のカテゴリ (issue #147)。**ここで 1 回だけ登録する** —
+        // 通知を出すたびに setNotificationCategories を投げると、登録の反映を待たずに
+        // add した通知がアクション無しのバナーになる競合を作る。起動直後の登録は
+        // 最初の文字起こし完了 (数分以上先) より十分早い
+        center.setNotificationCategories([
+            UNNotificationCategory(
+                identifier: Self.transcriptCategoryID,
+                actions: [
+                    // .foreground: 押したらアプリ (と開く先のアプリ) を前面にする。
+                    // メニューバーアプリは通知クリックでも前面にならないことがある
+                    // (didReceive のコメント参照) ので、«開く» は明示的に前面化する
+                    UNNotificationAction(
+                        identifier: Self.transcriptOpenActionID,
+                        title: String(localized: "開く"),
+                        options: [.foreground]),
+                    UNNotificationAction(
+                        identifier: Self.transcriptRevealActionID,
+                        title: String(localized: "Finder で表示"),
+                        options: []),
+                ],
+                intentIdentifiers: [])
+        ])
     }
 
     /// 録画完了を通知する。`elapsed` は一時停止を除いた実収録時間
@@ -74,6 +105,31 @@ final class RecordingNotifier: NSObject {
         content.userInfo = [Self.urlKey: url.path]
 
         remember(identifier: identifier, url: url)
+        post(identifier: identifier, content: content, completion: completion)
+    }
+
+    /// 文字起こしの完了を通知する (issue #147)。
+    ///
+    /// **録画完了通知との違いは 2 つ**: アクション («開く» / «Finder で表示») を持ち、
+    /// クリックの対象がサイドカー (文字起こし本文) である点。長時間の会議録画の
+    /// 文字起こしは完了がポップオーバーの外 (パネルを閉じた後) になることが普通なので、
+    /// «できました» を他アプリの前面からでも受け取れるようにする。
+    /// TranscriptionCoordinator の onCompletion (AppDelegate が配線) から呼ばれる
+    func notifyTranscriptionCompleted(sidecarURL: URL,
+                                      completion: @escaping () -> Void = {}) {
+        let identifier = UUID().uuidString
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "文字起こしを保存しました")
+        // パス全体は長すぎるのでファイル名だけ。場所は «Finder で表示» と
+        // «最近の録画» で見せる (録画完了通知と同じ方針)
+        content.body = sidecarURL.lastPathComponent
+        content.sound = .default
+        content.categoryIdentifier = Self.transcriptCategoryID
+        // 通知は macOS 側に残るため、再起動後のクリックでも対象を開けるように
+        // パスを通知自身に持たせる (録画完了通知と同じ)
+        content.userInfo = [Self.urlKey: sidecarURL.path]
+
+        remember(identifier: identifier, url: sidecarURL)
         post(identifier: identifier, content: content, completion: completion)
     }
 
@@ -167,7 +223,9 @@ extension RecordingNotifier: UNUserNotificationCenterDelegate {
         completionHandler([.banner, .sound])
     }
 
-    /// 通知をクリックしたら Finder で選択表示する (issue #20 の受け入れ条件)
+    /// 通知をクリックしたら Finder で選択表示する (issue #20 の受け入れ条件)。
+    /// 文字起こし完了通知 (issue #147) は «開く» / 既定クリックでファイルを開き、
+    /// «Finder で表示» で選択表示する
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
@@ -177,14 +235,24 @@ extension RecordingNotifier: UNUserNotificationCenterDelegate {
         // 再起動後は対応表が空なので、通知自身が持つパスを使う
         let carried = (response.notification.request.content.userInfo[Self.urlKey] as? String)
             .map { URL(fileURLWithPath: $0) }
+        let isTranscript = response.notification.request.content.categoryIdentifier
+            == Self.transcriptCategoryID
+        let action = response.actionIdentifier
         Task { @MainActor [weak self] in
             defer { completionHandler() }
             guard let self else { return }
             guard let url = self.take(identifier: identifier) ?? carried else { return }
             // LSUIElement のアプリは通知クリックでもアクティブにならないことがあり、
-            // Finder が他のウィンドウの後ろに出る場合がある
+            // 開いた Finder / テキストエディタが他のウィンドウの後ろに出る場合がある
             NSApp.activate(ignoringOtherApps: true)
-            Self.revealInFinder(url)
+            if isTranscript, action != Self.transcriptRevealActionID {
+                // «開く» と既定クリック (バナー本体) は既定アプリで開く。
+                // «Finder で表示» (revealAction) だけが選択表示に分岐する。
+                // 予期しないアクション id も «開く» 側に倒す — 潰すより用は足りる
+                NSWorkspace.shared.open(url)
+            } else {
+                Self.revealInFinder(url)
+            }
         }
     }
 

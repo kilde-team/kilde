@@ -67,11 +67,35 @@ final class TranscriptionCoordinator: ObservableObject {
     /// か «猶予中に始まった次の実行» かを区別するのに使う
     private var runGeneration = 0
 
+    /// 完了 1 件ごとに呼ばれる (issue #147)。AppDelegate が «文字起こしを保存しました»
+    /// 通知 (RecordingNotifier) につなぐためのフック。**@Published の lastCompletion を
+    /// Combine で監視しない** — willSet で流れるので sink の場で読む値は前の完了で、
+    /// «この呼び出しがどの完了に対応するか» の対応を取るには delayed な間接参照になる。
+    /// 1 対 1 のコールバックの方が «完了したら確実に 1 回呼ばれる» 契約になる
+    var onCompletion: ((Completion) -> Void)?
+
     /// 録画完了時に AppDelegate から呼ぶ。実行は pump() が担当し、
-    /// 先に走っている文字起こしがあれば待ち行列に入るだけ
+    /// 先に走っている文字起こしがあれば待ち行列に入るだけ。
+    ///
+    /// **同じ録画のジョブが既に実行中・待機中なら捨てる。** «後から文字起こしする»
+    /// (issue #147) が加わって、録画完了の自動投入と手動投入が、あるいは手動投入の
+    /// 連打が同じ録画を 2 回走らせる経路ができた。TranscriptWriter は上書きせず
+    /// 連番退避するため、2 回走ると `kilde-….md` と `kilde-…-2.md` が並び、
+    /// «どちらが正しい文字起こしか» 分からなくなる。«同じ録画のジョブは最大 1 件»
+    /// に絞る。録画完了の自動投入は新規ファイルなので影響しない
     func enqueue(_ job: Job) {
+        guard running?.recordingURL != job.recordingURL,
+              !queue.contains(where: { $0.recordingURL == job.recordingURL }) else { return }
         queue.append(job)
         pump()
+    }
+
+    /// «後から文字起こしする» ボタン (issue #147) の無効化判定。
+    /// 同じ録画のジョブが実行中か待機中なら true — enqueue が捨てるので、
+    /// «押せるのに押しても何も起きない» ではなく «押せない» を見せる
+    func isQueuedOrRunning(_ recordingURL: URL) -> Bool {
+        running?.recordingURL == recordingURL
+            || queue.contains { $0.recordingURL == recordingURL }
     }
 
     /// «中止»。待機中のジョブを捨て、実行中は Task.cancel() で止める。
@@ -207,7 +231,11 @@ final class TranscriptionCoordinator: ObservableObject {
         // 完了したら前回の失敗表示を消す — このジョブの成功が «回復» の証拠なのに
         // 失敗が出続けると «まだ壊れている» 誤解を招く
         lastFailure = nil
-        lastCompletion = Completion(job: job, sidecarURL: sidecarURL)
+        let completion = Completion(job: job, sidecarURL: sidecarURL)
+        lastCompletion = completion
+        // 通知 (issue #147) は **@Published 更新の後に** 呼ぶ — フック側が
+        // coordinator の状態 (isQueuedOrRunning 等) を読んでも整合する順序にする
+        onCompletion?(completion)
         pump()
     }
 
