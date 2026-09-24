@@ -1,0 +1,19 @@
+gui/Sources/SelfTest.swift
+  s_3a60f17d16ffb3::t_7a29c92fa2e1b9 98-106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "25072231625948c95b2f3dd27010244e007cf61e",
+  "prompts": {},
+  "sessions": {
+    "s_3a60f17d16ffb3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b851898e-a6b0-45ca-95de-33959c0b1beb",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
