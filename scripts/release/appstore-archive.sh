@@ -227,6 +227,8 @@ fi
 # entitlements は :- で XML plist として受け取る (省略形 (-) は人間可読テキストで
 # plutil が読めない)。plutil -extract はドットを keypath 区切りにするため、
 # 鍵名のドットはバックスラッシュでエスケープする。
+# -expect bool も付ける — raw 出力だけだと文字列 "true" も通ってしまい、
+# サンドボックスは Boolean でないと効かないため型まで見る (CodeRabbit レビュー指摘)。
 # 検査はアーカイブ直後の署名と、exportArchive の再署名を経た .pkg 内のアプリの
 # 両方で行う (Codex レビュー指摘) — «export が entitlement を変えないはず» を
 # 配布物側で裏取りする。--upload 経路は .pkg が手元に残らないため、アーカイブ側の
@@ -247,12 +249,12 @@ verify_required_entitlements() {
     local app="$1" target="$2" plist="$3" key escaped
     codesign -d --entitlements :- "$app" > "$plist" 2>/dev/null \
         || die "$target のエンタイトルメントを取得できません"
-    [ "$(plutil -extract 'com\.apple\.security\.app-sandbox' raw -o - "$plist" 2>/dev/null)" = "true" ] \
+    [ "$(plutil -extract 'com\.apple\.security\.app-sandbox' raw -expect bool -o - "$plist" 2>/dev/null)" = "true" ] \
         || die "$target で App Sandbox が有効ではありません (entitlement の値を確認してください)"
     for key in "${REQUIRED_ENTITLEMENTS[@]}"; do
         # plutil -extract はドットを keypath 区切りにするためエスケープする
         escaped=${key//./\\.}
-        [ "$(plutil -extract "$escaped" raw -o - "$plist" 2>/dev/null)" = "true" ] \
+        [ "$(plutil -extract "$escaped" raw -expect bool -o - "$plist" 2>/dev/null)" = "true" ] \
             || die "$target のエンタイトルメントに $key=true がありません (KildeGUI-AppStore.entitlements を確認してください)"
     done
 }
