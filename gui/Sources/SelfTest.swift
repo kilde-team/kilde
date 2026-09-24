@@ -35,9 +35,12 @@ enum SelfTest {
             if transcribeText == "1" {
                 runTranscription(setup: setup, transcription: transcription)
             } else {
-                // 秒数 1 は録画なし版と衝突するため実録画版では使えない (音声としても短すぎる)
-                guard let seconds = Double(transcribeText), seconds >= 2 else {
-                    fail("KILDE_GUI_SELFTEST_TRANSCRIBE は 1 (録画なし版) か 2 以上の秒数 (実録画版) で指定してください: \(transcribeText)")
+                // 秒数 1 は録画なし版と衝突するため実録画版では使えない (音声としても短すぎる)。
+                // 無限大・過大値は Double("inf") が素通りして Task.sleep の UInt64 変換や
+                // Int(秒数) で trap するので、«指定ミスは fail の契約どおり exit 1» に落とす
+                guard let seconds = Double(transcribeText),
+                      seconds.isFinite, seconds >= 2, seconds <= 3600 else {
+                    fail("KILDE_GUI_SELFTEST_TRANSCRIBE は 1 (録画なし版) か 2〜3600 の秒数 (実録画版) で指定してください: \(transcribeText)")
                 }
                 runTranscribeWithRecording(
                     seconds: seconds, setup: setup, recording: recording,
@@ -828,6 +831,10 @@ enum SelfTest {
                   transcription.lastFailure == nil, Date() < enqueueDeadline {
                 try? await Task.sleep(nanoseconds: 100_000_000)
             }
+            // すぐ死んだジョブは «始まらない» ではなく «始まって失敗した» — 誤診しない
+            if let failure = transcription.lastFailure {
+                fail("文字起こしが失敗: \(failure.message)")
+            }
             guard transcription.isBusy || transcription.lastCompletion != nil else {
                 fail("録画完了後に文字起こしが始まりません"
                     + " (transcribeEnabled=\(setup.transcribeEnabled)"
@@ -900,6 +907,13 @@ enum SelfTest {
                 + " popoverShown=\(popoverShownAtEnd)"
                 + " recordingBytes=\(recordingBytes)")
             fflush(stdout)
+            // fail() は «停止 → ファイナライズ待ち» で RunLoop をポンプしている間に、この
+            // Task («成功待ち») を先へ進めてしまう。closeFailed の譲りは whenSessionEnds 側に
+            // しかないので、«失敗宣言のあとの成功報告» にならないよう exit の直前で確認する
+            if isFailing {
+                exit(1)
+            }
+            cleanupSpeech()
             exit(0)
         }
     }
@@ -953,18 +967,36 @@ enum SelfTest {
         return url
     }
 
+    /// afplay と say の後片付け。**exit は子プロセスを殺さない**ので、鳴りっぱなしと
+    /// 一時ファイルの残留は自分で止める (fail 経路と成功 exit の両方から呼ぶ)
+    @MainActor
+    private static func cleanupSpeech() {
+        if let player = speechPlayer, player.isRunning {
+            player.terminate()
+        }
+        speechPlayer = nil
+        if let url = speechSampleURL {
+            try? FileManager.default.removeItem(at: url)
+            speechSampleURL = nil
+        }
+    }
+
     /// afplay で音声を再生する (起動だけして完了は待たない — «録画が回っている間に
-    /// 音が出る» ことが目的。プロセスの後片付けは selftest の exit に任せる)
+    /// 音が出る» ことが目的)。プロセスと音声ファイルは cleanupSpeech() が片付ける
     private static func playAudio(_ url: URL) -> Bool {
         let player = Process()
         player.executableURL = URL(fileURLWithPath: "/usr/bin/afplay")
         player.arguments = [url.path]
         do {
             try player.run()
-            return true
         } catch {
             return false
         }
+        MainActor.assumeIsolated {
+            speechPlayer = player
+            speechSampleURL = url
+        }
+        return true
     }
 
     /// 実行段階の 1 行表記 (待ちループの定期ログに使う)
@@ -983,7 +1015,7 @@ enum SelfTest {
     /// «マイクテストの録画です。» から «テスト» «録画» を探すとき、認識結果の
     /// 区切り方 (句点・読点の有無) を吸収するため
     private static func normalizeForMatch(_ text: String) -> String {
-        let dropped: Set<Character> = ["、", "。", ",", ".", "\n", "\r", " ", "\u{3000}", "!", "?", "!", "?"]
+        let dropped: Set<Character> = ["、", "。", ",", ".", "\n", "\r", " ", "\u{3000}", "!", "?"]
         return text.lowercased().filter { !dropped.contains($0) }
     }
 
@@ -998,13 +1030,30 @@ enum SelfTest {
     /// 実行中のセッション。失敗時に停止 → ファイナライズしてから終わるために持つ
     @MainActor private static var active: RecordingController?
 
+    /// 一度でも fail() に入ったら立つ。fail() は RunLoop をポンプしながらファイナライズを
+    /// 待つので、その間にほかの Task («成功待ち» や «録画開始待ち») が進行し、
+    /// «失敗宣言のあとの成功報告» や fail() の再入 (二重のエラー報告と競合する
+    /// 後片付け) が起こりうる — このフラグで両方を防ぐ
+    @MainActor private static var isFailing = false
+
+    /// 鳴らし中の afplay と say で作ったテスト音声 (cleanupSpeech が後片付けする)
+    @MainActor private static var speechPlayer: Process?
+    @MainActor private static var speechSampleURL: URL?
+
     /// 失敗して終了する。録画中なら停止してファイナライズを待つ — そのまま exit すると
     /// 書きかけのファイルが残り、`kilde inspect` が "Cannot Open" (-11829) になる
     private static func fail(_ message: String) -> Never {
+        // 再入ガード。下の RunLoop ポンプの間にほかの Task が fail() に到達しても、
+        // 2 つ目以降は報告も後片付けもせず、最初の経路の exit(1) に任せる
+        if MainActor.assumeIsolated({ isFailing }) {
+            exit(1)
+        }
+        MainActor.assumeIsolated { isFailing = true }
         FileHandle.standardError.write("selftest: \(message)\n".data(using: .utf8)!)
         // fail() は常にメインスレッドから呼ばれる。MainActor 隔離のプロパティに触るので
         // 参照はすべて assumeIsolated の中で行う
         let wasActive = MainActor.assumeIsolated { () -> Bool in
+            cleanupSpeech()
             guard let recording = active, recording.isActive else { return false }
             recording.stop()
             return true

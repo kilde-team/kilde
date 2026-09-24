@@ -259,19 +259,22 @@ KILDE_GUI_SELFTEST_TRANSCRIBE=12 KILDE_GUI_SELFTEST_OUTPUT=/tmp \
   "$APP/Contents/MacOS/KildeGUI"
 # → selftest: transcribeEnabled forced=true (config は変更しません)
 #   selftest: playing kilde-selftest-speech-….aiff during recording
-#   selftest: finished /tmp/kilde-yyyyMMdd-HHmmss.mov bytes=… — waiting for transcription…
-#   selftest: transcription enqueued after recording finished (kilde-….mov)
+#   selftest: finished /tmp/kilde-yyyyMMdd-HHmmss.mp4 bytes=… — waiting for transcription…
+#   selftest: transcription enqueued after recording finished (kilde-….mp4)
 #   selftest: waiting phase=transcribing(…) …
 #   selftest: transcribed sidecar=kilde-yyyyMMdd-HHmmss.md bytes=… keywords=… (exit 0)
-# 4) 既定出力を元に戻す
+# 4) 既定出力を元に戻し、caffeinate を止める (シェルを開いたままにするなら忘れずに)
 SwitchAudioSource -t output -n "<手順 1 で控えた元のデバイス名>"
+kill %1
 ```
 
-キーワード照合は«喋った語が 1 語でも乗れば成功»の条件です。認識は文字起こしの
-«言語» 設定に従うため、ja 以外に設定している環境ではキーワード照合に失敗します —
-録画パネルの «言語» で日本語 (ja-JP) を選ぶか、`KILDE_GUI_SELFTEST_SPEECH_VOICE`
-で言語に合う音声を指定してください (例: `KILDE_GUI_SELFTEST_SPEECH_VOICE=Samantha`
-で英語音声に変える。Kyoko が無い環境でも同じ変数で代替できます)。
+キーワード照合は«喋った語が 1 語でも乗れば成功»の条件です。読み上げテキストと
+キーワードは**日本語固定**で、認識は文字起こしの «言語» 設定に従うため、ja 以外に
+設定している環境ではキーワード照合に失敗します — 録画パネルの «言語» で
+日本語 (ja-JP) を選んでください。`KILDE_GUI_SELFTEST_SPEECH_VOICE` は
+«日本語テキストを読める音声» への代替指定です (Kyoko が無い環境で別の ja 音声に
+変える。Samantha のような英語音声を指定してもテキストは日本語のままなので、
+検証は成功しません)。
 
 `KILDE_GUI_SELFTEST_POPOVER=close` を重ねると、**パネルを閉じた状態でも**
 録画も文字起こしも完了することを検証します (issue #150 の受け入れ条件 —
