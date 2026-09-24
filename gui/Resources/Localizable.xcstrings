@@ -2379,35 +2379,6 @@
         }
       }
     },
-    "設定は CLI (kilde rec) での録画にも適用されます。GUI 録画への文字起こしは今後のバージョンで対応予定です" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "These settings also apply to recordings made with the CLI (kilde rec). Transcription of GUI recordings is planned for a future version."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Estos ajustes también se aplican a las grabaciones hechas con la CLI (kilde rec). La transcripción de las grabaciones de la GUI llegará en una versión futura."
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "이 설정은 CLI (kilde rec) 녹화에도 적용됩니다. GUI 녹화의 텍스트 변환은 향후 버전에서 지원될 예정입니다."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "这些设置也适用于通过 CLI (kilde rec) 进行的录制。GUI 录制的文字转写将在未来版本中支持。"
-          }
-        }
-      }
-    },
     "設定ファイルを読めません (既定値で表示します): %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2930,60 +2901,437 @@
         }
       }
     },
-    "このアプリの設定に保存します (録画後の文字起こしの実行は今後のバージョンで対応予定)" : {
+    "録画が終わると自動で文字起こしします" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saved in this app's settings (post-recording transcription will arrive in a future version)"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "保存在此应用的设置中 (录制后的转写执行将在未来版本中提供)"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "이 앱의 설정에 저장됩니다 (녹음 후 전사 실행은 향후 버전에서 지원 예정)"
+            "value" : "Transcription starts automatically when the recording ends"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Se guarda en la configuración de esta app (la transcripción tras la grabación llegará en una versión futura)"
+            "value" : "La transcripción comienza automáticamente cuando termina la grabación"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "녹화가 끝나면 자동으로 텍스트 변환합니다"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录制结束后自动进行转写"
           }
         }
       }
     },
-    "録画後の文字起こしの実行はこのビルドではまだ対応していません (今後のバージョンで対応予定)" : {
+    "録画が終わると自動で文字起こしします。設定は CLI (kilde rec) での録画にも適用されます" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Post-recording transcription is not yet available in this build (planned for a future version)"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "此版本尚不支持录制后的转写执行 (计划在未来版本中提供)"
-          }
-        },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "이 빌드에서는 녹음 후 전사 실행이 아직 지원되지 않습니다 (향후 버전에서 지원 예정)"
+            "value" : "Transcription starts automatically when the recording ends. The settings also apply to recordings made with the CLI (kilde rec)"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La transcripción tras la grabación aún no está disponible en esta compilación (prevista para una versión futura)"
+            "value" : "La transcripción comienza automáticamente cuando termina la grabación. La configuración también se aplica a las grabaciones con la CLI (kilde rec)"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "녹화가 끝나면 자동으로 텍스트 변환합니다. 설정은 CLI (kilde rec) 녹화에도 적용됩니다"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "录制结束后自动进行转写。该设置也适用于 CLI (kilde rec) 的录制"
+          }
+        }
+      }
+    },
+    "このアプリの設定に保存します (録画が終わると自動で文字起こしします)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saves to this app's settings (transcription starts automatically when the recording ends)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guarda en la configuración de esta app (la transcripción comienza automáticamente cuando termina la grabación)"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 앱의 설정에 저장합니다 (녹화가 끝나면 자동으로 텍스트 변환합니다)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存到此应用的设置 (录制结束后自动进行转写)"
+          }
+        }
+      }
+    },
+    "他に %lld 件待機中 — 順に処理します (録画は文字起こしを待ちません)" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld more pending — processed in order (recording doesn't wait for transcription)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld más en espera: se procesan en orden (la grabación no espera a la transcripción)"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다른 %lld건 대기 중 — 순서대로 처리합니다 (녹화는 텍스트 변환을 기다리지 않습니다)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "另有 %lld 项等待中 — 将按顺序处理 (录制不会等待转写)"
+          }
+        }
+      }
+    },
+    "言語モデルを取得中… %lld%%" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Downloading language model… %lld%%"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descargando el modelo de idioma… %lld%%"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "언어 모델을 가져오는 중… %lld%%"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在获取语言模型… %lld%%"
+          }
+        }
+      }
+    },
+    "言語モデルを準備中…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparing language model…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparando el modelo de idioma…"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "언어 모델을 준비하는 중…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在准备语言模型…"
+          }
+        }
+      }
+    },
+    "文字起こし中… %lld%%" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcribing… %lld%%"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcribiendo… %lld%%"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "텍스트 변환 중… %lld%%"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在转写… %lld%%"
+          }
+        }
+      }
+    },
+    "文字起こしの準備中…" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparing transcription…"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preparando la transcripción…"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "텍스트 변환을 준비하는 중…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在准备转写…"
+          }
+        }
+      }
+    },
+    "文字起こし中" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcribing"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcribiendo"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "텍스트 변환 중"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "转写中"
+          }
+        }
+      }
+    },
+    "文字起こしを保存しました" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcript saved"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcripción guardada"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "텍스트 변환을 저장했습니다"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已保存转写文本"
+          }
+        }
+      }
+    },
+    "文字起こしを開く: %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open transcript: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir la transcripción: %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "텍스트 변환 열기: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开转写文本：%@"
+          }
+        }
+      }
+    },
+    "開く" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "열기"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "打开"
+          }
+        }
+      }
+    },
+    "Finder で表示" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reveal in Finder"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mostrar en Finder"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finder에서 표시"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在 Finder 中显示"
+          }
+        }
+      }
+    },
+    "中止" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancelar"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "취소"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消"
+          }
+        }
+      }
+    },
+    "再試行" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reintentar"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다시 시도"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试"
           }
         }
       }
