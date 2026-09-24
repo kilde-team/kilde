@@ -36,7 +36,13 @@ struct ContentView: View {
                         // 押し出されて**録画を始められなくなる**
                         recentRecordings
                     }
-                    .padding(.trailing, 6)
+                    // 中身の幅をパネル内幅 (380 - padding 12×2 - スクロールバー分 16) に固定する。
+                    // 縦の ScrollView は子の理想幅がこれを超えると中身ごと横に広げて中央寄せし、
+                    // 左右が切れる — 長い言語 (es 等) の文言でトグルがパネル外に出て操作できなくなった (issue #195)
+                    .frame(width: 340, alignment: .leading)
+                    // 右端はスクロールバー分を空ける。«スクロールバーを常に表示» の環境では
+                    // バーが中身に重なり、右端の文字やボタンが隠れる
+                    .padding(.trailing, 16)
                 }
                 .frame(maxHeight: 420)
                 resultView
@@ -435,20 +441,28 @@ struct ContentView: View {
                         Text(custom).tag(String?.some(custom))
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 Picker("出力形式", selection: transcriptFormatBinding) {
                     ForEach(TranscriptOutputFormat.allCases, id: \.self) { format in
                         Text(Self.formatLabel(format)).tag(format)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 // 合成 1 トラックでは話者の区別が付かない。ソース数に関係なく案内を出す —
                 // 1 ソース構成でもトラックが合成なら話者ラベルは付かず、足すべき選択
                 // (「複数の音声ソース」+「ソースごとに分離」) は同じだから。既定値は変えない (issue の指定)
                 if setup.request.trackPolicy != .separate {
-                    Label("話者ラベルを付けるには「複数の音声ソース」で「ソースごとに分離」を選んでください",
-                          systemImage: "person.wave.2")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    // Label は title を 1 行の理想幅で並べ、fixedSize を付けても折り返さない —
+                    // es 等の長い訳でパネル幅を超え、セクション全体を横に押し広げた (issue #195)。
+                    // アイコンと本文を HStack に分け、本文だけを折り返させる
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Image(systemName: "person.wave.2")
+                        Text("話者ラベルを付けるには「複数の音声ソース」で「ソースごとに分離」を選んでください")
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 }
                 // 録画が終わると自動で文字起こしが走る (issue #146)。進捗と中止は
                 // パネルの transcriptionStatusView に出るので、ここでは繰り返さない。
