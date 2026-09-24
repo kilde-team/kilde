@@ -329,6 +329,12 @@ Finder에서 해당 파일이 선택된 채로 열립니다. 패널에는 출력
 반영합니다. 체크박스는 `SMAppService`로 로그인 시 실행을 등록하며, macOS가
 시스템 설정에서 승인을 요구할 수 있습니다.
 
+설정 파일을 CLI와 공유하는 것은 직접 배포판(GitHub Releases / Homebrew, 또는
+소스에서 빌드한 앱)뿐입니다. Mac App Store 버전은 App Sandbox에서 실행되므로
+`~/.kilde`를 읽을 수 없고, 설정을 앱 컨테이너 안
+(`~/Library/Containers/com.takezou621.KildeGUI/Data/Library/Application Support/kilde/`)에 저장합니다.
+따라서 초기값, 전역 단축키 등의 설정은 `kilde rec`와 공유되지 않습니다.
+
 ## 개발
 
 - 엔진과 CLI (`KildeCore`, `kilde`):
