@@ -1,0 +1,19 @@
+gui/Resources/Localizable.xcstrings
+  s_3a60f17d16ffb3::t_ae4a51ce34d822 2904-3078,3084-3183,3189-3206,3212-3229,3235-3247,3252,3258-3270,3276-3293,3299-3316,3322-3334
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3db2795f16ac03f3e48ddffb0f6382b737b10dcc",
+  "prompts": {},
+  "sessions": {
+    "s_3a60f17d16ffb3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b851898e-a6b0-45ca-95de-33959c0b1beb",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
