@@ -712,6 +712,13 @@ enum SelfTest {
             setup.transcribeEnabled = true
             print("selftest: transcribeEnabled forced=true (config は変更しません)")
         }
+        // キーワード照合は日本語固定のため、認識言語もメモリ上で ja-JP に寄せる。
+        // «ja 以外の言語設定だと 1 語も一致しない» 偽陰性を、端末設定に頼らず潰すため
+        // («設定を変えずに経路だけ» の方針どおり config は書き換えない)
+        if setup.transcriptLocale != "ja-JP" {
+            setup.transcriptLocale = "ja-JP"
+            print("selftest: transcriptLocale forced=ja-JP (config は変更しません)")
+        }
         let format = setup.transcriptFormat
         let closesPopover = env["KILDE_GUI_SELFTEST_POPOVER"] == "close"
         if closesPopover {
@@ -951,6 +958,10 @@ enum SelfTest {
         let url = URL(fileURLWithPath: NSTemporaryDirectory())
             .appendingPathComponent("kilde-selftest-speech-\(UUID().uuidString.prefix(8)).aiff")
         try? FileManager.default.removeItem(at: url)
+        // 生成の成否にかかわらずこの関数がもつパスを先に登録する — say 失敗の fail()
+        // から cleanupSpeech() が作りかけのファイルを片付けられるように
+        // (playAudio まで届く前に失敗すると、誰も speechSampleURL を設定しなかった)
+        MainActor.assumeIsolated { speechSampleURL = url }
         let say = Process()
         say.executableURL = URL(fileURLWithPath: "/usr/bin/say")
         say.arguments = ["-v", voice, "-o", url.path, text]
@@ -994,7 +1005,6 @@ enum SelfTest {
         }
         MainActor.assumeIsolated {
             speechPlayer = player
-            speechSampleURL = url
         }
         return true
     }
