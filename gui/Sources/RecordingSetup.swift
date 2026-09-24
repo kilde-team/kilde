@@ -15,8 +15,17 @@ final class RecordingSetup: ObservableObject {
     @Published private(set) var loadError: String?
     /// 操作の結果 (保存しました / 開始できません 等) を一時的に出す
     @Published var notice: String?
-    /// 保存先にある直近の録画 (issue #20)。新しい順
-    @Published private(set) var recentRecordings: [URL] = []
+    /// «最近の録画» の 1 行 (issue #147)。録画ファイルと、隣に置かれた文字起こし
+    /// サイドカー (無ければ nil)
+    struct RecentRecording: Identifiable, Equatable {
+        let url: URL
+        /// この録画の文字起こしサイドカー。実在が確認できたものだけを入れる —
+        /// ビューはこれを «開く» ので、«あると表示されているのに開けない» を作らない
+        let transcriptURL: URL?
+        var id: URL { url }
+    }
+    /// 保存先にある直近の録画 (issue #20、サイドカーの有無は issue #147)。新しい順
+    @Published private(set) var recentRecordings: [RecentRecording] = []
 
     /// 一覧に出す件数。メニューを縦に伸ばさない範囲に留める
     private static let recentLimit = 5
@@ -423,6 +432,11 @@ final class RecordingSetup: ObservableObject {
     func reloadRecentRecordings() {
         let directory = request.outputDirectory
         let extensions: Set<String> = ["mov", "mp4", "m4a"]
+        // サイドカーの拡張子は TranscriptOutputFormat が持つ値を使う —
+        // 形式が増えたときにここが古いままだと、その形式のサイドカーだけ
+        // «文字起こしなし» と表示される
+        let transcriptExtensions: Set<String> = Set(
+            TranscriptOutputFormat.allCases.map { $0.fileExtension })
         // 画面の列挙と同じ理由で世代を数える — 保存先を変えて開き直したとき、
         // 前のディレクトリ (件数が多い・遅いボリューム) の走査が後から返ってきて
         // 新しい結果を古い一覧で上書きするのを防ぐ
@@ -430,17 +444,24 @@ final class RecordingSetup: ObservableObject {
         let generation = recentGeneration
         // ファイル走査はディレクトリの中身が多いと待たされるので UI を止めない。
         // 失敗 (権限・存在しない) は空の一覧として扱う — 補助表示なのでエラーにしない
-        let scan = Task.detached { [limit = Self.recentLimit] () -> [URL] in
+        let scan = Task.detached { [limit = Self.recentLimit] () -> [RecentRecording] in
             let keys: [URLResourceKey] = [.contentModificationDateKey, .isRegularFileKey]
             guard let entries = try? FileManager.default.contentsOfDirectory(
                 at: directory, includingPropertiesForKeys: keys,
                 options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants])
             else { return [] }
-            return entries
+            let regular = entries.filter {
+                (try? $0.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
+            }
+            // サイドカーの候補 (TranscriptOutputFormat の拡張子を持つ通常ファイル) を
+            // 先に分けておく — ディレクトリの走査は 1 回で済ませる
+            let sidecarCandidates = regular.filter {
+                transcriptExtensions.contains($0.pathExtension.lowercased())
+            }
+            return regular
                 .filter { url in
                     url.lastPathComponent.hasPrefix("kilde-")
                         && extensions.contains(url.pathExtension.lowercased())
-                        && (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
                 }
                 .sorted { a, b in
                     let da = (try? a.resourceValues(forKeys: [.contentModificationDateKey]))?
@@ -450,7 +471,14 @@ final class RecordingSetup: ObservableObject {
                     return da > db
                 }
                 .prefix(limit)
-                .map { $0 }
+                .map { recording in
+                    RecentRecording(
+                        url: recording,
+                        // Task.detached の @Sendable クロージャ内では self を
+                        // 捕まえられないため、static は型名で明示的に呼ぶ
+                        transcriptURL: RecordingSetup.transcriptSidecar(
+                            for: recording, among: sidecarCandidates))
+                }
         }
         // 走査を始める前に一覧を空にする。**残したままだと、保存先を変えた直後の
         // 走査中に旧ディレクトリのファイルが操作可能なまま表示され、クリックすると
@@ -464,6 +492,40 @@ final class RecordingSetup: ObservableObject {
             // 走査が終わったことを «結果が空でないこと» で代用しない — 本当に 0 件の
             // ディレクトリと区別できず、検証側が無駄に待つことになる
             self.recentScanFinished = true
+        }
+    }
+
+    /// 録画に対応する文字起こしサイドカーを候補の中から探す (issue #147)。
+    ///
+    /// サイドカーの既定名は `<録画の stem>.<形式の拡張子>` (TranscriptWriter.sidecarURL)。
+    /// ただし **既定名が使用済みのとき `-2`, `-3` … に退避する** ので、既定名の存在確認
+    /// だけだと «2 回目の文字起こし» が «文字起こしなし» に見える。そこで
+    /// **stem が完全一致、または `<stem>-<数字>`** のものをすべて集め、
+    /// 更新日時が最も新しいものを «この録画の文字起こし» とする
+    /// (`-2` より後の退避がどう選ばれるかは表示・開く導線のどちらでも問題にならない。
+    /// どれも同じ内容の文字起こしで、最新のものが最も意図に近い)
+    ///
+    /// `<stem>-<数字>` は **数字だけ** の接尾辞に限る — `kilde-a.md` があるとき
+    /// `kilde-a-extra.md` を «kilde-a の退避» と誤判定すると、無関係なファイルを
+    /// «文字起こし» として開いてしまう
+    /// nonisolated: 走査は Task.detached (UI を止めない) から呼ぶため。
+    /// 純関数 (引数だけで決まり、状態を持たない) なので隔離は不要
+    nonisolated static func transcriptSidecar(for recording: URL, among candidates: [URL]) -> URL? {
+        let stem = recording.deletingPathExtension().lastPathComponent
+        let suffixSeparator = stem + "-"
+        let matches = candidates.filter { url in
+            let candidate = url.deletingPathExtension().lastPathComponent
+            if candidate == stem { return true }
+            guard candidate.hasPrefix(suffixSeparator) else { return false }
+            let digits = candidate.dropFirst(suffixSeparator.count)
+            return !digits.isEmpty && digits.allSatisfy(\.isNumber)
+        }
+        return matches.max { a, b in
+            let da = (try? a.resourceValues(forKeys: [.contentModificationDateKey]))?
+                .contentModificationDate ?? .distantPast
+            let db = (try? b.resourceValues(forKeys: [.contentModificationDateKey]))?
+                .contentModificationDate ?? .distantPast
+            return da < db
         }
     }
 

@@ -688,7 +688,9 @@ struct ContentView: View {
     }
 
     /// 直近の録画 (issue #20)。クリックで Finder に表示する。
-    /// 保存先を走査して作るので、CLI で録ったファイルもここに出る
+    /// 保存先を走査して作るので、CLI で録ったファイルもここに出る。
+    /// 行の右端には文字起こしのアクション (issue #147) を置く:
+    /// サイドカーが有れば «開く»、無ければ «文字起こしする»
     @ViewBuilder
     private var recentRecordings: some View {
         if !setup.recentRecordings.isEmpty {
@@ -696,24 +698,61 @@ struct ContentView: View {
                 Text("最近の録画")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                ForEach(setup.recentRecordings, id: \.self) { url in
-                    Button {
-                        RecordingNotifier.revealInFinder(url)
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "film")
-                                .foregroundStyle(.secondary)
-                            Text(url.lastPathComponent)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                            Spacer(minLength: 0)
+                ForEach(setup.recentRecordings) { item in
+                    HStack(spacing: 6) {
+                        Button {
+                            RecordingNotifier.revealInFinder(item.url)
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "film")
+                                    .foregroundStyle(.secondary)
+                                Text(item.url.lastPathComponent)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                Spacer(minLength: 0)
+                            }
+                            .contentShape(Rectangle())
                         }
-                        .contentShape(Rectangle())
+                        .buttonStyle(.plain)
+                        .help("Finder で表示: \(item.url.path)")
+                        recentTranscriptAction(item)
                     }
-                    .buttonStyle(.plain)
-                    .help("Finder で表示: \(url.path)")
                 }
             }
+        }
+    }
+
+    /// «最近の録画» の 1 行の右端に置く文字起こしアクション (issue #147)。
+    /// 本体クリック (Finder 表示) は issue #20 からの既存挙動なので変えず、
+    /// ボタンを足すだけにする。«文字起こしする» は «現在の» 設定 (形式・言語) で
+    /// 投入する — «録画したときの設定» ではない点が録画完了の自動投入と違う
+    @ViewBuilder
+    private func recentTranscriptAction(_ item: RecordingSetup.RecentRecording) -> some View {
+        if let transcript = item.transcriptURL {
+            Button {
+                NSWorkspace.shared.open(transcript)
+            } label: {
+                Image(systemName: "doc.text")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("文字起こしを開く: \(transcript.lastPathComponent)")
+        } else {
+            let busy = transcription.isQueuedOrRunning(item.url)
+            Button {
+                transcription.enqueue(TranscriptionCoordinator.Job(
+                    recordingURL: item.url,
+                    format: setup.transcriptFormat,
+                    localeID: setup.transcriptLocale))
+            } label: {
+                Image(systemName: "waveform")
+                    .foregroundStyle(busy ? Color(nsColor: .disabledControlTextColor) : .secondary)
+            }
+            .buttonStyle(.plain)
+            .disabled(busy)
+            .help(busy
+                  ? "この録画の文字起こしは実行中 (または待機中) です"
+                  : "この録画を文字起こしする")
         }
     }
 

@@ -98,6 +98,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 失敗として扱わない (通知が出ないだけ)
         notifier.start()
         recording.notifier = notifier
+        // 文字起こしの完了 → 通知 (issue #147)。Coordinator は UserNotifications を
+        // 知らない (RecordingController.notifier と同じ依存の向き) — 配線の持ち主は
+        // ここ。onCompletion は MainActor 上で 1 対 1 に呼ばれるので sink の
+        // willSet 問題 (@Published は前値を流す) が無い
+        transcription.onCompletion = { [weak self] completion in
+            self?.notifier.notifyTranscriptionCompleted(sidecarURL: completion.sidecarURL)
+        }
 
         // 録画中は経過時間を横に出すので可変幅にする
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
