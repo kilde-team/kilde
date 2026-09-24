@@ -30,8 +30,8 @@
 	     黙って解析イベントが届かなくなる (cubic レビュー指摘)。
 	     (2) 文字起こしの言語モデルの取得 (issue #148)。SpeechTranscriber の
 	     installModelAsset が Apple のサーバーからモデルをダウンロードする —
-	     文字起こし自体は完全オンデバイスだが、初回のモデル取得だけは外向き
-	     接続が要る。Firebase を外すときはこのキーを消さないこと -->
+	     文字起こし自体は完全オンデバイスだが、必要言語のモデルが端末に無い
+	     ときの取得は外向き接続が要る。Firebase を外すときはこのキーを消さないこと -->
 	<key>com.apple.security.network.client</key>
 	<true/>
 </dict>
