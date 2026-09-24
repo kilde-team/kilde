@@ -1,0 +1,40 @@
+gui/Sources/ContentView.swift
+  s_323487eefe74c8::t_a82f4ab51da0c2 422
+  s_323487eefe74c8::t_2f36a1b899241a 453-454,458,463
+  s_323487eefe74c8::t_42421d99dacff8 14
+  s_323487eefe74c8::t_cc2ccaff123a7b 15
+  s_323487eefe74c8::t_1755e6b0860392 518-609
+  s_323487eefe74c8::t_57d18ee0e0c06f 43
+  s_323487eefe74c8::t_c6425bea2b5c29 770-772
+gui/Sources/TranscriptionCoordinator.swift
+  s_323487eefe74c8::t_49b5a466fd1828 1-213
+gui/Sources/SelfTest.swift
+  s_323487eefe74c8::t_801a7f18563b94 481-486
+  s_323487eefe74c8::t_d6b823b73e6423 27,29-34
+  s_323487eefe74c8::t_5aaa20cfc50010 448-480,487-552
+docs/DEVELOPMENT.md
+  s_323487eefe74c8::t_de3bb2d6b0ccc4 179-203
+gui/Sources/AppDelegate.swift
+  s_323487eefe74c8::t_e4b3476b1ba088 128-153
+  s_323487eefe74c8::t_1e5ca899e8afcd 114-115
+  s_323487eefe74c8::t_fadf00334f278d 33-35
+  s_323487eefe74c8::t_d86c4aef82e0cb 185-191
+  s_323487eefe74c8::t_21727bcb00369c 162
+  s_323487eefe74c8::t_ec473a7e095573 339-364
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3dbd9c00cb591a0b632e4cdf61e788ebb1d7cf78",
+  "prompts": {},
+  "sessions": {
+    "s_323487eefe74c8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a5c24b3f-22ab-49c6-bc7a-8292338e1d68",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
