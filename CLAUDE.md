@@ -79,7 +79,7 @@ docs/                          DEVELOPMENT.md / RELEASE.md / DESIGN.md / SPIKE-N
 ## 4. リリースと配布の契約
 
 - **GUI と release workflow の pin は必ず揃える**: `gui/project.yml` の依存 revision と
-  `release.yml` の `ref:` は同じコミットを指す (現在 `53ddd1dc177f247220ee702b63c6d0014fe58815`)。
+  `release.yml` の `ref:` は同じコミットを指す (現在 `4d2f251535ed6e907fea185e116ed9b9eb1392b3`)。
   片方だけ更新すると、GUI と配布 CLI が**別のエンジン revision** でビルドされる。
   更新は必ず同じ PR で行い、手順は docs/RELEASE.md「CLI ソースの pin の更新」
 - **`KILDE_CLI_SWIFT_TOKEN` が無いと release が作れない**: GITHUB_TOKEN は他リポジトリを
