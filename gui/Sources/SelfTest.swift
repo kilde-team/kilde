@@ -26,10 +26,23 @@ enum SelfTest {
                                permissions: PermissionsModel, updater: UpdaterCoordinator,
                                transcription: TranscriptionCoordinator, popover: PopoverControl) {
         let env = ProcessInfo.processInfo.environment
-        // KILDE_GUI_SELFTEST_TRANSCRIBE=1: 録画後の文字起こしの経路を確かめる (issue #146)。
-        // 実録画を伴わないため録画のスロット (権限・スピーカー) を占有しない
-        if env["KILDE_GUI_SELFTEST_TRANSCRIBE"] == "1" {
-            runTranscription(setup: setup, transcription: transcription)
+        // KILDE_GUI_SELFTEST_TRANSCRIBE: 文字起こし経路の検証。値で 2 つの経路を分ける。
+        // 値 1 は録画なし版 (issue #146) — 入力音声を KILDE_GUI_SELFTEST_TRANSCRIBE_INPUT で
+        // 渡し、実録画を伴わないため録画のスロット (権限・スピーカー) を占有しない。
+        // 2 以上の秒数は実録画版 (issue #150) — «録画 → 停止 → 自動文字起こし → 出力検証» の
+        // 完全経路。実録画を伴うので並行する録画テストと同時に回さない
+        if let transcribeText = env["KILDE_GUI_SELFTEST_TRANSCRIBE"] {
+            if transcribeText == "1" {
+                runTranscription(setup: setup, transcription: transcription)
+            } else {
+                // 秒数 1 は録画なし版と衝突するため実録画版では使えない (音声としても短すぎる)
+                guard let seconds = Double(transcribeText), seconds >= 2 else {
+                    fail("KILDE_GUI_SELFTEST_TRANSCRIBE は 1 (録画なし版) か 2 以上の秒数 (実録画版) で指定してください: \(transcribeText)")
+                }
+                runTranscribeWithRecording(
+                    seconds: seconds, setup: setup, recording: recording,
+                    transcription: transcription, popover: popover)
+            }
             return
         }
         // KILDE_GUI_SELFTEST_UPDATE=1: Sparkle 自動更新の配線と設定を確かめる (issue #122)。
@@ -69,27 +82,7 @@ enum SelfTest {
         guard let seconds = Double(text), seconds > 0 else {
             fail("KILDE_GUI_SELFTEST_RECORD は正の秒数で指定してください: \(text)")
         }
-        if let dir = env["KILDE_GUI_SELFTEST_OUTPUT"] {
-            setup.request.outputDirectory = URL(fileURLWithPath: dir, isDirectory: true)
-        }
-        setup.request.target = .display(index: 0)
-        // KILDE_GUI_SELFTEST_AUDIO: system (既定) / none / device:<UID or 名前>。
-        // none は音声出力が使えない環境 (既定出力が鳴らないデバイスだと SCK の音声開始が -3818 で
-        // 失敗する) でも GUI → Recorder の経路を確かめるため。device: は BlackHole ループバックのように
-        // スピーカーを介さずに信号を入れて検証するため (既定の出力デバイスを変えずに済む)
-        setup.request.captureMic = false
-        setup.request.inputDevices = []
-        switch env["KILDE_GUI_SELFTEST_AUDIO"] ?? "system" {
-        case "system":
-            setup.request.captureSystemAudio = true
-        case "none":
-            setup.request.captureSystemAudio = false
-        case let value where value.hasPrefix("device:"):
-            setup.request.captureSystemAudio = false
-            setup.request.inputDevices = [String(value.dropFirst("device:".count))]
-        case let other:
-            fail("KILDE_GUI_SELFTEST_AUDIO は system / none / device:<名前> を指定してください: \(other)")
-        }
+        applyRecordingRequest(setup, env: env)
 
         let options: RecordOptions
         do {
@@ -511,16 +504,7 @@ enum SelfTest {
                   Date() < deadline {
                 try? await Task.sleep(nanoseconds: 200_000_000)
                 if Date().timeIntervalSince(lastReport) >= 10 {
-                    let phaseText: String
-                    switch transcription.runPhase {
-                    case .preparingModel(let progress):
-                        phaseText = "preparingModel(\(Int(progress * 100))%)"
-                    case .transcribing(let progress):
-                        phaseText = "transcribing(\(Int(progress * 100))%)"
-                    case nil:
-                        phaseText = "nil"
-                    }
-                    print("selftest: waiting phase=\(phaseText)"
+                    print("selftest: waiting phase=\(transcriptPhaseText(transcription.runPhase))"
                         + " queue=\(transcription.queue.count)")
                     fflush(stdout)
                     lastReport = Date()
@@ -548,6 +532,332 @@ enum SelfTest {
             fflush(stdout)
             exit(0)
         }
+    }
+
+    /// «録画 → 停止 → 自動文字起こし → 出力検証» の完全経路
+    /// (KILDE_GUI_SELFTEST_TRANSCRIBE=<秒>、issue #150)。
+    ///
+    ///     KILDE_GUI_SELFTEST_TRANSCRIBE=<秒> KILDE_GUI_SELFTEST_OUTPUT=<保存先ディレクトリ> \
+    ///         KILDE_GUI_SELFTEST_AUDIO=device:BlackHole 2ch \
+    ///         [KILDE_GUI_SELFTEST_POPOVER=close] KildeGUI.app/Contents/MacOS/KildeGUI
+    ///
+    /// #146 の録画なし版 (値が 1) と違い、**実録画を伴う**。録画中に say で作った
+    /// テスト音声を再生し、停止後の «録画完了 → 自動 enqueue» (AppDelegate の配線) を
+    /// 経て、サイドカーに «喋った内容のキーワード» が乗るまでを機械的に確かめる。
+    /// KILDE_GUI_SELFTEST_POPOVER=close を重ねると、**パネルを閉じた状態でも**
+    /// 録画も文字起こしも完了すること (TranscriptionCoordinator は AppDelegate 持ちで
+    /// パネルに寿命がない) を検証する
+    ///
+    /// 実録画のため録画のスロット (権限・既定出力) を占有する — 並行する録画テスト
+    /// (KILDE_GUI_SELFTEST_RECORD、kilde-cli-swift 側の統合テスト) と同時に回さない
+    @MainActor
+    private static func runTranscribeWithRecording(
+        seconds: Double, setup: RecordingSetup, recording: RecordingController,
+        transcription: TranscriptionCoordinator, popover: PopoverControl) {
+        let env = ProcessInfo.processInfo.environment
+        guard setup.transcriptionAvailable else {
+            fail("この環境で Transcriber.isSupported=false です (文字起こし非対応)")
+        }
+        // 喋らせる文章と検索するキーワード。SpeechTranscriber の認識精度は環境次第なので
+        // «全部一致» を要求せず、1 語でも乗っていれば成功とする (0 語は «無音» か
+        // «認識失敗» で、どちらも «文字起こしが動いた» の証明にならない)
+        let speechText = "これはマイクテストの録画です。テスト、テスト。以上です。"
+        let keywords = ["テスト", "マイク", "録画"]
+        // テスト音声は録画の前に作っておく。say と afplay は «既定出力デバイス» から鳴るので、
+        // 内蔵スピーカーが使えない環境 (クラムシェル) では既定出力を BlackHole に向けて、
+        // KILDE_GUI_SELFTEST_AUDIO=device:BlackHole 2ch で拾う (docs/DEVELOPMENT.md §3)
+        let voice = env["KILDE_GUI_SELFTEST_SPEECH_VOICE"] ?? "Kyoko"
+        let speechURL = makeSpeechSample(text: speechText, voice: voice)
+        applyRecordingRequest(setup, env: env)
+        let options: RecordOptions
+        do {
+            options = try setup.makeOptions()
+        } catch {
+            fail("録画オプションを作れません: \(error)")
+        }
+        // transcribeEnabled はユーザー設定 (~/.kilde/config.json) 由来で既定無効。
+        // «録画完了 → 自動 enqueue» の配線 (AppDelegate の sink) はこの値を見るため、
+        // 録画なし版と同じくメモリ上で強制有効にする (config は書き換えない)
+        if !setup.transcribeEnabled {
+            setup.transcribeEnabled = true
+            print("selftest: transcribeEnabled forced=true (config は変更しません)")
+        }
+        let format = setup.transcriptFormat
+        let closesPopover = env["KILDE_GUI_SELFTEST_POPOVER"] == "close"
+        if closesPopover {
+            // RECORD 版と同じ: LSUIElement のアプリをターミナルから起動すると
+            // 非アクティブのままで NSPopover が出ないので、明示的にアクティブ化してから開く
+            NSApp.activate(ignoringOtherApps: true)
+            popover.show()
+            if !popover.isShown() {
+                RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+                popover.show()
+            }
+            guard popover.isShown() else {
+                // この時点ではまだ recording.start していないため、makeOptions が確保した
+                // 予約の清掃を Recorder に任せられない — 自分で片付けてから失敗する
+                if let r = options.outputReservation, !r.removeIfStillReserved() {
+                    FileHandle.standardError.write(
+                        "WARNING: 予約した出力ファイルを削除できませんでした: \(r.url.path)\n"
+                            .data(using: .utf8)!)
+                }
+                fail("ポップオーバーを開けませんでした (isShown=false)")
+            }
+            print("selftest: popover shown=true")
+            fflush(stdout)
+        }
+
+        let closed = ClosedState()
+
+        recording.whenSessionEnds {
+            switch recording.phase {
+            case .finished(let url):
+                // close に失敗した場合は既に fail() が原因を出し、停止 → ファイナライズを
+                // 待っている (RECORD 版と同じ譲り)。ここで先へ進むと exit(1) を追い越し、
+                // 失敗を成功と誤判定する
+                if closesPopover, closed.closeFailed {
+                    return
+                }
+                if closesPopover {
+                    guard let closedAt = closed.elapsed else {
+                        fail("ポップオーバーを閉じる前に録画が終わりました")
+                    }
+                    guard recording.elapsed > closedAt else {
+                        fail("ポップオーバーを閉じた後に録画が進んでいません (elapsed \(closedAt)s のまま)")
+                    }
+                    print("selftest: recording continued after close "
+                        + "(elapsed \(String(format: "%.1f", closedAt))s → \(String(format: "%.1f", recording.elapsed))s)")
+                }
+                let bytes = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int)
+                    .flatMap { $0 } ?? 0
+                print("selftest: finished \(url.path) bytes=\(bytes) — waiting for transcription…")
+                fflush(stdout)
+                // ここでは exit しない — 文字起こしの完了まで待つ Task が検証と exit を担う
+            case .failed(let message):
+                fail("録画に失敗: \(message)")
+            default:
+                fail("想定外の状態で終了: \(recording.phase)")
+            }
+        }
+        // 失敗時に停止 → ファイナライズできるよう、開始前に覚えておく
+        active = recording
+        recording.start(options)
+        Task { @MainActor in
+            // start() は .recording への遷移を待たずに返る。«録画が確実に進んだ状態» で
+            // 音を鳴らすため、遷移を待ってから再生する
+            let deadline = Date().addingTimeInterval(20)
+            while recording.phase != .recording, Date() < deadline {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+            guard recording.phase == .recording else {
+                fail("録画が始まりません (phase=\(recording.phase))")
+            }
+            if closesPopover {
+                popover.close()
+                // 閉じるのはアニメーション付きで、isShown はその間 true のまま (RECORD 版と同じ)
+                let closeDeadline = Date().addingTimeInterval(3)
+                while popover.isShown(), Date() < closeDeadline {
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                }
+                guard !popover.isShown() else {
+                    closed.closeFailed = true
+                    fail("ポップオーバーを閉じられませんでした (3 秒待っても isShown=true)")
+                }
+                closed.elapsed = recording.elapsed
+                print("selftest: popover closed shown=false"
+                    + " elapsed=\(String(format: "%.1f", recording.elapsed))s bytes=\(recording.outputBytes)")
+                fflush(stdout)
+            }
+            // テスト音声を鳴らす (録画進行中)。再生完了は待たない — 音が出ている間も
+            // 録画が回り続けることが本経路の狙い
+            guard playAudio(speechURL) else {
+                fail("テスト音声を再生できませんでした (/usr/bin/afplay)")
+            }
+            print("selftest: playing \(speechURL.lastPathComponent) during recording")
+            fflush(stdout)
+            // 指定秒数録画を続けてから停止する。秒数は音声の長さより十分長く取る
+            // (目安は docs/DEVELOPMENT.md §3)
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+            recording.stop()
+        }
+        Task { @MainActor in
+            // 1) 録画の完了を待つ (failed / 想定外は whenSessionEnds 側が fail で落とす)
+            let recordDeadline = Date().addingTimeInterval(seconds + 60)
+            var finishedURL: URL?
+            while finishedURL == nil, Date() < recordDeadline {
+                if case .finished(let url) = recording.phase {
+                    finishedURL = url
+                    break
+                }
+                try? await Task.sleep(nanoseconds: 200_000_000)
+            }
+            guard let recordingURL = finishedURL else {
+                fail("録画が \(Int(seconds + 60)) 秒で終わりませんでした (phase=\(recording.phase))")
+            }
+            // 2) «録画完了 → 自動 enqueue» (AppDelegate の sink)。#146 の録画なし版では
+            // 確かめられなかった部分 — 実録画があって初めて通る経路
+            let enqueueDeadline = Date().addingTimeInterval(15)
+            while !transcription.isBusy, transcription.lastCompletion == nil,
+                  transcription.lastFailure == nil, Date() < enqueueDeadline {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+            guard transcription.isBusy || transcription.lastCompletion != nil else {
+                fail("録画完了後に文字起こしが始まりません"
+                    + " (transcribeEnabled=\(setup.transcribeEnabled)"
+                    + " available=\(setup.transcriptionAvailable))")
+            }
+            print("selftest: transcription enqueued after recording finished"
+                + " (\(recordingURL.lastPathComponent))")
+            fflush(stdout)
+            // 3) 完了を待つ。上限は録画なし版と同じ 10 分 — 初回は言語モデルの取得
+            // (数GB 級) が入ることがあるため
+            let doneDeadline = Date().addingTimeInterval(600)
+            var lastReport = Date()
+            while transcription.lastCompletion == nil, transcription.lastFailure == nil,
+                  Date() < doneDeadline {
+                try? await Task.sleep(nanoseconds: 200_000_000)
+                if Date().timeIntervalSince(lastReport) >= 10 {
+                    print("selftest: waiting phase=\(transcriptPhaseText(transcription.runPhase))"
+                        + " queue=\(transcription.queue.count)")
+                    fflush(stdout)
+                    lastReport = Date()
+                }
+            }
+            if let failure = transcription.lastFailure {
+                fail("文字起こしが失敗: \(failure.message)")
+            }
+            guard let completion = transcription.lastCompletion else {
+                fail("文字起こしが 10 分で完了しませんでした (モデル取得が進んでいない?)")
+            }
+            // 4) 出力検証。録画ファイルとサイドカーの両方が存在して空でないこと。
+            // 書き出し先が TranscriptWriter の契約 (録画ファイルの隣) どおりかも見る
+            let expectedSidecar = TranscriptWriter.sidecarURL(forRecording: recordingURL, format: format)
+            guard completion.sidecarURL == expectedSidecar else {
+                fail("サイドカーの位置が契約と違います: \(completion.sidecarURL.path)"
+                    + " (期待: \(expectedSidecar.path))")
+            }
+            guard FileManager.default.fileExists(atPath: expectedSidecar.path) else {
+                fail("サイドカーが存在しません: \(expectedSidecar.path)")
+            }
+            let bytes = (try? FileManager.default.attributesOfItem(
+                atPath: expectedSidecar.path)[.size] as? Int).flatMap { $0 } ?? 0
+            guard bytes > 0 else {
+                fail("サイドカーが空です: \(expectedSidecar.path)")
+            }
+            let recordingBytes = (try? FileManager.default.attributesOfItem(
+                atPath: recordingURL.path)[.size] as? Int).flatMap { $0 } ?? 0
+            // 空の録画は «消灯・ロック中に実行した» 症状 (SCK がフレームを出さない) と
+            // 音声入力が死んでいる症状を区別する目印になるので、ここで落とす
+            guard recordingBytes > 0 else {
+                fail("録画ファイルが空です: \(recordingURL.path)"
+                    + " (消灯・ロック中に実行していないか確認してください)")
+            }
+            // 喋った内容のキーワードが乗っていること。«1 語でも一致» を PASS にする
+            // (0 語なら無音か認識失敗で、文字起こしが内容を拾った証明にならない)
+            let text = (try? String(contentsOf: expectedSidecar, encoding: .utf8)) ?? ""
+            let normalized = normalizeForMatch(text)
+            let matched = keywords.filter { normalized.contains(normalizeForMatch($0)) }
+            guard !matched.isEmpty else {
+                fail("サイドカーにキーワードが 1 つも見つかりませんでした"
+                    + " (\(keywords.joined(separator: "/"))) 先頭: \(text.prefix(200))")
+            }
+            // «パネルを閉じた状態でも完了» の確認 (POPOVER=close 時)。閉じた直後に
+            // isShown=false をポーリングで確認済みだが、«完了まで閉じたまま» も含めて
+            // 見る (途中で表示が復活する退行を拾う)
+            let popoverShownAtEnd = popover.isShown()
+            if closesPopover, popoverShownAtEnd {
+                fail("文字起こし完了時にポップオーバーが再表示されています")
+            }
+            print("selftest: transcribed sidecar=\(expectedSidecar.lastPathComponent)"
+                + " bytes=\(bytes) keywords=\(matched.joined(separator: ","))"
+                + " popoverShown=\(popoverShownAtEnd)"
+                + " recordingBytes=\(recordingBytes)")
+            fflush(stdout)
+            exit(0)
+        }
+    }
+
+    /// 録画の対象と音声を環境変数から RecordRequest に当てはめる
+    /// (KILDE_GUI_SELFTEST_RECORD と実録画版 TRANSCRIBE の共通部分)。
+    /// KILDE_GUI_SELFTEST_AUDIO: system (既定) / none / device:<UID or 名前>。
+    /// none は音声出力が使えない環境 (既定出力が鳴らないデバイスだと SCK の音声開始が -3818 で
+    /// 失敗する) でも GUI → Recorder の経路を確かめるため。device: は BlackHole ループバックの
+    /// ようにスピーカーを介さずに信号を入れて検証するため (既定の出力デバイスを変えずに済む)
+    @MainActor
+    private static func applyRecordingRequest(_ setup: RecordingSetup, env: [String: String]) {
+        if let dir = env["KILDE_GUI_SELFTEST_OUTPUT"] {
+            setup.request.outputDirectory = URL(fileURLWithPath: dir, isDirectory: true)
+        }
+        setup.request.target = .display(index: 0)
+        setup.request.captureMic = false
+        setup.request.inputDevices = []
+        switch env["KILDE_GUI_SELFTEST_AUDIO"] ?? "system" {
+        case "system":
+            setup.request.captureSystemAudio = true
+        case "none":
+            setup.request.captureSystemAudio = false
+        case let value where value.hasPrefix("device:"):
+            setup.request.captureSystemAudio = false
+            setup.request.inputDevices = [String(value.dropFirst("device:".count))]
+        case let other:
+            fail("KILDE_GUI_SELFTEST_AUDIO は system / none / device:<名前> を指定してください: \(other)")
+        }
+    }
+
+    /// say でテスト音声を作る。実在の会議音声や第三者の音声は使わない
+    /// (AGENTS.md §6 — 検証用の音声はリポジトリに置かないので一時ディレクトリへ出す)
+    private static func makeSpeechSample(text: String, voice: String) -> URL {
+        let url = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("kilde-selftest-speech-\(UUID().uuidString.prefix(8)).aiff")
+        try? FileManager.default.removeItem(at: url)
+        let say = Process()
+        say.executableURL = URL(fileURLWithPath: "/usr/bin/say")
+        say.arguments = ["-v", voice, "-o", url.path, text]
+        do {
+            try say.run()
+        } catch {
+            fail("テスト音声を作れません (/usr/bin/say の起動に失敗): \(error)")
+        }
+        say.waitUntilExit()
+        guard say.terminationStatus == 0, FileManager.default.fileExists(atPath: url.path) else {
+            fail("テスト音声を作れません (say 終了コード \(say.terminationStatus)。"
+                + "KILDE_GUI_SELFTEST_SPEECH_VOICE=\(voice) が無い環境の可能性)")
+        }
+        return url
+    }
+
+    /// afplay で音声を再生する (起動だけして完了は待たない — «録画が回っている間に
+    /// 音が出る» ことが目的。プロセスの後片付けは selftest の exit に任せる)
+    private static func playAudio(_ url: URL) -> Bool {
+        let player = Process()
+        player.executableURL = URL(fileURLWithPath: "/usr/bin/afplay")
+        player.arguments = [url.path]
+        do {
+            try player.run()
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// 実行段階の 1 行表記 (待ちループの定期ログに使う)
+    private static func transcriptPhaseText(_ phase: TranscriptionCoordinator.RunPhase?) -> String {
+        switch phase {
+        case .preparingModel(let progress):
+            return "preparingModel(\(Int(progress * 100))%)"
+        case .transcribing(let progress):
+            return "transcribing(\(Int(progress * 100))%)"
+        case nil:
+            return "nil"
+        }
+    }
+
+    /// キーワード照合のための正規化 — 句読点・空白・改行を落とし小文字へ統一する。
+    /// «マイクテストの録画です。» から «テスト» «録画» を探すとき、認識結果の
+    /// 区切り方 (句点・読点の有無) を吸収するため
+    private static func normalizeForMatch(_ text: String) -> String {
+        let dropped: Set<Character> = ["、", "。", ",", ".", "\n", "\r", " ", "\u{3000}", "!", "?", "!", "?"]
+        return text.lowercased().filter { !dropped.contains($0) }
     }
 
     /// ポップオーバーを閉じた時点の経過時間 (閉じる側と終了側のクロージャで共有する)

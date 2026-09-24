@@ -201,6 +201,57 @@ TranscriptionCoordinator の切り離し) で担保しています。進捗は 1
 `selftest: waiting phase=…` として出ます — 初回実行は言語モデルの取得に
 数分かかることがあります。
 
+`KILDE_GUI_SELFTEST_TRANSCRIBE=<秒>` (2 以上) は、上の «録画なし版» と違い
+**実録画を伴う完全経路**を確かめます (issue #150)。録画 → 停止 →
+«録画完了 → 自動文字起こしが積まれる» の配線 → サイドカーへの書き出し →
+«喋った内容のキーワードがサイドカーに乗る» までを 1 回の実行で通します。
+テスト音声は `say` (Kyoko) でその場で作り、録画中に `afplay` で再生します —
+実在の会議音声や第三者の音声は使いません。**実録画を伴うので、録画セルフテスト
+(`KILDE_GUI_SELFTEST_RECORD`) や kilde-cli-swift 側の統合テストと同時に実行しないでください。**
+
+```sh
+# 1) 既定出力を BlackHole 2ch に向ける (スピーカーを介さずに録画へ信号を入れる。
+#    戻すための元の名前を先に控える。brew install blackhole-2ch switchaudio-osx)
+SwitchAudioSource -t output -c                # → 元のデバイス名 (メモしておく)
+SwitchAudioSource -t output -n "BlackHole 2ch"
+# 2) ディスプレイを起こして消灯を防ぐ (消灯中は SCK がフレームを出さない — 下の注意参照)
+caffeinate -u -t 1; caffeinate -dims -w $$ &
+# 3) 実行 (秒数はテスト音声の長さ + 余裕。say の 1 文なら 12 で十分)
+KILDE_GUI_SELFTEST_TRANSCRIBE=12 KILDE_GUI_SELFTEST_OUTPUT=/tmp \
+  KILDE_GUI_SELFTEST_AUDIO="device:BlackHole 2ch" \
+  "$APP/Contents/MacOS/KildeGUI"
+# → selftest: transcribeEnabled forced=true (config は変更しません)
+#   selftest: playing kilde-selftest-speech-….aiff during recording
+#   selftest: finished /tmp/kilde-yyyyMMdd-HHmmss.mov bytes=… — waiting for transcription…
+#   selftest: transcription enqueued after recording finished (kilde-….mov)
+#   selftest: waiting phase=transcribing(…) …
+#   selftest: transcribed sidecar=kilde-yyyyMMdd-HHmmss.md bytes=… keywords=… (exit 0)
+# 4) 既定出力を元に戻す
+SwitchAudioSource -t output -n "<手順 1 で控えた元のデバイス名>"
+```
+
+キーワード照合は«喋った語が 1 語でも乗れば成功»の条件です。認識は文字起こしの
+«言語» 設定に従うため、ja 以外に設定している環境ではキーワード照合に失敗します —
+録画パネルの «言語» で日本語 (ja-JP) を選ぶか、`KILDE_GUI_SELFTEST_SPEECH_VOICE`
+で言語に合う音声を指定してください (例: `KILDE_GUI_SELFTEST_SPEECH_VOICE=Samantha`
+で英語音声に変える。Kyoko が無い環境でも同じ変数で代替できます)。
+
+`KILDE_GUI_SELFTEST_POPOVER=close` を重ねると、**パネルを閉じた状態でも**
+録画も文字起こしも完了することを検証します (issue #150 の受け入れ条件 —
+TranscriptionCoordinator は AppDelegate 持ちでパネルに寿命がない):
+
+```sh
+KILDE_GUI_SELFTEST_TRANSCRIBE=12 KILDE_GUI_SELFTEST_OUTPUT=/tmp \
+  KILDE_GUI_SELFTEST_AUDIO="device:BlackHole 2ch" KILDE_GUI_SELFTEST_POPOVER=close \
+  "$APP/Contents/MacOS/KildeGUI"
+# → selftest: popover shown=true / popover closed shown=false elapsed=…s /
+#   transcribed … keywords=… popoverShown=false (exit 0)
+```
+
+**このセルフテストで「通った」にできないもの**: SpeechTranscriber の認識 «品質»
+(«1 語でも一致» を成功条件にしているため、誤認識の率までは見ない) と、オフラインでの
+モデル取得失敗と再試行 (録画なし版と同じ)。認識の確からしさは実機の目視確認に頼ります。
+
 ### 検証時の環境の注意
 
 > 画面がロックされている、または**ディスプレイが消灯している**間は
