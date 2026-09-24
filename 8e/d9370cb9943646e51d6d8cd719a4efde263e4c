@@ -1,0 +1,33 @@
+docs/appstore/README.md
+  s_bac8baf9ac9e8b::t_51e8ebae2e313c 172-173
+gui/Resources/KildeGUI-AppStore.entitlements
+  s_bac8baf9ac9e8b::t_4e4fed8a3157e7 33-34
+docs/appstore/review-notes.md
+  s_bac8baf9ac9e8b::t_4df8341d7bbb18 95-98
+  s_bac8baf9ac9e8b::t_bd5630dca1d6d1 102-103
+  s_bac8baf9ac9e8b::t_bfbeaec675fcc4 52-54
+  s_bac8baf9ac9e8b::t_ec9b66695f6979 116-117,122-131
+  s_bac8baf9ac9e8b::t_fc502ccec3c883 84-87
+  s_bac8baf9ac9e8b::t_3467f0ef354926 32,43-47
+  s_bac8baf9ac9e8b::t_b00c9a4acc565f 33-36
+scripts/release/appstore-archive.sh
+  s_bac8baf9ac9e8b::t_9b4a743a199740 380-381
+  s_bac8baf9ac9e8b::t_d9435c72ee9c6e 229-233,241-261
+  s_bac8baf9ac9e8b::t_15550035209e92 378-379
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8ed9370cb9943646e51d6d8cd719a4efde263e4c",
+  "prompts": {},
+  "sessions": {
+    "s_bac8baf9ac9e8b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb14f038-937e-4691-a802-be3264c6d43e",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
