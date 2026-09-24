@@ -11,6 +11,8 @@ struct ContentView: View {
     @ObservedObject var recording: RecordingController
     @ObservedObject var permissions: PermissionsModel
     @ObservedObject var updater: UpdaterCoordinator
+    @ObservedObject var transcription: TranscriptionCoordinator
+    /// 文字起こしの状態 (issue #146)。実体は AppDelegate が持つ — このビューは表示だけ
 
     private enum Mode: Hashable {
         case display, window, audioOnly
@@ -38,6 +40,7 @@ struct ContentView: View {
                 }
                 .frame(maxHeight: 420)
                 resultView
+                transcriptionStatusView
                 startButton
             }
             if let notice = setup.notice {
@@ -416,7 +419,7 @@ struct ContentView: View {
                 // ~/.kilde/config.json (CLI と共有) ではない — 「CLI の kilde rec にも
                 // 効く」系の文言は MAS 版では誤りになるので分岐する
                 #if APPSTORE
-                .help("このアプリの設定に保存します (録画後の文字起こしの実行は今後のバージョンで対応予定)")
+                .help("このアプリの設定に保存します (録画が終わると自動で文字起こしします)")
                 #else
                 .help("~/.kilde/config.json に保存します (CLI の kilde rec の既定値も変わります)")
                 #endif
@@ -447,17 +450,17 @@ struct ContentView: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                // 保存したキーは CLI が録画ごとに読む。GUI 録画からの文字起こし実行は
-                // エンジンに実行入口が無いため未対応 — 別 issue で対応する。
+                // 録画が終わると自動で文字起こしが走る (issue #146)。進捗と中止は
+                // パネルの transcriptionStatusView に出るので、ここでは繰り返さない。
                 // MAS 版は ConfigStore がコンテナ内に退避されるため CLI にも適用の
                 // 文言は誤りになる (#if で分岐)
                 #if APPSTORE
-                Text("録画後の文字起こしの実行はこのビルドではまだ対応していません (今後のバージョンで対応予定)")
+                Text("録画が終わると自動で文字起こしします")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 #else
-                Text("設定は CLI (kilde rec) での録画にも適用されます。GUI 録画への文字起こしは今後のバージョンで対応予定です")
+                Text("録画が終わると自動で文字起こしします。設定は CLI (kilde rec) での録画にも適用されます")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -509,6 +512,98 @@ struct ContentView: View {
         case .vtt: return String(localized: "WebVTT 字幕 (.vtt)")
         case .txt: return String(localized: "プレーンテキスト (.txt)")
         case .json: return String(localized: "JSON (.json)")
+        }
+    }
+
+    /// 文字起こしの進捗・結果 (issue #146)。録画中 (sessionView) と待機中の
+    /// **両方**に出す — «文字起こし中に次の録画» をすると、録画中の画面に
+    /// 進捗と中止が無いと処理が見えなくなる。busy 中は進捗と中止、そうでなければ
+    /// 直近の失敗 (再試行つき) / 完了を 1 件だけ出す
+    @ViewBuilder
+    private var transcriptionStatusView: some View {
+        if transcription.isBusy {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Label(transcriptionRunLabel, systemImage: "waveform")
+                        .font(.caption)
+                    Spacer()
+                    Button("中止") { transcription.cancelAll() }
+                        .buttonStyle(.borderless)
+                        .font(.caption)
+                }
+                transcriptionProgressBar
+                if !transcription.queue.isEmpty {
+                    Text("他に \(transcription.queue.count) 件待機中 — 順に処理します (録画は文字起こしを待ちません)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Color.purple.opacity(0.08)))
+        }
+        if !transcription.isBusy {
+            if let failure = transcription.lastFailure {
+                VStack(alignment: .leading, spacing: 2) {
+                    Label(failure.message, systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                    // モデル取得の失敗 (オフライン) はネットワークが戻れば同じジョブの
+                    // 再実行で成功する — 失敗を見せっぱなしにせず回復の入り口を出す
+                    Button("再試行") { transcription.retryLastFailure() }
+                        .buttonStyle(.link)
+                        .font(.caption)
+                }
+            }
+            if let completion = transcription.lastCompletion {
+                HStack {
+                    Label(completion.sidecarURL.lastPathComponent, systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer()
+                    Button("Finder で表示") {
+                        RecordingNotifier.revealInFinder(completion.sidecarURL)
+                    }
+                    .buttonStyle(.link)
+                    .font(.caption)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var transcriptionProgressBar: some View {
+        switch transcription.runPhase {
+        case .preparingModel(let progress):
+            // モデルの総サイズが取れる前 (0) は不定長表示。進捗ポーリングは
+            // 0.5 秒間隔で必ず正の値に進むので、0 のまま固まることはない
+            if progress > 0 {
+                ProgressView(value: progress)
+            } else {
+                ProgressView()
+                    .progressViewStyle(.linear)
+            }
+        case .transcribing(let progress):
+            ProgressView(value: progress)
+        case nil:
+            ProgressView()
+                .progressViewStyle(.linear)
+        }
+    }
+
+    private var transcriptionRunLabel: String {
+        switch transcription.runPhase {
+        case .preparingModel(let progress):
+            return progress > 0
+                ? String(localized: "言語モデルを取得中… \(Int(progress * 100))%")
+                : String(localized: "言語モデルを準備中…")
+        case .transcribing(let progress):
+            return String(localized: "文字起こし中… \(Int(progress * 100))%")
+        case nil:
+            return String(localized: "文字起こしの準備中…")
         }
     }
 
@@ -672,6 +767,9 @@ struct ContentView: View {
             .keyboardShortcut(.defaultAction)
             // 準備中の停止も受け付ける (Recorder は録画開始直後に停止要求を処理する)
             .disabled(recording.phase == .finalizing)
+            // 文字起こし中に次の録画ができる (キューで順に処理される) ため、
+            // 録画中の画面でも進捗と中止を見せる (issue #146)
+            transcriptionStatusView
             Text("ポップオーバーを閉じても録画は続きます。経過時間はメニューバーに表示されます")
                 .font(.caption)
                 .foregroundStyle(.secondary)

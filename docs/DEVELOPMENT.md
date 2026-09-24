@@ -176,6 +176,31 @@ KILDE_GUI_SELFTEST_UPDATE=1 "$APP/Contents/MacOS/KildeGUI"
 と同じ)。また、v0.3.0 より前は Releases に appcast が無いため、**手動の更新チェックが
 404 エラーになるのが正常**です。
 
+`KILDE_GUI_SELFTEST_TRANSCRIBE=1` は録画せず、**録画後の文字起こしの経路**を確かめて
+終わります (issue #146)。`KILDE_GUI_SELFTEST_TRANSCRIBE_INPUT` で渡した音声を
+«録画の完了物» として GUI 本体と同じ経路 (RecordingSetup の文字起こし設定 →
+TranscriptionCoordinator → enqueue → 必要なら言語モデル取得 → 文字起こし →
+サイドカー書き出し) に流し、サイドカーが録画ファイルの隣に書かれることを検証します:
+
+```sh
+# 入力音声はリポジトリにコミットしないため自作する (Kyoko=日本語 / Samantha=英語)
+say -v Kyoko -o /tmp/kilde-transcribe-test.aiff "本日の議事録のテストです"
+afconvert -f m4af -d aac /tmp/kilde-transcribe-test.aiff /tmp/kilde-transcribe-test.m4a
+KILDE_GUI_SELFTEST_TRANSCRIBE=1 KILDE_GUI_SELFTEST_TRANSCRIBE_INPUT=/tmp/kilde-transcribe-test.m4a \
+  "$APP/Contents/MacOS/KildeGUI"
+# → selftest: transcribe input=kilde-transcribe-test.m4a format=markdown locale=(端末の言語設定)
+#   selftest: expect sidecar=/tmp/kilde-transcribe-test.md
+#   selftest: transcribed segments->kilde-transcribe-test.md bytes=… (exit 0)
+```
+
+**このセルフテストで「通った」にできないもの**: «録画完了 → 自動で文字起こしが
+積まれる» の配線 (実録画が要るため) と、オフラインでのモデル取得失敗と再試行
+(ネットワークの再現が要るため)。前者は録画セルフテストの後に出る文字起こしの
+表示で目視、後者は録画機能への影響がないことを構造 (録画完了の購読と
+TranscriptionCoordinator の切り離し) で担保しています。進捗は 10 秒ごとに
+`selftest: waiting phase=…` として出ます — 初回実行は言語モデルの取得に
+数分かかることがあります。
+
 ### 検証時の環境の注意
 
 > 画面がロックされている、または**ディスプレイが消灯している**間は

@@ -24,8 +24,14 @@ enum SelfTest {
     @MainActor
     static func runIfRequested(setup: RecordingSetup, recording: RecordingController,
                                permissions: PermissionsModel, updater: UpdaterCoordinator,
-                               popover: PopoverControl) {
+                               transcription: TranscriptionCoordinator, popover: PopoverControl) {
         let env = ProcessInfo.processInfo.environment
+        // KILDE_GUI_SELFTEST_TRANSCRIBE=1: 録画後の文字起こしの経路を確かめる (issue #146)。
+        // 実録画を伴わないため録画のスロット (権限・スピーカー) を占有しない
+        if env["KILDE_GUI_SELFTEST_TRANSCRIBE"] == "1" {
+            runTranscription(setup: setup, transcription: transcription)
+            return
+        }
         // KILDE_GUI_SELFTEST_UPDATE=1: Sparkle 自動更新の配線と設定を確かめる (issue #122)。
         // 終了は reportUpdateSetup の中 (canCheckForUpdates の待ちがあるため)。
         // App Store ビルドには Sparkle が無い (issue #126) のでこの検証は対象外
@@ -435,6 +441,111 @@ enum SelfTest {
             guard setup.recentScanFinished else {
                 fail("最近の録画の走査が 5 秒で完了しませんでした")
             }
+            exit(0)
+        }
+    }
+
+    /// 文字起こし経路の検証 (KILDE_GUI_SELFTEST_TRANSCRIBE=1、issue #146)。
+    ///
+    ///     KILDE_GUI_SELFTEST_TRANSCRIBE=1 \
+    ///         KILDE_GUI_SELFTEST_TRANSCRIBE_INPUT=<音声ファイル> KildeGUI.app/Contents/MacOS/KildeGUI
+    ///
+    /// GUI 本体と同じ経路 (RecordingSetup の文字起こし設定 → TranscriptionCoordinator.Job →
+    /// enqueue → モデル状態確認 → 必要ならモデル取得 → 文字起こし → サイドカー書き出し) を
+    /// UI 操作なしで通す。入力は録画ファイルとして用意した音声 (say + afconvert で自作) を
+    /// «録画の完了物» として渡す — エンジンの transcribeWithSpeakers はファイルを読むだけなので
+    /// 録画である必要はない
+    ///
+    /// 自動で確かめられるのはここまで、という線引き:
+    /// - **確かめられる**: enqueue → 完了 (lastCompletion) までのパイプライン、
+    ///   サイドカーが録画ファイルの隣に書かれること (受け入れ条件②の «録画ファイルは残る» 側)
+    /// - **確かめられない**: «録画完了 → 自動 enqueue» の配線 (実録画が要るため —
+    ///   KILDE_GUI_SELFTEST_RECORD との組み合わせは手動確認に頼る)、オフラインでの
+    ///   モデル取得失敗と再試行 (ネットワークの再現が要る。コード上は録画完了の sink から
+    ///   切り離されているため、失敗しても録画機能に影響しない構造で担保)
+    @MainActor
+    private static func runTranscription(setup: RecordingSetup, transcription: TranscriptionCoordinator) {
+        let env = ProcessInfo.processInfo.environment
+        guard let input = env["KILDE_GUI_SELFTEST_TRANSCRIBE_INPUT"], !input.isEmpty else {
+            fail("KILDE_GUI_SELFTEST_TRANSCRIBE_INPUT で音声ファイルを指定してください")
+        }
+        let inputURL = URL(fileURLWithPath: input)
+        guard FileManager.default.fileExists(atPath: inputURL.path) else {
+            fail("入力音声が存在しません: \(inputURL.path)")
+        }
+        // エンジンがこの環境で文字起こしに対応しているか。非対応環境では
+        // «モデル取得に失敗» のような分かりにくい形ではなく、ここではっきり落とす
+        guard setup.transcriptionAvailable else {
+            fail("この環境で Transcriber.isSupported=false です (文字起こし非対応)")
+        }
+        // transcribeEnabled はユーザー設定 (~/.kilde/config.json) 由来で既定無効。
+        // セルフテストは «設定を変えずに経路だけ» を確かめたいので、ここで強制有効にする
+        // (RECORD が setup.request を直接弄るのと同じ考え)。ユーザーの config は書き換えない
+        if !setup.transcribeEnabled {
+            setup.transcribeEnabled = true
+            print("selftest: transcribeEnabled forced=true (config は変更しません)")
+        }
+        let sidecar = TranscriptWriter.sidecarURL(forRecording: inputURL, format: setup.transcriptFormat)
+        // 前回実行の残骸があると «書かれた» と誤判定するので先に消す
+        try? FileManager.default.removeItem(at: sidecar)
+        print("selftest: transcribe input=\(inputURL.lastPathComponent)"
+            + " format=\(setup.transcriptFormat)"
+            + " locale=\(setup.transcriptLocale ?? "(端末の言語設定)")")
+        print("selftest: expect sidecar=\(sidecar.path)")
+        fflush(stdout)
+        // 本体と同じ «録画完了時のスナップショット» の形で Job を作る
+        transcription.enqueue(TranscriptionCoordinator.Job(
+            recordingURL: inputURL,
+            format: setup.transcriptFormat,
+            localeID: setup.transcriptLocale))
+        // lastCompletion / lastFailure の更新は Swift Concurrency で届くため
+        // RunLoop.main.run では観測できない (reportNotifyTargets のコメントと同じ理由) —
+        // await で待つ
+        Task { @MainActor in
+            // 初回は言語モデルの取得 (数GB 級) が入ることがあるので上限は長めに取る。
+            // 10 秒ごとに段階と進捗を出す — «止まっている» のと «進んでいる» を
+            // 外から区別できるようにするため
+            let deadline = Date().addingTimeInterval(600)
+            var lastReport = Date()
+            while transcription.lastCompletion == nil, transcription.lastFailure == nil,
+                  Date() < deadline {
+                try? await Task.sleep(nanoseconds: 200_000_000)
+                if Date().timeIntervalSince(lastReport) >= 10 {
+                    let phaseText: String
+                    switch transcription.runPhase {
+                    case .preparingModel(let progress):
+                        phaseText = "preparingModel(\(Int(progress * 100))%)"
+                    case .transcribing(let progress):
+                        phaseText = "transcribing(\(Int(progress * 100))%)"
+                    case nil:
+                        phaseText = "nil"
+                    }
+                    print("selftest: waiting phase=\(phaseText)"
+                        + " queue=\(transcription.queue.count)")
+                    fflush(stdout)
+                    lastReport = Date()
+                }
+            }
+            if let failure = transcription.lastFailure {
+                fail("文字起こしが失敗: \(failure.message)")
+            }
+            guard let completion = transcription.lastCompletion else {
+                fail("文字起こしが 10 分で完了しませんでした (モデル取得が進んでいない?)")
+            }
+            // 書き出し先は TranscriptWriter の契約 (録画ファイルの隣) どおりか、
+            // 存在するか、空でないかを見る。空ファイルなら «書けた» と偽る経路がないか
+            // 確かめられない
+            guard FileManager.default.fileExists(atPath: completion.sidecarURL.path) else {
+                fail("サイドカーが存在しません: \(completion.sidecarURL.path)")
+            }
+            let bytes = (try? FileManager.default.attributesOfItem(
+                atPath: completion.sidecarURL.path)[.size] as? Int).flatMap { $0 } ?? 0
+            guard bytes > 0 else {
+                fail("サイドカーが空です: \(completion.sidecarURL.path)")
+            }
+            print("selftest: transcribed segments->\(completion.sidecarURL.lastPathComponent)"
+                + " bytes=\(bytes) job=\(completion.job.recordingURL.lastPathComponent)")
+            fflush(stdout)
             exit(0)
         }
     }
