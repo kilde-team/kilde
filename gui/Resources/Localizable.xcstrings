@@ -3335,6 +3335,296 @@
           }
         }
       }
+    },
+    "会議の自動録画" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto-record meetings"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grabación automática de reuniones"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "회의 자동 녹화"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自动录制会议"
+          }
+        }
+      }
+    },
+    "会議を検知したら会議ウィンドウを自動で録画する" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatically record the meeting window when a meeting starts"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grabar automáticamente la ventana de la reunión al detectarla"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "회의가 감지되면 회의 창을 자동으로 녹화"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "检测到会议时自动录制会议窗口"
+          }
+        }
+      }
+    },
+    "Zoom・Google Meet・Teams・Slack ハドル・Webex でマイクが使われ始めたら、その会議ウィンドウだけをシステム音声とマイクで録画し、ウィンドウを閉じると停止します。録画の前に参加者の同意を得てください" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When Zoom, Google Meet, Teams, Slack huddles or Webex starts using the microphone, kilde records only that meeting window with system audio and the microphone, and stops when the window closes. Get participants' consent before recording."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuando Zoom, Google Meet, Teams, las reuniones de Slack o Webex empiezan a usar el micrófono, kilde graba solo esa ventana de reunión con el audio del sistema y el micrófono, y se detiene al cerrarla. Obtén el consentimiento de los participantes antes de grabar."
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zoom, Google Meet, Teams, Slack 허들, Webex가 마이크를 사용하기 시작하면 해당 회의 창만 시스템 오디오와 마이크로 녹화하고, 창을 닫으면 중지합니다. 녹화 전에 참가자의 동의를 받으세요."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当 Zoom、Google Meet、Teams、Slack 抱团或 Webex 开始使用麦克风时，仅录制该会议窗口（系统音频和麦克风），窗口关闭后停止。录制前请征得参会者同意。"
+          }
+        }
+      }
+    },
+    "この機能は macOS 14.2 以降で利用できます" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This feature requires macOS 14.2 or later"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta función requiere macOS 14.2 o posterior"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "이 기능은 macOS 14.2 이상에서 사용할 수 있습니다"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此功能需要 macOS 14.2 或更高版本"
+          }
+        }
+      }
+    },
+    "会議を自動録画中: %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto-recording meeting: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grabando reunión automáticamente: %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "회의 자동 녹화 중: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在自动录制会议：%@"
+          }
+        }
+      }
+    },
+    "会議ウィンドウを閉じると自動で停止します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording stops automatically when the meeting window closes"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La grabación se detiene al cerrar la ventana de la reunión"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "회의 창을 닫으면 자동으로 중지됩니다"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭会议窗口后将自动停止"
+          }
+        }
+      }
+    },
+    "会議の録画を開始しました" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meeting recording started"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grabación de la reunión iniciada"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "회의 녹화를 시작했습니다"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已开始录制会议"
+          }
+        }
+      }
+    },
+    "マイクの権限が無いため、相手の声 (システム音声) だけを録音します" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No microphone permission: recording only the other participants (system audio)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin permiso de micrófono: solo se graba a los demás participantes (audio del sistema)"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "마이크 권한이 없어 상대방 음성(시스템 오디오)만 녹음합니다"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有麦克风权限，仅录制对方声音（系统音频）"
+          }
+        }
+      }
+    },
+    "会議を検知しましたが、画面収録の権限が無いため録画できません" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A meeting was detected, but it can't be recorded without Screen Recording permission"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se detectó una reunión, pero no se puede grabar sin permiso de grabación de pantalla"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "회의를 감지했지만 화면 기록 권한이 없어 녹화할 수 없습니다"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "检测到会议，但没有屏幕录制权限，无法录制"
+          }
+        }
+      }
+    },
+    "会議の自動録画を開始できません: %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't start auto-recording the meeting: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo iniciar la grabación automática de la reunión: %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "회의 자동 녹화를 시작할 수 없습니다: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法开始自动录制会议：%@"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

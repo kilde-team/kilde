@@ -136,6 +136,22 @@ final class RecordingNotifier: NSObject {
     /// 録画の失敗を通知する。**ホットキーで他アプリの前面から始めた録画のため**に要る —
     /// 開始後に失敗 (収録対象のウィンドウが閉じた、デバイスが外れた、権限の失効) しても、
     /// ポップオーバーを開くまで何も見えず、メニューバーは待機アイコンに戻るだけになる
+    /// 会議の自動録画を始めたことを知らせる。
+    /// **自動で録画が始まったことは必ず知らせる** — 本人の操作なしに会議 (他人の声) の
+    /// 録画が始まるので、気づかないまま録られている状態を作らない
+    func notifyAutoRecordingStarted(appName: String, title: String, micIncluded: Bool,
+                                    completion: @escaping () -> Void = {}) {
+        let content = UNMutableNotificationContent()
+        content.title = String(localized: "会議の録画を開始しました")
+        let target = title.isEmpty ? appName : "\(appName) — \(title)"
+        let detail = micIncluded
+            ? String(localized: "会議ウィンドウを閉じると自動で停止します")
+            : String(localized: "マイクの権限が無いため、相手の声 (システム音声) だけを録音します")
+        content.body = "\(target)\n\(detail)"
+        content.sound = .default
+        post(identifier: UUID().uuidString, content: content, completion: completion)
+    }
+
     func notifyFailed(message: String, completion: @escaping () -> Void = {}) {
         let content = UNMutableNotificationContent()
         content.title = String(localized: "録画に失敗しました")

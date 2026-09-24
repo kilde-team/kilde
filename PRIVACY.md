@@ -38,6 +38,9 @@ Google のサーバーに送信され、取り扱いは
   第三者へ送信されません (端末内で書き起こし言語モデルをダウンロードする通信を除く。
   詳細は下の「ネットワーク通信」を参照)。書き起こしテキストは録画ファイルと同じ場所の
   サイドカーファイルにだけ書き込まれます
+- **会議の自動録画 (既定はオフ)**: 有効にすると、会議の開始を検知するために
+  «どのアプリがマイクを使っているか» とウィンドウのタイトルを数秒おきに
+  **あなたの Mac 上で**確認します。これらの情報は保存も送信もされません
 - 会議などを録画する場合は、参加者の同意を得るなど、お住まいの地域の法令に
   従ってください
 
@@ -150,6 +153,10 @@ analytics.
   third party, including Apple (except for the download of the transcription
   language model described under "Network access" below). The transcript is
   written only to sidecar files next to the recording
+- **Auto-record meetings (off by default)**: when enabled, the app checks every few
+  seconds, **on your Mac**, which apps are using the microphone and the titles of
+  their windows, to detect when a meeting starts. This information is never stored
+  or sent anywhere
 - When you record meetings or calls, follow the laws where you live, such as
   getting consent from other participants
 
