@@ -1,0 +1,27 @@
+docs/appstore/README.md
+  s_bac8baf9ac9e8b::t_8100919bcbe7be 169-172
+  s_bac8baf9ac9e8b::t_c6271b3a882c35 7-10
+scripts/release/appstore-archive.sh
+  s_bac8baf9ac9e8b::t_aa18e9666a1346 239-243,246-249
+  s_bac8baf9ac9e8b::t_d71539e1eb6705 235-238,244-245,250-251
+docs/appstore/review-notes.md
+  s_bac8baf9ac9e8b::t_290cc8daf03dad 1-119
+gui/Resources/KildeGUI-AppStore.entitlements
+  s_bac8baf9ac9e8b::t_3191774b854661 28-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0fd488e25b05df2c11ef2af0c6243ef28d639c10",
+  "prompts": {},
+  "sessions": {
+    "s_bac8baf9ac9e8b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb14f038-937e-4691-a802-be3264c6d43e",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
