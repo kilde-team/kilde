@@ -77,7 +77,8 @@ export_failed() {
     if [ -n "$KEY_PATH" ]; then
         die "エクスポートに失敗しました。\"Cloud signing permission error\" なら、" \
             "KILDE_ASC_API_KEY のキーにクラウド署名の権限 (App Manager 以上) がありません。" \
-            "キーの権限を上げるか、KILDE_ASC_API_KEY* を外して Xcode の Apple ID セッションで実行してください"
+            "発行済みキーの権限は後から変更できないため、App Manager 以上の新しいチーム API キーを作って" \
+            "KILDE_ASC_API_KEY* を差し替えるか、KILDE_ASC_API_KEY* を外して Xcode の Apple ID セッションで実行してください"
     fi
     die "エクスポートに失敗しました。\"Cloud signing permission error\" / \"No signing certificate\" なら、" \
         "Xcode の Settings > Accounts でチームにサインインしているか (セッション切れでないか) を確認してください"
