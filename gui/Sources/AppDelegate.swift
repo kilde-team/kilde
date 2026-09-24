@@ -147,7 +147,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         transcription.$running.combineLatest(transcription.$queue)
             .sink { [weak self] _, _ in
                 guard let self else { return }
-                self.updateStatusItem(phase: self.recording.phase, elapsed: self.recording.elapsed)
+                // @Published は willSet で通知するため、この場で isBusy を読むと
+                // **古い値**になる。とりわけ最後のジョブの完了 (running=nil) では
+                // この後 @Published が更新されないので、同期的に読むと «文字起こし中»
+                // 表示が残り続ける。全更新が済んだ次の MainActor ひと仕事で読み直す
+                Task { @MainActor in
+                    self.updateStatusItem(phase: self.recording.phase, elapsed: self.recording.elapsed)
+                }
             }
             .store(in: &cancellables)
 
