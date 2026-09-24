@@ -226,13 +226,42 @@ fi
 # 値まで見る — キーの存在だけだと false/ でも通り抜ける (CodeRabbit レビュー指摘)。
 # entitlements は :- で XML plist として受け取る (省略形 (-) は人間可読テキストで
 # plutil が読めない)。plutil -extract はドットを keypath 区切りにするため、
-# 鍵名のドットはバックスラッシュでエスケープする
+# 鍵名のドットはバックスラッシュでエスケープする。
+# -expect bool も付ける — raw 出力だけだと文字列 "true" も通ってしまい、
+# サンドボックスは Boolean でないと効かないため型まで見る (CodeRabbit レビュー指摘)。
+# 検査はアーカイブ直後の署名と、exportArchive の再署名を経た .pkg 内のアプリの
+# 両方で行う (Codex レビュー指摘) — «export が entitlement を変えないはず» を
+# 配布物側で裏取りする。--upload 経路は .pkg が手元に残らないため、アーカイブ側の
+# 検証だけが担保になる
+REQUIRED_ENTITLEMENTS=(
+    'com.apple.security.device.audio-input'
+    'com.apple.security.assets.movies.read-write'
+    'com.apple.security.files.user-selected.read-write'
+    'com.apple.security.files.bookmarks.app-scope'
+    'com.apple.security.network.client'
+)
+
+# $1: 検査する .app、$2: メッセージに使う対象の呼び名、$3: 抽出結果の書き出し先。
+# App Sandbox と、MAS 版が録画と文字起こし (issue #148) を成立させるのに必須の
+# エンタイトルメントを確認する。欠けてもビルドは通り、壊れ方は実行時だけ (無音
+# トラック・コンテナ内保存・モデル取得失敗) のため、値を見ないと黙って壊れた配布物になる
+verify_required_entitlements() {
+    local app="$1" target="$2" plist="$3" key escaped
+    codesign -d --entitlements :- "$app" > "$plist" 2>/dev/null \
+        || die "$target のエンタイトルメントを取得できません"
+    [ "$(plutil -extract 'com\.apple\.security\.app-sandbox' raw -expect bool -o - "$plist" 2>/dev/null)" = "true" ] \
+        || die "$target で App Sandbox が有効ではありません (entitlement の値を確認してください)"
+    for key in "${REQUIRED_ENTITLEMENTS[@]}"; do
+        # plutil -extract はドットを keypath 区切りにするためエスケープする
+        escaped=${key//./\\.}
+        [ "$(plutil -extract "$escaped" raw -expect bool -o - "$plist" 2>/dev/null)" = "true" ] \
+            || die "$target のエンタイトルメントに $key=true がありません (KildeGUI-AppStore.entitlements を確認してください)"
+    done
+}
+
 ENTITLEMENTS_PLIST="$OUTPUT_DIR/archive-entitlements.plist"
-codesign -d --entitlements :- "$APP_IN_ARCHIVE" > "$ENTITLEMENTS_PLIST" 2>/dev/null \
-    || die "アーカイブのエンタイトルメントを取得できません"
-[ "$(plutil -extract 'com\.apple\.security\.app-sandbox' raw -o - "$ENTITLEMENTS_PLIST" 2>/dev/null)" = "true" ] \
-    || die "アーカイブで App Sandbox が有効ではありません (entitlement の値を確認してください)"
-log "検証 OK: Sparkle 無し・App Sandbox 有効"
+verify_required_entitlements "$APP_IN_ARCHIVE" "アーカイブ" "$ENTITLEMENTS_PLIST"
+log "検証 OK: Sparkle 無し・App Sandbox 有効・録画/文字起こし用エンタイトルメント 5 キー有効"
 
 # SPM のリソースバンドル (Firebase / GoogleUtilities / Promises / nanopb の *.bundle) は
 # コードを持たない (Contents/MacOS が無い) が、アーカイブ時に Apple Development で署名される。
@@ -348,6 +377,10 @@ for candidate in "$VERIFY_DIR"/pkg/*/Payload/KildeGUI.app "$VERIFY_DIR"/pkg/*/Pa
 done
 [ -n "$APP_IN_PKG" ] || die ".pkg の中に KildeGUI.app が見つかりません ($VERIFY_DIR を確認してください)"
 codesign --verify --deep --strict "$APP_IN_PKG" || die ".pkg の中の KildeGUI.app の署名が無効です"
+# 再署名後のエンタイトルメントも同じ基準で確認する (Codex レビュー指摘)。
+# 書き出し先は cleanup (EXIT trap) が掃除する VERIFY_DIR の下
+verify_required_entitlements "$APP_IN_PKG" ".pkg 内の KildeGUI.app" "$VERIFY_DIR/pkg-entitlements.plist"
+log "検証 OK: .pkg 内の KildeGUI.app のエンタイトルメント (App Sandbox + 5 キー) も有効"
 # codesign の出力は変数に受けてから判定する。`codesign … | grep -q` は、grep が一致した
 # 時点で閉じたパイプに codesign が書いて SIGPIPE で落ち、`set -o pipefail` のもとでは
 # 一致していても失敗扱いになる (2026-09-23 実測: 正しく Apple Distribution で署名された
