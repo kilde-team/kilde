@@ -54,6 +54,10 @@ gui/                           メニューバー GUI (XcodeGen: project.yml が
   Sources/ContentView.swift    録画パネル (対象・音声・保存先の選択、Rec/Stop、レベルメーター)
   Sources/LevelMeter.swift     ソース別レベルメーター (dB 表示)
   Sources/SelfTest.swift       KILDE_GUI_SELFTEST_* による UI なし録画 (検証用)
+  Sources/MeetingDetector.swift  会議の検知 (CoreAudio のプロセス単位のマイク使用 +
+                               CGWindowList の会議ウィンドウ)。判定は純関数 evaluate (issue #197)
+  Sources/MeetingAutoRecorder.swift  会議の自動録画の状態遷移 (検知 → 開始 → 終了判定 → 停止)。
+                               AppDelegate が持つ。規則の検証は SelfTestMeeting.swift
   Sources/UpdaterCoordinator.swift  Sparkle 2 自動更新の窓口 + 録画中の再起動待ち (issue #122)。
                                ファイル全体が `#if !APPSTORE` — MAS ビルドでは
                                UpdaterCoordinatorAppStore.swift のスタブに差し替わる
@@ -79,7 +83,7 @@ docs/                          DEVELOPMENT.md / RELEASE.md / DESIGN.md / SPIKE-N
 ## 4. リリースと配布の契約
 
 - **GUI と release workflow の pin は必ず揃える**: `gui/project.yml` の依存 revision と
-  `release.yml` の `ref:` は同じコミットを指す (現在 `5518a5d79826c5e0f918f57d8d19e719ac44eb83`)。
+  `release.yml` の `ref:` は同じコミットを指す (現在 `4d2f251535ed6e907fea185e116ed9b9eb1392b3`)。
   片方だけ更新すると、GUI と配布 CLI が**別のエンジン revision** でビルドされる。
   更新は必ず同じ PR で行い、手順は docs/RELEASE.md「CLI ソースの pin の更新」
 - **`KILDE_CLI_SWIFT_TOKEN` が無いと release が作れない**: GITHUB_TOKEN は他リポジトリを
@@ -189,6 +193,18 @@ Info.plist 埋め込みの `unsafeFlags`、SDK シンボルの CI 確認) は
     MAS 版の既定保存先は必ず `SandboxSupport.userVisibleMoviesDirectory()` を通す
     (symlink 解決 → だめなら getpwuid の実ホーム)。**`NSHomeDirectory()` も
     サンドボックス下ではコンテナを返す**ので、実ホームの取得には使えない
+18. **会議の自動録画の検知に ScreenCaptureKit の列挙を使わない** (issue #197)。
+    検知は 2 秒周期で常時回るので、`SCShareableContent` を使うと録画開始との競合
+    (issue #70 — 両方が無期限に止まる) を常時作りうる。ウィンドウは
+    `CGWindowListCopyWindowInfo` で見る (CGWindowID = `SCWindow.windowID`)。
+    また**自動で始めた録画だけを自動で止める** (`MeetingAutoRecorder.ownsSession`) —
+    手動の録画を会議の終了で止めない。マイク使用の判定 (`kAudioProcessPropertyIsRunningInput`)
+    は macOS 14.2+ の API なので `#available` の内側に置く (デプロイ対象は 14.0)
+19. **appstore-archive.sh に notarization 用の `AC_API_KEY*` を渡さない**。App Store 用の
+    API キーは `KILDE_ASC_API_KEY*` (別名) でしか受け取らない。同じ名前を読んでいた頃は、
+    sign.sh 用に export したままのシェルで実行するとクラウド署名の権限の無いキーが黙って
+    使われ、アーカイブ後のエクスポートが "Cloud signing permission error" で落ちた
+    (0.5.0 build 6、2026-09-25)。変数名を sign.sh と «揃える» 方向に戻さないこと
 
 ## 6. 作業の進め方 — issue 駆動 (共通ルールは AGENTS.md)
 

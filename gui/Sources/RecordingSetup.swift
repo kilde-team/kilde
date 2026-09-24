@@ -15,8 +15,17 @@ final class RecordingSetup: ObservableObject {
     @Published private(set) var loadError: String?
     /// 操作の結果 (保存しました / 開始できません 等) を一時的に出す
     @Published var notice: String?
-    /// 保存先にある直近の録画 (issue #20)。新しい順
-    @Published private(set) var recentRecordings: [URL] = []
+    /// «最近の録画» の 1 行 (issue #147)。録画ファイルと、隣に置かれた文字起こし
+    /// サイドカー (無ければ nil)
+    struct RecentRecording: Identifiable, Equatable {
+        let url: URL
+        /// この録画の文字起こしサイドカー。実在が確認できたものだけを入れる —
+        /// ビューはこれを «開く» ので、«あると表示されているのに開けない» を作らない
+        let transcriptURL: URL?
+        var id: URL { url }
+    }
+    /// 保存先にある直近の録画 (issue #20、サイドカーの有無は issue #147)。新しい順
+    @Published private(set) var recentRecordings: [RecentRecording] = []
 
     /// 一覧に出す件数。メニューを縦に伸ばさない範囲に留める
     private static let recentLimit = 5
@@ -28,6 +37,15 @@ final class RecordingSetup: ObservableObject {
     /// ホットキー入力欄の編集中の値 (issue #20)。適用するまで config には書かない —
     /// 入力途中の "cmd+" のような不完全な文字列で登録を試みないため
     @Published var hotkeyDraft = ""
+
+    /// 「録画後に文字起こし」のオン/オフ (issue #145)。CLI と同じ `transcribe` キーに
+    /// 保存するため、GUI で変えた内容は `kilde rec` の既定にもなる。
+    /// 未設定 (nil) は CLI の既定と同じオフとして扱う
+    @Published var transcribeEnabled = false
+    /// 文字起こしの言語 (BCP 47)。nil は「自動」— CLI の省略時と同じく端末の言語設定に従う
+    @Published var transcriptLocale: String?
+    /// 文字起こし結果のサイドカー形式。CLI と同じ `transcriptFormat` キーに保存する
+    @Published var transcriptFormat: TranscriptOutputFormat = .markdown
 
     /// 設定ファイル (~/.kilde/config.json) の内容。CLI と共有する (issue #14)
     private(set) var config = KildeConfig()
@@ -111,6 +129,34 @@ final class RecordingSetup: ObservableObject {
         }
 #endif
         hotkeyDraft = config.hotkey ?? ""
+        transcribeEnabled = config.transcribe ?? false
+        transcriptLocale = Self.normalizedLocale(config.locale)
+        transcriptFormat = config.transcriptFormat
+            .flatMap(TranscriptOutputFormat.init(rawValue:)) ?? .markdown
+    }
+
+    /// この環境で文字起こしが使えるか。判定は KildeCore の `Transcriber.isSupported`
+    /// (macOS 26 以上かつ SpeechTranscriber 利用可能) に任せる — 自前で OS バージョンを
+    /// 見ると、SpeechTranscriber が対応しない環境を «対応している» と誤表示する
+    var transcriptionAvailable: Bool { Transcriber.isSupported }
+
+    /// 文字起こしが使えないときの案内文。使えるなら nil
+    var transcriptionUnsupportedReason: String? {
+        if transcriptionAvailable { return nil }
+        // isSupported が false でも理由は 2 通りある。旧 macOS なら案内で足りるが、
+        // macOS 26 以上なのに使えない場合は音声データ (対応ロケール) の問題なので文言を分ける
+        if #available(macOS 26, *) {
+            return String(localized: "この環境では文字起こしを利用できません (macOS 26 以降で、対応言語の音声データが必要です)")
+        }
+        return String(localized: "文字起こしは macOS 26 以降で利用できます")
+    }
+
+    /// config の locale を UI の選択値へ正規化する。空・空白のみは「自動」(nil) と同じ扱いにする —
+    /// 手で編集した config.json に空文字が入っていても Picker が壊れないようにするため
+    private static func normalizedLocale(_ value: String?) -> String? {
+        guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty
+        else { return nil }
+        return trimmed
     }
 
     // MARK: - 開始できるか (issue #20)
@@ -153,6 +199,12 @@ final class RecordingSetup: ObservableObject {
     /// 現在の選択から録画オプションを作る。設定ファイルは CLI で変更されている可能性があるので
     /// 開始のたびに読み直す (壊れていれば CLI と同じく開始しない)
     func makeOptions() throws -> RecordOptions {
+        try makeOptions(for: request)
+    }
+
+    /// パネルの選択とは別の構成で録画オプションを作る (会議の自動録画)。
+    /// 設定ファイルの読み直しと保存先の予約は makeOptions() と同じ経路を通す
+    func makeOptions(for request: RecordRequest) throws -> RecordOptions {
         config = try ConfigStore.load()
         return try request.makeOptions(config: config)
     }
@@ -215,6 +267,71 @@ final class RecordingSetup: ObservableObject {
         } catch {
             notice = String(localized: "ホットキーの設定を元に戻せません: \(error)")
         }
+    }
+
+    // MARK: - 文字起こし (issue #145)
+
+    /// 保存時に書き戻すキー。変更箇所だけを書くための指定 (saveTranscriptionSetting を参照)
+    enum TranscriptionSettingKey {
+        case enable
+        case locale
+        case format
+    }
+
+    /// 文字起こし設定のうち、変更されたキーだけを CLI と同じ設定ファイルに書き戻す。
+    /// トグルと Picker の変更時に呼ぶ (即時保存)。
+    ///
+    /// 3 キーをまとめて書くと、GUI 起動後に CLI 側 (kilde config set 等) で変更された
+    /// 他のキーを**起動時スナップショットで握りつぶす** — GUI はメニューバー常駐のため
+    /// 立ち上がったまま長時間経つので、この窓は実際に開いている。
+    /// saveHotkey を「触ったキーだけ」の書き込みに絞ったのと同じ理由
+    ///
+    /// load → 書き換え → save の順で行うのも saveHotkey と同じで、GUI を開いている間に
+    /// CLI 側で変更された他のキーを壊さないため。保存に失敗したら変更されたキーの表示を
+    /// **直前に読んだ** config の値へ戻す — load 自体が失敗した場合に限り起動時スナップショット
+    /// (`config`) を使う。save 失敗時点でファイルの実体は `updated` の内容
+    /// (CLI 側の変更込み) なので、古いスナップショットへ戻すと表示が実体とずれる。
+    /// 戻さないと「保存したつもり」の選択が次回起動で消え、ずれが続く。成功時は通知を
+    /// 出さない (chooseOutputDirectory と同じ方針 — 通知は bookmarkFailureNotice のような
+    /// 消えては困る常設警告の受け皿なので、トグル操作のたびに上書きすると警告が消える)
+    func saveTranscriptionSetting(_ key: TranscriptionSettingKey) {
+        // load に成功したら巻き戻しの基準は新鮮な config (CLI 側の変更を反映した実体) に切り替える
+        var rollbackConfig = config
+        do {
+            var updated = try ConfigStore.load()
+            rollbackConfig = updated
+            switch key {
+            case .enable: updated.transcribe = transcribeEnabled
+            case .locale: updated.locale = transcriptLocale
+            case .format: updated.transcriptFormat = transcriptFormat.rawValue
+            }
+            try ConfigStore.save(updated)
+            config = updated
+        } catch {
+            notice = String(localized: "文字起こしの設定を保存できません: \(error)")
+            config = rollbackConfig
+            switch key {
+            case .enable: transcribeEnabled = rollbackConfig.transcribe ?? false
+            case .locale: transcriptLocale = Self.normalizedLocale(rollbackConfig.locale)
+            case .format: transcriptFormat = rollbackConfig.transcriptFormat
+                .flatMap(TranscriptOutputFormat.init(rawValue:)) ?? .markdown
+            }
+        }
+    }
+
+    /// パネルを開くたびに表示中の 3 キーを設定ファイルから読み直す (AppDelegate.showPopover から呼ぶ)。
+    /// setup はアプリ起動時に 1 回だけ生成され、パネルを閉じて開き直しても init は走らない。
+    /// そのため起動後に CLI (`kilde config set` 等) で変更された値を表示が握り続け、
+    /// このままユーザーがトグルを触ると**古い表示値**が保存されてしまう — 開いた時点で
+    /// 実体へ追従させておく (保存経路が load から始まるのは saveTranscriptionSetting のとおりで、
+    /// ここは表示の再同期だけを担う)
+    func reloadTranscriptionSettings() {
+        guard let fresh = try? ConfigStore.load() else { return }
+        config = fresh
+        transcribeEnabled = fresh.transcribe ?? false
+        transcriptLocale = Self.normalizedLocale(fresh.locale)
+        transcriptFormat = fresh.transcriptFormat
+            .flatMap(TranscriptOutputFormat.init(rawValue:)) ?? .markdown
     }
 
     // MARK: - ログイン時に起動 (issue #20)
@@ -321,6 +438,11 @@ final class RecordingSetup: ObservableObject {
     func reloadRecentRecordings() {
         let directory = request.outputDirectory
         let extensions: Set<String> = ["mov", "mp4", "m4a"]
+        // サイドカーの拡張子は TranscriptOutputFormat が持つ値を使う —
+        // 形式が増えたときにここが古いままだと、その形式のサイドカーだけ
+        // «文字起こしなし» と表示される
+        let transcriptExtensions: Set<String> = Set(
+            TranscriptOutputFormat.allCases.map { $0.fileExtension })
         // 画面の列挙と同じ理由で世代を数える — 保存先を変えて開き直したとき、
         // 前のディレクトリ (件数が多い・遅いボリューム) の走査が後から返ってきて
         // 新しい結果を古い一覧で上書きするのを防ぐ
@@ -328,17 +450,24 @@ final class RecordingSetup: ObservableObject {
         let generation = recentGeneration
         // ファイル走査はディレクトリの中身が多いと待たされるので UI を止めない。
         // 失敗 (権限・存在しない) は空の一覧として扱う — 補助表示なのでエラーにしない
-        let scan = Task.detached { [limit = Self.recentLimit] () -> [URL] in
+        let scan = Task.detached { [limit = Self.recentLimit] () -> [RecentRecording] in
             let keys: [URLResourceKey] = [.contentModificationDateKey, .isRegularFileKey]
             guard let entries = try? FileManager.default.contentsOfDirectory(
                 at: directory, includingPropertiesForKeys: keys,
                 options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants])
             else { return [] }
-            return entries
+            let regular = entries.filter {
+                (try? $0.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
+            }
+            // サイドカーの候補 (TranscriptOutputFormat の拡張子を持つ通常ファイル) を
+            // 先に分けておく — ディレクトリの走査は 1 回で済ませる
+            let sidecarCandidates = regular.filter {
+                transcriptExtensions.contains($0.pathExtension.lowercased())
+            }
+            return regular
                 .filter { url in
                     url.lastPathComponent.hasPrefix("kilde-")
                         && extensions.contains(url.pathExtension.lowercased())
-                        && (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
                 }
                 .sorted { a, b in
                     let da = (try? a.resourceValues(forKeys: [.contentModificationDateKey]))?
@@ -348,7 +477,14 @@ final class RecordingSetup: ObservableObject {
                     return da > db
                 }
                 .prefix(limit)
-                .map { $0 }
+                .map { recording in
+                    RecentRecording(
+                        url: recording,
+                        // Task.detached の @Sendable クロージャ内では self を
+                        // 捕まえられないため、static は型名で明示的に呼ぶ
+                        transcriptURL: RecordingSetup.transcriptSidecar(
+                            for: recording, among: sidecarCandidates))
+                }
         }
         // 走査を始める前に一覧を空にする。**残したままだと、保存先を変えた直後の
         // 走査中に旧ディレクトリのファイルが操作可能なまま表示され、クリックすると
@@ -362,6 +498,40 @@ final class RecordingSetup: ObservableObject {
             // 走査が終わったことを «結果が空でないこと» で代用しない — 本当に 0 件の
             // ディレクトリと区別できず、検証側が無駄に待つことになる
             self.recentScanFinished = true
+        }
+    }
+
+    /// 録画に対応する文字起こしサイドカーを候補の中から探す (issue #147)。
+    ///
+    /// サイドカーの既定名は `<録画の stem>.<形式の拡張子>` (TranscriptWriter.sidecarURL)。
+    /// ただし **既定名が使用済みのとき `-2`, `-3` … に退避する** ので、既定名の存在確認
+    /// だけだと «2 回目の文字起こし» が «文字起こしなし» に見える。そこで
+    /// **stem が完全一致、または `<stem>-<数字>`** のものをすべて集め、
+    /// 更新日時が最も新しいものを «この録画の文字起こし» とする
+    /// (`-2` より後の退避がどう選ばれるかは表示・開く導線のどちらでも問題にならない。
+    /// どれも同じ内容の文字起こしで、最新のものが最も意図に近い)
+    ///
+    /// `<stem>-<数字>` は **数字だけ** の接尾辞に限る — `kilde-a.md` があるとき
+    /// `kilde-a-extra.md` を «kilde-a の退避» と誤判定すると、無関係なファイルを
+    /// «文字起こし» として開いてしまう
+    /// nonisolated: 走査は Task.detached (UI を止めない) から呼ぶため。
+    /// 純関数 (引数だけで決まり、状態を持たない) なので隔離は不要
+    nonisolated static func transcriptSidecar(for recording: URL, among candidates: [URL]) -> URL? {
+        let stem = recording.deletingPathExtension().lastPathComponent
+        let suffixSeparator = stem + "-"
+        let matches = candidates.filter { url in
+            let candidate = url.deletingPathExtension().lastPathComponent
+            if candidate == stem { return true }
+            guard candidate.hasPrefix(suffixSeparator) else { return false }
+            let digits = candidate.dropFirst(suffixSeparator.count)
+            return !digits.isEmpty && digits.allSatisfy(\.isNumber)
+        }
+        return matches.max { a, b in
+            let da = (try? a.resourceValues(forKeys: [.contentModificationDateKey]))?
+                .contentModificationDate ?? .distantPast
+            let db = (try? b.resourceValues(forKeys: [.contentModificationDateKey]))?
+                .contentModificationDate ?? .distantPast
+            return da < db
         }
     }
 

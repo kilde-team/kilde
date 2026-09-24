@@ -12,10 +12,15 @@ SCHEME="KildeGUI-AppStore"
 # Apple ID セッションで証明書・プロファイルを作り、アップロードもそこから行う。
 # API キーを渡す場合は «クラウド署名» の権限 (キーロール App Manager 以上) が要る —
 # 権限の無いキーだとエクスポートが "Cloud signing permission error" で失敗する
-# (Xcode 26 実測)。sign.sh と同じ変数名にしてある
-KEY_PATH="${AC_API_KEY:-}"
-KEY_ID="${AC_API_KEY_ID:-}"
-ISSUER="${AC_API_ISSUER:-}"
+# (Xcode 26 実測)。
+# **変数名は sign.sh (notarization) の AC_API_KEY* とわざと分けてある**。以前は同じ名前を
+# 読んでいたため、notarization 用に AC_API_KEY* を export したままのシェルで実行すると
+# クラウド署名の権限を持たないキーが黙って使われ、アーカイブ (十数分) の後の
+# エクスポートで "Cloud signing permission error" になった (0.5.0 build 6、2026-09-25 実測)。
+# このスクリプトで API キーを使うときは KILDE_ASC_API_KEY* で明示的に渡す
+KEY_PATH="${KILDE_ASC_API_KEY:-}"
+KEY_ID="${KILDE_ASC_API_KEY_ID:-}"
+ISSUER="${KILDE_ASC_API_ISSUER:-}"
 TEAM_ID="${KILDE_TEAM_ID:-4B873Q67MK}"
 OUTPUT_DIR="${KILDE_APPSTORE_OUTPUT_DIR:-$ROOT_DIR/dist/appstore}"
 STAMP_VERSION=""
@@ -43,11 +48,13 @@ Options:
   --team-id ID          Developer Team ID (既定: 4B873Q67MK)
 
 Environment:
-  AC_API_KEY       App Store Connect API キー (.p8) のパス (**任意** —
-                   未指定なら Xcode の Apple ID セッションでプロビジョニングする。
-                   キーを使うにはクラウド署名の権限 (App Manager 以上) が必要)
-  AC_API_KEY_ID    キー ID (AC_API_KEY とセットで指定)
-  AC_API_ISSUER    issuer ID (AC_API_KEY とセットで指定)
+  KILDE_ASC_API_KEY       App Store Connect API キー (.p8) のパス (**任意** —
+                          未指定なら Xcode の Apple ID セッションでプロビジョニングする。
+                          キーを使うにはクラウド署名の権限 (App Manager 以上) が必要)
+  KILDE_ASC_API_KEY_ID    キー ID (KILDE_ASC_API_KEY とセットで指定)
+  KILDE_ASC_API_ISSUER    issuer ID (KILDE_ASC_API_KEY とセットで指定)
+  ※ sign.sh (notarization) 用の AC_API_KEY / AC_API_KEY_ID / AC_API_ISSUER は
+    **読まない** (設定されていても無視する旨をログに出す)
   KILDE_CLI_SWIFT_TOKEN   private な kilde-cli-swift を解決するための PAT
                           (Contents: Read-only)。未設定なら既存の git 認証を使う
 
@@ -56,13 +63,26 @@ Environment:
   scripts/release/appstore-archive.sh --version 0.4.0 --build 42
 
   # ASC API キーを使う (CI など Apple ID でログインできない環境)
-  AC_API_KEY=~/.kilde-asc/AuthKey_XYZ.p8 AC_API_KEY_ID=XYZ AC_API_ISSUER=... \
+  KILDE_ASC_API_KEY=~/.kilde-asc/AuthKey_XYZ.p8 KILDE_ASC_API_KEY_ID=XYZ KILDE_ASC_API_ISSUER=... \
       scripts/release/appstore-archive.sh --version 0.4.0 --build 42
 EOF
 }
 
 log() { echo "appstore: $*"; }
 die() { echo "appstore: エラー: $*" >&2; exit 1; }
+# エクスポート (配布署名) の失敗で最も多い原因を添えて止める。アーカイブは成功して
+# いるので、原因を直したら同じコマンドの再実行でよい (アーカイブもやり直しになるが、
+# 途中から再開する仕組みは持たない)
+export_failed() {
+    if [ -n "$KEY_PATH" ]; then
+        die "エクスポートに失敗しました。\"Cloud signing permission error\" なら、" \
+            "KILDE_ASC_API_KEY のキーにクラウド署名の権限 (App Manager 以上) がありません。" \
+            "発行済みキーの権限は後から変更できないため、App Manager 以上の新しいチーム API キーを作って" \
+            "KILDE_ASC_API_KEY* を差し替えるか、KILDE_ASC_API_KEY* を外して Xcode の Apple ID セッションで実行してください"
+    fi
+    die "エクスポートに失敗しました。\"Cloud signing permission error\" / \"No signing certificate\" なら、" \
+        "Xcode の Settings > Accounts でチームにサインインしているか (セッション切れでないか) を確認してください"
+}
 
 # 後始末は 1 つの EXIT trap にまとめる。bash の trap は同じシグナルに設定し直すと前のものを
 # 上書きするので、Info.plist の復元と .pkg 検証用の一時ディレクトリの削除を別々に trap すると
@@ -93,10 +113,16 @@ while [ $# -gt 0 ]; do
     shift
 done
 
+# notarization 用の AC_API_KEY* がシェルに残っていても使わない (変数名を分けた理由は冒頭)。
+# 黙って無視すると «キーを渡したつもり» の人が迷うので、無視したことだけは知らせる
+if [ -n "${AC_API_KEY:-}${AC_API_KEY_ID:-}${AC_API_ISSUER:-}" ]; then
+    log "注意: AC_API_KEY* (sign.sh の notarization 用) が設定されていますが、このスクリプトでは使いません。" \
+        "App Store 用に API キーを使う場合は KILDE_ASC_API_KEY* を指定してください"
+fi
 # API キーは 3 変数をすべて指定するかすべて省略する (任意)。片方だけの指定は設定漏れ
 if [ -n "$KEY_PATH" ] || [ -n "$KEY_ID" ] || [ -n "$ISSUER" ]; then
     { [ -n "$KEY_PATH" ] && [ -n "$KEY_ID" ] && [ -n "$ISSUER" ]; } \
-        || die "AC_API_KEY / AC_API_KEY_ID / AC_API_ISSUER は 3 つとも指定するか、すべて省略してください"
+        || die "KILDE_ASC_API_KEY / KILDE_ASC_API_KEY_ID / KILDE_ASC_API_ISSUER は 3 つとも指定するか、すべて省略してください"
     [ -f "$KEY_PATH" ] || die "API キーが見つかりません: $KEY_PATH"
 fi
 [ -d "$GUI_DIR" ] || die "gui/ が見つかりません: $GUI_DIR"
@@ -226,13 +252,42 @@ fi
 # 値まで見る — キーの存在だけだと false/ でも通り抜ける (CodeRabbit レビュー指摘)。
 # entitlements は :- で XML plist として受け取る (省略形 (-) は人間可読テキストで
 # plutil が読めない)。plutil -extract はドットを keypath 区切りにするため、
-# 鍵名のドットはバックスラッシュでエスケープする
+# 鍵名のドットはバックスラッシュでエスケープする。
+# -expect bool も付ける — raw 出力だけだと文字列 "true" も通ってしまい、
+# サンドボックスは Boolean でないと効かないため型まで見る (CodeRabbit レビュー指摘)。
+# 検査はアーカイブ直後の署名と、exportArchive の再署名を経た .pkg 内のアプリの
+# 両方で行う (Codex レビュー指摘) — «export が entitlement を変えないはず» を
+# 配布物側で裏取りする。--upload 経路は .pkg が手元に残らないため、アーカイブ側の
+# 検証だけが担保になる
+REQUIRED_ENTITLEMENTS=(
+    'com.apple.security.device.audio-input'
+    'com.apple.security.assets.movies.read-write'
+    'com.apple.security.files.user-selected.read-write'
+    'com.apple.security.files.bookmarks.app-scope'
+    'com.apple.security.network.client'
+)
+
+# $1: 検査する .app、$2: メッセージに使う対象の呼び名、$3: 抽出結果の書き出し先。
+# App Sandbox と、MAS 版が録画と文字起こし (issue #148) を成立させるのに必須の
+# エンタイトルメントを確認する。欠けてもビルドは通り、壊れ方は実行時だけ (無音
+# トラック・コンテナ内保存・モデル取得失敗) のため、値を見ないと黙って壊れた配布物になる
+verify_required_entitlements() {
+    local app="$1" target="$2" plist="$3" key escaped
+    codesign -d --entitlements :- "$app" > "$plist" 2>/dev/null \
+        || die "$target のエンタイトルメントを取得できません"
+    [ "$(plutil -extract 'com\.apple\.security\.app-sandbox' raw -expect bool -o - "$plist" 2>/dev/null)" = "true" ] \
+        || die "$target で App Sandbox が有効ではありません (entitlement の値を確認してください)"
+    for key in "${REQUIRED_ENTITLEMENTS[@]}"; do
+        # plutil -extract はドットを keypath 区切りにするためエスケープする
+        escaped=${key//./\\.}
+        [ "$(plutil -extract "$escaped" raw -expect bool -o - "$plist" 2>/dev/null)" = "true" ] \
+            || die "$target のエンタイトルメントに $key=true がありません (KildeGUI-AppStore.entitlements を確認してください)"
+    done
+}
+
 ENTITLEMENTS_PLIST="$OUTPUT_DIR/archive-entitlements.plist"
-codesign -d --entitlements :- "$APP_IN_ARCHIVE" > "$ENTITLEMENTS_PLIST" 2>/dev/null \
-    || die "アーカイブのエンタイトルメントを取得できません"
-[ "$(plutil -extract 'com\.apple\.security\.app-sandbox' raw -o - "$ENTITLEMENTS_PLIST" 2>/dev/null)" = "true" ] \
-    || die "アーカイブで App Sandbox が有効ではありません (entitlement の値を確認してください)"
-log "検証 OK: Sparkle 無し・App Sandbox 有効"
+verify_required_entitlements "$APP_IN_ARCHIVE" "アーカイブ" "$ENTITLEMENTS_PLIST"
+log "検証 OK: Sparkle 無し・App Sandbox 有効・録画/文字起こし用エンタイトルメント 5 キー有効"
 
 # SPM のリソースバンドル (Firebase / GoogleUtilities / Promises / nanopb の *.bundle) は
 # コードを持たない (Contents/MacOS が無い) が、アーカイブ時に Apple Development で署名される。
@@ -298,7 +353,7 @@ if [ "$UPLOAD" = true ]; then
         -exportPath "$OUTPUT_DIR" \
         -exportOptionsPlist "$EXPORT_OPTIONS" \
         -allowProvisioningUpdates \
-        ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"}
+        ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"} || export_failed
     log "アップロード完了。App Store Connect で処理完了後に提出してください"
     exit 0
 fi
@@ -317,7 +372,7 @@ xcodebuild -exportArchive \
     -exportPath "$EXPORT_DIR" \
     -exportOptionsPlist "$EXPORT_OPTIONS" \
     -allowProvisioningUpdates \
-    ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"}
+    ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"} || export_failed
 
 # glob で拾う。`find … | head -1` は **.pkg が 2 つ以上あると head が先に閉じて
 # find が SIGPIPE で落ち、`set -o pipefail` がそれを拾って中断する** (cubic レビュー指摘。
@@ -348,6 +403,10 @@ for candidate in "$VERIFY_DIR"/pkg/*/Payload/KildeGUI.app "$VERIFY_DIR"/pkg/*/Pa
 done
 [ -n "$APP_IN_PKG" ] || die ".pkg の中に KildeGUI.app が見つかりません ($VERIFY_DIR を確認してください)"
 codesign --verify --deep --strict "$APP_IN_PKG" || die ".pkg の中の KildeGUI.app の署名が無効です"
+# 再署名後のエンタイトルメントも同じ基準で確認する (Codex レビュー指摘)。
+# 書き出し先は cleanup (EXIT trap) が掃除する VERIFY_DIR の下
+verify_required_entitlements "$APP_IN_PKG" ".pkg 内の KildeGUI.app" "$VERIFY_DIR/pkg-entitlements.plist"
+log "検証 OK: .pkg 内の KildeGUI.app のエンタイトルメント (App Sandbox + 5 キー) も有効"
 # codesign の出力は変数に受けてから判定する。`codesign … | grep -q` は、grep が一致した
 # 時点で閉じたパイプに codesign が書いて SIGPIPE で落ち、`set -o pipefail` のもとでは
 # 一致していても失敗扱いになる (2026-09-23 実測: 正しく Apple Distribution で署名された

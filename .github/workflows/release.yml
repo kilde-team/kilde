@@ -47,7 +47,7 @@ jobs:
           repository: kilde-team/kilde-cli-swift
           # GUI (gui/project.yml) と同じ pin。リリース成果物が「どのコミットで
           # ビルドされたか」を追跡可能にするため。更新時は GUI 側と揃える
-          ref: 5518a5d79826c5e0f918f57d8d19e719ac44eb83
+          ref: 4d2f251535ed6e907fea185e116ed9b9eb1392b3
           # private リポジトリ: GITHUB_TOKEN は他リポジトリを読めないため
           # fine-grained PAT (contents:read) を使う
           token: ${{ secrets.KILDE_CLI_SWIFT_TOKEN }}

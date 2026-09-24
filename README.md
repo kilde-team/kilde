@@ -30,10 +30,13 @@ The project is split across two repositories (issue #115):
 - 🎙️ Record audio only with `--no-video`, with no additional driver required
 - 🛡️ Safely finalize the output file when you stop recording with Ctrl+C
 - ⌨️ Start and stop recording with a global hotkey while working in another app
+- 📝 Transcribe recordings to markdown/SRT/VTT/text/JSON sidecar files,
+  entirely on device (macOS 26+)
 
 ## Installation
 
 - macOS 14 or later
+- Transcription requires **macOS 26 or later**
 - Release binaries are **arm64 (Apple Silicon) builds** — Intel Macs are not
   supported at this time
 - Runtime testing is currently performed on macOS 26 on Apple Silicon
@@ -103,9 +106,10 @@ Use the other commands to discover capture targets, inspect a recording, and
 manage persistent recording defaults:
 
 ```sh
-kilde devices      # List displays, windows, and audio devices
-kilde inspect FILE # Show tracks and audio levels in a recording
-kilde config show  # Show configured values and effective defaults
+kilde devices         # List displays, windows, and audio devices
+kilde inspect FILE    # Show tracks and audio levels in a recording
+kilde transcribe FILE # Transcribe a recording to a sidecar file (macOS 26+)
+kilde config show     # Show configured values and effective defaults
 ```
 
 ## Recording examples
@@ -192,6 +196,29 @@ and SIGHUP all exit cleanly). kilde prints a warning to stderr when a
 stays quiet, since waiting is then what you asked for. To record unattended,
 remove the configured key with `kilde config unset hotkey`.
 
+### Transcribing after recording
+
+Add `--transcribe` and kilde transcribes the recording into a sidecar file
+(`meeting.md`) as soon as the recording file is finalized (macOS 26+, no
+Speech recognition permission needed):
+
+```sh
+kilde rec --transcribe --preset meeting meeting.mov
+```
+
+Transcription runs entirely on your Mac (on device) — neither the audio nor
+the transcript text is ever sent anywhere. It starts only after the recording
+file is complete, so a failure or interruption never touches the recording
+itself. Pressing Ctrl+C while the transcription is running interrupts just the
+transcription — the recording file stays on disk and the exit status is still
+`0`. A transcription *failure* (such as an unsupported environment, locale, or
+model download failure) exits `1`, because you explicitly asked for it.
+`--transcript-format md|srt|vtt|txt|json` picks the sidecar format and
+`--locale ja-JP` picks the language. In a `--no-video --audio-tracks separate`
+recording, the two audio tracks are transcribed with speaker labels
+("相手" for the system-audio track, "自分" for the mic track). You can also
+transcribe an existing recording with `kilde transcribe FILE`.
+
 ### Why is BlackHole not required?
 
 kilde uses ScreenCaptureKit's native system-audio capture, so ordinary screen
@@ -220,6 +247,8 @@ Common options include:
   falls back to `mov`)
 - `--cursor` or `--no-cursor`, `--countdown SECONDS`, `--preset meeting`, and
   `--hotkey SHORTCUT`
+- `--transcribe` (with `--transcript-format` and `--locale`) to transcribe the
+  recording into a sidecar file once it is finalized (macOS 26+)
 - `-o PATH` or `--output PATH` as an alternative to the positional output path
 
 ## Configuration
@@ -232,13 +261,17 @@ kilde config set outputDirectory ~/Movies/kilde
 kilde config set defaultAudioSources system,mic
 kilde config set showsCursor false   # Use kilde rec --cursor to override it once
 kilde config set hotkey cmd+shift+r  # Start rec in hotkey-waiting mode (see below)
+kilde config set transcribe true     # Transcribe every recording when it stops
+kilde config set transcriptFormat srt
+kilde config set locale ja-JP
 kilde config show
 kilde config unset hotkey
 kilde config path
 ```
 
 The supported keys are `outputDirectory`, `defaultAudioSources`, `audioTracks`,
-`codec`, `fps`, `showsCursor`, and `hotkey`.
+`codec`, `format`, `videoBitrate`, `audioBitrate`, `fps`, `showsCursor`,
+`hotkey`, `transcribe`, `transcriptFormat`, and `locale`.
 
 Recording settings are resolved in this order, from highest to lowest priority:
 
@@ -274,8 +307,8 @@ recording with exit status `1`.
 
 | Status | Meaning |
 |---:|---|
-| `0` | Success, including a recording safely stopped by SIGINT, SIGTERM, or SIGHUP |
-| `1` | Other runtime failure, including invalid configuration |
+| `0` | Success, including a recording safely stopped by SIGINT, SIGTERM, or SIGHUP. Interrupting the post-recording transcription of `rec --transcribe` with Ctrl+C also exits `0` — the recording file stays on disk |
+| `1` | Other runtime failure, including invalid configuration. A failed post-recording transcription of `rec --transcribe` (unsupported environment or locale, model download failure, sidecar write failure) exits `1` too — the recording file stays on disk, but you explicitly asked for the transcription |
 | `2` | Missing permission |
 | `3` | Display, window, or audio device not found |
 | `64` | Command-line parsing or option validation error, such as `rec --fps 0` |

@@ -176,6 +176,147 @@ KILDE_GUI_SELFTEST_UPDATE=1 "$APP/Contents/MacOS/KildeGUI"
 と同じ)。また、v0.3.0 より前は Releases に appcast が無いため、**手動の更新チェックが
 404 エラーになるのが正常**です。
 
+`KILDE_GUI_SELFTEST_TRANSCRIBE=1` は録画せず、**録画後の文字起こしの経路**を確かめて
+終わります (issue #146)。`KILDE_GUI_SELFTEST_TRANSCRIBE_INPUT` で渡した音声を
+«録画の完了物» として GUI 本体と同じ経路 (RecordingSetup の文字起こし設定 →
+TranscriptionCoordinator → enqueue → 必要なら言語モデル取得 → 文字起こし →
+サイドカー書き出し) に流し、サイドカーが録画ファイルの隣に書かれることを検証します:
+
+```sh
+# 入力音声はリポジトリにコミットしないため自作する (Kyoko=日本語 / Samantha=英語)
+say -v Kyoko -o /tmp/kilde-transcribe-test.aiff "本日の議事録のテストです"
+afconvert -f m4af -d aac /tmp/kilde-transcribe-test.aiff /tmp/kilde-transcribe-test.m4a
+KILDE_GUI_SELFTEST_TRANSCRIBE=1 KILDE_GUI_SELFTEST_TRANSCRIBE_INPUT=/tmp/kilde-transcribe-test.m4a \
+  "$APP/Contents/MacOS/KildeGUI"
+# → selftest: transcribe input=kilde-transcribe-test.m4a format=markdown locale=(端末の言語設定)
+#   selftest: expect sidecar=/tmp/kilde-transcribe-test.md
+#   selftest: transcribed segments->kilde-transcribe-test.md bytes=… (exit 0)
+```
+
+**このセルフテストで「通った」にできないもの**: «録画完了 → 自動で文字起こしが
+積まれる» の配線 (実録画が要るため — 後述の `RECORD_TRANSCRIBE=1` で確かめられる) と、
+オフラインでのモデル取得失敗と再試行 (ネットワークの再現が要るため)。後者は
+録画機能への影響がないことを構造 (録画完了の購読と TranscriptionCoordinator の
+切り離し) で担保しています。«中止» の経路は `TRANSCRIBE_CANCEL=1` (後述) で
+確かめられます。進捗は 10 秒ごとに
+`selftest: waiting phase=…` として出ます — 初回実行は言語モデルの取得に
+数分かかることがあります。
+
+`KILDE_GUI_SELFTEST_TRANSCRIBE_CANCEL=1` は録画せず、**«中止» の経路**を確かめて
+終わります (issue #146 の受け入れ条件 «キャンセルで出力ファイルが残らず、録画ファイルは
+残る» の回帰)。`TRANSCRIBE_INPUT` で渡した音声を enqueue して**直後に cancelAll** し、
+(1) running が空に戻る、(2) 完了・失敗の表示が立たない (キャンセルは失敗に数えない設計)、
+(3) サイドカーが残らない、の 3 点を見ます。**«直後» にするのは最悪ケースのため** —
+エンジンの SpeechAnalyzer 初期化はキャンセル通知窓の外で走るため、この窓での中止は
+Task が hung しうる (実測) で、このテストは hung を 5 秒で打ち切る観測タイムアウトの
+復帰経路も通します。入力は cancelAll 前に完了する競合を避けるため長め (目安 30 秒) を
+渡してください:
+
+```sh
+# 長めの入力 (目安 30 秒)。短いと cancelAll 前に文字起こしが完了してしまう
+say -v Kyoko -o /tmp/kilde-cancel-test.aiff "文字起こしの中止テストです。(以下 30 秒分の読み上げ)"
+afconvert -f m4af -d aac /tmp/kilde-cancel-test.aiff /tmp/kilde-cancel-test.m4a
+KILDE_GUI_SELFTEST_TRANSCRIBE_CANCEL=1 KILDE_GUI_SELFTEST_TRANSCRIBE_INPUT=/tmp/kilde-cancel-test.m4a \
+  "$APP/Contents/MacOS/KildeGUI"
+# → selftest: cancelled cleanly (no completion, no failure, no sidecar) (exit 0)
+```
+
+録画セルフテストに `KILDE_GUI_SELFTEST_RECORD_TRANSCRIBE=1` を付けると、**実録画の
+完了から «AppDelegate が文字起こしを自動で積む» 配線、文字起こし、サイドカー書き出し
+までを 1 回で確かめて終わります** (TRANSCRIBE 単体では確かめられない «録画完了 →
+自動 enqueue» の経路)。録画中に音を載せるには、別ターミナルから `say -v Kyoko "…"` を
+鳴らします (システム音声として録れます)。実行手順とスリープ・音声デバイスの注意は
+録画セルフテストと同じ (このセクションの上と「検証時の環境の注意」) です:
+
+```sh
+# 録画 12 秒の間に、別ターミナルで say -v Kyoko "…読み上げ…" を鳴らす
+KILDE_GUI_SELFTEST_RECORD=12 KILDE_GUI_SELFTEST_RECORD_TRANSCRIBE=1 \
+  KILDE_GUI_SELFTEST_OUTPUT=/tmp \
+  "$APP/Contents/MacOS/KildeGUI"
+# → selftest: finished /tmp/kilde-….mp4 bytes=…
+#   selftest: waiting for transcription of kilde-….mp4
+#   selftest: transcribed segments->kilde-….md bytes=… (exit 0)
+```
+
+`KILDE_GUI_SELFTEST_TRANSCRIBE=<秒>` (2 以上) は、上の «録画なし版» と違い
+**実録画を伴う完全経路**を確かめます (issue #150)。録画 → 停止 →
+«録画完了 → 自動文字起こしが積まれる» の配線 → サイドカーへの書き出し →
+«喋った内容のキーワードがサイドカーに乗る» までを 1 回の実行で通します。
+テスト音声は `say` (Kyoko) でその場で作り、録画中に `afplay` で再生します —
+実在の会議音声や第三者の音声は使いません。**実録画を伴うので、録画セルフテスト
+(`KILDE_GUI_SELFTEST_RECORD`) や kilde-cli-swift 側の統合テストと同時に実行しないでください。**
+
+```sh
+# 1) 既定出力を BlackHole 2ch に向ける (スピーカーを介さずに録画へ信号を入れる。
+#    戻すための元の名前を先に控える。brew install blackhole-2ch switchaudio-osx)
+SwitchAudioSource -t output -c                # → 元のデバイス名 (メモしておく)
+SwitchAudioSource -t output -n "BlackHole 2ch"
+# 2) ディスプレイを起こして消灯を防ぐ (消灯中は SCK がフレームを出さない — 下の注意参照)
+caffeinate -u -t 1; caffeinate -dims -w $$ &
+# 3) 実行 (秒数はテスト音声の長さ + 余裕。say の 1 文なら 12 で十分)
+KILDE_GUI_SELFTEST_TRANSCRIBE=12 KILDE_GUI_SELFTEST_OUTPUT=/tmp \
+  KILDE_GUI_SELFTEST_AUDIO="device:BlackHole 2ch" \
+  "$APP/Contents/MacOS/KildeGUI"
+# → selftest: transcribeEnabled forced=true (config は変更しません)
+#   selftest: playing kilde-selftest-speech-….aiff during recording
+#   selftest: finished /tmp/kilde-yyyyMMdd-HHmmss.mp4 bytes=… — waiting for transcription…
+#   selftest: transcription enqueued after recording finished (kilde-….mp4)
+#   selftest: waiting phase=transcribing(…) …
+#   selftest: transcribed sidecar=kilde-yyyyMMdd-HHmmss.md bytes=… keywords=… (exit 0)
+# 4) 既定出力を元に戻し、caffeinate を止める (シェルを開いたままにするなら忘れずに)
+SwitchAudioSource -t output -n "<手順 1 で控えた元のデバイス名>"
+kill %1
+```
+
+キーワード照合は«喋った語が 1 語でも乗れば成功»の条件です。読み上げテキストと
+キーワードは**日本語固定**です。セルフテストは認識言語をメモリ上で ja-JP に強制する
+(`transcriptLocale forced=ja-JP` と出る。config は書き換えない) ので、端末の
+«言語» 設定はそのままで構いません。`KILDE_GUI_SELFTEST_SPEECH_VOICE` は
+«日本語テキストを読める音声» への代替指定です (Kyoko が無い環境で別の ja 音声に
+変える。Samantha のような英語音声を指定してもテキストは日本語のままなので、
+検証は成功しません)。
+
+`KILDE_GUI_SELFTEST_POPOVER=close` を重ねると、**パネルを閉じた状態でも**
+録画も文字起こしも完了することを検証します (issue #150 の受け入れ条件 —
+TranscriptionCoordinator は AppDelegate 持ちでパネルに寿命がない):
+
+```sh
+KILDE_GUI_SELFTEST_TRANSCRIBE=12 KILDE_GUI_SELFTEST_OUTPUT=/tmp \
+  KILDE_GUI_SELFTEST_AUDIO="device:BlackHole 2ch" KILDE_GUI_SELFTEST_POPOVER=close \
+  "$APP/Contents/MacOS/KildeGUI"
+# → selftest: popover shown=true / popover closed shown=false elapsed=…s /
+#   transcribed … keywords=… popoverShown=false (exit 0)
+```
+
+**このセルフテストで「通った」にできないもの**: SpeechTranscriber の認識 «品質»
+(«1 語でも一致» を成功条件にしているため、誤認識の率までは見ない) と、オフラインでの
+モデル取得失敗と再試行 (録画なし版と同じ)。認識の確からしさは実機の目視確認に頼ります。
+
+### 会議の自動録画の検知を確かめる (issue #197)
+
+`KILDE_GUI_SELFTEST_MEETING=1` は録画せず、**会議の検知規則**を合成データで検証し、
+続けて実機の観測 (マイクを使っているプロセスと、今検知される会議) を出して終わります。
+合成データの全ケースが通れば終了コード 0、外れがあれば 1 (実機の観測は合否に含めません):
+
+```sh
+KILDE_GUI_SELFTEST_MEETING=1 "$APP/Contents/MacOS/KildeGUI"
+# → selftest: meeting rule [PASS] Zoom: 会議ウィンドウを選ぶ (メインウィンドウは選ばない) expected=20 got=20
+#   …
+#   selftest: meeting supported=true
+#   selftest: meeting audio us.zoom.xos pid=… input=true output=true   (会議中なら)
+#   selftest: meeting detected app=Zoom window=… title=Zoom ミーティング exists=true
+#   selftest: meeting failures=0 (exit 0)
+```
+
+会議に参加した状態で実行すると «その会議が検知されるか» をそのまま確かめられます。
+`detected=none` のときは、`meeting audio` の行に会議アプリ (またはそのヘルパー) が
+`input=true` で出ているかを見てください。出ていなければマイク側、出ていれば
+ウィンドウのタイトル側 (画面収録の権限が無いと CGWindowList のタイトルが空になる) の問題です。
+
+実際の自動録画 (検知 → 開始 → ウィンドウを閉じて停止 → ファイナライズ) は、
+パネルの「会議の自動録画」を有効にして会議に参加し、退出して確かめます
+(セルフテストの起動では監視を始めません — 検証中に実際の会議で録画が始まらないように)。
+
 ### 検証時の環境の注意
 
 > 画面がロックされている、または**ディスプレイが消灯している**間は

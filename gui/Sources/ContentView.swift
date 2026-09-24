@@ -11,6 +11,10 @@ struct ContentView: View {
     @ObservedObject var recording: RecordingController
     @ObservedObject var permissions: PermissionsModel
     @ObservedObject var updater: UpdaterCoordinator
+    @ObservedObject var transcription: TranscriptionCoordinator
+    /// 会議の自動録画。実体は AppDelegate が持つ — このビューは設定と表示だけ
+    @ObservedObject var meetingAutoRecorder: MeetingAutoRecorder
+    /// 文字起こしの状態 (issue #146)。実体は AppDelegate が持つ — このビューは表示だけ
 
     private enum Mode: Hashable {
         case display, window, audioOnly
@@ -34,10 +38,17 @@ struct ContentView: View {
                         // 押し出されて**録画を始められなくなる**
                         recentRecordings
                     }
-                    .padding(.trailing, 6)
+                    // 中身の幅をパネル内幅 (380 - padding 12×2 - スクロールバー分 16) に固定する。
+                    // 縦の ScrollView は子の理想幅がこれを超えると中身ごと横に広げて中央寄せし、
+                    // 左右が切れる — 長い言語 (es 等) の文言でトグルがパネル外に出て操作できなくなった (issue #195)
+                    .frame(width: 340, alignment: .leading)
+                    // 右端はスクロールバー分を空ける。«スクロールバーを常に表示» の環境では
+                    // バーが中身に重なり、右端の文字やボタンが隠れる
+                    .padding(.trailing, 16)
                 }
                 .frame(maxHeight: 420)
                 resultView
+                transcriptionStatusView
                 startButton
             }
             if let notice = setup.notice {
@@ -153,6 +164,9 @@ struct ContentView: View {
                 .labelsHidden()
                 .disabled(setup.request.audioSourceCount < 2)
             }
+            section("文字起こし") {
+                transcriptionSection
+            }
             section("保存先") {
                 outputRow
             }
@@ -164,6 +178,9 @@ struct ContentView: View {
                     get: { setup.launchesAtLogin },
                     set: { setup.setLaunchesAtLogin($0) }))
                     .toggleStyle(.checkbox)
+            }
+            section("会議の自動録画") {
+                meetingAutoRecordSection
             }
             // App Store ビルドには更新項目を出さない (issue #126)。MAS では配信が
             // App Store に一本化されるため「アップデートを確認」の手段自体が無い
@@ -391,6 +408,252 @@ struct ContentView: View {
         AppDelegate.shared?.applyHotkeyFromConfig(revert: .some(previous))
     }
 
+    // MARK: - 会議の自動録画
+
+    /// 会議の自動録画のオン/オフ。値は UserDefaults に入る (CLI と共有の config.json には
+    /// 書かない — MeetingAutoRecorder.enabledDefaultsKey のコメント参照)。
+    /// 非対応 OS (macOS 14.2 未満) では操作を無効にして理由を出す。セクションごと隠すと
+    /// 機能の存在自体が分からなくなる (文字起こしと同じ方針)
+    private var meetingAutoRecordSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle("会議を検知したら会議ウィンドウを自動で録画する", isOn: $meetingAutoRecorder.enabled)
+                .toggleStyle(.checkbox)
+                // 非対応環境でも OFF への変更は許す (文字起こしのトグルと同じ理由)
+                .disabled(!meetingAutoRecorder.isSupported && !meetingAutoRecorder.enabled)
+            // 三項演算子で文字列を選ぶと String 扱いになりローカライズされない。
+            // Text に直接リテラルを渡す (LocalizedStringKey)
+            if meetingAutoRecorder.isSupported {
+                Text("Zoom・Google Meet・Teams・Slack ハドル・Webex でマイクが使われ始めたら、その会議ウィンドウだけをシステム音声とマイクで録画し、ウィンドウを閉じると停止します。録画の前に参加者の同意を得てください")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text("この機能は macOS 14.2 以降で利用できます")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    // MARK: - 文字起こし (issue #145)
+
+    /// 「録画後に文字起こし」の設定。値は CLI と同じ `~/.kilde/config.json` の
+    /// `transcribe` / `locale` / `transcriptFormat` に入るため、ここで変えると
+    /// `kilde rec` の既定も変わる。変更は即座に保存する (ホットキーの「適用」のような
+    /// 確定操作を挟まない — トグルと Picker の UI に確認ボタンを足すと操作が2段になるうえ、
+    /// 「閉じたのに保存していない」状態を作ってしまう)。
+    /// macOS 26 未満 (Transcriber.isSupported == false) では操作を無効化し、
+    /// 理由を 1 行出すだけで構成を変えない — セクションごと隠すと、
+    /// 機能の存在自体が分からなくなる (issue の受け入れ条件 [2] はどちらでもよい)
+    private var transcriptionSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle("録画後に文字起こし", isOn: transcribeBinding)
+                .toggleStyle(.checkbox)
+                // 非対応環境でも OFF への変更は許す — config.json の手編集等で
+                // transcribe=true が残っている機械では、トグルが「チェック付き・無効」の
+                // まま凍ると解除できず、理由文だけではなぜチェックが付いているか分からない
+                .disabled(!setup.transcriptionAvailable && !setup.transcribeEnabled)
+                // MAS 版の ConfigStore は SandboxSupport がコンテナ内へ退避させるため
+                // ~/.kilde/config.json (CLI と共有) ではない — 「CLI の kilde rec にも
+                // 効く」系の文言は MAS 版では誤りになるので分岐する
+                #if APPSTORE
+                .help("このアプリの設定に保存します (録画が終わると自動で文字起こしします)")
+                #else
+                .help("~/.kilde/config.json に保存します (CLI の kilde rec の既定値も変わります)")
+                #endif
+            if setup.transcriptionAvailable && setup.transcribeEnabled {
+                Picker("言語", selection: transcriptLocaleBinding) {
+                    Text("自動 (端末の言語設定)").tag(String?.none)
+                    Text("日本語 (ja-JP)").tag(String?.some("ja-JP"))
+                    Text("英語 (en-US)").tag(String?.some("en-US"))
+                    // 手で編集した config.json に他の言語が入っているときは、
+                    // 選択を壊さないようにその値も選択肢に出す
+                    if let custom = setup.transcriptLocale,
+                       custom != "ja-JP", custom != "en-US" {
+                        Text(custom).tag(String?.some(custom))
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Picker("出力形式", selection: transcriptFormatBinding) {
+                    ForEach(TranscriptOutputFormat.allCases, id: \.self) { format in
+                        Text(Self.formatLabel(format)).tag(format)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                // 合成 1 トラックでは話者の区別が付かない。ソース数に関係なく案内を出す —
+                // 1 ソース構成でもトラックが合成なら話者ラベルは付かず、足すべき選択
+                // (「複数の音声ソース」+「ソースごとに分離」) は同じだから。既定値は変えない (issue の指定)
+                if setup.request.trackPolicy != .separate {
+                    // Label は title を 1 行の理想幅で並べ、fixedSize を付けても折り返さない —
+                    // es 等の長い訳でパネル幅を超え、セクション全体を横に押し広げた (issue #195)。
+                    // アイコンと本文を HStack に分け、本文だけを折り返させる
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Image(systemName: "person.wave.2")
+                        Text("話者ラベルを付けるには「複数の音声ソース」で「ソースごとに分離」を選んでください")
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+                // 録画が終わると自動で文字起こしが走る (issue #146)。進捗と中止は
+                // パネルの transcriptionStatusView に出るので、ここでは繰り返さない。
+                // MAS 版は ConfigStore がコンテナ内に退避されるため CLI にも適用の
+                // 文言は誤りになる (#if で分岐)
+                #if APPSTORE
+                Text("録画が終わると自動で文字起こしします")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                #else
+                Text("録画が終わると自動で文字起こしします。設定は CLI (kilde rec) での録画にも適用されます")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                #endif
+            }
+            if let reason = setup.transcriptionUnsupportedReason {
+                Text(reason)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    /// Binding の set で保存まで行う。onChange で保存すると、保存失敗時の巻き戻しが
+    /// 再び onChange を発火させて保存を再試行してしまう (値が戻った瞬間にもう一回走る)。
+    /// set の中で直接呼べば巻き戻しは表示の更新だけで済む
+    private var transcribeBinding: Binding<Bool> {
+        Binding(
+            get: { setup.transcribeEnabled },
+            set: {
+                setup.transcribeEnabled = $0
+                setup.saveTranscriptionSetting(.enable)
+            })
+    }
+
+    private var transcriptLocaleBinding: Binding<String?> {
+        Binding(
+            get: { setup.transcriptLocale },
+            set: {
+                setup.transcriptLocale = $0
+                setup.saveTranscriptionSetting(.locale)
+            })
+    }
+
+    private var transcriptFormatBinding: Binding<TranscriptOutputFormat> {
+        Binding(
+            get: { setup.transcriptFormat },
+            set: {
+                setup.transcriptFormat = $0
+                setup.saveTranscriptionSetting(.format)
+            })
+    }
+
+    private static func formatLabel(_ format: TranscriptOutputFormat) -> String {
+        switch format {
+        case .markdown: return String(localized: "Markdown (.md)")
+        case .srt: return String(localized: "SubRip 字幕 (.srt)")
+        case .vtt: return String(localized: "WebVTT 字幕 (.vtt)")
+        case .txt: return String(localized: "プレーンテキスト (.txt)")
+        case .json: return String(localized: "JSON (.json)")
+        }
+    }
+
+    /// 文字起こしの進捗・結果 (issue #146)。録画中 (sessionView) と待機中の
+    /// **両方**に出す — «文字起こし中に次の録画» をすると、録画中の画面に
+    /// 進捗と中止が無いと処理が見えなくなる。busy 中は進捗と中止、そうでなければ
+    /// 直近の失敗 (再試行つき) / 完了を 1 件だけ出す
+    @ViewBuilder
+    private var transcriptionStatusView: some View {
+        if transcription.isBusy {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Label(transcriptionRunLabel, systemImage: "waveform")
+                        .font(.caption)
+                    Spacer()
+                    Button("中止") { transcription.cancelAll() }
+                        .buttonStyle(.borderless)
+                        .font(.caption)
+                }
+                transcriptionProgressBar
+                if !transcription.queue.isEmpty {
+                    Text("他に \(transcription.queue.count) 件待機中 — 順に処理します (録画は文字起こしを待ちません)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Color.purple.opacity(0.08)))
+        }
+        if !transcription.isBusy {
+            if let failure = transcription.lastFailure {
+                VStack(alignment: .leading, spacing: 2) {
+                    Label(failure.message, systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                    // モデル取得の失敗 (オフライン) はネットワークが戻れば同じジョブの
+                    // 再実行で成功する — 失敗を見せっぱなしにせず回復の入り口を出す
+                    Button("再試行") { transcription.retryLastFailure() }
+                        .buttonStyle(.link)
+                        .font(.caption)
+                }
+            }
+            if let completion = transcription.lastCompletion {
+                HStack {
+                    Label(completion.sidecarURL.lastPathComponent, systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer()
+                    Button("Finder で表示") {
+                        RecordingNotifier.revealInFinder(completion.sidecarURL)
+                    }
+                    .buttonStyle(.link)
+                    .font(.caption)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var transcriptionProgressBar: some View {
+        switch transcription.runPhase {
+        case .preparingModel(let progress):
+            // モデルの総サイズが取れる前 (0) は不定長表示。進捗ポーリングは
+            // 0.5 秒間隔で必ず正の値に進むので、0 のまま固まることはない
+            if progress > 0 {
+                ProgressView(value: progress)
+            } else {
+                ProgressView()
+                    .progressViewStyle(.linear)
+            }
+        case .transcribing(let progress):
+            ProgressView(value: progress)
+        case nil:
+            ProgressView()
+                .progressViewStyle(.linear)
+        }
+    }
+
+    private var transcriptionRunLabel: String {
+        switch transcription.runPhase {
+        case .preparingModel(let progress):
+            return progress > 0
+                ? String(localized: "言語モデルを取得中… \(Int(progress * 100))%")
+                : String(localized: "言語モデルを準備中…")
+        case .transcribing(let progress):
+            return String(localized: "文字起こし中… \(Int(progress * 100))%")
+        case nil:
+            return String(localized: "文字起こしの準備中…")
+        }
+    }
+
     // MARK: - 開始・結果
 
     private var startButton: some View {
@@ -472,7 +735,9 @@ struct ContentView: View {
     }
 
     /// 直近の録画 (issue #20)。クリックで Finder に表示する。
-    /// 保存先を走査して作るので、CLI で録ったファイルもここに出る
+    /// 保存先を走査して作るので、CLI で録ったファイルもここに出る。
+    /// 行の右端には文字起こしのアクション (issue #147) を置く:
+    /// サイドカーが有れば «開く»、無ければ «文字起こしする»
     @ViewBuilder
     private var recentRecordings: some View {
         if !setup.recentRecordings.isEmpty {
@@ -480,24 +745,64 @@ struct ContentView: View {
                 Text("最近の録画")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                ForEach(setup.recentRecordings, id: \.self) { url in
-                    Button {
-                        RecordingNotifier.revealInFinder(url)
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "film")
-                                .foregroundStyle(.secondary)
-                            Text(url.lastPathComponent)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                            Spacer(minLength: 0)
+                ForEach(setup.recentRecordings) { item in
+                    HStack(spacing: 6) {
+                        Button {
+                            RecordingNotifier.revealInFinder(item.url)
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "film")
+                                    .foregroundStyle(.secondary)
+                                Text(item.url.lastPathComponent)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                Spacer(minLength: 0)
+                            }
+                            .contentShape(Rectangle())
                         }
-                        .contentShape(Rectangle())
+                        .buttonStyle(.plain)
+                        .help("Finder で表示: \(item.url.path)")
+                        recentTranscriptAction(item)
                     }
-                    .buttonStyle(.plain)
-                    .help("Finder で表示: \(url.path)")
                 }
             }
+        }
+    }
+
+    /// «最近の録画» の 1 行の右端に置く文字起こしアクション (issue #147)。
+    /// 本体クリック (Finder 表示) は issue #20 からの既存挙動なので変えず、
+    /// ボタンを足すだけにする。«文字起こしする» は «現在の» 設定 (形式・言語) で
+    /// 投入する — «録画したときの設定» ではない点が録画完了の自動投入と違う
+    @ViewBuilder
+    private func recentTranscriptAction(_ item: RecordingSetup.RecentRecording) -> some View {
+        if let transcript = item.transcriptURL {
+            Button {
+                NSWorkspace.shared.open(transcript)
+            } label: {
+                Image(systemName: "doc.text")
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("文字起こしを開く: \(transcript.lastPathComponent)")
+        } else {
+            let busy = transcription.isQueuedOrRunning(item.url)
+            Button {
+                transcription.enqueue(TranscriptionCoordinator.Job(
+                    recordingURL: item.url,
+                    format: setup.transcriptFormat,
+                    localeID: setup.transcriptLocale,
+                    // 後から文字起こしする録画は録音長を持たないため nil (計測では長さ区分を送らない)。
+                    // SelfTest の Job 生成と同じ扱い。
+                    recordingDuration: nil))
+            } label: {
+                Image(systemName: "waveform")
+                    .foregroundStyle(busy ? Color(nsColor: .disabledControlTextColor) : .secondary)
+            }
+            .buttonStyle(.plain)
+            .disabled(busy)
+            .help(busy
+                  ? "この録画の文字起こしは実行中 (または待機中) です"
+                  : "この録画を文字起こしする")
         }
     }
 
@@ -526,6 +831,24 @@ struct ContentView: View {
                     Text("準備中…")
                 }
             }
+            // 自動録画なら何を録っているかを出す (本人の操作なしに始まった録画なので、
+            // 何が録られているかをパネルで確かめられるようにする)
+            if let meeting = meetingAutoRecorder.activeMeeting {
+                VStack(alignment: .leading, spacing: 2) {
+                    Label("会議を自動録画中: \(meeting.appName)", systemImage: "person.2.wave.2")
+                        .font(.caption)
+                    if !meeting.title.isEmpty {
+                        Text(meeting.title)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    Text("会議ウィンドウを閉じると自動で停止します")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
             if let url = recording.outputURL {
                 Text(url.lastPathComponent)
                     .font(.caption)
@@ -551,6 +874,9 @@ struct ContentView: View {
             .keyboardShortcut(.defaultAction)
             // 準備中の停止も受け付ける (Recorder は録画開始直後に停止要求を処理する)
             .disabled(recording.phase == .finalizing)
+            // 文字起こし中に次の録画ができる (キューで順に処理される) ため、
+            // 録画中の画面でも進捗と中止を見せる (issue #146)
+            transcriptionStatusView
             Text("ポップオーバーを閉じても録画は続きます。経過時間はメニューバーに表示されます")
                 .font(.caption)
                 .foregroundStyle(.secondary)
