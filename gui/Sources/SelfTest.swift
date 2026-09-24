@@ -92,6 +92,38 @@ enum SelfTest {
             reportNotifyTargets(setup: setup)
             return
         }
+        // KILDE_GUI_SELFTEST_PANEL=1: パネル (ポップオーバー) を開いたまま約 20 秒保つ (issue #151)。
+        // 実録画を伴わない。ローカライズの «各言語で表示崩れがない» を UI 操作なしで確認するための
+        // モードで、外部から screencapture -x で撮る前提。パネルは transient なので撮影中に
+        // フォーカスを失うと閉じる — 張り直しループで開いた状態を維持してから自動で終了する
+        if env["KILDE_GUI_SELFTEST_PANEL"] == "1" {
+            // LSUIElement のアプリをターミナルから起動すると非アクティブのままで、
+            // その状態では NSPopover が表示されない。明示的にアクティブ化する
+            NSApp.activate(ignoringOtherApps: true)
+            popover.show()
+            if !popover.isShown() {
+                // アクティブ化やステータス項目の生成が間に合わないことがあるので 1 回だけ待って再試行する
+                RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+                popover.show()
+            }
+            guard popover.isShown() else { fail("ポップオーバーを開けませんでした (isShown=false)") }
+            print("selftest: panel shown=true holding 20s")
+            fflush(stdout)
+            let deadline = Date().addingTimeInterval(20)
+            while Date() < deadline {
+                if !popover.isShown() {
+                    // 別アプリがフォーカスを取ると transient の popover が閉じる。
+                    // 非アクティブのままでは再表示されないので、都度アクティブ化してから張り直す
+                    NSApp.activate(ignoringOtherApps: true)
+                    popover.show()
+                    guard popover.isShown() else {
+                        fail("ポップオーバーを再度開けませんでした (isShown=false)")
+                    }
+                }
+                RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+            }
+            exit(0)
+        }
         guard let text = env["KILDE_GUI_SELFTEST_RECORD"] else { return }
         guard let seconds = Double(text), seconds > 0 else {
             fail("KILDE_GUI_SELFTEST_RECORD は正の秒数で指定してください: \(text)")
