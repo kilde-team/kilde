@@ -1,0 +1,19 @@
+gui/Sources/ContentView.swift
+  s_bac8baf9ac9e8b::t_2c1c9762026e3b 746-749
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0d2d69225ef33d0d59bffe9061689bb3ee23fb10",
+  "prompts": {},
+  "sessions": {
+    "s_bac8baf9ac9e8b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "fb14f038-937e-4691-a802-be3264c6d43e",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
