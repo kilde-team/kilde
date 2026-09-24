@@ -584,8 +584,17 @@ enum SelfTest {
                 fail("文字起こしが 10 分で完了しませんでした (モデル取得が進んでいない?)")
             }
             // 書き出し先は TranscriptWriter の契約 (録画ファイルの隣) どおりか、
-            // 存在するか、空でないかを見る。空ファイルなら «書けた» と偽る経路がないか
-            // 確かめられない
+            // 存在するか、空でないかを見る。存在チェックだけだと別の場所に書いても
+            // 通ってしまうので、期待パスと比較する (/tmp → /private/tmp の
+            // symlink ゆらぎは両辺を解決して吸収する)。空ファイルなら «書けた» と
+            // 偽る経路がないか確かめられない
+            let expectedSidecar = TranscriptWriter.sidecarURL(
+                forRecording: recordingURL, format: setup.transcriptFormat)
+            guard completion.sidecarURL.resolvingSymlinksInPath().path
+                    == expectedSidecar.resolvingSymlinksInPath().path else {
+                fail("サイドカーの書き出し先が期待と違います: "
+                    + "\(completion.sidecarURL.path) (期待 \(expectedSidecar.path))")
+            }
             guard FileManager.default.fileExists(atPath: completion.sidecarURL.path) else {
                 fail("サイドカーが存在しません: \(completion.sidecarURL.path)")
             }

@@ -346,8 +346,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let title: String
         // 文字起こし (issue #146)。**録画が進行中なら録画の表示が優先** — «今何を
         // しているか» で失うものが大きいのは録画であり、文字起こしは録画が終わって
-        // から走るもの。録画中に文字起こしが並走してもアイコンは録画を示す
-        if !recording.isActive, transcription.isBusy {
+        // から走るもの。録画中に文字起こしが並走してもアイコンは録画を示す。
+        // 録画の進行判定は **引数の phase から計算する** — この関数は @Published の
+        // willSet sink から呼ばれるため、recording.isActive (phase プロパティ) は
+        // まだ前の値を見る。録画が .finished になった瞬間 (willSet) に isActive は
+        // まだ true なので «録画終了 → 文字起こし表示» への切替がこの後一切
+        // 駆動されず、«文字起こし中» が永続的に欠落する
+        let recordingActive: Bool
+        switch phase {
+        case .starting, .recording, .finalizing: recordingActive = true
+        case .idle, .finished, .failed: recordingActive = false
+        }
+        if !recordingActive, transcription.isBusy {
             symbol = "waveform"
             tint = .systemPurple
             title = String(localized: "文字起こし中")
