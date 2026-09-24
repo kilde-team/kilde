@@ -12,10 +12,15 @@ SCHEME="KildeGUI-AppStore"
 # Apple ID セッションで証明書・プロファイルを作り、アップロードもそこから行う。
 # API キーを渡す場合は «クラウド署名» の権限 (キーロール App Manager 以上) が要る —
 # 権限の無いキーだとエクスポートが "Cloud signing permission error" で失敗する
-# (Xcode 26 実測)。sign.sh と同じ変数名にしてある
-KEY_PATH="${AC_API_KEY:-}"
-KEY_ID="${AC_API_KEY_ID:-}"
-ISSUER="${AC_API_ISSUER:-}"
+# (Xcode 26 実測)。
+# **変数名は sign.sh (notarization) の AC_API_KEY* とわざと分けてある**。以前は同じ名前を
+# 読んでいたため、notarization 用に AC_API_KEY* を export したままのシェルで実行すると
+# クラウド署名の権限を持たないキーが黙って使われ、アーカイブ (十数分) の後の
+# エクスポートで "Cloud signing permission error" になった (0.5.0 build 6、2026-09-25 実測)。
+# このスクリプトで API キーを使うときは KILDE_ASC_API_KEY* で明示的に渡す
+KEY_PATH="${KILDE_ASC_API_KEY:-}"
+KEY_ID="${KILDE_ASC_API_KEY_ID:-}"
+ISSUER="${KILDE_ASC_API_ISSUER:-}"
 TEAM_ID="${KILDE_TEAM_ID:-4B873Q67MK}"
 OUTPUT_DIR="${KILDE_APPSTORE_OUTPUT_DIR:-$ROOT_DIR/dist/appstore}"
 STAMP_VERSION=""
@@ -43,11 +48,13 @@ Options:
   --team-id ID          Developer Team ID (既定: 4B873Q67MK)
 
 Environment:
-  AC_API_KEY       App Store Connect API キー (.p8) のパス (**任意** —
-                   未指定なら Xcode の Apple ID セッションでプロビジョニングする。
-                   キーを使うにはクラウド署名の権限 (App Manager 以上) が必要)
-  AC_API_KEY_ID    キー ID (AC_API_KEY とセットで指定)
-  AC_API_ISSUER    issuer ID (AC_API_KEY とセットで指定)
+  KILDE_ASC_API_KEY       App Store Connect API キー (.p8) のパス (**任意** —
+                          未指定なら Xcode の Apple ID セッションでプロビジョニングする。
+                          キーを使うにはクラウド署名の権限 (App Manager 以上) が必要)
+  KILDE_ASC_API_KEY_ID    キー ID (KILDE_ASC_API_KEY とセットで指定)
+  KILDE_ASC_API_ISSUER    issuer ID (KILDE_ASC_API_KEY とセットで指定)
+  ※ sign.sh (notarization) 用の AC_API_KEY / AC_API_KEY_ID / AC_API_ISSUER は
+    **読まない** (設定されていても無視する旨をログに出す)
   KILDE_CLI_SWIFT_TOKEN   private な kilde-cli-swift を解決するための PAT
                           (Contents: Read-only)。未設定なら既存の git 認証を使う
 
@@ -56,13 +63,25 @@ Environment:
   scripts/release/appstore-archive.sh --version 0.4.0 --build 42
 
   # ASC API キーを使う (CI など Apple ID でログインできない環境)
-  AC_API_KEY=~/.kilde-asc/AuthKey_XYZ.p8 AC_API_KEY_ID=XYZ AC_API_ISSUER=... \
+  KILDE_ASC_API_KEY=~/.kilde-asc/AuthKey_XYZ.p8 KILDE_ASC_API_KEY_ID=XYZ KILDE_ASC_API_ISSUER=... \
       scripts/release/appstore-archive.sh --version 0.4.0 --build 42
 EOF
 }
 
 log() { echo "appstore: $*"; }
 die() { echo "appstore: エラー: $*" >&2; exit 1; }
+# エクスポート (配布署名) の失敗で最も多い原因を添えて止める。アーカイブは成功して
+# いるので、原因を直したら同じコマンドの再実行でよい (アーカイブもやり直しになるが、
+# 途中から再開する仕組みは持たない)
+export_failed() {
+    if [ -n "$KEY_PATH" ]; then
+        die "エクスポートに失敗しました。\"Cloud signing permission error\" なら、" \
+            "KILDE_ASC_API_KEY のキーにクラウド署名の権限 (App Manager 以上) がありません。" \
+            "キーの権限を上げるか、KILDE_ASC_API_KEY* を外して Xcode の Apple ID セッションで実行してください"
+    fi
+    die "エクスポートに失敗しました。\"Cloud signing permission error\" / \"No signing certificate\" なら、" \
+        "Xcode の Settings > Accounts でチームにサインインしているか (セッション切れでないか) を確認してください"
+}
 
 # 後始末は 1 つの EXIT trap にまとめる。bash の trap は同じシグナルに設定し直すと前のものを
 # 上書きするので、Info.plist の復元と .pkg 検証用の一時ディレクトリの削除を別々に trap すると
@@ -93,10 +112,16 @@ while [ $# -gt 0 ]; do
     shift
 done
 
+# notarization 用の AC_API_KEY* がシェルに残っていても使わない (変数名を分けた理由は冒頭)。
+# 黙って無視すると «キーを渡したつもり» の人が迷うので、無視したことだけは知らせる
+if [ -n "${AC_API_KEY:-}${AC_API_KEY_ID:-}${AC_API_ISSUER:-}" ]; then
+    log "注意: AC_API_KEY* (sign.sh の notarization 用) が設定されていますが、このスクリプトでは使いません。" \
+        "App Store 用に API キーを使う場合は KILDE_ASC_API_KEY* を指定してください"
+fi
 # API キーは 3 変数をすべて指定するかすべて省略する (任意)。片方だけの指定は設定漏れ
 if [ -n "$KEY_PATH" ] || [ -n "$KEY_ID" ] || [ -n "$ISSUER" ]; then
     { [ -n "$KEY_PATH" ] && [ -n "$KEY_ID" ] && [ -n "$ISSUER" ]; } \
-        || die "AC_API_KEY / AC_API_KEY_ID / AC_API_ISSUER は 3 つとも指定するか、すべて省略してください"
+        || die "KILDE_ASC_API_KEY / KILDE_ASC_API_KEY_ID / KILDE_ASC_API_ISSUER は 3 つとも指定するか、すべて省略してください"
     [ -f "$KEY_PATH" ] || die "API キーが見つかりません: $KEY_PATH"
 fi
 [ -d "$GUI_DIR" ] || die "gui/ が見つかりません: $GUI_DIR"
@@ -327,7 +352,7 @@ if [ "$UPLOAD" = true ]; then
         -exportPath "$OUTPUT_DIR" \
         -exportOptionsPlist "$EXPORT_OPTIONS" \
         -allowProvisioningUpdates \
-        ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"}
+        ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"} || export_failed
     log "アップロード完了。App Store Connect で処理完了後に提出してください"
     exit 0
 fi
@@ -346,7 +371,7 @@ xcodebuild -exportArchive \
     -exportPath "$EXPORT_DIR" \
     -exportOptionsPlist "$EXPORT_OPTIONS" \
     -allowProvisioningUpdates \
-    ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"}
+    ${AUTH_ARGS[@]+"${AUTH_ARGS[@]}"} || export_failed
 
 # glob で拾う。`find … | head -1` は **.pkg が 2 つ以上あると head が先に閉じて
 # find が SIGPIPE で落ち、`set -o pipefail` がそれを拾って中断する** (cubic レビュー指摘。
