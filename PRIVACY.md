@@ -21,6 +21,9 @@ Google の **Firebase Analytics** で行います。収集するのは起動回�
 Google のサーバーに送信され、取り扱いは
 [Google のプライバシーポリシー](https://policies.google.com/privacy) に従います。
 開発者が取得できるのは集計された利用統計のみです。
+文字起こし機能 (macOS 26 以降) の利用状況 (開始・完了・失敗・キャンセルの回数、
+処理時間と録音の長さの区分、失敗の種別) も同じ利用統計に含まれます。
+**書き起こしたテキストや、録画・サイドカーのファイル名・保存先は含まれません。**
 `kilde` コマンドラインは解析を行いません。
 
 ### 録画・録音したデータ
@@ -128,7 +131,12 @@ includes the content of your recordings (video, audio, file names, save
 locations) or your settings (hotkeys, save locations, and so on).** These data
 are sent to Google's servers and handled under
 [Google's privacy policy](https://policies.google.com/privacy). The developer
-only sees aggregated usage statistics. The `kilde` command-line tool does no
+only sees aggregated usage statistics. Usage of the transcription feature
+(macOS 26 or later) — counts of starts, completions, failures, and
+cancellations, coarse buckets for processing time and recording length, and
+the kind of failure — is part of the same usage statistics. **It never
+includes transcript text or the names or locations of recording or sidecar
+files.** The `kilde` command-line tool does no
 analytics.
 
 ### Your recordings

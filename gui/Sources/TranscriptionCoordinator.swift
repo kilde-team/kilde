@@ -28,6 +28,10 @@ final class TranscriptionCoordinator: ObservableObject {
         /// nil は «端末の言語設定»。実行時に CLI と同じ `.bcp47` 表記へ解決する
         /// (kilde-cli-swift の TranscribeCommand.swift と同じ規約)
         let localeID: String?
+        /// 録画の長さ (秒)。利用状況計測 (issue #153) の区分だけに使い、UI には出さない。
+        /// nil は «不明» (セルフテストの直接 enqueue など) — 計測のパラメータを省略する。
+        /// 値そのものは送らない (UsageAnalytics が区分にしてから送る)
+        let recordingDuration: TimeInterval?
     }
 
     /// 実行 1 件の段階と進捗 (0...1)。
@@ -66,6 +70,11 @@ final class TranscriptionCoordinator: ObservableObject {
     /// (===) できないため、cancelAll の hung 観測が «自分が cancel した実行»
     /// か «猶予中に始まった次の実行» かを区別するのに使う
     private var runGeneration = 0
+    /// 現在の実行を始めた時刻 (pump で設定)。処理時間の計測 (issue #153) 用。
+    /// ContinuousClock — «かかった時間» の区分には単調時計が適する
+    /// (Date は NTP 等で跳ねうる)。計測値そのものは UsageAnalytics で区分化し、
+    /// 生の秒数は送らない
+    private var runStartedAt: ContinuousClock.Instant?
 
     /// 録画完了時に AppDelegate から呼ぶ。実行は pump() が担当し、
     /// 先に走っている文字起こしがあれば待ち行列に入るだけ
@@ -98,6 +107,12 @@ final class TranscriptionCoordinator: ObservableObject {
             // 猶予中に catch 経由で running が空になり、後続ジョブが pump で
             // 始まっていれば世代が進んでいる — 次の実行は触らず何もしない
             guard self.running != nil, self.runGeneration == cancelledGeneration else { return }
+            // hung の経路は execute の catch を通らないため、«中止» の計測 (issue #153)
+            // をここで送る。通常の中止は fail() が送る — 世代の guard のおかげで
+            // 同じ実行から両方が送られることはない
+            UsageAnalytics.transcriptionCancelled(
+                recordingDuration: self.running?.recordingDuration,
+                processingTime: self.takeProcessingTime())
             self.running = nil
             self.runPhase = nil
             self.task = nil
@@ -120,6 +135,12 @@ final class TranscriptionCoordinator: ObservableObject {
         let job = queue.removeFirst()
         running = job
         runGeneration += 1
+        runStartedAt = .now
+        // «開始» は «キューに積まれた時点» ではなく «実行に取りかかった時点» を
+        // 数える (issue #153)。積まれたまま実行されなかったジョブは開始にも
+        // 終了にも数えない — 前の録画が長時間で、後続が処理されないうちに
+        // アプリが終わったケースを «完了率 0%» と誤認させないため
+        UsageAnalytics.transcriptionStarted(recordingDuration: job.recordingDuration)
         // 最初の進捗が届くまでの仮表示。モデル取得なのか文字起こしなのかは
         // execute が modelAssetStatus の結果で確定させる
         runPhase = .preparingModel(progress: 0)
@@ -201,6 +222,10 @@ final class TranscriptionCoordinator: ObservableObject {
 
     private func finish(job: Job, sidecarURL: URL) {
         guard running?.id == job.id else { return }
+        // 処理時間は状態を戻す前に読む — runStartedAt はこの実行のもの
+        let processingTime = takeProcessingTime()
+        UsageAnalytics.transcriptionCompleted(
+            recordingDuration: job.recordingDuration, processingTime: processingTime)
         running = nil
         runPhase = nil
         task = nil
@@ -213,6 +238,7 @@ final class TranscriptionCoordinator: ObservableObject {
 
     private func fail(job: Job, error: Error) {
         guard running?.id == job.id else { return }
+        let processingTime = takeProcessingTime()
         running = nil
         runPhase = nil
         task = nil
@@ -231,9 +257,32 @@ final class TranscriptionCoordinator: ObservableObject {
         if !cancelled {
             lastFailure = Failure(job: job, message: Self.describe(error))
         }
+        // «キャンセルは失敗に数えない» (上) と同じ分類で計測のイベントも分ける
+        // (issue #153)。失敗に «キャンセル» が混ざると «どこで壊れているか» の
+        // 解析が誤る。hung 観測で止まった実行は fail を通らないため
+        // cancelAll 側で送る
+        if cancelled {
+            UsageAnalytics.transcriptionCancelled(
+                recordingDuration: job.recordingDuration, processingTime: processingTime)
+        } else {
+            UsageAnalytics.transcriptionFailed(
+                error: error, recordingDuration: job.recordingDuration,
+                processingTime: processingTime)
+        }
         // 失敗してもキューは続ける — 1 件の失敗で後続の録画の文字起こしまで
         // 落とす理由がない。後続が無ければ pump は何もしない
         pump()
+    }
+
+    /// 現在の実行を始めてからの時間 (秒)。計測 (issue #153) 用で、runStartedAt を
+    /// 消費する (nil に戻す) — finish / fail / hung 観測のどれか 1 か所でしか
+    /// 読めない。nil は «時刻が取れなかった» で、その場合はパラメータを省略する
+    private func takeProcessingTime() -> TimeInterval? {
+        guard let started = runStartedAt else { return nil }
+        runStartedAt = nil
+        let duration = started.duration(to: .now)
+        return Double(duration.components.seconds)
+            + Double(duration.components.attoseconds) / 1e18
     }
 
     /// エラーを表示用の 1 行にする。TranscriptionError は CustomStringConvertible で
