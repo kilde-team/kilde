@@ -78,6 +78,11 @@ enum SelfTest {
         // KILDE_GUI_SELFTEST_PERMISSIONS=1: 構成ごとに「何の権限を要求するか」を出して終わる (issue #19)。
         // 実際に TCC の許可を取り消さないと確かめられない部分 (案内の見た目) は人の目に頼るしかないが、
         // 「音声のみの録音に画面収録権限を求めない」のような判定はこれで機械的に確認できる
+        // KILDE_GUI_SELFTEST_MEETING=1: 会議の自動録画の検知規則と実機の観測を出して終わる。
+        // 実録画を伴わない (SelfTestMeeting.swift)
+        if env["KILDE_GUI_SELFTEST_MEETING"] == "1" {
+            reportMeetingDetection()
+        }
         if env["KILDE_GUI_SELFTEST_PERMISSIONS"] == "1" {
             reportPermissions(setup: setup, permissions: permissions)
             exit(0)

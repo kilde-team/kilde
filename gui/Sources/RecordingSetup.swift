@@ -199,6 +199,12 @@ final class RecordingSetup: ObservableObject {
     /// 現在の選択から録画オプションを作る。設定ファイルは CLI で変更されている可能性があるので
     /// 開始のたびに読み直す (壊れていれば CLI と同じく開始しない)
     func makeOptions() throws -> RecordOptions {
+        try makeOptions(for: request)
+    }
+
+    /// パネルの選択とは別の構成で録画オプションを作る (会議の自動録画)。
+    /// 設定ファイルの読み直しと保存先の予約は makeOptions() と同じ経路を通す
+    func makeOptions(for request: RecordRequest) throws -> RecordOptions {
         config = try ConfigStore.load()
         return try request.makeOptions(config: config)
     }

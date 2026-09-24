@@ -12,6 +12,8 @@ struct ContentView: View {
     @ObservedObject var permissions: PermissionsModel
     @ObservedObject var updater: UpdaterCoordinator
     @ObservedObject var transcription: TranscriptionCoordinator
+    /// 会議の自動録画。実体は AppDelegate が持つ — このビューは設定と表示だけ
+    @ObservedObject var meetingAutoRecorder: MeetingAutoRecorder
     /// 文字起こしの状態 (issue #146)。実体は AppDelegate が持つ — このビューは表示だけ
 
     private enum Mode: Hashable {
@@ -176,6 +178,9 @@ struct ContentView: View {
                     get: { setup.launchesAtLogin },
                     set: { setup.setLaunchesAtLogin($0) }))
                     .toggleStyle(.checkbox)
+            }
+            section("会議の自動録画") {
+                meetingAutoRecordSection
             }
             // App Store ビルドには更新項目を出さない (issue #126)。MAS では配信が
             // App Store に一本化されるため「アップデートを確認」の手段自体が無い
@@ -401,6 +406,34 @@ struct ContentView: View {
         // .some(previous) を渡すことで «失敗したら巻き戻す» を明示する
         // (previous 自体が nil = 未設定だった場合も巻き戻しの対象)
         AppDelegate.shared?.applyHotkeyFromConfig(revert: .some(previous))
+    }
+
+    // MARK: - 会議の自動録画
+
+    /// 会議の自動録画のオン/オフ。値は UserDefaults に入る (CLI と共有の config.json には
+    /// 書かない — MeetingAutoRecorder.enabledDefaultsKey のコメント参照)。
+    /// 非対応 OS (macOS 14.2 未満) では操作を無効にして理由を出す。セクションごと隠すと
+    /// 機能の存在自体が分からなくなる (文字起こしと同じ方針)
+    private var meetingAutoRecordSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle("会議を検知したら会議ウィンドウを自動で録画する", isOn: $meetingAutoRecorder.enabled)
+                .toggleStyle(.checkbox)
+                // 非対応環境でも OFF への変更は許す (文字起こしのトグルと同じ理由)
+                .disabled(!meetingAutoRecorder.isSupported && !meetingAutoRecorder.enabled)
+            // 三項演算子で文字列を選ぶと String 扱いになりローカライズされない。
+            // Text に直接リテラルを渡す (LocalizedStringKey)
+            if meetingAutoRecorder.isSupported {
+                Text("Zoom・Google Meet・Teams・Slack ハドル・Webex でマイクが使われ始めたら、その会議ウィンドウだけをシステム音声とマイクで録画し、ウィンドウを閉じると停止します。録画の前に参加者の同意を得てください")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                Text("この機能は macOS 14.2 以降で利用できます")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     // MARK: - 文字起こし (issue #145)
@@ -796,6 +829,24 @@ struct ContentView: View {
                     ProgressView()
                         .controlSize(.small)
                     Text("準備中…")
+                }
+            }
+            // 自動録画なら何を録っているかを出す (本人の操作なしに始まった録画なので、
+            // 何が録られているかをパネルで確かめられるようにする)
+            if let meeting = meetingAutoRecorder.activeMeeting {
+                VStack(alignment: .leading, spacing: 2) {
+                    Label("会議を自動録画中: \(meeting.appName)", systemImage: "person.2.wave.2")
+                        .font(.caption)
+                    if !meeting.title.isEmpty {
+                        Text(meeting.title)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    Text("会議ウィンドウを閉じると自動で停止します")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
             if let url = recording.outputURL {

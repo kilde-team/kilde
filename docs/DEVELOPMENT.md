@@ -292,6 +292,31 @@ KILDE_GUI_SELFTEST_TRANSCRIBE=12 KILDE_GUI_SELFTEST_OUTPUT=/tmp \
 («1 語でも一致» を成功条件にしているため、誤認識の率までは見ない) と、オフラインでの
 モデル取得失敗と再試行 (録画なし版と同じ)。認識の確からしさは実機の目視確認に頼ります。
 
+### 会議の自動録画の検知を確かめる (issue #197)
+
+`KILDE_GUI_SELFTEST_MEETING=1` は録画せず、**会議の検知規則**を合成データで検証し、
+続けて実機の観測 (マイクを使っているプロセスと、今検知される会議) を出して終わります。
+合成データの全ケースが通れば終了コード 0、外れがあれば 1 (実機の観測は合否に含めません):
+
+```sh
+KILDE_GUI_SELFTEST_MEETING=1 "$APP/Contents/MacOS/KildeGUI"
+# → selftest: meeting rule [PASS] Zoom: 会議ウィンドウを選ぶ (メインウィンドウは選ばない) expected=20 got=20
+#   …
+#   selftest: meeting supported=true
+#   selftest: meeting audio us.zoom.xos pid=… input=true output=true   (会議中なら)
+#   selftest: meeting detected app=Zoom window=… title=Zoom ミーティング exists=true
+#   selftest: meeting failures=0 (exit 0)
+```
+
+会議に参加した状態で実行すると «その会議が検知されるか» をそのまま確かめられます。
+`detected=none` のときは、`meeting audio` の行に会議アプリ (またはそのヘルパー) が
+`input=true` で出ているかを見てください。出ていなければマイク側、出ていれば
+ウィンドウのタイトル側 (画面収録の権限が無いと CGWindowList のタイトルが空になる) の問題です。
+
+実際の自動録画 (検知 → 開始 → ウィンドウを閉じて停止 → ファイナライズ) は、
+パネルの「会議の自動録画」を有効にして会議に参加し、退出して確かめます
+(セルフテストの起動では監視を始めません — 検証中に実際の会議で録画が始まらないように)。
+
 ### 検証時の環境の注意
 
 > 画面がロックされている、または**ディスプレイが消灯している**間は

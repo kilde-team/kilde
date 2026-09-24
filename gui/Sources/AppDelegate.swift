@@ -36,6 +36,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 録画完了通知 (issue #20)。UNUserNotificationCenter はデリゲートを弱参照するので、
     /// ここで生存期間を持つ
     private let notifier = RecordingNotifier()
+    /// 会議の自動録画。録画 (RecordingController) と同じく AppDelegate が持つ —
+    /// パネルを閉じている間 (会議中のほとんどの時間) も監視を続けるため
+    private lazy var meetingAutoRecorder = MeetingAutoRecorder(
+        setup: setup, recording: recording, permissions: permissions, notifier: notifier)
     /// 自動更新 (issue #122)。Sparkle の起動は環境変数で制御する — 録画系の
     /// セルフテストではネットワークアクセスと更新ダイアログを避けるため
     /// (updaterStartsAtLaunch 参照)
@@ -119,7 +123,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         p.contentViewController = NSHostingController(
             rootView: ContentView(
                 setup: setup, recording: recording, permissions: permissions, updater: updater,
-                transcription: transcription))
+                transcription: transcription, meetingAutoRecorder: meetingAutoRecorder))
         popover = p
         item.button?.target = self
         item.button?.action = #selector(togglePopover)
@@ -172,6 +176,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .store(in: &cancellables)
 
         applyHotkeyFromConfig()
+
+        // 会議の自動録画の監視を始める。**セルフテスト中は始めない** — 検証中に
+        // 実際の会議を検知して録画が始まると、録画スロットと検証結果の両方が壊れる
+        if !isSelfTest {
+            meetingAutoRecorder.activate()
+        }
 
         // セルフテストは 1 回ランループを回してから始める — applicationDidFinishLaunching の
         // 中ではステータス項目のボタンがまだウィンドウに載っておらず、NSPopover を出せないため
