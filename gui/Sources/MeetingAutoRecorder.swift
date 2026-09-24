@@ -7,6 +7,9 @@ import KildeCore
 struct MeetingObservation {
     let audio: [MeetingDetector.AudioActivity]
     let windows: [MeetingDetector.WindowCandidate]
+    /// 観測を始めた時点で録画中だったか。観測は非同期なので、適用までの間に
+    /// 手動録画が終わると «録画中に始まった会議» を見落とす (CodeRabbit レビュー指摘)
+    let recordingWasActive: Bool
     /// 自動録画中の会議ウィンドウがまだあるか (自動録画中でない、または問い合わせに
     /// 失敗して不明なら nil)
     let watchedExists: Bool?
@@ -125,12 +128,14 @@ final class MeetingAutoRecorder: ObservableObject {
     }
 
     /// 観測は MainActor の外で行う (CGWindowList・CoreAudio の呼び出しで UI を止めない)
-    nonisolated static func observe(watching: UInt32?, suppressed: Set<UInt32>) async -> MeetingObservation {
+    nonisolated static func observe(watching: UInt32?, suppressed: Set<UInt32>,
+                                    recordingWasActive: Bool) async -> MeetingObservation {
         // 存在確認はウィンドウ全体の一覧 1 回で済ませる (問い合わせ失敗なら nil = 不明)
         let existing = MeetingDetector.allWindowIDs()
         return MeetingObservation(
             audio: MeetingDetector.probeAudio(),
             windows: MeetingDetector.probeWindows(),
+            recordingWasActive: recordingWasActive,
             watchedExists: watching.flatMap { id in existing.map { $0.contains(id) } },
             closed: existing.map { ids in suppressed.filter { !ids.contains($0) } } ?? [])
     }
@@ -140,8 +145,11 @@ final class MeetingAutoRecorder: ObservableObject {
         tickInFlight = true
         let watching = ownsSession ? activeMeeting?.windowID : nil
         let suppressedNow = suppressed
+        let recordingWasActive = recording.isActive
         Task { [weak self] in
-            let observation = await Self.observe(watching: watching, suppressed: suppressedNow)
+            let observation = await Self.observe(
+                watching: watching, suppressed: suppressedNow,
+                recordingWasActive: recordingWasActive)
             guard let self else { return }
             self.tickInFlight = false
             self.apply(observation)
@@ -167,7 +175,9 @@ final class MeetingAutoRecorder: ObservableObject {
             candidate = nil
             return
         }
-        if recording.isActive {
+        // 観測開始時と今のどちらかで録画中なら «手動録画中に始まった会議» として扱う
+        // (観測中に手動録画が終わっても、観測中に録画が始まっても取りこぼさない)
+        if observation.recordingWasActive || recording.isActive {
             // 手動で録っている最中に始まった会議。その録画が終わった後に
             // 同じ会議を勝手に録り始めない (ユーザーは既に自分で録っている)
             suppressed.insert(detected.windowID)
