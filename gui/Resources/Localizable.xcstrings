@@ -703,13 +703,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Separate tracks per source"
+            "value" : "Separate per source"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pistas separadas por fuente"
+            "value" : "Separar por fuente"
           }
         },
         "ko" : {
@@ -2490,7 +2490,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "如需标注说话人，请在“多个音频源”中选择“按源分轨”。"
+            "value" : "如需标注说话人，请在“多个音频源”中选择“按来源分轨”。"
           }
         }
       }
