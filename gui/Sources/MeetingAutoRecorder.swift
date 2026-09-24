@@ -263,7 +263,17 @@ final class MeetingAutoRecorder: ObservableObject {
     }
 
     private func phaseChanged(_ phase: RecordingController.Phase) {
-        guard ownsSession else { return }
+        guard ownsSession else {
+            // 手動録画が始まった。検知の途中 (confirmTicks 未満) の会議は «手動録画と
+            // 重なった会議» なので、その時点で抑止に入れる。周期を待って判定すると、
+            // 2 秒未満で終わった手動録画のあとに同じ会議を自動で録り始めてしまう
+            // (CodeRabbit レビュー指摘)
+            if case .starting = phase, let pending = candidate {
+                suppressed.insert(pending.windowID)
+                candidate = nil
+            }
+            return
+        }
         switch phase {
         case .finished, .failed, .idle:
             // 自動録画のセッションが終わった (自動停止・手動停止・失敗のいずれも)。
