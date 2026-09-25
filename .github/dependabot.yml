@@ -1,0 +1,8 @@
+# GitHub Actions の uses: はコミット SHA に固定している (zizmor unpinned-uses、issue #203)。
+# SHA 固定のままでは更新が止まるため、Dependabot に SHA とバージョンコメントの更新 PR を出させる
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
