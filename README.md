@@ -19,6 +19,8 @@ The project is split across two repositories (issue #115):
 
 ## Features
 
+- **Recording consent is your responsibility**: when recording meetings, make sure all participants are informed and consent, in accordance with the laws of your region.
+
 - 🖥️ Record the screen and system audio with zero setup using native
   ScreenCaptureKit capture
 - 🎤 Record a microphone or another input device such as BlackHole at the same

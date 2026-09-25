@@ -70,6 +70,51 @@ final class RecordingSetup: ObservableObject {
     /// 書き出しの失敗などの案内。設定パネルに表示する (成功時は nil)
     @Published var exportNotice: String?
 
+    // MARK: 録音の告知文 (issue #166)
+
+    /// 利用者が編集した告知文。nil は «既定文案» (現在のアプリ言語のもの)。
+    /// **GUI ローカルの設定 (UserDefaults)** — 告知文は録音の同意を取るための
+    /// 利用者ごとの文案で、CLI と共有する性質のものではない
+    @Published var customNoticeText: String? =
+        UserDefaults.standard.string(forKey: "customNoticeText") {
+        didSet { saveCustomNotice(customNoticeText) }
+    }
+
+    /// コピー・編集の対象になる告知文。編集がなければ現在のアプリ言語の既定文案
+    var effectiveNoticeText: String {
+        customNoticeText ?? Self.defaultNoticeText
+    }
+
+    /// 既定の告知文案 (ローカライズ済み — Localizable.xcstrings に
+    /// ja / en / zh-Hans / ko / es の 5 言語を持つ)
+    static var defaultNoticeText: String {
+        String(localized: "この会議は録音しています。議事録を作成するため、音声を録音させてください。")
+    }
+
+    /// 告知文をクリップボードへコピーする。成功したかは戻り値で判別する
+    @discardableResult
+    func copyNoticeToClipboard() -> Bool {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        return pasteboard.setString(effectiveNoticeText, forType: .string)
+    }
+
+    /// 編集済み告知文を保存する。**既定文案と同一なら UserDefaults を消す** —
+    /// アプリの言語を変えたときに «旧言語の固定文案» が残るのを防ぐ
+    /// (nil = 既定文をその都度ローカライズして使う)
+    private func saveCustomNotice(_ text: String?) {
+        if let text, text != Self.defaultNoticeText {
+            UserDefaults.standard.set(text, forKey: "customNoticeText")
+        } else {
+            UserDefaults.standard.removeObject(forKey: "customNoticeText")
+        }
+    }
+
+    /// 編集を既定文案に戻す
+    func resetNoticeText() {
+        customNoticeText = nil
+    }
+
     /// 設定ファイル (~/.kilde/config.json) の内容。CLI と共有する (issue #14)
     private(set) var config = KildeConfig()
 

@@ -19,6 +19,8 @@ El proyecto está dividido en dos repositorios (issue #115):
 
 ## Características
 
+- **El consentimiento de grabación es tu responsabilidad**: al grabar reuniones, informa a los participantes y obtén su consentimiento conforme a las leyes de tu región.
+
 - 🖥️ Graba la pantalla y el audio del sistema sin ninguna configuración usando
   la captura nativa de ScreenCaptureKit
 - 🎤 Graba a la vez un micrófono u otro dispositivo de entrada como BlackHole

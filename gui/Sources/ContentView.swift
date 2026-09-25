@@ -50,6 +50,7 @@ struct ContentView: View {
                 resultView
                 transcriptionStatusView
                 startButton
+                noticeCopyRow
             }
             if let notice = setup.notice {
                 Text(notice)
@@ -181,6 +182,9 @@ struct ContentView: View {
             }
             section("会議の自動録画") {
                 meetingAutoRecordSection
+            }
+            section("録音の告知文") {
+                noticeSection
             }
             // App Store ビルドには更新項目を出さない (issue #126)。MAS では配信が
             // App Store に一本化されるため「アップデートを確認」の手段自体が無い
@@ -433,6 +437,31 @@ struct ContentView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+        }
+    }
+
+    // MARK: - 録音の告知文 (issue #166)
+
+    /// ボットが参加しない録音では «録音されています» を相手に伝えるのが利用者の役割。
+    /// 会議のチャットに貼る用の文案を編集・コピーできる。編集は GUI ローカルの設定
+    /// (UserDefaults) に保存され、既定文と同じなら «既定» 扱いに戻る
+    private var noticeSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            TextEditor(text: Binding(
+                get: { setup.effectiveNoticeText },
+                set: { setup.customNoticeText = $0 }))
+                .frame(minHeight: 60)
+                .font(.body)
+            HStack {
+                Spacer()
+                Button("既定に戻す") { setup.resetNoticeText() }
+                    .disabled(setup.customNoticeText == nil)
+                Button("コピー") { setup.copyNoticeToClipboard() }
+            }
+            Text("この文案は «録音の告知文をコピー» ボタンでも使われます。録音の同意は利用者の責任で取得してください")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -751,6 +780,33 @@ struct ContentView: View {
         .disabled(setup.startBlockReason(permissions: permissions) != nil)
         .help(setup.startBlockReason(permissions: permissions) ?? "")
     }
+
+    /// 録音の告知文をコピーするボタン (issue #166)。ボットが参加しない kilde では
+    /// «録音されています» を相手に伝えるのが利用者の役割 — 会議のチャットに
+    /// 貼る想定で、ワンクリックでクリップボードへ出す
+    @ViewBuilder
+    private var noticeCopyRow: some View {
+        Button {
+            if setup.copyNoticeToClipboard() {
+                noticeCopied = true
+                // 2 秒で «コピーしました» を «告知文をコピー» に戻す
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 2_000_000_000)
+                    noticeCopied = false
+                }
+            }
+        } label: {
+            Label(noticeCopied ? "コピーしました" : "録音の告知文をコピー",
+                  systemImage: noticeCopied ? "checkmark" : "doc.on.doc")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .help("会議のチャットに貼れる録音の告知文をクリップボードにコピーします")
+    }
+
+    /// «コピーしました» 表示のフラグ (2 秒で戻る)
+    @State private var noticeCopied = false
 
     private func start() {
         // 開始の直前に取り直す — ポップオーバーを開いたまま権限を取り消された場合や、
