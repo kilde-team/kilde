@@ -8,6 +8,7 @@ import KildeCore
 // IDFA を収集しない)、import だけが transitive モジュール名になる
 import FirebaseAnalytics
 import FirebaseCore
+import FirebaseCrashlytics
 
 /// メニューバーのステータス項目とポップオーバーの管理。
 /// MenuBarExtra (.window) が macOS 26 で開かないため AppKit で手動管理する
@@ -97,6 +98,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // macOS には UIApplicationDelegate swizzling が無く app_open は自動送信
             // されないので、最初のイベントとして明示的に送る
             Analytics.logEvent("app_open", parameters: nil)
+            // クラッシュ解析 (issue #210)。FirebaseCrashlytics をリンクしていれば
+            // configure() が自動で有効にし、次回起動時に前回のクラッシュを送る。
+            // 明示的に取り出すのは «リンクされて初期化されている» ことをコードに残すため。
+            // セルフテストでは上の configure() 自体を呼ばないので、クラッシュも送らない。
+            //
+            // **NSApplicationCrashOnExceptions は有効にしない。** Firebase は macOS で
+            // これを YES にするよう勧めているが、有効にすると AppKit が握りつぶしていた
+            // メインスレッドの未捕捉例外でアプリが落ちるようになる — 録画中なら
+            // «必ずファイナライズする» という最重要要件 (CLAUDE.md §1) を壊しうる。
+            // その種の例外は報告されない代わりに、シグナル・Swift のトラップ・
+            // メインスレッド外の未捕捉例外といった本物のクラッシュは報告される
+            _ = Crashlytics.crashlytics()
         }
         // 通知の許可要求はここで 1 回だけ。拒否されても録画は完全に動くので、
         // 失敗として扱わない (通知が出ないだけ)
