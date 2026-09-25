@@ -497,6 +497,41 @@ struct ContentView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
+                // 要約 (issue #163)。文字起こしが有効なときだけ選べる
+                Toggle("録画後に要約も作る", isOn: summaryBinding)
+                    .toggleStyle(.checkbox)
+                    .disabled(!setup.summaryAvailable)
+                    .help("文字起こしの後に、会議の要点・決定事項・アクションを生成して Markdown の先頭に載せます (オンデバイス処理。Apple Intelligence を使用)")
+                if setup.transcriptionAvailable && setup.summaryEnabled {
+                    Picker("テンプレート", selection: summaryTemplateBinding) {
+                        Text("汎用").tag(MeetingTemplate.standard)
+                        Text("定例会議").tag(MeetingTemplate.recurring)
+                        Text("商談").tag(MeetingTemplate.sales)
+                        Text("面接").tag(MeetingTemplate.interview)
+                        Text("1on1").tag(MeetingTemplate.oneOnOne)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    // 要約は Markdown の先頭側に載る (TranscriptWriter の契約) ので、
+                    // 形式選択が srt 等でも出力は .md になる — その予告
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Image(systemName: "doc.text")
+                        Text("要約をつけると出力は Markdown (.md) になります")
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+                if let reason = setup.summaryUnsupportedReason, setup.transcribeEnabled {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Image(systemName: "sparkles")
+                        Text("要約には Apple Intelligence が必要です: \(reason)")
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
                 // 録画が終わると自動で文字起こしが走る (issue #146)。進捗と中止は
                 // パネルの transcriptionStatusView に出るので、ここでは繰り返さない。
                 // MAS 版は ConfigStore がコンテナ内に退避されるため CLI にも適用の
@@ -520,6 +555,20 @@ struct ContentView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+
+    /// 要約 (issue #163) の Binding。保存先は UserDefaults (RecordingSetup の didSet が
+    /// 扱う) なので config.json 系の Binding のような巻き戻しは不要
+    private var summaryBinding: Binding<Bool> {
+        Binding(
+            get: { setup.summaryEnabled },
+            set: { setup.summaryEnabled = $0 })
+    }
+
+    private var summaryTemplateBinding: Binding<MeetingTemplate> {
+        Binding(
+            get: { setup.summaryTemplate },
+            set: { setup.summaryTemplate = $0 })
     }
 
     /// Binding の set で保存まで行う。onChange で保存すると、保存失敗時の巻き戻しが
@@ -635,6 +684,8 @@ struct ContentView: View {
             }
         case .transcribing(let progress):
             ProgressView(value: progress)
+        case .summarizing(let progress):
+            ProgressView(value: progress)
         case nil:
             ProgressView()
                 .progressViewStyle(.linear)
@@ -649,6 +700,8 @@ struct ContentView: View {
                 : String(localized: "言語モデルを準備中…")
         case .transcribing(let progress):
             return String(localized: "文字起こし中… \(Int(progress * 100))%")
+        case .summarizing(let progress):
+            return String(localized: "要約を生成中… \(Int(progress * 100))%")
         case nil:
             return String(localized: "文字起こしの準備中…")
         }
@@ -786,22 +839,29 @@ struct ContentView: View {
             .help("文字起こしを開く: \(transcript.lastPathComponent)")
         } else {
             let busy = transcription.isQueuedOrRunning(item.url)
+            // «後から文字起こしする» は «現在の» 設定で投入する (録画完了の自動投入と
+            // 違い、そのときの setup を読む)。要約トグルがオンなら要約付き (.md) で走る
+            let summaryTemplate: MeetingTemplate? =
+                setup.summaryEnabled && setup.summaryAvailable ? setup.summaryTemplate : nil
             Button {
                 transcription.enqueue(TranscriptionCoordinator.Job(
                     recordingURL: item.url,
                     format: setup.transcriptFormat,
+                    summaryTemplate: summaryTemplate,
                     localeID: setup.transcriptLocale,
                     // 後から文字起こしする録画は録音長を持たないため nil (計測では長さ区分を送らない)。
                     // SelfTest の Job 生成と同じ扱い。
                     recordingDuration: nil))
             } label: {
-                Image(systemName: "waveform")
+                Image(systemName: summaryTemplate != nil ? "waveform.badge.waveform" : "waveform")
                     .foregroundStyle(busy ? Color(nsColor: .disabledControlTextColor) : .secondary)
             }
             .buttonStyle(.plain)
             .disabled(busy)
             .help(busy
                   ? "この録画の文字起こしは実行中 (または待機中) です"
+                  : summaryTemplate != nil
+                  ? "この録画を文字起こしして要約も生成する (出力は .md)"
                   : "この録画を文字起こしする")
         }
     }

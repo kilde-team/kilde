@@ -116,13 +116,23 @@ final class RecordingNotifier: NSObject {
     /// «できました» を他アプリの前面からでも受け取れるようにする。
     /// TranscriptionCoordinator の onCompletion (AppDelegate が配線) から呼ばれる
     func notifyTranscriptionCompleted(sidecarURL: URL,
+                                      summaryGenerated: Bool = false,
+                                      summaryNote: String? = nil,
                                       completion: @escaping () -> Void = {}) {
         let identifier = UUID().uuidString
         let content = UNMutableNotificationContent()
-        content.title = String(localized: "文字起こしを保存しました")
+        // 要約も生成したときはタイトルで言う (issue #163)
+        content.title = summaryGenerated
+            ? String(localized: "文字起こしと要約を保存しました")
+            : String(localized: "文字起こしを保存しました")
         // パス全体は長すぎるのでファイル名だけ。場所は «Finder で表示» と
         // «最近の録画» で見せる (録画完了通知と同じ方針)
         content.body = sidecarURL.lastPathComponent
+        // 要約をスキップした理由 (Apple Intelligence 無効など) は録画・文字起こしの
+        // 成功とは別の案内なので、タイトルを書き換えず本文に足す (issue #163)
+        if let summaryNote {
+            content.body += "\n\(summaryNote)"
+        }
         content.sound = .default
         content.categoryIdentifier = Self.transcriptCategoryID
         // 通知は macOS 側に残るため、再起動後のクリックでも対象を開けるように

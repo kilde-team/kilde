@@ -47,6 +47,21 @@ final class RecordingSetup: ObservableObject {
     /// 文字起こし結果のサイドカー形式。CLI と同じ `transcriptFormat` キーに保存する
     @Published var transcriptFormat: TranscriptOutputFormat = .markdown
 
+    /// 録画後の要約 (issue #163)。**GUI ローカルの設定 (UserDefaults)** —
+    /// CLI は要約を `--summary` フラグで明示指定する仕組みで設定キーを持たないため、
+    /// config.json を共有する文字起こし系設定 (transcribe / locale / format) と違い、
+    /// 保存先を UserDefaults にしている
+    @Published var summaryEnabled: Bool =
+        UserDefaults.standard.bool(forKey: "summaryEnabled") {
+        didSet { UserDefaults.standard.set(summaryEnabled, forKey: "summaryEnabled") }
+    }
+    /// 要約のテンプレート (定例会議 / 商談 / 面接 / 1on1 — kilde-cli-swift#67)
+    @Published var summaryTemplate: MeetingTemplate =
+        MeetingTemplate(rawValue: UserDefaults.standard.string(forKey: "summaryTemplate") ?? "")
+            ?? .standard {
+        didSet { UserDefaults.standard.set(summaryTemplate.rawValue, forKey: "summaryTemplate") }
+    }
+
     /// 設定ファイル (~/.kilde/config.json) の内容。CLI と共有する (issue #14)
     private(set) var config = KildeConfig()
 
@@ -139,6 +154,14 @@ final class RecordingSetup: ObservableObject {
     /// (macOS 26 以上かつ SpeechTranscriber 利用可能) に任せる — 自前で OS バージョンを
     /// 見ると、SpeechTranscriber が対応しない環境を «対応している» と誤表示する
     var transcriptionAvailable: Bool { Transcriber.isSupported }
+
+    /// 要約 (Apple Intelligence / Foundation Models) がこの環境で使えるか。
+    /// 判定は KildeCore の `MeetingSummarizer.unsupportedReason` に任せる
+    /// (transcriptionAvailable と同じ方針 — OS バージョンを自前で見ない)
+    var summaryAvailable: Bool { MeetingSummarizer.unsupportedReason == nil }
+
+    /// 要約が使えないときの案内文。使えるなら nil
+    var summaryUnsupportedReason: String? { MeetingSummarizer.unsupportedReason }
 
     /// 文字起こしが使えないときの案内文。使えるなら nil
     var transcriptionUnsupportedReason: String? {
