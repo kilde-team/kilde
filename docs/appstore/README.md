@@ -121,7 +121,9 @@ App Privacy は Firebase Analytics (#136) に合わせて「おおよその場�
 **Firebase Crashlytics (issue #210) を含むビルドを提出する前に**、App Privacy に
 「診断 > クラッシュデータ」(目的: アプリの機能、ユーザに関連付けない、トラッキングなし) を追加して
 公開すること。「デバイス ID」も Crashlytics のインストール ID の用途として «アプリの機能» を足す。
-0.5.0 (build 6) までのビルドには Crashlytics は入っていない。
+0.5.0 (build 6) までのビルドには Crashlytics は入っていない (初の Crashlytics 入り提出は
+0.6.0 build 7 — App Privacy の追加は 2026-09-25 に済み、アーカイブ時の dSYM 送信も
+issue #210 で確認済み)。
 プライバシーポリシーの本文はリポジトリ直下の `PRIVACY.md` (issue #128) で、利用者向けには
 kilde.site (リポジトリ kilde-team/kilde-site) が同じ内容を公開している。App Store Connect の
 プライバシーポリシー URL は **kilde.site を指定している** (ja は `https://kilde.site/ja/privacy/`、
@@ -141,6 +143,13 @@ kilde.site の両方を更新すること。
 みで、未登録ロケールは ASC がフォールバック表示する (§metadata README の注意)。
 
 ## 5. 審査の履歴
+
+### 0.5.0 (6) — 承認・公開 (2026-09-26)
+
+2026-09-25 に main (fbb17b8、文字起こし + 会議の自動録画入り) からアーカイブし、
+同日審査へ提出 (承認後自動公開)。2026-09-26 に承認され READY_FOR_SALE。
+「このバージンの新機能」は 5 言語で登録済み。初のサンドボックス下文字起こし
+(issue #148) と会議の自動録画 (issue #197) を含む版。リジェクトは無し。
 
 ### 0.3.0 (2) — Guideline 2.4.5(i) でリジェクト (2026-09-17)
 
