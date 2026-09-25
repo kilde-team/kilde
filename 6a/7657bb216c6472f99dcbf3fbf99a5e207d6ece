@@ -1,0 +1,27 @@
+gui/project.yml
+  s_606d88b25951e7::t_dd6854947df7e6 242-247
+  s_606d88b25951e7::t_db36dde36a8f66 189-194
+  s_606d88b25951e7::t_aaaa035b9187e4 115-126
+  s_606d88b25951e7::t_fcfc79b8372a14 219-220
+docs/DEVELOPMENT.md
+  s_606d88b25951e7::t_ce9682b8f3b217 417-426,428-430
+  s_606d88b25951e7::t_c9beba8e1b983b 42-81
+CLAUDE.md
+  s_606d88b25951e7::t_85980ee614dce3 213-227
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6a7657bb216c6472f99dcbf3fbf99a5e207d6ece",
+  "prompts": {},
+  "sessions": {
+    "s_606d88b25951e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e9a95df6-4b44-47d2-91b7-299a6c64906b",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
