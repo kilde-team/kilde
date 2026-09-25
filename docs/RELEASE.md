@@ -302,7 +302,10 @@ GUI は両ターゲット (直接配布 / MAS) で Firebase Crashlytics をリ�
 スタックトレースを関数名・行番号に戻すために **配布したビルドと同じ dSYM** を Firebase に送る。
 
 - **自動**: `gui/project.yml` の postBuildScripts「Upload dSYMs to Crashlytics」が
-  **Release ビルドのたびに** firebase-ios-sdk 同梱の `Crashlytics/run` を実行して送る。
+  **Release ビルドのたびに** firebase-ios-sdk 同梱の `Crashlytics/upload-symbols` を
+  **同期で** 実行して送る (`Crashlytics/run` は送信をバックグラウンドに回すため、失敗が
+  見えず CI のジョブ終了で打ち切られうる — 使わない)。成功するとビルドログに
+  `Crashlytics: dSYM を送信した` が出る。
   sign.sh (直接配布、release.yml からも) と appstore-archive.sh (MAS) のどちらの経路でも走る。
   Debug では送らない。`ENABLE_USER_SCRIPT_SANDBOXING: NO` が前提 (有効だとスクリプトの
   実行もネットワークも拒否される)
