@@ -1,0 +1,29 @@
+docs/appstore/README.md
+  s_113810d9fdc984::t_64be5d890de73e 44,57,65-66,76,93,106
+docs/appstore/tools/build.py
+  s_c2f954a86dc8c5::t_da4398a00687c1 180-186
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "25debaf96ee47f22e376c9e207308983d3cce51f",
+  "prompts": {},
+  "sessions": {
+    "s_113810d9fdc984": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d73b-dd26-7a32-993d-e457b2b5413e",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    },
+    "s_c2f954a86dc8c5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2447dca9-51e9-45b8-8c09-05a30d443677",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
