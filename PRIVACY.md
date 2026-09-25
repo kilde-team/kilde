@@ -47,6 +47,9 @@ GUI アプリ (直接配布版・Mac App Store 版の両方) は、アプリが�
   第三者へ送信されません (端末内で書き起こし言語モデルをダウンロードする通信を除く。
   詳細は下の「ネットワーク通信」を参照)。書き起こしテキストは録画ファイルと同じ場所の
   サイドカーファイルにだけ書き込まれます
+- **議事録の書き出し先 (設定した場合)**: 文字起こしした .md を、利用者が指定した
+  フォルダ (Obsidian の vault など) にも複製できます。この書き出しは
+  **あなたの Mac 内のフォルダへのコピーのみ**で、内容がネットワークへ送信されることはありません
 - **会議の自動録画 (既定はオフ)**: 有効にすると、会議の開始を検知するために
   «どのアプリがマイクを使っているか» とウィンドウのタイトルを数秒おきに
   **あなたの Mac 上で**確認します。これらの情報は保存も送信もされません
@@ -184,6 +187,9 @@ only to fix bugs. The `kilde` command-line tool sends no crash reports.
 - When you record meetings or calls, follow the laws where you live, such as
   getting consent from other participants
 
+- **Optional transcript export folder**: you can choose a folder (for example, an
+  Obsidian vault) that transcript .md files are also copied into. This is a
+  **local copy on your Mac only**; the content is never sent over the network
 ### Permissions and why they are needed
 
 | Permission | Purpose |

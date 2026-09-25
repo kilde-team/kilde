@@ -532,6 +532,31 @@ struct ContentView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
+                // 議事録の書き出し先 (issue #164)。文字起こしが有効なときだけ出す
+                if setup.transcriptionAvailable && setup.transcribeEnabled {
+                    HStack(spacing: 6) {
+                        Text("議事録の書き出し先")
+                        Spacer()
+                        Text(setup.exportDirectory.map { $0.lastPathComponent } ?? "なし")
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Button("変更…") { setup.chooseExportDirectory() }
+                        if setup.exportDirectory != nil {
+                            Button("解除", role: .destructive) { setup.clearExportDirectory() }
+                        }
+                    }
+                    Text("文字起こしした .md をこのフォルダにも書き出します (出力形式が Markdown のとき。要約も含まれます)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let exportNotice = setup.exportNotice {
+                    Text(exportNotice)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 // 録画が終わると自動で文字起こしが走る (issue #146)。進捗と中止は
                 // パネルの transcriptionStatusView に出るので、ここでは繰り返さない。
                 // MAS 版は ConfigStore がコンテナ内に退避されるため CLI にも適用の

@@ -256,4 +256,87 @@ enum SandboxOutputDirectory {
         return true
     }
 }
+
+/// 議事録 (.md) の書き出し先フォルダの security-scoped bookmark (issue #164)。
+///
+/// 録画の保存先 (`SandboxOutputDirectory`) とは**別の bookmark** にする —
+/// «録画ファイルの置き場所» と «議事録を流す先 (Obsidian vault など)» は
+/// 別の場所を指すのが普通で、片方の変更がもう片方を壊すべきではないため。
+/// UserDefaults に置く理由 (config.json を blob で汚さない) は
+/// SandboxOutputDirectory と同じ。app-scope bookmark の entitlement も共用
+@MainActor
+enum SandboxExportDirectory {
+
+    private static let bookmarkKey = "exportDirectoryBookmark"
+
+    /// 現在アクセスを開始している URL (SandboxOutputDirectory.accessedURL と同じ契約)。
+    /// 書き出しは録画完了のたびに走るため、start/stop を往復させず
+    /// **プロセス生存中は保持しっぱなし**にする
+    private static var accessedURL: URL?
+
+    /// 前回起動時に選んだ書き出し先を bookmark から復元する。
+    /// 成功時はアクセスを開始してプロセス終了まで保持する。nil は «未設定 / 解決失敗»。
+    /// コンテナ内を指す bookmark は録画の保存先と同じ理由で捨てる
+    static func restore() -> URL? {
+        guard let data = UserDefaults.standard.data(forKey: bookmarkKey) else { return nil }
+        var stale = false
+        guard let url = try? URL(
+            resolvingBookmarkData: data,
+            options: .withSecurityScope,
+            relativeTo: nil,
+            bookmarkDataIsStale: &stale),
+            url.startAccessingSecurityScopedResource()
+        else { return nil }
+        if SandboxSupport.pointsInsideContainer(url) {
+            url.stopAccessingSecurityScopedResource()
+            UserDefaults.standard.removeObject(forKey: bookmarkKey)
+            return nil
+        }
+        if stale, let fresh = try? url.bookmarkData(
+            options: .withSecurityScope,
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil) {
+            UserDefaults.standard.set(fresh, forKey: bookmarkKey)
+        }
+        accessedURL = url
+        return url
+    }
+
+    /// 書き出し先の選択を bookmark に永続化する。SandboxOutputDirectory.persist と同じ
+    /// «パネル由来の URL は OS が 1 回分開始済み» の契約に従う。
+    /// 戻り値は bookmark を次回起動に持ち越せたか (false でも選択は有効)
+    @discardableResult
+    static func persist(_ url: URL) -> Bool {
+        let persisted = updateBookmark(for: url)
+        if accessedURL == url {
+            url.stopAccessingSecurityScopedResource()
+            return persisted
+        }
+        accessedURL?.stopAccessingSecurityScopedResource()
+        accessedURL = url
+        return persisted
+    }
+
+    /// 書き出し先の解除。bookmark を捨て、保持しているアクセスを解放する
+    static func clear() {
+        UserDefaults.standard.removeObject(forKey: bookmarkKey)
+        accessedURL?.stopAccessingSecurityScopedResource()
+        accessedURL = nil
+    }
+
+    /// 選択された書き出し先の bookmark を保存する。作成に失敗したときは
+    /// **古い bookmark を残さない** (SandboxOutputDirectory と同じ — cubic レビュー指摘)
+    private static func updateBookmark(for url: URL) -> Bool {
+        guard let data = try? url.bookmarkData(
+            options: .withSecurityScope,
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil)
+        else {
+            UserDefaults.standard.removeObject(forKey: bookmarkKey)
+            return false
+        }
+        UserDefaults.standard.set(data, forKey: bookmarkKey)
+        return true
+    }
+}
 #endif
