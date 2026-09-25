@@ -36,14 +36,14 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # 認証情報を .git/config に残さない (zizmor artipacked — kilde#201)。
           # 後続 step は git の認証を使わない: Release の作成は gh + GH_TOKEN (env)
           persist-credentials: false
 
       - name: Checkout kilde-cli-swift (CLI / KildeCore engine)
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # CLI のソース本体。kilde リポジトリには GUI・配布・ドキュメントしか
           # 残っていない (kilde#115 / #118)。path は sign.sh の既定 (KILDE_CLI_DIR
