@@ -334,12 +334,19 @@ final class TranscriptionCoordinator: ObservableObject {
             break
         }
         if !cancelled {
-            let detail = Self.diagnosticDetail(error)
+            let detail = Self.diagnosticDetail(error, includeUserInfo: true)
             if let detail {
                 // «-12203 の出自が分からない» (issue #221) を繰り返さないため、
                 // domain / code を統合ログにも残す。Console.app では
-                // `log show --predicate 'category == "transcription"'` で追える
-                Self.logger.error("transcription failed: \(detail, privacy: .public)")
+                // `log show --predicate 'category == "transcription"'` で追える。
+                // **ログに載せるのは domain / code の連鎖まで** — userInfo の値には
+                // 録画ファイルのパスが入るおそれがあり、統合ログに public で
+                // 書くのは避ける (CWE-532 / CodeRabbit 指摘)。privacy .private にすると
+                // 機種内の log show でも <private> に潰れて診断にならないため、
+                // 載せる値を絞る。userInfo 付きの全量は UI (選択可能表示) と
+                // セルフテスト出力が担う
+                Self.logger.error(
+                    "transcription failed: \(Self.diagnosticDetail(error, includeUserInfo: false) ?? detail, privacy: .public)")
             }
             lastFailure = Failure(job: job, message: Self.describe(error), detail: detail)
         }
@@ -395,23 +402,27 @@ final class TranscriptionCoordinator: ObservableObject {
     /// domain / code / userInfo を掘って 1 行にする**。TranscriptionError は
     /// description で説明を自前で持つため nil を返す。
     ///
-    /// userInfo の値は打ち切る — ここは UI 表示と統合ログに載るもので、
-    /// フレームワークが添付する長い文字列をそのまま出すと表示が崩れるため。
+    /// `includeUserInfo: false` は統合ログ用 — domain / code だけを返し、
+    /// パスなどが含まれうる userInfo をログに載せない (CodeRabbit 指摘 — CWE-532)。
+    /// userInfo の値は打ち切る — ここは UI 表示に載るもので、フレームワークが
+    /// 添付する長い文字列をそのまま出すと表示が崩れるため。
     /// **計測 (UsageAnalytics) には載せない** — userInfo にロケール ID やパスが
     /// 入るおそれがあり、計測側は «値は列挙に閉じる» 規約 (UsageAnalytics.errorKind)
-    private static func diagnosticDetail(_ error: Error) -> String? {
+    private static func diagnosticDetail(_ error: Error, includeUserInfo: Bool) -> String? {
         if error is TranscriptionError { return nil }
         var parts: [String] = []
         var current: NSError = error as NSError
         // 連鎖は実運用で 2〜3 段。上限は異常な連鎖 (循環は通常あり得ないが) に対する防御
         for _ in 0..<5 {
             var part = "domain=\(current.domain) code=\(current.code)"
-            let entries = current.userInfo
-                .filter { $0.key != NSUnderlyingErrorKey }  // 連鎖として別に掘るので重複させない
-                .sorted { $0.key < $1.key }
-                .map { key, value in "\(key)=\(trimmed(String(describing: value)))" }
-            if !entries.isEmpty {
-                part += " {\(entries.joined(separator: ", "))}"
+            if includeUserInfo {
+                let entries = current.userInfo
+                    .filter { $0.key != NSUnderlyingErrorKey }  // 連鎖として別に掘るので重複させない
+                    .sorted { $0.key < $1.key }
+                    .map { key, value in "\(key)=\(trimmed(String(describing: value)))" }
+                if !entries.isEmpty {
+                    part += " {\(entries.joined(separator: ", "))}"
+                }
             }
             parts.append(part)
             guard let underlying = current.userInfo[NSUnderlyingErrorKey] as? NSError else {
