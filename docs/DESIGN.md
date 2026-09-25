@@ -622,11 +622,16 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
   設定はアプリコンテナ内へ退避させ (`ConfigStore.directory` の差し替え)、
   保存先は **NSOpenPanel で選んだディレクトリのみ** security-scoped bookmark
   (UserDefaults 永続化) で持ち越す — 既定の ~/Movies は movies エンタイトルメントの
-  経路で書ける。バンドル ID は 2 チャネルで同じ
-  (`com.takezou621.KildeGUI`) — そのため TCC 権限 (画面収録・マイク) は
-  チャネル間で共有される**想定**だが、TCC は署名の designated requirement でも
-  アプリを識別するため、Developer ID 署名と Apple Distribution 署名の間で
-  再許可が不要かは**実機での確認が必要** (未検証)。手順は docs/RELEASE.md §7。
+  経路で書ける。バンドル ID は 2 チャネルで同じ (`com.takezou621.KildeGUI`) が、
+  **TCC 権限 (画面収録・マイク) はチャネル間で共有されない** (issue #217 で実証)。
+  TCC は (service, bundle ID) ごとに 1 レコードしか持たず、そのレコードに記録した
+  designated requirement (DR) で起動アプリの署名を検証する。Developer ID DR と
+  Apple Distribution DR は Developer ID マーカ OID の有無で互換が無いため、
+  チャネルを乗り換えると画面収録・マイクの再許可が要る (「許可済み」表示でも
+  再プロンプトが出るのはこのため)。Debug ビルドの kilde-dev 証明書も DR が
+  非互換のため、`gui/project.yml` の per-config override で
+  `com.takezou621.KildeGUI.dev` に分離した。機構と復旧手順は
+  docs/DEVELOPMENT.md §2。手順は docs/RELEASE.md §7。
 
 ## 8. BlackHole 連携の詳細 (advanced)
 
