@@ -654,6 +654,13 @@ enum SelfTest {
             setup.transcribeEnabled = true
             print("selftest: transcribeEnabled forced=true (config は変更しません)")
         }
+        // 書き出し先の検査 (issue #164): env で指定されたフォルダを setup に直接設定する。
+        // AppDelegate の onCompletion が setup.exportDirectory を読むため、env を
+        // 見るだけでは書き出しが走らない (transcribeEnabled の強制と同じ流儀)
+        if let exportDir = ProcessInfo.processInfo.environment["KILDE_GUI_SELFTEST_EXPORT_DIR"] {
+            setup.exportDirectory = URL(fileURLWithPath: exportDir, isDirectory: true)
+            print("selftest: exportDirectory forced=\(exportDir)")
+        }
         // KILDE_GUI_SELFTEST_SUMMARY=1 (issue #163): 要約付きで走らせる。
         // 要約は Markdown の先頭側に載るため、出力形式は .md に強制される
         // (TranscriptionCoordinator の契約)
@@ -739,6 +746,25 @@ enum SelfTest {
             }
             print("selftest: transcribed segments->\(completion.sidecarURL.lastPathComponent)"
                 + " bytes=\(bytes) job=\(completion.job.recordingURL.lastPathComponent)")
+            // 書き出し先の検査 (issue #164)。KILDE_GUI_SELFTEST_EXPORT_DIR が
+            // 設定されているときは、AppDelegate の onCompletion 経由で .md が
+            // 複製され、frontmatter を持っていることを確かめる
+            if let exportDir = ProcessInfo.processInfo.environment["KILDE_GUI_SELFTEST_EXPORT_DIR"],
+               completion.sidecarURL.pathExtension.lowercased() == "md" {
+                let exported = URL(fileURLWithPath: exportDir, isDirectory: true)
+                    .appendingPathComponent(completion.sidecarURL.lastPathComponent)
+                let deadline = Date().addingTimeInterval(10)
+                while !FileManager.default.fileExists(atPath: exported.path), Date() < deadline {
+                    try? await Task.sleep(nanoseconds: 200_000_000)
+                }
+                guard let text = try? String(contentsOf: exported, encoding: .utf8) else {
+                    fail("議事録が書き出されていません: \(exported.path)")
+                }
+                guard text.hasPrefix("---\ntitle:") else {
+                    fail("書き出した議事録に frontmatter がありません: \(exported.path)")
+                }
+                print("selftest: export confirmed file=\(exported.lastPathComponent)")
+            }
             if withSummary {
                 // 要約付き経路 (issue #163): «## 要約» がサイドカーに載っていること。
                 // スキップ理由 (Apple Intelligence 無効など) があればそれ自体を失敗にする —

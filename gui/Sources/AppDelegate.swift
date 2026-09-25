@@ -120,7 +120,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // ここ。onCompletion は MainActor 上で 1 対 1 に呼ばれるので sink の
         // willSet 問題 (@Published は前値を流す) が無い
         transcription.onCompletion = { [weak self] completion in
-            self?.notifier.notifyTranscriptionCompleted(
+            guard let self else { return }
+            // 議事録の書き出し (issue #164)。通知の前に走らせる — 失敗の案内を
+            // 通知の本文に載せられるようにするため。失敗しても文字起こし自体は
+            // 成功なので、案内を設定パネルにも残すのみで終了コード等は変えない
+            let (exportedURL, exportNote) = self.setup.exportTranscript(
+                sidecarURL: completion.sidecarURL,
+                recordingURL: completion.job.recordingURL)
+            if let note = exportNote {
+                self.setup.exportNotice = note
+            }
+            // セルフテスト (KILDE_GUI_SELFTEST_EXPORT_DIR): 書き出しの検査に使う
+            if let exportDir = ProcessInfo.processInfo.environment["KILDE_GUI_SELFTEST_EXPORT_DIR"] {
+                print("selftest: exported file=\(exportedURL?.lastPathComponent ?? "(none)")"
+                    + " dir=\(exportDir)")
+            }
+            self.notifier.notifyTranscriptionCompleted(
                 sidecarURL: completion.sidecarURL,
                 summaryGenerated: completion.summary != nil,
                 summaryNote: completion.summaryNote)

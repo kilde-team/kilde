@@ -62,6 +62,14 @@ final class RecordingSetup: ObservableObject {
         didSet { UserDefaults.standard.set(summaryTemplate.rawValue, forKey: "summaryTemplate") }
     }
 
+    /// 議事録 (.md) の自動書き出し先 (issue #163)。nil は «書き出さない»。
+    /// MAS 版は security-scoped bookmark (SandboxExportDirectory)、直接配布版は
+    /// サンドボックスが無いため素のパス (UserDefaults) で持つ — 詳細は
+    /// restoreExportDirectory() / chooseExportDirectory() の #if 分岐を参照
+    @Published var exportDirectory: URL?
+    /// 書き出しの失敗などの案内。設定パネルに表示する (成功時は nil)
+    @Published var exportNotice: String?
+
     /// 設定ファイル (~/.kilde/config.json) の内容。CLI と共有する (issue #14)
     private(set) var config = KildeConfig()
 
@@ -148,6 +156,7 @@ final class RecordingSetup: ObservableObject {
         transcriptLocale = Self.normalizedLocale(config.locale)
         transcriptFormat = config.transcriptFormat
             .flatMap(TranscriptOutputFormat.init(rawValue:)) ?? .markdown
+        restoreExportDirectory()
     }
 
     /// この環境で文字起こしが使えるか。判定は KildeCore の `Transcriber.isSupported`
@@ -428,6 +437,107 @@ final class RecordingSetup: ObservableObject {
             reloadRecentRecordings()
         }
     }
+
+    // MARK: - 議事録の書き出し先 (issue #164)
+
+    /// 前回起動時に選んだ書き出し先を復元する (init から呼ぶ)。
+    /// MAS 版は security-scoped bookmark、直接配布版は素のパス
+    private func restoreExportDirectory() {
+        #if APPSTORE
+        exportDirectory = SandboxExportDirectory.restore()
+        #else
+        if let path = UserDefaults.standard.string(forKey: "exportDirectoryPath") {
+            exportDirectory = URL(fileURLWithPath: path, isDirectory: true)
+        }
+        #endif
+    }
+
+    /// 書き出し先を NSOpenPanel で選ばせる。選択は即座に採用し、
+    /// MAS 版では bookmark に永続化する (録画の保存先と同じ流儀)
+    func chooseExportDirectory() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = exportDirectory
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        #if APPSTORE
+        // bookmark への永続化に失敗しても選択自体は有効 (この起動中は powerbox の
+        // 許可で書ける) — 持ち越せなかったことだけ案内する
+        let persisted = SandboxExportDirectory.persist(url)
+        exportDirectory = url
+        if !persisted {
+            exportNotice = String(localized: "書き出し先を変更しました。ただし記録できなかったため、次にアプリを起動したときは書き出しません")
+        }
+        #else
+        UserDefaults.standard.set(url.path, forKey: "exportDirectoryPath")
+        exportDirectory = url
+        #endif
+    }
+
+    /// 書き出し先の解除
+    func clearExportDirectory() {
+        #if APPSTORE
+        SandboxExportDirectory.clear()
+        #else
+        UserDefaults.standard.removeObject(forKey: "exportDirectoryPath")
+        #endif
+        exportDirectory = nil
+    }
+
+    /// 文字起こしのサイドカー (.md) を書き出しフォルダへ複製する (issue #163 の
+    /// 要約つき .md もそのまま運ぶ)。先頭に Obsidian などで文脈が分かる
+    /// フロントマター (題名・日時・録画ファイル名) を付ける。
+    ///
+    /// 戻り値は (書き出した URL, 利用者への案内)。「書き出し先が未設定」は
+    /// 正常系 (nil, nil)。すでに同名のファイルがある場合は**上書きせずスキップ**し、
+    /// そのことを案内に載せる (TranscriptWriter の上書き禁止と同じ精神)。
+    /// 失敗しても**文字起こし自体は成功している**ので、呼び出し側は失敗にせず
+    /// 案内として扱うこと
+    func exportTranscript(
+        sidecarURL: URL, recordingURL: URL
+    ) -> (url: URL?, note: String?) {
+        guard let directory = exportDirectory else { return (nil, nil) }
+        // 書き出すのは Markdown (.md) のみ。要約も .md の先頭側に載る
+        guard sidecarURL.pathExtension.lowercased() == "md" else { return (nil, nil) }
+
+        let title = sidecarURL.deletingPathExtension().lastPathComponent
+        // 録画ファイルの作成日時 (録画した瞬間) を frontmatter の日時にする。
+        // 取れない場合は省略する (誤った日時を付けるより無いほうがよい)
+        let created = (try? recordingURL.resourceValues(
+            forKeys: [.creationDateKey]))?.creationDate
+        let dateLine = created.map { Self.exportDateFormatter.string(from: $0) }
+
+        var frontmatter = "---\ntitle: \(title)\n"
+        if let dateLine {
+            frontmatter += "date: \(dateLine)\n"
+        }
+        frontmatter += "recording: \(recordingURL.lastPathComponent)\n---\n\n"
+
+        guard let body = try? String(contentsOf: sidecarURL, encoding: .utf8) else {
+            return (nil, "文字起こしの .md を読めませんでした: \(sidecarURL.path)")
+        }
+        let destination = directory
+            .appendingPathComponent(sidecarURL.lastPathComponent)
+        if FileManager.default.fileExists(atPath: destination.path) {
+            return (nil, "書き出し先に同名のファイルがあるためスキップしました: \(destination.lastPathComponent)")
+        }
+        do {
+            try (frontmatter + body).write(to: destination, atomically: true, encoding: .utf8)
+            return (destination, nil)
+        } catch {
+            return (nil, "議事録を書き出せませんでした: \(destination.path) (\(error.localizedDescription))")
+        }
+    }
+
+    /// frontmatter の日時書式。ISO 8601 (ローカルタイムゾーン) — Obsidian などの
+    /// プロパティとしてそのまま解釈できる形式
+    private static let exportDateFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.timeZone = .current
+        return formatter
+    }()
 
     /// 設定ファイル・CLI の `device:<spec>` と同じ照合 (UID の完全一致、または名前の部分一致・
     /// 大文字小文字無視)。`AudioDeviceCatalog.resolveInput` と揃えないと、`device:BlackHole` が
