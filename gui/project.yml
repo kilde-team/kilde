@@ -149,12 +149,25 @@ targets:
             echo "Crashlytics: ${CONFIGURATION} ビルドのため dSYM は送らない"
             exit 0
           fi
-          RUN="${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run"
-          if [ ! -x "$RUN" ]; then
-            echo "warning: Crashlytics の run スクリプトが見つからない ($RUN)。dSYM は未送信"
+          # SDK 同梱の Crashlytics/run は検証だけ同期で行い、送信はバックグラウンドへ回す —
+          # 送信の失敗が見えず、CI ではジョブ終了で送信ごと打ち切られうる。upload-symbols を
+          # 直接・同期で呼び、終了コードで成否を判定する (CodeRabbit レビュー指摘、PR #211)
+          UPLOAD="${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/upload-symbols"
+          GSP="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleService-Info.plist"
+          DSYM="${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}"
+          if [ ! -x "$UPLOAD" ]; then
+            echo "warning: Crashlytics の upload-symbols が見つからない ($UPLOAD)。dSYM は未送信"
             exit 0
           fi
-          "$RUN" || echo "warning: Crashlytics への dSYM 送信に失敗 (ビルドは続行)。後で upload-symbols で送ること"
+          if [ ! -d "$DSYM" ]; then
+            echo "warning: dSYM が見つからない ($DSYM)。DEBUG_INFORMATION_FORMAT を確認すること"
+            exit 0
+          fi
+          if "$UPLOAD" -gsp "$GSP" -p mac "$DSYM"; then
+            echo "Crashlytics: dSYM を送信した ($DSYM)"
+          else
+            echo "warning: Crashlytics への dSYM 送信に失敗 (ビルドは続行)。docs/RELEASE.md §8 の手順で後から送ること"
+          fi
 
   # App Store 配布用ターゲット (issue #126)。直接配布の KildeGUI と**同じ Sources を
   # 条件コンパイルで共有**し、ガイドライン上の必須差分だけを持つ:
