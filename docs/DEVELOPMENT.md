@@ -405,7 +405,9 @@ KILDE_GUI_SELFTEST_MEETING=1 "$APP/Contents/MacOS/KildeGUI"
 > いかないようにするため (SU* キーは UserDefaults が Info.plist より優先される。
 > キー名は Sparkle 2 の `SUEnableAutomaticChecks` — Sparkle 1 の
 > `SUAutomaticallyChecksForUpdates` は効かない)。
-> **この値は Release ビルドにも効いてしまう**ので、開発が終わったら開発機を
+> **issue #217 以前の Debug ビルド (バンドル ID 分離前) はこの本番ドメインに
+> 書いていた**ため、Release ドメインに残った値は Release ビルドにも効きます。
+> 開発が終わったら開発機を
 > 出荷時状態に戻す後始末として削除します。なお**手動の更新チェック**
 > (ポップオーバーの「アップデートを確認」) はこの値に関係なく動く —
 > 削除し忘れても手動チェックの成否には影響せず、影響するのは自動チェックだけ:
