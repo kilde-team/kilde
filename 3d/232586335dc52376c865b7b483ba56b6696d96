@@ -1,0 +1,19 @@
+docs/DEVELOPMENT.md
+  s_606d88b25951e7::t_191e715637803b 408-410
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3d232586335dc52376c865b7b483ba56b6696d96",
+  "prompts": {},
+  "sessions": {
+    "s_606d88b25951e7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "e9a95df6-4b44-47d2-91b7-299a6c64906b",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
