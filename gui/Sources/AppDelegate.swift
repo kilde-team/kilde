@@ -120,7 +120,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // ここ。onCompletion は MainActor 上で 1 対 1 に呼ばれるので sink の
         // willSet 問題 (@Published は前値を流す) が無い
         transcription.onCompletion = { [weak self] completion in
-            self?.notifier.notifyTranscriptionCompleted(sidecarURL: completion.sidecarURL)
+            self?.notifier.notifyTranscriptionCompleted(
+                sidecarURL: completion.sidecarURL,
+                summaryGenerated: completion.summary != nil,
+                summaryNote: completion.summaryNote)
         }
 
         // 録画中は経過時間を横に出すので可変幅にする
@@ -163,6 +166,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.transcription.enqueue(TranscriptionCoordinator.Job(
                     recordingURL: url,
                     format: self.setup.transcriptFormat,
+                    // 要約 (issue #163): トグルがオンかつ Apple Intelligence が使えるときだけ
+                    // テンプレートを運ぶ。録画完了時点の setup 値で確定する (文字起こしと同じ)
+                    summaryTemplate: (self.setup.summaryEnabled && self.setup.summaryAvailable)
+                        ? self.setup.summaryTemplate : nil,
                     localeID: self.setup.transcriptLocale,
                     // 録画の長さ。計測 (issue #153) の区分だけに使う。elapsed は
                     // .finished の時点で最後の progress 値のまま (次の start() まで

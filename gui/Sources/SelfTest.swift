@@ -48,6 +48,17 @@ enum SelfTest {
             }
             return
         }
+        // KILDE_GUI_SELFTEST_SUMMARY=1: 要約付き経路 (issue #163)。TRANSCRIBE=1 と
+        // 組み合わせて使う (KILDE_GUI_SELFTEST_SUMMARY=1 KILDE_GUI_SELFTEST_TRANSCRIBE=1 …)。
+        // Job に summaryTemplate (.standard) を運び、サイドカー (.md に強制) に
+        // «## 要約» が載ることを awaitTranscriptionResult の検査で確かめる。
+        // Apple Intelligence 無効の環境ではエンジンが要約をスキップして案内を
+        // Completion.summaryNote に載せるため、«要約あり» の検査は失敗になる —
+        // 案内文の検査に読み替える
+        if env["KILDE_GUI_SELFTEST_SUMMARY"] == "1" {
+            runTranscription(setup: setup, transcription: transcription)
+            return
+        }
         // KILDE_GUI_SELFTEST_TRANSCRIBE_CANCEL=1: «中止» の経路を確かめる (issue #146)。
         // 実録画を伴わない。enqueue 直後に cancelAll して、
         //   - running が nil に戻る (キャンセルが処理された)
@@ -643,18 +654,25 @@ enum SelfTest {
             setup.transcribeEnabled = true
             print("selftest: transcribeEnabled forced=true (config は変更しません)")
         }
-        let sidecar = TranscriptWriter.sidecarURL(forRecording: inputURL, format: setup.transcriptFormat)
+        // KILDE_GUI_SELFTEST_SUMMARY=1 (issue #163): 要約付きで走らせる。
+        // 要約は Markdown の先頭側に載るため、出力形式は .md に強制される
+        // (TranscriptionCoordinator の契約)
+        let withSummary = ProcessInfo.processInfo.environment["KILDE_GUI_SELFTEST_SUMMARY"] == "1"
+        let outputFormat: TranscriptOutputFormat = withSummary ? .markdown : setup.transcriptFormat
+        let sidecar = TranscriptWriter.sidecarURL(forRecording: inputURL, format: outputFormat)
         // 前回実行の残骸があると «書かれた» と誤判定するので先に消す
         try? FileManager.default.removeItem(at: sidecar)
         print("selftest: transcribe input=\(inputURL.lastPathComponent)"
-            + " format=\(setup.transcriptFormat)"
+            + " format=\(outputFormat)"
+            + " summary=\(withSummary ? "on (standard)" : "off")"
             + " locale=\(setup.transcriptLocale ?? "(端末の言語設定)")")
         print("selftest: expect sidecar=\(sidecar.path)")
         fflush(stdout)
         // 本体と同じ «録画完了時のスナップショット» の形で Job を作る
         transcription.enqueue(TranscriptionCoordinator.Job(
             recordingURL: inputURL,
-            format: setup.transcriptFormat,
+            format: outputFormat,
+            summaryTemplate: withSummary ? .standard : nil,
             localeID: setup.transcriptLocale,
             recordingDuration: nil))
         // lastCompletion / lastFailure の更新は Swift Concurrency で届くため
@@ -700,8 +718,12 @@ enum SelfTest {
             // 通ってしまうので、期待パスと比較する (/tmp → /private/tmp の
             // symlink ゆらぎは両辺を解決して吸収する)。空ファイルなら «書けた» と
             // 偽る経路がないか確かめられない
+            // SUMMARY=1 のときは .md 強制 (TranscriptionCoordinator の契約) を
+            // 期待値側にも反映する
+            let withSummary = ProcessInfo.processInfo.environment["KILDE_GUI_SELFTEST_SUMMARY"] == "1"
+            let expectedFormat: TranscriptOutputFormat = withSummary ? .markdown : setup.transcriptFormat
             let expectedSidecar = TranscriptWriter.sidecarURL(
-                forRecording: recordingURL, format: setup.transcriptFormat)
+                forRecording: recordingURL, format: expectedFormat)
             guard completion.sidecarURL.resolvingSymlinksInPath().path
                     == expectedSidecar.resolvingSymlinksInPath().path else {
                 fail("サイドカーの書き出し先が期待と違います: "
@@ -717,6 +739,22 @@ enum SelfTest {
             }
             print("selftest: transcribed segments->\(completion.sidecarURL.lastPathComponent)"
                 + " bytes=\(bytes) job=\(completion.job.recordingURL.lastPathComponent)")
+            if withSummary {
+                // 要約付き経路 (issue #163): «## 要約» がサイドカーに載っていること。
+                // スキップ理由 (Apple Intelligence 無効など) があればそれ自体を失敗にする —
+                // «案内が出て要約が無い» はこの環境では期待した経路ではない
+                if let note = completion.summaryNote {
+                    fail("要約がスキップされた: \(note)")
+                }
+                guard completion.summary != nil else {
+                    fail("要約がサイドカーに反映されていません (summary == nil)")
+                }
+                let text = (try? String(contentsOf: completion.sidecarURL, encoding: .utf8)) ?? ""
+                guard text.contains("## 要約") else {
+                    fail("サイドカーに «## 要約» がありません: \(completion.sidecarURL.path)")
+                }
+                print("selftest: summary sections=要約 confirmed")
+            }
             fflush(stdout)
             exit(0)
         }
@@ -762,6 +800,7 @@ enum SelfTest {
         transcription.enqueue(TranscriptionCoordinator.Job(
             recordingURL: inputURL,
             format: setup.transcriptFormat,
+            summaryTemplate: nil,
             localeID: setup.transcriptLocale,
             recordingDuration: nil))
         transcription.cancelAll()
@@ -1142,6 +1181,8 @@ enum SelfTest {
             return "preparingModel(\(Int(progress * 100))%)"
         case .transcribing(let progress):
             return "transcribing(\(Int(progress * 100))%)"
+        case .summarizing(let progress):
+            return "summarizing(\(Int(progress * 100))%)"
         case nil:
             return "nil"
         }

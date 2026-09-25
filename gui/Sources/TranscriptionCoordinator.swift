@@ -25,6 +25,11 @@ final class TranscriptionCoordinator: ObservableObject {
         /// 元の録画ファイル。サイドカーは TranscriptWriter がこの URL の隣に書く
         let recordingURL: URL
         let format: TranscriptOutputFormat
+        /// 録画後の要約 (issue #163)。nil は «要約しない»。非 nil のときは文字起こし後に
+        /// 指定テンプレートで要約を生成し、**出力は .md に強制される**
+        /// (要約は Markdown の先頭側に載る — TranscriptWriter の契約)。
+        /// 録画完了時点の選択 (RecordingSetup) をスナップショットして入れる
+        let summaryTemplate: MeetingTemplate?
         /// nil は «端末の言語設定»。実行時に CLI と同じ `.bcp47` 表記へ解決する
         /// (kilde-cli-swift の TranscribeCommand.swift と同じ規約)
         let localeID: String?
@@ -40,6 +45,8 @@ final class TranscriptionCoordinator: ObservableObject {
     enum RunPhase: Equatable {
         case preparingModel(progress: Double)
         case transcribing(progress: Double)
+        /// 要約の生成中 (issue #163)。文字起こし完了後に走る
+        case summarizing(progress: Double)
     }
 
     /// 最後の失敗。再試行のためにジョブごと覚える (オフラインでのモデル取得
@@ -54,6 +61,11 @@ final class TranscriptionCoordinator: ObservableObject {
     struct Completion: Equatable {
         let job: Job
         let sidecarURL: URL
+        /// 要約を生成したときの結果。nil は «要約なし» (トグルオフ)
+        let summary: MeetingSummary?
+        /// 要約を生成しなかった理由 (Apple Intelligence 無効など)。
+        /// **文字起こし自体は成功している**ので失敗にはせず、案内として通知に載せる (issue #163)
+        let summaryNote: String?
     }
 
     @Published private(set) var running: Job?
@@ -224,12 +236,41 @@ final class TranscriptionCoordinator: ObservableObject {
                 // 中止するが、キャンセル直後に正常完了して返る狭いレースも排除できない。
                 // «中止» したのにサイドカーが書かれる経路を write の直前で閉じる
                 try Task.checkCancellation()
+
+                // 要約の生成 (issue #163)。文字起こしの後に、サイドカーの**書き出しの前**に
+                // 行う — 失敗・キャンセル時に «要約の無い» 中途半端なファイルを残さないため
+                // (エンジンの TranscriptionRun と同じ順序)。
+                var summary: MeetingSummary?
+                var summaryNote: String?
+                if let template = job.summaryTemplate {
+                    // Apple Intelligence 無効などの環境では録画・文字起こしを成功させたまま
+                    // 要約だけをスキップし、理由を案内として運ぶ (issue #163 «無効な環境での案内»)
+                    if let reason = MeetingSummarizer.unsupportedReason {
+                        summaryNote = "要約は生成できませんでした (\(reason))"
+                    } else {
+                        self?.setPhase(.summarizing(progress: 0), for: job)
+                        try Task.checkCancellation()
+                        summary = try await MeetingSummarizer.summarize(
+                            transcript: segments,
+                            template: template,
+                            onProgress: { progress in
+                                Task { @MainActor in
+                                    self?.setPhase(.summarizing(progress: progress), for: job)
+                                }
+                            })
+                    }
+                }
+
                 // TranscriptWriter.write は **最後に 1 回だけ原子的に書く**
                 // (一時ファイル + rename)。キャンセルでここへ届かなければサイドカーは
-                // 残らない — «キャンセルで出力ファイルが残らない» の根拠
+                // 残らない — «キャンセルで出力ファイルが残らない» の根拠。
+                // 要約ありのときは出力を .md に強制する (要約は Markdown の先頭側に載る)
+                let outputFormat = job.summaryTemplate != nil ? .markdown : job.format
                 let writtenURL = try TranscriptWriter.write(
-                    segments, as: job.format, besideRecording: job.recordingURL)
-                self?.finish(job: job, sidecarURL: writtenURL)
+                    segments, as: outputFormat, besideRecording: job.recordingURL,
+                    summary: summary)
+                self?.finish(job: job, sidecarURL: writtenURL,
+                             summary: summary, summaryNote: summaryNote)
             } catch {
                 self?.fail(job: job, error: error)
             }
@@ -244,7 +285,9 @@ final class TranscriptionCoordinator: ObservableObject {
         runPhase = phase
     }
 
-    private func finish(job: Job, sidecarURL: URL) {
+    private func finish(
+        job: Job, sidecarURL: URL, summary: MeetingSummary?, summaryNote: String?
+    ) {
         guard running?.id == job.id else { return }
         // 処理時間は状態を戻す前に読む — runStartedAt はこの実行のもの
         let processingTime = takeProcessingTime()
@@ -256,7 +299,8 @@ final class TranscriptionCoordinator: ObservableObject {
         // 完了したら前回の失敗表示を消す — このジョブの成功が «回復» の証拠なのに
         // 失敗が出続けると «まだ壊れている» 誤解を招く
         lastFailure = nil
-        let completion = Completion(job: job, sidecarURL: sidecarURL)
+        let completion = Completion(
+            job: job, sidecarURL: sidecarURL, summary: summary, summaryNote: summaryNote)
         lastCompletion = completion
         // 通知 (issue #147) は **@Published 更新の後に** 呼ぶ — フック側が
         // coordinator の状態 (isQueuedOrRunning 等) を読んでも整合する順序にする
