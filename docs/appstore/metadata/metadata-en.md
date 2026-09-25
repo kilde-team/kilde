@@ -51,6 +51,15 @@ Learn more at https://github.com/kilde-team/kilde
 screen recorder,system audio,meeting,record,Zoom,audio recording,microphone,window capture,mp4
 ```
 
+## What's New (0.6.0)
+
+The only change from 0.5.0 is internal (crash reporting), so the copy stays
+honest and short — do not pad it with feature claims.
+
+```text
+Stability and reliability improvements.
+```
+
 ## What's New (template)
 
 ```text

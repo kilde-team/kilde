@@ -60,6 +60,15 @@ grabadora de pantalla,grabar pantalla,audio del sistema,reunión,Zoom,grabar aud
 caracteres — «ventana» se eliminó porque excedía por 1 byte y ya lo cubre
 «grabadora de pantalla». Ver el README de metadata)
 
+## Novedades (0.6.0)
+
+El único cambio respecto a 0.5.0 es interno (informes de fallos), así que el
+texto se mantiene breve y honesto — sin anunciar funciones que no existen.
+
+```text
+Mejoras de estabilidad y fiabilidad.
+```
+
 ## Novedades (plantilla)
 
 ```text

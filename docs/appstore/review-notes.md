@@ -54,6 +54,15 @@ microphone, with optional on-device transcription of finished recordings.
   (Firebase Crashlytics), and (c) the language-model downloads described above.
   None of them carries audio content.
 
+**Meeting auto-recording (off by default):**
+
+Kilde can optionally detect an ongoing meeting and record it automatically.
+Detection looks at which process is using the microphone and which windows are
+on screen; it runs locally on the device and sends nothing anywhere. The
+feature is **off by default** — it never starts or stops a recording unless
+the user has enabled "Record meeting windows automatically" in the panel, and
+recordings started manually are never stopped automatically.
+
 **Recording-consent note for reviewers:** Kilde records system audio, which can
 include other meeting participants' voices. During normal use it is the user's
 responsibility to inform participants that the session is being recorded. For
@@ -103,6 +112,14 @@ Kilde はメニューバーから使う画面録画アプリで、システム�
 - 外向き接続は (a) 利用統計 (Firebase Analytics)、(b) クラッシュした次の起動時に
   送るクラッシュレポート (Firebase Crashlytics)、(c) 上記の言語モデル取得です。
   いずれも音声データを含みません。
+
+**会議の自動録画 (既定ではオフ):**
+
+kilde は進行中の会議を検知して自動で録画できます (オプション)。検知は
+マイクを使用中のプロセスと画面上のウィンドウを見るローカル処理で、
+外部へ何も送信しません。この機能は **既定でオフ** で、パネルの
+「会議を検知したら会議ウィンドウを自動で録画する」を有効にした場合にのみ
+動作します。手動で開始した録画が自動で停止されることはありません。
 
 **収録同意について (レビュアー向け):** Kilde はシステム音声を録るため、
 会議の他の参加者の声が入る可能性があります。実際の利用では録画の告知は
