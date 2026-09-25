@@ -1,0 +1,23 @@
+docs/appstore/metadata/metadata-es.md
+  s_e6a860663c7e72::t_5467c0b32bbe27 63-71
+docs/appstore/metadata/metadata-ko.md
+  s_e6a860663c7e72::t_33fb4db15181d7 57-65
+docs/appstore/metadata/metadata-zh-Hans.md
+  s_e6a860663c7e72::t_a3b6bf73e5ec66 51-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a601c8d062e6461e9fe9831c38834e60d0fbc3bd",
+  "prompts": {},
+  "sessions": {
+    "s_e6a860663c7e72": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "09127d2b-fdd9-4f3b-aa47-c9cb9d1842bd",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
