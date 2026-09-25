@@ -1,5 +1,6 @@
 import Foundation
 import KildeCore
+import os
 
 /// 録画後の文字起こしの実行と状態の持ち主 (issue #146)。
 ///
@@ -55,6 +56,12 @@ final class TranscriptionCoordinator: ObservableObject {
         let id = UUID()
         let job: Job
         let message: String
+        /// 生のエラー (NSError) 由来の失敗における診断情報 (domain / code / userInfo)。
+        /// localizedDescription だけでは «操作を完了できませんでした。（OSStatusエラー-12203）»
+        /// のように出自が落ちる (issue #221) ための足場で、UI では選択可能に表示し
+        /// バグ報告にそのまま貼れるようにする。**TranscriptionError は nil** —
+        /// 説明 (description) を自前で持ち、診断の対象が無いため
+        let detail: String?
     }
 
     /// 最後の完了。«サイドカーを書きました» の表示と «Finder で表示» に使う
@@ -327,7 +334,21 @@ final class TranscriptionCoordinator: ObservableObject {
             break
         }
         if !cancelled {
-            lastFailure = Failure(job: job, message: Self.describe(error))
+            let detail = Self.diagnosticDetail(error, includeUserInfo: true)
+            if let detail {
+                // «-12203 の出自が分からない» (issue #221) を繰り返さないため、
+                // domain / code を統合ログにも残す。Console.app では
+                // `log show --predicate 'category == "transcription"'` で追える。
+                // **ログに載せるのは domain / code の連鎖まで** — userInfo の値には
+                // 録画ファイルのパスが入るおそれがあり、統合ログに public で
+                // 書くのは避ける (CWE-532 / CodeRabbit 指摘)。privacy .private にすると
+                // 機種内の log show でも <private> に潰れて診断にならないため、
+                // 載せる値を絞る。userInfo 付きの全量は UI (選択可能表示) と
+                // セルフテスト出力が担う
+                Self.logger.error(
+                    "transcription failed: \(Self.diagnosticDetail(error, includeUserInfo: false) ?? detail, privacy: .public)")
+            }
+            lastFailure = Failure(job: job, message: Self.describe(error), detail: detail)
         }
         // «キャンセルは失敗に数えない» (上) と同じ分類で計測のイベントも分ける
         // (issue #153)。失敗に «キャンセル» が混ざると «どこで壊れているか» の
@@ -368,5 +389,56 @@ final class TranscriptionCoordinator: ObservableObject {
             return underlying.localizedDescription
         }
         return nsError.localizedDescription
+    }
+
+    /// 文字起こし失敗の統合ログ。subsystem は Debug と Release でバンドル ID が
+    /// 分かれている (CLAUDE.md §5-21) ため、実行中の構成そのものを使う
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.takezou621.KildeGUI",
+        category: "transcription")
+
+    /// 失敗の診断情報 (issue #221)。生の NSError は localizedDescription だけだと
+    /// domain / code が落ちるため、**エラーの連鎖 (_underlyingError) に沿って
+    /// domain / code / userInfo を掘って 1 行にする**。TranscriptionError は
+    /// description で説明を自前で持つため nil を返す。
+    ///
+    /// `includeUserInfo: false` は統合ログ用 — domain / code だけを返し、
+    /// パスなどが含まれうる userInfo をログに載せない (CodeRabbit 指摘 — CWE-532)。
+    /// userInfo の値は打ち切る — ここは UI 表示に載るもので、フレームワークが
+    /// 添付する長い文字列をそのまま出すと表示が崩れるため。
+    /// **計測 (UsageAnalytics) には載せない** — userInfo にロケール ID やパスが
+    /// 入るおそれがあり、計測側は «値は列挙に閉じる» 規約 (UsageAnalytics.errorKind)
+    private static func diagnosticDetail(_ error: Error, includeUserInfo: Bool) -> String? {
+        if error is TranscriptionError { return nil }
+        var parts: [String] = []
+        var current: NSError = error as NSError
+        // 連鎖は実運用で 2〜3 段。上限は異常な連鎖 (循環は通常あり得ないが) に対する防御
+        for _ in 0..<5 {
+            var part = "domain=\(current.domain) code=\(current.code)"
+            if includeUserInfo {
+                let entries = current.userInfo
+                    .filter { $0.key != NSUnderlyingErrorKey }  // 連鎖として別に掘るので重複させない
+                    .sorted { $0.key < $1.key }
+                    .map { key, value in "\(key)=\(trimmed(String(describing: value)))" }
+                if !entries.isEmpty {
+                    part += " {\(entries.joined(separator: ", "))}"
+                }
+            }
+            parts.append(part)
+            guard let underlying = current.userInfo[NSUnderlyingErrorKey] as? NSError else {
+                break
+            }
+            current = underlying
+        }
+        return parts.joined(separator: " / underlying: ")
+    }
+
+    /// 診断 1 値の整形。改行は空白に潰し、長い値は打ち切る (上のコメント参照)
+    private static func trimmed(_ text: String) -> String {
+        let flattened = text
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+        if flattened.count <= 120 { return flattened }
+        return flattened.prefix(120) + "…"
     }
 }

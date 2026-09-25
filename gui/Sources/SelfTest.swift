@@ -715,7 +715,7 @@ enum SelfTest {
                 }
             }
             if let failure = transcription.lastFailure {
-                fail("文字起こしが失敗: \(failure.message)")
+                fail("文字起こしが失敗: \(failure.message)\(failure.detail.map { " [\($0)]" } ?? "")")
             }
             guard let completion = transcription.lastCompletion else {
                 fail("文字起こしが 10 分で完了しませんでした (モデル取得が進んでいない?)")
@@ -1031,7 +1031,7 @@ enum SelfTest {
             }
             // すぐ死んだジョブは «始まらない» ではなく «始まって失敗した» — 誤診しない
             if let failure = transcription.lastFailure {
-                fail("文字起こしが失敗: \(failure.message)")
+                fail("文字起こしが失敗: \(failure.message)\(failure.detail.map { " [\($0)]" } ?? "")")
             }
             guard transcription.isBusy || transcription.lastCompletion != nil else {
                 fail("録画完了後に文字起こしが始まりません"
@@ -1056,7 +1056,7 @@ enum SelfTest {
                 }
             }
             if let failure = transcription.lastFailure {
-                fail("文字起こしが失敗: \(failure.message)")
+                fail("文字起こしが失敗: \(failure.message)\(failure.detail.map { " [\($0)]" } ?? "")")
             }
             guard let completion = transcription.lastCompletion else {
                 fail("文字起こしが 10 分で完了しませんでした (モデル取得が進んでいない?)")
