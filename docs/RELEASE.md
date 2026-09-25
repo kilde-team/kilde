@@ -285,6 +285,8 @@ scripts/release/appstore-archive.sh --version 0.4.0 --build 42
 2. **プライバシーラベル (App Privacy) の入力** — Firebase Analytics (#136) に合わせて
    「おおよその場所・デバイス ID・製品の操作」(いずれもアナリティクス目的、ユーザに関連付けない、
    トラッキングなし) を申告する (2026-09-23 に公開済み。収集するデータを変えたら更新する)。
+   **Crashlytics (issue #210) を含む最初の提出の前に「診断 > クラッシュデータ」を追加する**
+   (docs/appstore/README.md §4)
    あわせて画面収録・マイクの用途説明
 3. **審査への提出** — アップロード済みビルドの選択と提出
 
@@ -293,6 +295,30 @@ scripts/release/appstore-archive.sh --version 0.4.0 --build 42
 でアップロードできる。`xcrun altool --upload-app` も **Xcode 26 でまだ動く**
 (`xcrun altool --version` → 27.0.5 (2.1) を実測。cubic の「Xcode 26 では実行できない」は
 この環境では再現しなかった) が、Apple は非推奨としているので Transporter を先に試すこと。
+
+## 8. Crashlytics の dSYM (issue #210)
+
+GUI は両ターゲット (直接配布 / MAS) で Firebase Crashlytics をリンクしており、クラッシュの
+スタックトレースを関数名・行番号に戻すために **配布したビルドと同じ dSYM** を Firebase に送る。
+
+- **自動**: `gui/project.yml` の postBuildScripts「Upload dSYMs to Crashlytics」が
+  **Release ビルドのたびに** firebase-ios-sdk 同梱の `Crashlytics/run` を実行して送る。
+  sign.sh (直接配布、release.yml からも) と appstore-archive.sh (MAS) のどちらの経路でも走る。
+  Debug では送らない。`ENABLE_USER_SCRIPT_SANDBOXING: NO` が前提 (有効だとスクリプトの
+  実行もネットワークも拒否される)
+- **送信に失敗してもビルドは止まらない** (warning のみ)。ビルドログに
+  `warning: Crashlytics への dSYM 送信に失敗` が出たら、手動で送る:
+
+```sh
+# DerivedData (sign.sh は $DERIVED_DATA、appstore-archive.sh は dist/appstore/derived) の
+# SourcePackages にある upload-symbols を使う
+UPLOAD="<DerivedData>/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/upload-symbols"
+"$UPLOAD" -gsp gui/Resources/GoogleService-Info.plist -p mac <path/to/KildeGUI.app.dSYM>
+# MAS のアーカイブなら dSYM は dist/appstore/KildeGUI-AppStore.xcarchive/dSYMs/ にある
+```
+
+- 受信した dSYM は Firebase Console の Crashlytics → dSYM で確認できる。
+  クラッシュが «シンボル化されていない» と表示されたら、そのビルドの dSYM が欠けている
 
 ## GitHub でのリリース自動化
 
