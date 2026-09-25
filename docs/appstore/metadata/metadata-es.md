@@ -32,8 +32,6 @@ CARACTERÍSTICAS
   pistas separadas)
 - Captura por ventana: el audio se acota a esa app
 - Grabación solo de audio (M4A), sin drivers adicionales
-- Modo monitor: escucha mientras grabas (con BlackHole)
-- Captura HDR (macOS 15+, HEVC Main10)
 - Tanto si detienes la grabación como si cierras la app, el archivo siempre
   se escribe por completo
 
