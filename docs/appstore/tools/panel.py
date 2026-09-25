@@ -145,6 +145,33 @@ def panel_audio_only():
     return body
 
 
+def panel_transcribe():
+    """録画直後。保存完了 + 自動文字起こしの完了 (.md サイドカー) + 文字起こし設定。
+
+    transcriptionSection (gui/Sources/ContentView.swift) の MAS ビルドの文言を
+    再現する — «CLI (kilde rec) にも適用» 系の文言は MAS 版では出ない (#if APPSTORE)。
+    訴求は実装の保証範囲内に留める: 自動文字起こしは macOS 26 以降
+    (Transcriber.isSupported)、処理は端末内 (review-notes.md の記載と一致)。"""
+    body = header()
+    body += f'''
+      <div class="result">
+        <div class="ok">{sym("check","#30D158",14)}<span>保存しました</span></div>
+        <div class="dim sm path">~/Movies/kilde-20260925-142201.mp4</div>
+      </div>'''
+    # transcriptionStatusView の lastCompletion。録画ファイルの隣に .md が同步する
+    body += f'''
+      <div class="line">{sym("check","#30D158",13)}<span class="sm">kilde-20260925-142201.md</span>
+        <span class="spacer"></span><span class="link" style="margin-top:0">Finder で表示</span></div>'''
+    body += section("文字起こし", f'''
+      <div class="checks">
+        <div class="ck">{check(True)}<span>録画後に文字起こし</span></div>
+      </div>
+      <div class="line"><span class="dim sm">言語</span><span class="field" style="display:flex;align-items:center">日本語 (ja-JP)<span style="margin-left:auto;color:#8A8F98;font-size:10px">▾</span></span></div>
+      <div class="line"><span class="dim sm">出力形式</span><span class="field" style="display:flex;align-items:center">Markdown (.md)<span style="margin-left:auto;color:#8A8F98;font-size:10px">▾</span></span></div>
+      <div class="dim sm wrap">録画が終わると自動で文字起こしします</div>''')
+    return body
+
+
 def panel_window():
     """ウィンドウ単位の収録。会議アプリのウィンドウだけを録る。"""
     body = header()

@@ -41,7 +41,7 @@ App Store Connect の App Review Information → Notes に転記する文案 (�
 
 ## 2. スクリーンショット (ドラフト)
 
-`screenshots/*.png` — 2880×1800 (Mac App Store の受け付けサイズ)、5 枚。
+`screenshots/*.png` — 2880×1800 (Mac App Store の受け付けサイズ)、6 枚。
 
 **これは実機キャプチャではなく、`gui/Sources/ContentView.swift` の UI を HTML/CSS で
 再現したモックです。** 提出前に実機のキャプチャへ差し替えること。フォントが
@@ -54,6 +54,7 @@ Noto Sans CJK JP で、macOS 実機の SF Pro / ヒラギノとは字形が違�
 | `03-window-capture.png` | ウィンドウ単位の収録 |
 | `04-audio-only.png` | 音声のみ (M4A) |
 | `05-safe-finish.png` | 停止・アプリ終了のどちらでもファイルを仕上げる |
+| `06-transcribe.png` | 録画後の自動文字起こし (端末内処理・macOS 26 以降) |
 
 - **訴求は実装の保証範囲を超えない**。05 の文言は「停止・アプリ終了」に限定してある —
   DESIGN.md §5 は**プロセス異常終了時を保証対象外**としているので、「どう終わっても」の
@@ -61,7 +62,8 @@ Noto Sans CJK JP で、macOS 実機の SF Pro / ヒラギノとは字形が違�
 - **モックは全セクションを描かない**。パネルごとに訴求に関係する部分だけを描いている:
   `panel_setup` (01) は収録対象・音声・複数の音声ソース・保存先、`panel_window` (03) は
   収録対象・音声、`panel_audio_only` (04) はそれに「起動」を加えたもの、`panel_done` (05) は
-  保存完了・「グローバルホットキー」・最近の録画。実機のパネルはこれらを**すべて同時に**
+  保存完了・「グローバルホットキー」・最近の録画、`panel_transcribe` (06) は
+  保存完了・文字起こしの完了 (.md サイドカー)・文字起こし設定。実機のパネルはこれらを**すべて同時に**
   表示するので、**実機キャプチャへ差し替えるときは縦の情報量が変わる**点に注意すること
 - **Apple の製品名 (QuickTime など) を画面の文言に入れない**。「QuickTime では録れない」は
   Guideline 5.2.5 でリジェクトされた (0.4.0 (5)、§5)。比較は「標準の画面収録」のような
@@ -71,7 +73,7 @@ Noto Sans CJK JP で、macOS 実機の SF Pro / ヒラギノとは字形が違�
   (実在の製品名は入れない — cubic レビュー指摘)。実機キャプチャに差し替えるときも、Zoom / Google Meet / Teams などの
   ウィンドウ名・バンドル ID・ロゴが写り込まないようにすること (App Store の審査で
   指摘されうる)
-- リポジトリに入っているのは 256 色に最適化した版 (5 枚で約 2.5MB)。UI 画像なので
+- リポジトリに入っているのは 256 色に最適化した版 (6 枚で約 3MB)。UI 画像なので
   見た目の劣化はほぼ無い。フル品質が要るときは下の手順で作り直す
 
 ## 3. 作り直す
@@ -88,7 +90,7 @@ cd docs/appstore/tools
 python3 icon.py ../icon          # SVG を書き出す (3 バリアント)
 python3 render.py                # SVG -> PNG (16〜1024px)
 python3 sync_appicon.py          # PNG -> gui/Resources/.../AppIcon.appiconset (§1)
-python3 build.py                 # スクリーンショット 5 枚 (2880x1800) を screenshots/ へ
+python3 build.py                 # スクリーンショット 6 枚 (2880x1800) を screenshots/ へ
 ```
 
 - `build.py` は **"Noto Sans CJK JP" が無い環境では警告を出す**。フォントが変わると
@@ -101,7 +103,7 @@ python3 build.py                 # スクリーンショット 5 枚 (2880x1800)
 - **スクリーンショットをコミットするときは 256 色に最適化する**
   (`pngquant --force --ext .png --strip *.png` を `screenshots/` で実行。
   **`--ext .png` が要る** — `--force` だけでは元を置き換えず `*-fs8.png` を別に作る
-  (2026-09-18 実測)。リポジトリに入っている版はこれで約 2.4MB/5 枚に抑えてある — §2)
+  (2026-09-18 実測)。リポジトリに入っている版はこれで約 3MB/6 枚に抑えてある — §2)
 
 `panel.py` がパネルの再現部分。`ContentView.swift` を変えたら、スクリーンショットを
 撮り直す前にこちらも合わせること (幅 380pt・padding 12・セクション間 14 は SwiftUI 側の値)。
