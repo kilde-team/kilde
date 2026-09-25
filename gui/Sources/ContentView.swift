@@ -645,6 +645,16 @@ struct ContentView: View {
                         .font(.caption)
                         .foregroundStyle(.orange)
                         .fixedSize(horizontal: false, vertical: true)
+                    // 生のエラー (NSError) 由来のときだけ入る診断 (domain / code / userInfo —
+                    // issue #221)。«切り分けに必要な情報» なので選択可能にして、
+                    // バグ報告へそのまま貼れるようにする
+                    if let detail = failure.detail {
+                        Text(detail)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .textSelection(.enabled)
+                    }
                     // モデル取得の失敗 (オフライン) はネットワークが戻れば同じジョブの
                     // 再実行で成功する — 失敗を見せっぱなしにせず回復の入り口を出す
                     Button("再試行") { transcription.retryLastFailure() }
