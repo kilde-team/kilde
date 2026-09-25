@@ -33,8 +33,8 @@ Zoom / Google Meet / Teams 회의를 상대방의 목소리(시스템 사운드)
 
 개인정보
 녹화 내용은 내 Mac에만 남습니다. 개발자에게 전송되는 것은 실행 횟수
-등 집계된 사용 통계뿐이며, 녹화 내용이나 파일 자체는 절대 전송되지
-않습니다. 자세한 내용은 github.com/kilde-team/kilde의 PRIVACY.md를
+등 집계된 사용 통계와 앱이 비정상 종료했을 때의 충돌 보고서뿐이며,
+녹화 내용이나 파일 자체는 절대 전송되지 않습니다. 자세한 내용은 github.com/kilde-team/kilde의 PRIVACY.md를
 참조하세요.
 
 시스템 요구 사항
