@@ -1,0 +1,19 @@
+gui/Sources/TranscriptionCoordinator.swift
+  s_e6a860663c7e72::t_7bf3ff955b458f 337,341-349,405-408,411,418-425
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "45e9956b370b4cb6b958ed97d1316ff255dc0b69",
+  "prompts": {},
+  "sessions": {
+    "s_e6a860663c7e72": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "09127d2b-fdd9-4f3b-aa47-c9cb9d1842bd",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
