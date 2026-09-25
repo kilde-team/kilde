@@ -112,6 +112,18 @@ targets:
         # スクリプトを実行しネットワークに出る。ユーザースクリプトのサンドボックスが有効
         # だとどちらも拒否される (issue #210)
         ENABLE_USER_SCRIPT_SANDBOXING: NO
+      # Debug だけバンドル ID を分離する (issue #217)。TCC は (service, bundle id)
+      # につき 1 レコードしか持たず、そのレコードに記録した designated requirement
+      # (DR) で起動アプリの署名を検証する。Release (Developer ID) と Debug
+      # (kilde-dev 証明書) は DR が互換でないため、同一バンドル ID を共用すると
+      # 片方を許可するたびにもう片方が「未許可」に戻り、許可済みでも許可ダイアログが
+      # 出続ける。Debug を .dev に分離して TCC のレコード自体を分ける。
+      # 通知・ログイン項目・UserDefaults (Sparkle の SU* キー含む) も .dev ドメインに
+      # 分かれる点は docs/DEVELOPMENT.md §2〜§3 参照。**Release は変更しない** —
+      # Sparkle 更新判定・Homebrew formula・App Store がこの値に結合している
+      configs:
+        Debug:
+          PRODUCT_BUNDLE_IDENTIFIER: com.takezou621.KildeGUI.dev
     dependencies:
       - package: kilde-cli-swift
         product: KildeCore
@@ -174,8 +186,12 @@ targets:
   # - App Sandbox 必須 → Resources/KildeGUI-AppStore.entitlements
   # - Sparkle (ストア外自己更新) は MAS で禁止 → パッケージ依存に入れず、
   #   APPSTORE コンパイル条件で UpdaterCoordinator 等の Sparkle 経路を除外する
-  # バンドル ID は直接配布版と同じ (デュアルチャネルの標準構成)。TCC の画面収録権限は
-  # 署名チーム単位で効くため、権限は両ビルドで共有される
+  # バンドル ID は直接配布版と同じ (デュアルチャネルの標準構成)。Debug 構成だけ
+  # .dev に分離する (issue #217 — TCC は署名チーム単位ではなく**バンドル ID ごとの
+  # 1 レコード**に designated requirement を記録する。Developer ID DR と Apple
+  # Distribution DR は Developer ID マーカ OID の有無で互換が無いため、Release 同士
+  # でも同一バンドル ID の共用は権限の取り合いになる。Debug のみ分離し、配布ビルド
+  # 2 種 (Developer ID / MAS) は同じ本番バンドル ID を保つ)
   # 注意: PRODUCT_NAME は KildeGUI と同じため、**ビルド成果物は -derivedDataPath で
   # 分離すること**。同じ DerivedData を使い回すと、先にビルドした KildeGUI の
   # Sparkle.framework が成果物に残り、「MAS 版に Sparkle が無い」を受け入れ条件が崩れる
@@ -200,8 +216,8 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         PRODUCT_NAME: KildeGUI
         INFOPLIST_FILE: Resources/Info.plist
-        # ローカル開発は kilde-dev で署名する (KildeGUI と同じ — TCC が同一識別で
-        # 権限を引き継ぐ)。アーカイブ時は appstore-archive.sh が自動署名
+        # ローカル開発は kilde-dev で署名する (KildeGUI と同じ)。アーカイブ時は
+        # appstore-archive.sh が自動署名
         # (Apple Development) に差し替え、配布署名 (Apple Distribution) は
         # -exportArchive 時に signingStyle=automatic + -allowProvisioningUpdates が
         # 適用する。**アーカイブ段階で Apple Distribution を指定すると
@@ -223,6 +239,12 @@ targets:
         # Sparkle 経路 (UpdaterCoordinator など) を除外する条件。!APPSTORE 側に
         # Sparkle 実装を置くため、ここを消すと MAS ビルドが Sparkle に依存して失敗する
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: APPSTORE
+      # Debug だけ .dev に分離する理由は KildeGUI ターゲットと同じ (issue #217)。
+      # MAS 配布ビルドの署名 (Apple Development / Apple Distribution) も kilde-dev と
+      # DR が互換でないため、同一バンドル ID のままだと同じ衝突が起きる
+      configs:
+        Debug:
+          PRODUCT_BUNDLE_IDENTIFIER: com.takezou621.KildeGUI.dev
     dependencies:
       - package: kilde-cli-swift
         product: KildeCore

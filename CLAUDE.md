@@ -210,6 +210,21 @@ Info.plist 埋め込みの `unsafeFlags`、SDK シンボルの CI 確認) は
     未捕捉例外でアプリが落ちるようになり、録画中なら «必ずファイナライズ» を壊しうる。
     また dSYM 送信の postBuildScripts は `ENABLE_USER_SCRIPT_SANDBOXING: NO` が前提 —
     YES に戻すと送信が黙って失敗する (ビルドは warning で続行する設計のため気づきにくい)
+21. **TCC は (service, バンドル ID) ごとに 1 レコードで、記録した designated
+    requirement (DR) と署名が一致しないと再プロンプトする** (issue #217、2026-09-25
+    実測)。「システム設定では許可済みなのに毎回許可ダイアログが出る」のはこれ —
+    同一バンドル ID に Developer ID (Release) / kilde-dev (Debug) / ad-hoc
+    (検証ビルド、DR はビルドごとに変わる cdhash) が混在すると、片方を許可するたびに
+    他が「未許可」に戻る。対策として **Debug 構成だけバンドル ID を
+    `com.takezou621.KildeGUI.dev` に分離してある** (`gui/project.yml` の
+    `settings.configs.Debug`、両ターゲット)。**本番バンドル ID
+    `com.takezou621.KildeGUI` は Release で守る** (Sparkle 更新判定・Homebrew
+    formula・App Store が結合)。デバッグ時の UserDefaults / 通知 / ログイン項目は
+    `.dev` ドメインに分かれる点に注意。壊れたレコードの復旧は
+    `tccutil reset ScreenCapture <バンドル ID>` → 対象のコピーを起動 → 許可 →
+    プロセス再起動 (docs/DEVELOPMENT.md §2)。MAS ターゲットの旧コメントにあった
+    «TCC は署名チーム単位で効く» は誤り — DR が互換なら同一チームでも、互換が
+    無ければ別系統でも、分かれる単位はバンドル ID
 
 ## 6. 作業の進め方 — issue 駆動 (共通ルールは AGENTS.md)
 

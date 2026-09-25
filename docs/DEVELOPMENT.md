@@ -39,6 +39,46 @@ KildeGUI には KildeGUI を、ターミナルからセルフテストを実行�
 **画面収録は許可した後にプロセスの再起動が必要**です。マイク権限が「拒否済み」に
 なるとダイアログは二度と出ません。システム設定から手動で有効化します。
 
+### TCC はバンドル ID ごとに 1 レコード — 署名系統を混ぜると権限が壊れる
+
+さらに重要な仕組みとして、TCC は `(権限の種別, バンドル ID)` の組につき
+**1 つのレコード**しか持たず、そのレコードに記録した designated requirement (DR)
+で、起動してきたアプリの署名を検証します。DR が一致しないビルドが起動すると
+「未許可」扱いで許可ダイアログが出ます (**システム設定では許可済みと表示されていても**)。
+
+同一バンドル ID `com.takezou621.KildeGUI` でも、署名系統 (DR) が違えば互換がありません:
+
+| 署名 | DR の内容 | 安定性 |
+|------|----------|-------|
+| Developer ID (リリース 0.6.0+) | team `4B873Q67MK` 固定 | 安定 |
+| kilde-dev 自己署名証明書 (ローカル Debug) | 証明書のハッシュ固定 | 安定 (証明書を作り直すと変わる) |
+| ad-hoc (`CODE_SIGNING_ALLOWED=NO` 等の検証ビルド) | cdhash 固定 | **ビルドのたびに変わる** |
+
+別の系統を起動して許可するたびにレコードの DR が上書きされ、残りの系統がすべて
+「未許可」に戻ります。これが「設定では許可済みなのに毎回ダイアログが出る」の正体です
+(issue #217 実測)。
+
+対策として **Debug 構成のバンドル ID は `com.takezou621.KildeGUI.dev` に分離して
+あります** (`gui/project.yml` の `settings.configs.Debug`)。開発ビルドは TCC の
+レコードを Release と別に持ち、互いの権限を壊しません。通知権限・ログイン項目・
+UserDefaults (Sparkle の `SU*` キーを含む) も `.dev` ドメインに分かれます。
+システム設定では同名の「KildeGUI」が 2 つ並ぶので、どちらが開発用かは
+Xcode から起動したときに出るダイアログから許可すれば間違いありません。
+
+過去に権限の取り合いで壊れたレコードは、対象バンドル ID を指定してリセットします
+(ターミナルから実行可能。Full Disk Access は不要):
+
+```sh
+# 開発ビルドのレコードを消す
+tccutil reset ScreenCapture com.takezou621.KildeGUI.dev
+# リリース版のレコードを消す (ダイアログ → 許可 → アプリの再起動で復旧)
+tccutil reset ScreenCapture com.takezou621.KildeGUI
+```
+
+リセット後にどのコピーを起動するかが重要です。そのバンドル ID で**最初に起動して
+許可した署名系統**がレコードを獲得します。リリース版 (`~/Applications/KildeGUI.app` など)
+の権限を作り直すときは、必ずリリース版を起動してから許可してください。
+
 > 補足: CLI 側のマイク用途説明 (`NSMicrophoneUsageDescription`) は、エンジン側
 > (kilde-cli-swift) の `Sources/kilde/Info.plist` をリンカで実行ファイルに埋め込んで
 > 解決されます。GUI 側は `gui/Resources/Info.plist` (バンドル) と
@@ -374,8 +414,20 @@ KILDE_GUI_SELFTEST_MEETING=1 "$APP/Contents/MacOS/KildeGUI"
 > defaults delete com.takezou621.KildeGUI SUEnableAutomaticChecks
 > ```
 >
+> なお Debug ビルドの UserDefaults は issue #217 以降、バンドル ID 分離により
+> **`com.takezou621.KildeGUI.dev` ドメイン**に書かれます (`gui/project.yml` の
+> `settings.configs.Debug`)。上の削除コマンドは Release ビルドと同じドメイン
+> (`com.takezou621.KildeGUI`) に残った値の後始末用です。Debug ビルド側の
+> 値を見る・消すときは `.dev` を付けたドメインを使ってください:
+>
+> ```sh
+> defaults delete com.takezou621.KildeGUI.dev SUEnableAutomaticChecks
+> ```
+>
 > ダウンロード〜再起動までの E2E をリリース前に確認したいときは、フィードを
-> ローカルに差し替えられます (同じく UserDefaults が優先されるのを利用):
+> ローカルに差し替えられます (同じく UserDefaults が優先されるのを利用)。ただし
+> この E2E は**リリース版 (Developer ID 署名) のコピーで行う**ものなので、
+> ドメインは本番のままです:
 >
 > ```sh
 > # ローカル HTTP サーバ (appcast.xml と DMG を置く) を立てて差し替え
