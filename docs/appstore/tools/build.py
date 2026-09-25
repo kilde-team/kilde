@@ -178,7 +178,7 @@ SHOTS = [
                  "オープンソース (MIT) / 録画は Mac の外に出さない"],
          body=panel.panel_done()),
     dict(name="06-transcribe",
-         h1='録画が終わったら、<br><span class="hl">文字起こしも</span>できている。',
+         h1='録画が終わったら、<br><span class="hl">自動で文字起こし</span>。',
          sub="処理はこの Mac の中だけで完結。Markdown や字幕ファイルを録画と同じフォルダに自動で保存します (macOS 26 以降)。",
          points=["録画が終わると自動で文字起こしを開始",
                  "Markdown / 字幕 (SRT) / テキスト / JSON から選択",
