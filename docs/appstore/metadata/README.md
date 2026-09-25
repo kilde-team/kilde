@@ -58,6 +58,11 @@ App レコード (`com.takezou621.KildeGUI`, Apple ID `6812783176`) の App Stor
 
 ## 注意
 
+- **Mac App Store 版の GUI で使えない機能を説明に書かない** (issue #140)。monitor モード
+  (BlackHole でのモニタリング) と HDR 収録は CLI の `kilde rec --monitor` / `--hdr` だけの機能で、
+  MAS 版 (GUI のみ) には設定経路が無い。en / es / ko / zh-Hans の機能一覧にあった 2 行は削除した
+  (ja には元から無い)。GUI に設定経路を足したら戻す。ASC 側は 0.5.0 の審査中の文面に
+  まだ残っているため、**次のバージョンの提出時に en-US / es-ES / ko / zh-Hans の説明を更新する**
 - **Apple の製品・サービス名を入れない** (Guideline 5.2.5)。en-US のサブタイトル
   `Record what QuickTime can't` で 0.4.0 (5) がリジェクトされた (2026-09-23、issue #179)。
   「QuickTime では録れない」のような比較は「標準の画面収録では録れない」

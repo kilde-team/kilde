@@ -31,8 +31,6 @@ FEATURES
   separate tracks)
 - Window capture — audio is scoped to that app
 - Audio-only recording (M4A), no extra driver needed
-- Monitor mode: listen while you record (with BlackHole)
-- HDR capture (macOS 15+, HEVC Main10)
 - Whether you stop recording or quit the app, your file is always finalized
 
 PRIVACY
