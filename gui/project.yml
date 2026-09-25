@@ -108,6 +108,10 @@ targets:
         # が「参照されない」扱いで dead-strip され、configure() しても Analytics が
         # 初期化されない (issue #135)。CocoaPods は自動で付けるが XcodeGen は付かない
         OTHER_LDFLAGS: -ObjC
+        # Crashlytics の dSYM アップロード (postBuildScripts) は SourcePackages 内の
+        # スクリプトを実行しネットワークに出る。ユーザースクリプトのサンドボックスが有効
+        # だとどちらも拒否される (issue #210)
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
     dependencies:
       - package: kilde-cli-swift
         product: KildeCore
@@ -115,6 +119,55 @@ targets:
         product: Sparkle
       - package: firebase-ios-sdk
         product: FirebaseAnalyticsCore
+      # クラッシュ解析 (issue #210)。同じ firebase-ios-sdk の製品で、FirebaseApp.configure()
+      # で自動的に有効になる (AppDelegate 参照)。-ObjC (上) がリンクの前提なのは Analytics と同じ
+      - package: firebase-ios-sdk
+        product: FirebaseCrashlytics
+    # Crashlytics の dSYM アップロード (issue #210)。スタックトレースを関数名・行番号に
+    # 戻すには、配布したバイナリと同じビルドの dSYM が Firebase 側に要る。
+    # - Release のときだけ送る: Debug は配布されず、毎ビルドの送信は開発を遅くするだけ
+    # - スクリプトの場所は SPM のチェックアウト先。${BUILD_DIR%/Build/*} は -derivedDataPath
+    #   を指定した sign.sh / appstore-archive.sh (アーカイブ中は BUILD_DIR が
+    #   …/Build/Intermediates.noindex/ArchiveIntermediates/… になる) でも DerivedData 直下を指す
+    # - **失敗してもビルドは止めない**: 送信はネットワーク次第で、落とすとリリース
+    #   (署名・notarization の前段) ごと止まる。warning を出し、送れなかった dSYM は
+    #   DerivedData / .xcarchive から後で upload-symbols で送れる (docs/RELEASE.md)
+    # - ENABLE_USER_SCRIPT_SANDBOXING は NO が前提 (settings 参照)。サンドボックス下では
+    #   宣言外の SourcePackages 内のスクリプトを実行できず、ネットワークにも出られない
+    postBuildScripts:
+      - &crashlyticsUploadSymbols
+        name: Upload dSYMs to Crashlytics
+        basedOnDependencyAnalysis: false
+        inputFiles:
+          - ${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}
+          - ${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${PRODUCT_NAME}
+          - ${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Info.plist
+          - $(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/GoogleService-Info.plist
+          - $(TARGET_BUILD_DIR)/$(EXECUTABLE_PATH)
+        script: |
+          if [ "${CONFIGURATION}" != "Release" ]; then
+            echo "Crashlytics: ${CONFIGURATION} ビルドのため dSYM は送らない"
+            exit 0
+          fi
+          # SDK 同梱の Crashlytics/run は検証だけ同期で行い、送信はバックグラウンドへ回す —
+          # 送信の失敗が見えず、CI ではジョブ終了で送信ごと打ち切られうる。upload-symbols を
+          # 直接・同期で呼び、終了コードで成否を判定する (CodeRabbit レビュー指摘、PR #211)
+          UPLOAD="${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/upload-symbols"
+          GSP="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/GoogleService-Info.plist"
+          DSYM="${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}"
+          if [ ! -x "$UPLOAD" ]; then
+            echo "warning: Crashlytics の upload-symbols が見つからない ($UPLOAD)。dSYM は未送信"
+            exit 0
+          fi
+          if [ ! -d "$DSYM" ]; then
+            echo "warning: dSYM が見つからない ($DSYM)。DEBUG_INFORMATION_FORMAT を確認すること"
+            exit 0
+          fi
+          if "$UPLOAD" -gsp "$GSP" -p mac "$DSYM"; then
+            echo "Crashlytics: dSYM を送信した ($DSYM)"
+          else
+            echo "warning: Crashlytics への dSYM 送信に失敗 (ビルドは続行)。docs/RELEASE.md §8 の手順で後から送ること"
+          fi
 
   # App Store 配布用ターゲット (issue #126)。直接配布の KildeGUI と**同じ Sources を
   # 条件コンパイルで共有**し、ガイドライン上の必須差分だけを持つ:
@@ -163,6 +216,10 @@ targets:
         MACOSX_DEPLOYMENT_TARGET: "14.0"
         # KildeGUI と同じ -ObjC の理由 (issue #135)
         OTHER_LDFLAGS: -ObjC
+        # Crashlytics の dSYM アップロード (postBuildScripts) は SourcePackages 内の
+        # スクリプトを実行しネットワークに出る。ユーザースクリプトのサンドボックスが有効
+        # だとどちらも拒否される (issue #210)
+        ENABLE_USER_SCRIPT_SANDBOXING: NO
         # Sparkle 経路 (UpdaterCoordinator など) を除外する条件。!APPSTORE 側に
         # Sparkle 実装を置くため、ここを消すと MAS ビルドが Sparkle に依存して失敗する
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: APPSTORE
@@ -173,3 +230,10 @@ targets:
       # (issue #135)。Sparkle を MAS に入れない条件 (APPSTORE) はここでは関係ない
       - package: firebase-ios-sdk
         product: FirebaseAnalyticsCore
+      # クラッシュ解析 (issue #210)。MAS 版でも許可される (ストア外の自己更新ではない)。
+      # 外向き接続は既存の com.apple.security.network.client で足りる
+      - package: firebase-ios-sdk
+        product: FirebaseCrashlytics
+    # KildeGUI と同じ dSYM アップロード (上の定義を YAML のエイリアスで共有)
+    postBuildScripts:
+      - *crashlyticsUploadSymbols

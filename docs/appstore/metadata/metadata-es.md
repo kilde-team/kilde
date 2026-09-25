@@ -37,8 +37,9 @@ CARACTERÍSTICAS
 
 PRIVACIDAD
 Tus grabaciones nunca salen de tu Mac. El desarrollador solo recibe
-estadísticas de uso agregadas, como el número de inicios; nunca el contenido
-de tus grabaciones ni los archivos. Consulta PRIVACY.md en
+estadísticas de uso agregadas, como el número de inicios, e informes de
+fallos cuando la app se cierra inesperadamente; nunca el contenido de tus
+grabaciones ni los archivos. Consulta PRIVACY.md en
 github.com/kilde-team/kilde.
 
 REQUISITOS

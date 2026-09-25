@@ -35,8 +35,8 @@ FEATURES
 
 PRIVACY
 Your recordings never leave your Mac. The developer only receives aggregated
-usage statistics such as launch counts — never the content of your recordings
-or the files themselves. See PRIVACY.md at github.com/kilde-team/kilde.
+usage statistics such as launch counts, and crash reports when the app
+crashes — never the content of your recordings or the files themselves. See PRIVACY.md at github.com/kilde-team/kilde.
 
 REQUIREMENTS
 macOS 14 or later (Apple Silicon). Free, no ads, open source (MIT).

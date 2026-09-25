@@ -205,6 +205,11 @@ Info.plist 埋め込みの `unsafeFlags`、SDK シンボルの CI 確認) は
     sign.sh 用に export したままのシェルで実行するとクラウド署名の権限の無いキーが黙って
     使われ、アーカイブ後のエクスポートが "Cloud signing permission error" で落ちた
     (0.5.0 build 6、2026-09-25)。変数名を sign.sh と «揃える» 方向に戻さないこと
+20. **Crashlytics のために `NSApplicationCrashOnExceptions` を有効にしない** (issue #210)。
+    Firebase は macOS で YES を勧めるが、AppKit が握りつぶしていたメインスレッドの
+    未捕捉例外でアプリが落ちるようになり、録画中なら «必ずファイナライズ» を壊しうる。
+    また dSYM 送信の postBuildScripts は `ENABLE_USER_SCRIPT_SANDBOXING: NO` が前提 —
+    YES に戻すと送信が黙って失敗する (ビルドは warning で続行する設計のため気づきにくい)
 
 ## 6. 作業の進め方 — issue 駆動 (共通ルールは AGENTS.md)
 

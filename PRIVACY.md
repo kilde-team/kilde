@@ -1,6 +1,6 @@
 # プライバシーポリシー / Privacy Policy
 
-最終更新日 / Last updated: 2026-09-24
+最終更新日 / Last updated: 2026-09-25
 
 対象: kilde (macOS 用の画面・音声録画アプリ `Kilde` と `kilde` コマンドライン)
 
@@ -11,7 +11,7 @@
 ### 収集する情報
 
 kilde は**録画・録音の内容や設定を収集しません**。
-広告やクラッシュレポートの送信は行いません。
+広告の表示や広告目的のデータ収集は行いません。
 
 GUI アプリ (直接配布版・Mac App Store 版の両方) は、アプリの利用状況の解析を
 Google の **Firebase Analytics** で行います。収集するのは起動回数・利用頻度・
@@ -25,6 +25,15 @@ Google のサーバーに送信され、取り扱いは
 処理時間と録音の長さの区分、失敗の種別) も同じ利用統計に含まれます。
 **書き起こしたテキストや、録画・サイドカーのファイル名・保存先は含まれません。**
 `kilde` コマンドラインは解析を行いません。
+
+GUI アプリ (直接配布版・Mac App Store 版の両方) は、アプリが異常終了 (クラッシュ) した
+ときに、Google の **Firebase Crashlytics** でクラッシュレポートを送信します。
+含まれるのは、クラッシュ時のスタックトレース (どの処理で落ちたか)、アプリと OS の
+バージョン、デバイスの種類、空きメモリ・ディスク容量などの端末状態、クラッシュの
+日時、アプリのインストールごとに割り振られるランダムな ID で、**録画の内容・ファイル名・
+保存先や、あなたの設定は含まれません**。レポートは次回の起動時に Google のサーバーへ
+送信され、取り扱いは Google のプライバシーポリシーに従います。開発者は不具合の修正の
+ためにのみ利用します。`kilde` コマンドラインはクラッシュレポートを送信しません。
 
 ### 録画・録音したデータ
 
@@ -62,9 +71,10 @@ Google のサーバーに送信され、取り扱いは
 
 ### ネットワーク通信
 
-- **Mac App Store 版**: 上の「収集する情報」のとおり、Firebase Analytics が
-  利用統計を Google のサーバーへ送信します。アップデートは App Store を通じて
-  配信されます
+- **GUI アプリ (直接配布版・Mac App Store 版とも)**: 上の「収集する情報」のとおり、
+  Firebase Analytics が利用統計を、Firebase Crashlytics がクラッシュレポート
+  (クラッシュした次の起動時) を Google のサーバーへ送信します
+- **Mac App Store 版**: アップデートは App Store を通じて配信されます
 - **直接配布版の GUI (GitHub Releases の `kilde-<version>-macos.zip`)**: アップデートの
   確認のため、自動更新ライブラリ Sparkle が GitHub 上の更新情報
   (`https://github.com/kilde-team/kilde/releases/latest/download/appcast.xml`) を
@@ -92,10 +102,13 @@ Google のサーバーに送信され、取り扱いは
 録画・録音したデータと、あなたがアプリに入力した内容 (保存先・ホットキーなどの設定) を
 第三者へ提供することはありません (そもそも収集していません)。
 
-ただし次の 3 点は通信が発生します:
+ただし次の 4 点は通信が発生します:
 
 - **GUI アプリが利用統計を送るとき**: 上の「収集する情報」のとおり Firebase Analytics
   が Google のサーバーへ接続します (直接配布版・Mac App Store 版とも)
+- **GUI アプリがクラッシュレポートを送るとき**: 上の「収集する情報」のとおり、
+  クラッシュした次の起動時に Firebase Crashlytics が Google のサーバーへ接続します
+  (直接配布版・Mac App Store 版とも)
 - **直接配布版の GUI が更新を確認するとき**: 上の「ネットワーク通信」のとおり
   GitHub へ接続します。この通信で IP アドレスやアプリのバージョンなどが
   GitHub に送信されます (取り扱いは GitHub のプライバシーステートメントに従います)
@@ -104,7 +117,7 @@ Google のサーバーに送信され、取り扱いは
   (macOS 26 以降の文字起こし機能で、モデルが未取得の言語を文字起こしするとき。
   未使用のモデルはシステムが削除することがあるため、再び起こることがあります)
 
-CLI には Firebase Analytics と Sparkle の通信はありません。
+CLI には Firebase Analytics・Firebase Crashlytics と Sparkle の通信はありません。
 
 ### 本ポリシーの変更
 
@@ -123,8 +136,8 @@ https://github.com/kilde-team/kilde/issues
 
 ### Information we collect
 
-kilde **never collects your recordings or your settings**. It has no
-advertising or crash reporting.
+kilde **never collects your recordings or your settings**. It shows no
+advertising and collects nothing for advertising.
 
 The GUI app (both the directly distributed and the Mac App Store version) uses
 Google's **Firebase Analytics** to measure app usage. What is collected is usage
@@ -141,6 +154,17 @@ the kind of failure — is part of the same usage statistics. **It never
 includes transcript text or the names or locations of recording or sidecar
 files.** The `kilde` command-line tool does no
 analytics.
+
+When the GUI app (both the directly distributed and the Mac App Store version)
+terminates unexpectedly (crashes), it sends a crash report through Google's
+**Firebase Crashlytics**. The report contains the stack trace at the time of
+the crash (where the app crashed), the app and OS versions, the device model,
+device state such as free memory and disk space, the time of the crash, and a
+random identifier assigned to each installation of the app. **It never
+includes the content of your recordings, file names, save locations, or your
+settings.** The report is sent to Google's servers the next time you launch
+the app and is handled under Google's privacy policy. The developer uses it
+only to fix bugs. The `kilde` command-line tool sends no crash reports.
 
 ### Your recordings
 
@@ -178,9 +202,11 @@ Settings such as the save location and audio sources are stored only on your Mac
 
 ### Network access
 
-- **Mac App Store version**: Firebase Analytics sends usage statistics to
-  Google's servers as described under "Information we collect". Updates are
-  delivered through the App Store
+- **GUI app (both the directly distributed and the Mac App Store version)**:
+  Firebase Analytics sends usage statistics, and Firebase Crashlytics sends
+  crash reports (on the next launch after a crash), to Google's servers as
+  described under "Information we collect"
+- **Mac App Store version**: updates are delivered through the App Store
 - **Directly distributed GUI (the `kilde-<version>-macos.zip` on GitHub Releases)**:
   to check for updates, the Sparkle update framework downloads the update feed from GitHub
   (`https://github.com/kilde-team/kilde/releases/latest/download/appcast.xml`).
@@ -207,11 +233,15 @@ Your recordings, and what you enter in the app (the save location, the hotkey
 and other settings), are never shared with third parties (none of it is
 collected in the first place).
 
-Three kinds of connections are made:
+Four kinds of connections are made:
 
 - **When the GUI app sends usage statistics**: Firebase Analytics connects to
   Google's servers as described under "Information we collect" (both the directly
   distributed and the Mac App Store version)
+- **When the GUI app sends a crash report**: Firebase Crashlytics connects to
+  Google's servers on the next launch after a crash, as described under
+  "Information we collect" (both the directly distributed and the Mac App Store
+  version)
 - **When the directly distributed GUI checks for updates**: it connects to
   GitHub as described under "Network access", which sends information such as
   your IP address and the app version to GitHub (handled under the GitHub
@@ -222,7 +252,7 @@ Three kinds of connections are made:
   yet on your Mac, on macOS 26 or later; it can happen again, because the
   system may remove a model that has not been used in a while)
 
-The CLI makes neither the Firebase Analytics nor the Sparkle connection.
+The CLI makes none of the Firebase Analytics, Firebase Crashlytics, or Sparkle connections.
 
 ### Changes to this policy
 
