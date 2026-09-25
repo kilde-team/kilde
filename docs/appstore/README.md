@@ -116,6 +116,10 @@ App レコードは作成済み (Apple ID `6812783176`)。プライバシー (Ap
 App Privacy は Firebase Analytics (#136) に合わせて「おおよその場所・デバイス ID・製品の操作」
 (いずれもアナリティクス目的、ユーザに関連付けない、トラッキングなし) で公開済み (2026-09-23。
 それまでは「データ収集なし」)。
+**Firebase Crashlytics (issue #210) を含むビルドを提出する前に**、App Privacy に
+「診断 > クラッシュデータ」(目的: アプリの機能、ユーザに関連付けない、トラッキングなし) を追加して
+公開すること。「デバイス ID」も Crashlytics のインストール ID の用途として «アプリの機能» を足す。
+0.5.0 (build 6) までのビルドには Crashlytics は入っていない。
 プライバシーポリシーの本文はリポジトリ直下の `PRIVACY.md` (issue #128) で、利用者向けには
 kilde.site (リポジトリ kilde-team/kilde-site) が同じ内容を公開している。App Store Connect の
 プライバシーポリシー URL は **kilde.site を指定している** (ja は `https://kilde.site/ja/privacy/`、

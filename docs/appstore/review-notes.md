@@ -50,8 +50,9 @@ microphone, with optional on-device transcription of finished recordings.
   security-scoped bookmark). Files are never placed inside the app's sandbox
   container.
 - The app makes outbound network connections for: (a) usage analytics
-  (Firebase Analytics), and (b) the language-model downloads described above.
-  Neither carries audio content.
+  (Firebase Analytics), (b) crash reports sent on the next launch after a crash
+  (Firebase Crashlytics), and (c) the language-model downloads described above.
+  None of them carries audio content.
 
 **Recording-consent note for reviewers:** Kilde records system audio, which can
 include other meeting participants' voices. During normal use it is the user's
@@ -99,8 +100,9 @@ Kilde はメニューバーから使う画面録画アプリで、システム�
 - アプリは App Sandbox を使用しています。録画と文字起こしは `~/Movies` または
   ユーザーがオープンパネルで選んだフォルダ (security-scoped bookmark で永続化)
   に書き込まれます。**アプリのサンドボックスコンテナ内に置かれることはありません**。
-- 外向き接続は (a) 利用統計 (Firebase Analytics) と (b) 上記の
-  言語モデル取得です。いずれも音声データを含みません。
+- 外向き接続は (a) 利用統計 (Firebase Analytics)、(b) クラッシュした次の起動時に
+  送るクラッシュレポート (Firebase Crashlytics)、(c) 上記の言語モデル取得です。
+  いずれも音声データを含みません。
 
 **収録同意について (レビュアー向け):** Kilde はシステム音声を録るため、
 会議の他の参加者の声が入る可能性があります。実際の利用では録画の告知は
