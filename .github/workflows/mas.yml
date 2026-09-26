@@ -179,7 +179,10 @@ jobs:
           # notarization 用の AC_API_KEY* と混線しないようにスクリプト側で分けている)
           KILDE_ASC_API_KEY: ${{ env.ASC_KEY_PATH }}
           KILDE_ASC_API_KEY_ID: ${{ env.ASC_KEY_ID }}
-          KILDE_ASC_API_KEY_ISSUER: ${{ env.ASC_ISSUER }}
+          # KILDE_ASC_API_ISSUER — 「KEY」を挟まない (スクリプトの変数名。PR #255 で
+          # KILDE_ASC_API_KEY_ISSUER と書いて issuer だけ空になり、
+          # 「3 つとも指定するか全省略」のガードで止まった — run 36279930209)
+          KILDE_ASC_API_ISSUER: ${{ env.ASC_ISSUER }}
         run: |
           # appstore-archive.sh は KILDE_CLI_SWIFT_TOKEN を環境変数だけで使う
           # (git config を汚さない)
