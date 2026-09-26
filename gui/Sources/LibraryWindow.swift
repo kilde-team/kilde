@@ -259,6 +259,18 @@ private struct LibraryEntryRow: View {
         return formatter
     }()
 
+    /// 長さの表示 (1 時間未満は m:ss、以上は h:mm:ss)。
+    /// duration はサイドカーの最終セグメント終了時刻由来の近似値である
+    private static func durationText(_ interval: TimeInterval) -> String {
+        let total = Int(interval.rounded())
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let seconds = total % 60
+        return hours > 0
+            ? String(format: "%d:%02d:%02d", hours, minutes, seconds)
+            : String(format: "%d:%02d", minutes, seconds)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 5) {
@@ -270,6 +282,9 @@ private struct LibraryEntryRow: View {
             }
             HStack(spacing: 6) {
                 Text(Self.dateFormatter.string(from: entry.recordedAt))
+                if let duration = entry.duration {
+                    Text(Self.durationText(duration))
+                }
                 if entry.segments == nil {
                     Text(String(localized: "文字起こしなし"))
                         .foregroundStyle(.tertiary)
@@ -281,6 +296,13 @@ private struct LibraryEntryRow: View {
             }
             .font(.caption)
             .foregroundStyle(.secondary)
+            if let preview = entry.preview {
+                // 要約/文字起こしの冒頭 (issue #165 スコープの «要約の冒頭»)
+                Text(preview)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
         }
         .padding(.vertical, 2)
     }
