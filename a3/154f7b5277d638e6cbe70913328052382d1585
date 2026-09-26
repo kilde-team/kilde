@@ -1,0 +1,29 @@
+docs/RELEASE.md
+  s_cc24529b79f6d3::t_801e1716e897f5 291-294,302-334
+scripts/release/appstore-spec.py
+  s_af0ddc6c435bba::t_f5a548e3e6cc94 1-172
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a3154f7b5277d638e6cbe70913328052382d1585",
+  "prompts": {},
+  "sessions": {
+    "s_af0ddc6c435bba": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "agent-a5ff5e23898ccda8b",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    },
+    "s_cc24529b79f6d3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f262d801-c3f6-4f8d-9b47-5b8778a8af17",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
