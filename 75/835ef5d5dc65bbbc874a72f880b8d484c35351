@@ -1,0 +1,18 @@
+gui/Sources/AppDelegate.swift
+  h_864205080385bc 203-218
+gui/Sources/SandboxSupport.swift
+  h_864205080385bc 209-212
+gui/Sources/TranscriptionCoordinator.swift
+  h_864205080385bc 44-46,109-115,142-146,148-150,155-180,369
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "75835ef5d5dc65bbbc874a72f880b8d484c35351",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
