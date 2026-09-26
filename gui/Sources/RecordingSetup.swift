@@ -250,6 +250,18 @@ final class RecordingSetup: ObservableObject {
     /// 文字列を返すのは、ホットキー経路が «なぜ始まらないか» を出す必要があるため
     /// (ボタンは押せないことで伝わるが、他アプリ前面で押したキーには何も見えない)
     func startBlockReason(permissions: PermissionsModel) -> String? {
+        startBlockReason(for: request, permissions: permissions)
+    }
+
+    /// パネルの現在の選択とは別の構成で同じ判定を行う版 — ショートカット
+    /// (AppIntents, issue #167) がモードに応じて target を差し替えた request で使う。
+    /// **録画を始める全経路がこの判定を (または同等の自前判定を) 通る**ことで、
+    /// «この経路だけ列挙中でも録画を始められる» 状態を作らない。ボタン・ホットキー・
+    /// ショートカットはこのメソッドを使い、会議の自動録画 (MeetingAutoRecorder) は
+    /// 開始を待ち合わせる形の都合上、同じ条件 (列挙の完了待ちと権限の不足) を
+    /// 自前で判定する
+    func startBlockReason(for request: RecordRequest,
+                          permissions: PermissionsModel) -> String? {
         // SCK を使う構成でだけ列挙との競合を避ける (音声のみ + システム音声オフは競合しない)。
         // 判定は RecordRequest が持つ — ここに書き写すと Recorder 側とずれる (issue #72)
         let usesScreenCapture = request.usesScreenCapture
@@ -618,9 +630,9 @@ final class RecordingSetup: ObservableObject {
         let extensions: Set<String> = ["mov", "mp4", "m4a"]
         // サイドカーの拡張子は TranscriptOutputFormat が持つ値を使う —
         // 形式が増えたときにここが古いままだと、その形式のサイドカーだけ
-        // «文字起こしなし» と表示される
-        let transcriptExtensions: Set<String> = Set(
-            TranscriptOutputFormat.allCases.map { $0.fileExtension })
+        // «文字起こしなし» と表示される。ショートカットの文字起こし探索
+        // (TranscriptLookup) と同じ集合を見る
+        let transcriptExtensions = Self.transcriptSidecarExtensions
         // 画面の列挙と同じ理由で世代を数える — 保存先を変えて開き直したとき、
         // 前のディレクトリ (件数が多い・遅いボリューム) の走査が後から返ってきて
         // 新しい結果を古い一覧で上書きするのを防ぐ
@@ -678,6 +690,15 @@ final class RecordingSetup: ObservableObject {
             self.recentScanFinished = true
         }
     }
+
+    /// サイドカーの拡張子 (`TranscriptOutputFormat` の rawValue と同じ)。形式が増えた
+    /// ときに呼び出し側が古い集合を持つと、その形式のサイドカーだけ «文字起こしなし»
+    /// と表示されるため 1 箇所に集約する。ショートカットの文字起こし探索
+    /// (TranscriptLookup, issue #167) もこれを見る。
+    /// nonisolated: «最近の録画» の Task.detached と TranscriptLookup (nonisolated)
+    /// から触るため
+    nonisolated static let transcriptSidecarExtensions: Set<String> = Set(
+        TranscriptOutputFormat.allCases.map(\.fileExtension))
 
     /// 録画に対応する文字起こしサイドカーを候補の中から探す (issue #147)。
     ///

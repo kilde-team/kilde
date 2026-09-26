@@ -395,9 +395,9 @@ KILDE_GUI_SELFTEST_MEETING=1 "$APP/Contents/MacOS/KildeGUI"
 
 > 補足: ローカル署名ビルド (kilde-dev) や Xcode の実行では、コンソールに
 > `com.apple.linkd.autoShortcut` への接続エラーや "Error registering app with
-> intents framework" が出ることがあります。これは App Shortcuts 登録まわりの
-> システムサービス接続のノイズで、KildeGUI は AppIntents を使わないため機能に
-> 影響しません (正式な Developer ID 署名では出なくなると考えられます)。
+> intents framework" が出ることがあります。これは App Shortcuts (AppIntents,
+> issue #167) の登録まわりのシステムサービス接続のノイズで、ショートカットの
+> 実行自体には影響しません (正式な Developer ID 署名では出なくなる見込みです)。
 
 > **Sparkle (GUI 自動更新、issue #122)**: Debug ビルドは
 > `SUEnableAutomaticChecks=false` を UserDefaults に書き込みます —

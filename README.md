@@ -32,6 +32,8 @@ The project is split across two repositories (issue #115):
 - 🎙️ Record audio only with `--no-video`, with no additional driver required
 - 🛡️ Safely finalize the output file when you stop recording with Ctrl+C
 - ⌨️ Start and stop recording with a global hotkey while working in another app
+- ⚡️ Control recording from the Shortcuts app — start (screen/window or audio
+  only), stop, and fetch the latest transcript, for automation
 - 📝 Transcribe recordings to markdown/SRT/VTT/text/JSON sidecar files,
   entirely on device (macOS 26+)
 

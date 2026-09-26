@@ -397,6 +397,90 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    // MARK: - ショートカット (AppIntents) の窓口 (issue #167)
+
+    /// ショートカットからの録画開始 (KildeIntents.swift の StartRecordingIntent が呼ぶ)。
+    /// 開始をかけたなら nil、かけられなければ理由 (そのままインテントの dialog に出す)。
+    /// **start() をかけられた時点で nil を返す** — 準備 (デバイス解決・ストリーム構築) は
+    /// 非同期で、失敗したら録画の失敗通知 (RecordingNotifier) が届く仕組みがある。
+    /// 準備の完了まで待つと、権限ダイアログのような長い待ちでショートカットが
+    /// 固まって見える
+    func startRecordingForIntent(mode: KildeRecordingMode) -> String? {
+        if recording.isActive {
+            return String(localized: "すでに録画中です")
+        }
+        permissions.refresh()
+        // 音声ソース・トラック方針・保存先はパネルの現在の選択を引き継ぎ、対象だけを
+        // モードで差し替える。«画面 / ウィンドウ» はパネルで選ばれている対象
+        // (ディスプレイまたはウィンドウ) を録る — 音声のみになっていたら
+        // メインディスプレイへ戻す (音声の選択はそのまま)
+        var request = setup.request
+        switch mode {
+        case .window:
+            if case .audioOnly = request.target {
+                request.target = .display(index: 0)
+            }
+        case .audioOnly:
+            request.target = .audioOnly
+        }
+        // 権限は «どれが足りないか» を具体的に返す — パネルを開いていないユーザーには
+        // «なぜ始まらないか» を知る手段がインテントの返答しかないため
+        let missing = permissions.missing(for: request)
+        if !missing.isEmpty {
+            let names = missing.map { requirement -> String in
+                switch requirement {
+                case .screen: return String(localized: "画面収録")
+                case .mic: return String(localized: "マイク")
+                }
+            }.joined(separator: ", ")
+            return String(localized: "\(names)の権限が足りないため開始できません")
+        }
+        // ボタン・ホットキーと同じ判定 (issue #70 の列挙との競合を避ける)。
+        // 音声のみ + システム音声オフの構成は画面列挙と競合しないので待たされない
+        if let reason = setup.startBlockReason(for: request, permissions: permissions) {
+            return reason
+        }
+        do {
+            let options = try setup.makeOptions(for: request)
+            recording.start(options)
+            return nil
+        } catch {
+            // error の補間は deprecated 警告になる (debug description を入れる意思表示) ので
+            // String(describing:) で明示する
+            return String(localized: "開始できません: \(String(describing: error))")
+        }
+    }
+
+    /// ショートカットからの録画停止。停止をかけたなら nil、かけられなければ理由。
+    /// 停止はファイナライズ完了を待たない — 保存の完了は既存の録画完了通知で届く
+    func stopRecordingForIntent() -> String? {
+        guard recording.isActive else {
+            return String(localized: "録画中ではありません")
+        }
+        // ボタン・ホットキーと同じ経路 (Recorder.stop → ファイナライズ)
+        recording.stop()
+        return nil
+    }
+
+    /// ショートカット用: 最新の文字起こしの内容。見つからなければ nil。
+    /// アプリ内で最後に完了した文字起こしを優先し、再起動でメモリ内の記録が消えていたら
+    /// 保存先の走査で最新のサイドカーを探す (録画と同じディレクトリに書かれる)。
+    /// ファイルの走査とテキストの読み込みは MainActor の外 (Task.detached) で行う —
+    /// 保存先が遅いボリュームでもメニューバーの UI を止めないため
+    /// («最近の録画» の走査と同じ扱い)
+    func latestTranscriptForIntent() async -> String? {
+        let lastURL = transcription.lastCompletion?.sidecarURL
+        let directory = setup.request.outputDirectory
+        return await Task.detached {
+            if let lastURL,
+               let text = try? String(contentsOf: lastURL, encoding: .utf8),
+               !text.isEmpty {
+                return text
+            }
+            return TranscriptLookup.latestText(in: directory)
+        }.value
+    }
+
     @objc private func togglePopover() {
         guard let popover else { return }
         if popover.isShown {

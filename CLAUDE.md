@@ -54,6 +54,9 @@ gui/                           メニューバー GUI (XcodeGen: project.yml が
   Sources/ContentView.swift    録画パネル (対象・音声・保存先の選択、Rec/Stop、レベルメーター)
   Sources/LevelMeter.swift     ソース別レベルメーター (dB 表示)
   Sources/SelfTest.swift       KILDE_GUI_SELFTEST_* による UI なし録画 (検証用)
+  Sources/KildeIntents.swift   ショートカット (AppIntents) の定義 (issue #167)。録画開始 /
+                               停止 / 最新の文字起こしの 3 インテント。実体は AppDelegate の
+                               窓口メソッドがボタン・ホットキーと同じ判定を通す
   Sources/MeetingDetector.swift  会議の検知 (CoreAudio のプロセス単位のマイク使用 +
                                CGWindowList の会議ウィンドウ)。判定は純関数 evaluate (issue #197)
   Sources/MeetingAutoRecorder.swift  会議の自動録画の状態遷移 (検知 → 開始 → 終了判定 → 停止)。
@@ -149,7 +152,9 @@ Info.plist 埋め込みの `unsafeFlags`、SDK シンボルの CI 確認) は
 8. **UI なしの録画検証はセルフテスト経由** (`KILDE_GUI_SELFTEST_RECORD` 等)。UI の
    手動操作に頼らず、GUI → Recorder の経路をコマンドラインから確かめられる
 9. ローカル署名ビルドでは `com.apple.linkd.autoShortcut` 接続エラー等のノイズが
-   コンソールに出るが、AppIntents を使わないため機能への影響はない
+   コンソールに出ることがある。これは App Shortcuts (AppIntents, issue #167) の
+   登録まわりのシステムサービス接続のノイズで、ショートカットの実行には影響しない
+   (正式な Developer ID 署名では出なくなる見込み — docs/DEVELOPMENT.md §2 の補足)
 10. **Sparkle の postpone セレクタは `untilInvokingBlock:`** (Sparkle 2)。旧名
     `untilInvoking:` はオプショナルメソッドのため、間違えても警告なしで永久に
     呼ばれず、**録画中の再起動待ちが黙って無効になる** (壊れたファイルを残す経路が

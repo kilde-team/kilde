@@ -34,6 +34,8 @@ El proyecto está dividido en dos repositorios (issue #115):
   con Ctrl+C
 - ⌨️ Inicia y detiene la grabación con un atajo de teclado global mientras usas
   otra app
+- ⚡️ Controla la grabación desde la app Atajos — iniciar (pantalla/ventana o solo
+  audio), detener y obtener la última transcripción, para automatización
 - 📝 Transcribe grabaciones a archivos sidecar en markdown/SRT/VTT/texto/JSON,
   íntegramente en el dispositivo (macOS 26+)
 
