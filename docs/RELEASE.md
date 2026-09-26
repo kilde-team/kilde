@@ -69,13 +69,19 @@ scripts/release/sign.sh \
 2. CLI の埋め込み `CFBundleIdentifier` (`dev.kilde.cli`) を検査し、同じ signing
    identifier と audio-input entitlement、Hardened Runtime、timestamp を付けて署名する
 3. XcodeGen と `xcodebuild` で KildeGUI の Release `.app` をビルドし、同じ条件で署名する
-4. `dist/kilde-<version>-macos.zip` と `dist/KildeGUI-<version>.dmg` を作る
+4. `dist/kilde-<version>-macos.zip` と `dist/KildeGUI-<version>.dmg` を作り、
+   DMG にも GUI と同じ Developer ID で署名する
 5. 両方を `notarytool submit --wait` へ送り、GUI の DMG にチケットを staple する
 6. GUI の DMG に Sparkle の EdDSA 署名をして `dist/appcast.xml` を作る (§5。
    `--skip-notarize` でも生成する — appcast が無いと GUI の自動更新が壊れるため)
 
 zip には notarization ticket を直接 staple できません。CLI の ticket は Gatekeeper が
 Apple のサービスから取得します。GUI の DMG はオフライン検証にも対応できるよう staple します。
+staple のチケットを **upload 後の DMG に残すには DMG 自体の Developer ID 署名が前提**です
+(issue #216)。未署名の DMG でも `stapler` 自体は成功しますが、チケットは xattr (拡張属性)
+に記録されるため、GitHub Release への upload (バイト転送) で失われ、ダウンロードした
+DMG の `spctl --type open` が rejected になります (v0.6.0 実測)。署名済みの DMG では
+codesign の署名と staple のチケットがイメージ内に埋め込まれるため、upload を経ても残ります。
 
 署名とパッケージ作成だけをローカルで確認する場合は `--skip-notarize` を使います。
 Developer ID の timestamp 取得は行うため、このモードでも署名時にネットワーク接続が必要です。
@@ -196,9 +202,18 @@ tar -xJf /tmp/Sparkle-2.10.0.tar.xz -C /tmp
 
 ```sh
 codesign --verify --deep --strict --verbose=2 "/path/to/KildeGUI.app"
+codesign --verify --strict --verbose=2 "dist/KildeGUI-0.2.0.dmg"
 spctl --assess --type open --context context:primary-signature -vv "dist/KildeGUI-0.2.0.dmg"
 xcrun stapler validate "dist/KildeGUI-0.2.0.dmg"
 ```
+
+DMG の 3 つの検査 (`codesign --verify` / `spctl --type open` / `stapler validate`) は、
+**Release に upload した後、ダウンロードした DMG に対しても同じ結果になることを
+確認してください** (issue #216)。署名と staple がイメージ内に埋め込まれているので、
+`spctl --type open` はローカルの成果物とダウンロード物の両方で
+`accepted source=Notarized Developer ID` になるのが正しい状態です (notarization
+まで通したリリース成果物の期待値。`--skip-notarize` の成果物は notarization を
+通していないため `Unnotarized Developer ID` で rejected になるのが正しい)。
 
 CLI は zip を展開して `codesign --verify --strict --verbose=2 kilde` と
 `codesign -d --entitlements :- kilde` を実行し、別の macOS ユーザー環境で初回起動時の
