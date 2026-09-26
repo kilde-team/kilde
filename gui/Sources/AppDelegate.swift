@@ -37,6 +37,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 録画完了通知 (issue #20)。UNUserNotificationCenter はデリゲートを弱参照するので、
     /// ここで生存期間を持つ
     private let notifier = RecordingNotifier()
+    /// App Store の評価依頼 (issue #156)。MAS ビルドでのみ動く — 直接配布版は
+    /// 何もしない置き換えに差し替わる (ReviewPromptCoordinator.swift)
+    private let reviewPrompt = ReviewPromptCoordinator()
     /// 会議の自動録画。録画 (RecordingController) と同じく AppDelegate が持つ —
     /// パネルを閉じている間 (会議中のほとんどの時間) も監視を続けるため
     private lazy var meetingAutoRecorder = MeetingAutoRecorder(
@@ -191,6 +194,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     // リセットされない)。progress は 0.5 秒周期なので実長より最大
                     // 0.5 秒短いが、区分 (1 分 / 5 分…) の精度には影響しない
                     recordingDuration: self.recording.elapsed))
+            }
+            .store(in: &cancellables)
+
+        // 録画の成功完了 → 評価依頼の判定 (issue #156)。«成功した録画の完了 3 回目»
+        // を数える。判定は次の MainActor ひと仕事で行う — @Published は willSet で
+        // 流れるのでこの場で isActive を読むとまだ .finalizing («録画中») になる
+        // (下の updateStatusItem の sink と同じ落とし穴)。長さは elapsed ではなく
+        // lastRecordedDuration — elapsed は 0.5 秒周期の刻みなので、閾値ぎりぎりの
+        // 録画で最後の更新が 14.5 秒のまま «15 秒以上録ったのに数えられない» ことがある
+        recording.$phase
+            .sink { [weak self] phase in
+                guard let self, case .finished = phase else { return }
+                let duration = self.recording.lastRecordedDuration
+                Task { @MainActor in
+                    self.reviewPrompt.noteRecordingCompleted(
+                        duration: duration,
+                        recordingActive: self.recording.isActive,
+                        // 文字起こしは直前の sink で既に enqueue 済みなので
+                        // isBusy に反映されている
+                        transcriptionBusy: self.transcription.isBusy)
+                }
             }
             .store(in: &cancellables)
 
