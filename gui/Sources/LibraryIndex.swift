@@ -102,7 +102,8 @@ enum LibraryTranscriptParser {
         var pending: LibrarySegment?
         var bodyLines: [String] = []
         for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            // .whitespacesAndNewlines: 外部由来の CRLF ファイルで行末の \r が本文に残るのを防ぐ
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             if let times = parseTimedLine(trimmed) {
                 if pending != nil { flush(&segments, &pending, &bodyLines) }
                 pending = times
@@ -149,7 +150,8 @@ enum LibraryTranscriptParser {
         var starts: [TimeInterval] = []
         var texts: [String] = []
         for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            // .whitespacesAndNewlines: CRLF ファイルで行末の \r が本文に残るのを防ぐ (parseTimed と同じ理由)
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             guard trimmed.hasPrefix("["), let close = trimmed.firstIndex(of: "]") else { continue }
             guard let start = parseClock(trimmed[trimmed.index(after: trimmed.startIndex)..<close]) else { continue }
             let body = trimmed[trimmed.index(after: close)...].drop(while: { $0.isWhitespace })
@@ -173,7 +175,8 @@ enum LibraryTranscriptParser {
         var texts: [String] = []
         var currentBody: [String] = []
         for line in lines {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            // .whitespacesAndNewlines: CRLF ファイルで行末の \r が本文に残るのを防ぐ (parseTimed と同じ理由)
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             if trimmed.hasPrefix("## ") {
                 // 前のセグメントがあれば本文を確定する («## 要約» が先頭にある
                 // 通常の形式では、この分岐はまだ starts が空で走らない)

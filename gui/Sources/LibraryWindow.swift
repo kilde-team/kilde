@@ -1,6 +1,14 @@
 import AppKit
 import SwiftUI
 import AVKit
+import Combine
+
+/// ライブラリウィンドウが閉じたことを再生に知らせる。
+/// ウィンドウを閉じても LibraryView と player は生き続ける (isReleasedWhenClosed=false) ため、
+/// 閉じたら必ず pause する必要がある
+extension Notification.Name {
+    static let kildeLibraryWindowDidClose = Notification.Name("kildeLibraryWindowDidClose")
+}
 
 /// 録画ライブラリのウィンドウ (issue #165)。
 /// このアプリは LSUIElement (.accessory) で動くため、普通のウィンドウを
@@ -48,8 +56,11 @@ final class LibraryWindowController: NSObject, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         // ステータス項目のアプリ (.accessory) に戻す — .regular のままの
-        // Dock アイコンを残さない
+        // Dock アイコンが無い状態で最小化すると戻り口が無くなる
         NSApp.setActivationPolicy(.accessory)
+        // 閉じた後は画面上に UI が残らないため «音だけ流れ続ける» 状態に気づけない。
+        // player は LibraryView が持つので、通知経由で pause してもらう
+        NotificationCenter.default.post(name: .kildeLibraryWindowDidClose, object: nil)
     }
 }
 
@@ -61,6 +72,15 @@ final class LibraryWindowController: NSObject, NSWindowDelegate {
 final class LibraryPlayerController: ObservableObject {
     let player = AVPlayer()
     private var currentURL: URL?
+    private var cancellables: Set<AnyCancellable> = []
+
+    init() {
+        // ウィンドウを閉じたら再生を止める。閉じた後も本クラス (と player) は
+        // 生き続けるため、放置すると «音だけ流れ続ける» 状態になる (LSUIElement のため見えない)
+        NotificationCenter.default.publisher(for: .kildeLibraryWindowDidClose)
+            .sink { [weak self] _ in self?.player.pause() }
+            .store(in: &cancellables)
+    }
 
     func prepare(url: URL) {
         guard currentURL != url else { return }
