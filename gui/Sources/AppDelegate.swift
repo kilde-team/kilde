@@ -200,6 +200,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             .store(in: &cancellables)
 
+        // 録画 «開始» → その保存先フォルダの bookmark を文字起こし側に先取りさせる
+        // (issue #230)。録画 «中» に保存先が変更されると SandboxOutputDirectory.persist()
+        // が録画完了より前に旧フォルダの sandbox extension を解放し、完了時 (enqueue) の
+        // bookmark 作成が失敗する — 開始時点 (extension が生きている) にとっておけば、
+        // そのような録画でも文字起こしが旧フォルダを読み・サイドカーを書ける。
+        // willSet の時点で setup.request.outputDirectory は開始に使われた値に確定済み
+        // (保存先の選択は start より前に行われる)。transcribe がオフでも保持は無害
+        // (bookmark データの差し替えのみで、アクセスの start/stop は伴わない)
+        recording.$phase
+            .sink { [weak self] phase in
+                guard let self, case .recording = phase else { return }
+                self.transcription.holdDestinationForRecording(
+                    at: self.setup.request.outputDirectory)
+            }
+            .store(in: &cancellables)
+
         // 録画の成功完了 → 評価依頼の判定 (issue #156)。«成功した録画の完了 3 回目»
         // を数える。判定は次の MainActor ひと仕事で行う — @Published は willSet で
         // 流れるのでこの場で isActive を読むとまだ .finalizing («録画中») になる
