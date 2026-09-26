@@ -1,0 +1,24 @@
+PRIVACY.md
+  h_864205080385bc 154-156
+docs/DEVELOPMENT.md
+  h_864205080385bc 264-280
+gui/Sources/SelfTest.swift
+  h_864205080385bc 80-86
+gui/Sources/SelfTestTranscriptionRetry.swift
+  h_864205080385bc 1-77
+gui/Sources/TranscriptionCoordinator.swift
+  h_864205080385bc 270-274,276-280,297,304,318-319,321-380,383-400,571-605
+gui/Sources/UsageAnalytics.swift
+  h_864205080385bc 58-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2326abc73ef756d356deb969ed73c57edfbaa536",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
