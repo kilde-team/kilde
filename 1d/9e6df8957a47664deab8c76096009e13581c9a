@@ -1,0 +1,29 @@
+gui/Sources/ReviewPromptCoordinator.swift
+  s_cc24529b79f6d3::t_0abf815048c868 24-25
+  s_cc24529b79f6d3::t_71598340cf6f49 75-78,80-81
+  s_cc24529b79f6d3::t_161036a8ce5944 26
+  s_cc24529b79f6d3::t_7691d6d75a04e8 106-107
+  s_cc24529b79f6d3::t_a138f85913ab13 184-186,189-193,197-199,208-209,212,216-244,246
+  s_cc24529b79f6d3::t_97c25fe1405d65 79
+gui/Sources/AppDelegate.swift
+  s_cc24529b79f6d3::t_d05032c88165c3 203-205,209
+gui/Sources/RecordingController.swift
+  s_cc24529b79f6d3::t_e419112f07e366 51-55
+  s_cc24529b79f6d3::t_27af3dc25842ff 187-193
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1d9e6df8957a47664deab8c76096009e13581c9a",
+  "prompts": {},
+  "sessions": {
+    "s_cc24529b79f6d3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f262d801-c3f6-4f8d-9b47-5b8778a8af17",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
