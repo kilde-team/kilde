@@ -54,7 +54,8 @@ App レコード (`com.takezou621.KildeGUI`, Apple ID `6812783176`) の App Stor
 1. App Store Connect → 対象 App →「App情報」→「ローカライズ」→「編集」
 2. 各ロケールの「アプリ名」「サブタイトル」を確認する (名前は #160 では変えていない)
 3. バージョンページで各ロケールに「説明」「キーワード」を転記する
-   (上限: 名前 30 / サブタイトル 30 / 説明 4000 / キーワード 100 文字)。
+   (上限: 名前 30 / サブタイトル 30 / 説明 4000 / キーワードは
+   「キーワード欄の上限」参照)。
    **転記前に各ファイルの文字数を機械で確認すること** (CodeRabbit レビュー指摘:
    en の名前が 31 文字で超過していた)。確認コマンドは下の「キーワードの上限」参照。
    プロモーションテキストは正本が無いため入力しない (任意項目 — 使う場合は
@@ -64,20 +65,31 @@ App レコード (`com.takezou621.KildeGUI`, Apple ID `6812783176`) の App Stor
    現行値は `../README.md` §4 の表
 5. 保存 → 次のバージョン提出時に反映される
 
-## キーワードの上限は文字数で数える
+## キーワード欄の上限
 
-ASC のキーワード欄の上限は **100 文字** (Apple の App Store Connect リファレンス
-"up to 100 characters")。かつてこの README は「UTF-8 で 100 バイト」と書いていたが、
-**ja の旧キーワードが 71 文字 / 180 バイトで 0.3.0 に受理され審査も通過した実績**が
-あるので、文字数説が正しい。各国語のファイルには文字数とバイト数の両方を記録する。
-zh-Hans / ko / es-ES の現行キーワードは、バイト基準の説明とも両立するよう
-100 バイト以内にも収めてある (ja は入る語を優先して 100 文字以内にだけ収めた)。
+Apple の資料は揺れている: App Store Connect リファレンスには **100 バイト**、
+製品ページガイドには **100 文字**と書かれている (2026-09-26 の CodeRabbit レビュー
+指摘で確認)。一方、**このアプリでは ja の旧キーワード 71 文字 / 180 バイトが
+0.3.0 に受理され審査も通過した実績**があり、少なくとも 180 バイトまでは入力できる
+ことが確実。運用は次に従う:
+
+- **ja**: 実績のあるエンベロープ内 = 180 バイトかつ 100 文字以内
+  (100 バイトに合わせると日本語の語数が 1/3 になるため採らない)
+- **zh-Hans / ko / es-ES / en-US**: 100 文字以内かつ、安全側として 100 バイト以内
+- 転記時に ASC の入力欄が拒んだら (残数表示が足りなくなる) 語を減らし、
+  各ファイルの文字数・バイト数の記録も同じ PR で更新する
+
+各国語のファイルには文字数とバイト数の両方を記録する。確認コマンドは
+**どのディレクトリから実行しても同じ結果になるよう冒頭で cd し、5 ロケール分の
+ファイルが見つからなければ失敗する** (CodeRabbit レビュー指摘 — ルートから実行すると
+glob が空になり、何も検証せず成功していた)。
 
 ```sh
-# 5 ファイルのコードブロックの中身の文字数とバイト数を一覧 (出力の順序は各ファイルの
-# セクション順 — ja なら 名前/サブタイトル/説明/キーワード/URL…)
-python3 -c 'import re,glob
-for f in sorted(glob.glob("metadata-*.md")):
+cd "$(git rev-parse --show-toplevel)/docs/appstore/metadata"
+python3 -c 'import re,glob,sys
+fs=sorted(glob.glob("metadata-*.md"))
+assert len(fs)==5, f"expected 5 metadata files, found {fs}"
+for f in fs:
     for b in re.findall(r"```text\n(.*?)\n```", open(f).read(), re.S):
         print(f, len(b), len(b.encode("utf-8")))'
 ```
@@ -100,10 +112,16 @@ for f in sorted(glob.glob("metadata-*.md")):
   ```sh
   # ASC に転記するコードブロックの中身だけを見る (見出しの「App Store」を拾わないため)。
   # Zoom / Google / Teams 等は単語境界付き (\bmeet\b は meeting にマッチしない)。
-  # kilde-team は自社の GitHub org 名なので (?<!kilde-) で除外
-  python3 -c 'import re,glob
+  # kilde-team は自社の GitHub org 名なので (?<!kilde-) で除外。
+  # ヒットが 1 つでもあれば終了コード 1 で失敗する (何も出なければ OK)
+  cd "$(git rev-parse --show-toplevel)/docs/appstore/metadata"
+  python3 -c 'import re,glob,sys
+fs=sorted(glob.glob("metadata-*.md"))
+assert len(fs)==5, f"expected 5 metadata files, found {fs}"
 pat=re.compile(r"quicktime|facetime|imovie|final cut|garageband|keynote|siri|icloud|airdrop|airplay|iphone|ipad|apple ?(tv|watch|music|vision|pay)|app store|\bzoom\b|google|microsoft|(?<!kilde-)\bteams?\b|\bmeet\b|blackhole|\bobs\b|notion|granola|audio ?hijack|\bloom\b|screenflow|camtasia",re.I)
-[print(f,m.group()) for f in sorted(glob.glob("metadata-*.md")) for b in re.findall(r"```text\n(.*?)\n```",open(f).read(),re.S) for m in pat.finditer(b)]'
+hits=[(f,m.group()) for f in fs for b in re.findall(r"```text\n(.*?)\n```",open(f).read(),re.S) for m in pat.finditer(b)]
+print(hits or "no trademark hits")
+sys.exit(1 if hits else 0)'
   ```
 
 - **MAS 版の GUI で使えない機能を説明に書かない** (issue #140)。monitor モード
