@@ -1,0 +1,30 @@
+README.es.md
+  h_864205080385bc 61-62
+README.ko.md
+  h_864205080385bc 52-53
+README.zh-CN.md
+  h_864205080385bc 50-51
+docs/appstore/badge/mac-app-store-badge-es-black.svg
+  h_864205080385bc 1-52
+docs/appstore/badge/mac-app-store-badge-es-white.svg
+  h_864205080385bc 1-50
+docs/appstore/badge/mac-app-store-badge-ko-black.svg
+  h_864205080385bc 1-40
+docs/appstore/badge/mac-app-store-badge-ko-white.svg
+  h_864205080385bc 1-40
+docs/appstore/badge/mac-app-store-badge-zh-Hans-black.svg
+  h_864205080385bc 1-32
+docs/appstore/badge/mac-app-store-badge-zh-Hans-white.svg
+  h_864205080385bc 1-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8ae882f29df7989ec4401d5d7de087564ec1593a",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
