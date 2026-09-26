@@ -1,0 +1,23 @@
+docs/RELEASE.md
+  s_9c1b0629946eb7::t_4b9ff3dc5924fd 80-84
+scripts/release/sign.sh
+  s_9c1b0629946eb7::t_4ffb0bf0ad3c99 249-250,252
+  s_9c1b0629946eb7::t_43a3e8eae84db2 264-267
+  s_9c1b0629946eb7::t_feb88ee55a9dc0 246-248,251
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "aa12c5dbcb4a0f967de20e7a5fa09e7931e9c391",
+  "prompts": {},
+  "sessions": {
+    "s_9c1b0629946eb7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "7cc403d9-0559-463f-a1fb-908cdd68717f",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
