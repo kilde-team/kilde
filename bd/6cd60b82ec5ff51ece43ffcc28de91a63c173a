@@ -1,0 +1,32 @@
+gui/Sources/SandboxSupport.swift
+  s_360f71f052b76c::t_56d863adf2cc24 204-209
+  s_360f71f052b76c::t_96c136faecb7b7 239-241
+gui/Sources/TranscriptionCoordinator.swift
+  s_360f71f052b76c::t_de64b91e0bf19e 337-344
+  s_360f71f052b76c::t_7c419ff0d4f9cb 41-46
+  s_360f71f052b76c::t_81cc866009d530 184-187
+  s_360f71f052b76c::t_0fba446fae8f24 418
+  s_360f71f052b76c::t_5c3ff61f1be0a8 397
+  s_360f71f052b76c::t_d2c2d8f02ec105 183,188
+  s_360f71f052b76c::t_4949d83b620c88 224-229
+  s_360f71f052b76c::t_8841d6bf1b8497 103-107
+  s_360f71f052b76c::t_bd1b301ebe6cfe 128-132,139-140
+  s_360f71f052b76c::t_5fc8c989baaca5 133-138
+  s_360f71f052b76c::t_daeeb2b6e247a0 323-336,345-382
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bd6cd60b82ec5ff51ece43ffcc28de91a63c173a",
+  "prompts": {},
+  "sessions": {
+    "s_360f71f052b76c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "803ea967-ab4f-4d65-8a60-07094faaa856",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
