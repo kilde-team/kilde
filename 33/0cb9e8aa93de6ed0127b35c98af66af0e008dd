@@ -1,0 +1,19 @@
+scripts/release/appstore-spec.py
+  s_7e7dd78210f867::t_4aaf538727bf7b 6-8,10-11,22-24,56-60,66-70,123-137,141-142,157-171,195-196,225-226
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "330cb9e8aa93de6ed0127b35c98af66af0e008dd",
+  "prompts": {},
+  "sessions": {
+    "s_7e7dd78210f867": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d52eed35-0ac1-4ccb-a3a2-9b37a2ae832e",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
