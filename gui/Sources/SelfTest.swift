@@ -77,6 +77,13 @@ enum SelfTest {
             runTranscriptionCancel(setup: setup, transcription: transcription)
             return
         }
+        // KILDE_GUI_SELFTEST_TRANSCRIBE_RETRY=1: 文字起こしの断続的な失敗 «自動再試行»
+        // の判定規則を確かめる (issue #221)。実録画・実文字起こしを伴わない
+        // (SelfTestTranscriptionRetry.swift)。-12203 の発生自体は断続的で再現不能なため、
+        // «どのエラーを再試行の対象にするか» の規則を合成エラーで縛る
+        if env["KILDE_GUI_SELFTEST_TRANSCRIBE_RETRY"] == "1" {
+            reportTranscriptionRetryRules()
+        }
         // KILDE_GUI_SELFTEST_UPDATE=1: Sparkle 自動更新の配線と設定を確かめる (issue #122)。
         // 終了は reportUpdateSetup の中 (canCheckForUpdates の待ちがあるため)。
         // App Store ビルドには Sparkle が無い (issue #126) のでこの検証は対象外

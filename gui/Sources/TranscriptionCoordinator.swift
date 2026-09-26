@@ -267,50 +267,17 @@ final class TranscriptionCoordinator: ObservableObject {
         // `Locale.current.identifier(.bcp47)` で行う (TranscribeCommand.swift と同じ規約)
         let localeID = job.localeID ?? Locale.current.identifier(.bcp47)
         task = Task { [weak self] in
-            // この Task は MainActor を引き継ぐので、await の後もメインスレッドで動く
+            // この Task は MainActor を引き継ぐので、await の後もメインスレッドで動く。
+            // runRecognition の戻り値を受け取るために冒頭で強参照に昇格する —
+            // coordinator は AppDelegate がアプリ生存中ずっと持つので、実行期間の
+            // 保持で寿命が変わることはない (cancelAll の hung 観測 Task と同じ流儀)
+            guard let self else { return }
             do {
-                // モデル状態を先に確認する — unsupportedLocale を文字起こし本体より
-                // 先に分かりやすいエラーにするため (CLI と同じ順序)
-                let status = try await Transcriber.modelAssetStatus(localeIdentifier: localeID)
-                if !status.installed {
-                    // .installed 以外は取得を試みる。**.unknown も未取得扱い** —
-                    // エンジンの `installed` 計算プロパティ (TranscriberSync.swift) と
-                    // 同じ判断 «取得を試みる側に倒す»
-                    switch status {
-                    case .unsupported:
-                        // installModelAsset も最終的に unsupportedLocale を投げるが、
-                        // ここで先に弾くことで «ダウンロードを試みて失敗» を避ける
-                        throw TranscriptionError.unsupportedLocale(localeID)
-                    default:
-                        try await Transcriber.installModelAsset(
-                            localeIdentifier: localeID,
-                            onProgress: { progress in
-                                // onProgress は @Sendable (別スレッド) から呼ばれるため
-                                // MainActor へ非同期で転送する。直接触ると競合になる
-                                Task { @MainActor in
-                                    self?.setPhase(.preparingModel(progress: progress), for: job)
-                                }
-                            })
-                    }
-                }
-                self?.setPhase(.transcribing(progress: 0), for: job)
-                // エンジンの SpeechAnalyzer 初期化は withTaskCancellationHandler
-                // の登録前に走り、**この窓で cancel されると中止が届かず
-                // CancellationError も投げずに await で止まり続ける** (実測)。
-                // cancel 済みの Task が初期化に入るのをここで防ぐ — 初期化
-                // 実行中に cancel された場合の残りは cancelAll 側の hung 観測
-                // タイムアウトで閉じる
-                try Task.checkCancellation()
-                let transcriber = Transcriber(localeIdentifier: localeID)
-                // speakers: nil — トラック数からエンジン側が自動判定する
-                // (1 トラック / 合成 = ラベルなし、2 トラック (separate) = 0: 相手 / 1: 自分)
-                let segments = try await transcriber.transcribeWithSpeakers(
-                    fileURL: job.recordingURL,
-                    onProgress: { progress in
-                        Task { @MainActor in
-                            self?.setPhase(.transcribing(progress: progress), for: job)
-                        }
-                    })
+                // モデル状態の確認から文字起こしまでを 1 か所にまとめ、断続的な失敗の
+                // 自動再試行 (runRecognition) の対象にする。**要約とサイドカー書き出しは
+                // 対象外** — 要約は FoundationModels (Apple Intelligence)、書き出しは
+                // Cocoa のファイル I/O で Speech とは別のスタック。-12203 の観測は無い
+                let segments = try await self.runRecognition(job: job, localeID: localeID)
                 // transcribeWithSpeakers は Task.cancel() を見て CancellationError で
                 // 中止するが、キャンセル直後に正常完了して返る狭いレースも排除できない。
                 // «中止» したのにサイドカーが書かれる経路を write の直前で閉じる
@@ -327,14 +294,14 @@ final class TranscriptionCoordinator: ObservableObject {
                     if let reason = MeetingSummarizer.unsupportedReason {
                         summaryNote = "要約は生成できませんでした (\(reason))"
                     } else {
-                        self?.setPhase(.summarizing(progress: 0), for: job)
+                        self.setPhase(.summarizing(progress: 0), for: job)
                         try Task.checkCancellation()
                         summary = try await MeetingSummarizer.summarize(
                             transcript: segments,
                             template: template,
                             onProgress: { progress in
                                 Task { @MainActor in
-                                    self?.setPhase(.summarizing(progress: progress), for: job)
+                                    self.setPhase(.summarizing(progress: progress), for: job)
                                 }
                             })
                     }
@@ -348,12 +315,89 @@ final class TranscriptionCoordinator: ObservableObject {
                 let writtenURL = try TranscriptWriter.write(
                     segments, as: outputFormat, besideRecording: job.recordingURL,
                     summary: summary)
-                self?.finish(job: job, sidecarURL: writtenURL,
-                             summary: summary, summaryNote: summaryNote)
+                self.finish(job: job, sidecarURL: writtenURL,
+                            summary: summary, summaryNote: summaryNote)
             } catch {
-                self?.fail(job: job, error: error)
+                self.fail(job: job, error: error)
             }
         }
+    }
+
+    /// モデル状態の確認から文字起こしまで (issue #221 の自動再試行の対象区間)。
+    /// **1 回だけ** 自動でやり直す — «まれに -12203 で失敗し、再実行で成功する»
+    /// (issue #221) をユーザーの手を借りずに通すため。録り逃しに準ずる経験になる
+    /// «断続的に失敗した文字起こし» を、既定で 1 回の再試行で回復させる
+    private func runRecognition(job: Job, localeID: String) async throws -> [TranscriptSegment] {
+        do {
+            return try await recognizeOnce(job: job, localeID: localeID)
+        } catch let error where !Task.isCancelled && Self.isTransientRetryable(error) {
+            // 再試行の判定を通った失敗。**再試行の事実は統合ログと計測に残す** —
+            // «自動で救われた» ことは UI に失敗表示を出さない以上、観測できる場所が
+            // ないと «再現頻度の測定» (issue #221) が進まない。domain / code まで
+            // (userInfo は載せない) は fail 経路と同じ方針
+            Self.logger.error(
+                "transcription failed transiently, retrying once: \(Self.diagnosticDetail(error, includeUserInfo: false) ?? "\(error)", privacy: .public)")
+            UsageAnalytics.transcriptionRetry(recordingDuration: job.recordingDuration)
+            // 即時の再試行は失敗時と同じタイミング条件を再現しうるため短い猶予を置く。
+            // «再実行で成功» の実測は人の手での再実行 (秒〜分後) で、1 秒は UX と
+            // 回復率の妥協案 — 根拠が出たらここを調整する
+            try? await Task.sleep(for: .seconds(1))
+            // 猶予中に «中止» されたら再試行に入らない — キャンセルは正規の経路
+            try Task.checkCancellation()
+            // 2 回目の実行は進捗 0 から始まるので表示も戻す。«進捗が巻き戻る» は
+            // «自動でやり直している» の証拠としてそのまま見せる (失敗通知は出さない)
+            setPhase(.transcribing(progress: 0), for: job)
+            return try await recognizeOnce(job: job, localeID: localeID)
+        }
+    }
+
+    /// モデル状態の確認・必要ならモデル取得・文字起こし本体の 1 回分。
+    /// どの呼び出しも状態を持ち越さない (エンジンが実行ごとに新しい
+    /// SpeechTranscriber / SpeechAnalyzer を作る) ので、再試行はこの関数を
+    /// もう 1 回呼ぶだけで成立する
+    private func recognizeOnce(job: Job, localeID: String) async throws -> [TranscriptSegment] {
+        // モデル状態を先に確認する — unsupportedLocale を文字起こし本体より
+        // 先に分かりやすいエラーにするため (CLI と同じ順序)
+        let status = try await Transcriber.modelAssetStatus(localeIdentifier: localeID)
+        if !status.installed {
+            // .installed 以外は取得を試みる。**.unknown も未取得扱い** —
+            // エンジンの `installed` 計算プロパティ (TranscriberSync.swift) と
+            // 同じ判断 «取得を試みる側に倒す»
+            switch status {
+            case .unsupported:
+                // installModelAsset も最終的に unsupportedLocale を投げるが、
+                // ここで先に弾くことで «ダウンロードを試みて失敗» を避ける
+                throw TranscriptionError.unsupportedLocale(localeID)
+            default:
+                try await Transcriber.installModelAsset(
+                    localeIdentifier: localeID,
+                    onProgress: { [weak self] progress in
+                        // onProgress は @Sendable (別スレッド) から呼ばれるため
+                        // MainActor へ非同期で転送する。直接触ると競合になる
+                        Task { @MainActor in
+                            self?.setPhase(.preparingModel(progress: progress), for: job)
+                        }
+                    })
+            }
+        }
+        setPhase(.transcribing(progress: 0), for: job)
+        // エンジンの SpeechAnalyzer 初期化は withTaskCancellationHandler
+        // の登録前に走り、**この窓で cancel されると中止が届かず
+        // CancellationError も投げずに await で止まり続ける** (実測)。
+        // cancel 済みの Task が初期化に入るのをここで防ぐ — 初期化
+        // 実行中に cancel された場合の残りは cancelAll 側の hung 観測
+        // タイムアウトで閉じる
+        try Task.checkCancellation()
+        let transcriber = Transcriber(localeIdentifier: localeID)
+        // speakers: nil — トラック数からエンジン側が自動判定する
+        // (1 トラック / 合成 = ラベルなし、2 トラック (separate) = 0: 相手 / 1: 自分)
+        return try await transcriber.transcribeWithSpeakers(
+            fileURL: job.recordingURL,
+            onProgress: { [weak self] progress in
+                Task { @MainActor in
+                    self?.setPhase(.transcribing(progress: progress), for: job)
+                }
+            })
     }
 
     /// 実行する録画の保存先フォルダの security-scoped bookmark データ (issue #192)。
@@ -522,6 +566,41 @@ final class TranscriptionCoordinator: ObservableObject {
             return underlying.localizedDescription
         }
         return nsError.localizedDescription
+    }
+
+    /// 断続的な文字起こし失敗のうち、自動再試行で救えるものか (issue #221)。
+    ///
+    /// 対象は **NSOSStatusErrorDomain の -12203** だけで、エラーの連鎖
+    /// (_underlyingError) も辿る — 観測された «OSStatusエラー-12203» という文言は
+    /// describe() が underlying を掘った結果かもしれず、«生の OSStatus» と
+    /// «ラッパーの underlying» の 2 通りがあり得るため。
+    /// -12203 は SDK ヘッダにも公開文書にも無い未文書のコードで、この経路で
+    /// OSStatus ドメインを持ちうるのは Speech (SpeechAnalyzer / SpeechTranscriber)
+    /// の private スタック — AVFoundation は AVFoundationErrorDomain、要約の
+    /// FoundationModels は独自のエラー型、サイドカー書き出しは Cocoa ドメインで
+    /// いずれも符号しない。«再実行で成功する» 観測がある一方で出自が特定できないため、
+    /// **観測のあったシグネチャにだけ白リストで反応する** — 決定的な失敗まで
+    /// 再試行すると長い処理を倍額払うことになる。似たコード (-12204 など) が
+    /// 観測されたら fail 経路の診断記録 (issue #221 の足場) の実績をもとにここを広げる。
+    /// セルフテスト (SelfTestTranscriptionRetry) がこの規則を縛る
+    static func isTransientRetryable(_ error: Error) -> Bool {
+        // «中止» は再試行しない — ユーザーが意図して止めた正規の経路
+        if error is CancellationError { return false }
+        // TranscriptionError は説明を自前で持つ決定的な失敗 (ロケール非対応、
+        // モデル未取得など) — 再試行で結果は変わらない
+        if error is TranscriptionError { return false }
+        // 連鎖の掘り方は diagnosticDetail と同じ (実運用で 2〜3 段、上限は防御)
+        var current: NSError = error as NSError
+        for _ in 0..<5 {
+            if current.domain == NSOSStatusErrorDomain, current.code == -12203 {
+                return true
+            }
+            guard let underlying = current.userInfo[NSUnderlyingErrorKey] as? NSError else {
+                return false
+            }
+            current = underlying
+        }
+        return false
     }
 
     /// 文字起こし失敗の統合ログ。subsystem は Debug と Release でバンドル ID が

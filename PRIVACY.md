@@ -151,9 +151,9 @@ locations) or your settings (hotkeys, save locations, and so on).** These data
 are sent to Google's servers and handled under
 [Google's privacy policy](https://policies.google.com/privacy). The developer
 only sees aggregated usage statistics. Usage of the transcription feature
-(macOS 26 or later) — counts of starts, completions, failures, and
-cancellations, coarse buckets for processing time and recording length, and
-the kind of failure — is part of the same usage statistics. **It never
+(macOS 26 or later) — counts of starts, completions, failures, cancellations,
+and automatic retries, coarse buckets for processing time and recording length,
+and the kind of failure — is part of the same usage statistics. **It never
 includes transcript text or the names or locations of recording or sidecar
 files.** The `kilde` command-line tool does no
 analytics.

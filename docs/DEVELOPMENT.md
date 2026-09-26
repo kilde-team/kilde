@@ -261,6 +261,23 @@ KILDE_GUI_SELFTEST_TRANSCRIBE_CANCEL=1 KILDE_GUI_SELFTEST_TRANSCRIBE_INPUT=/tmp/
 # → selftest: cancelled cleanly (no completion, no failure, no sidecar) (exit 0)
 ```
 
+`KILDE_GUI_SELFTEST_TRANSCRIBE_RETRY=1` は録画・文字起こしともに実行せず、**«断続的な
+文字起こしの失敗を自動で 1 回だけやり直す» 判定規則**を合成エラーで確かめて終わります
+(issue #221)。失敗の -12203 (SDK ヘッダにも文書にも無い未文書のコード) は断続的で
+外から再現できないため、再現を待つのではなく «どのエラーを再試行の対象にするか»
+(`TranscriptionCoordinator.isTransientRetryable`) を機械的に縛ります:
+
+```sh
+KILDE_GUI_SELFTEST_TRANSCRIBE_RETRY=1 "$APP/Contents/MacOS/KildeGUI"
+# → selftest: retry-rule[ok] 観測された -12203 (直接) は再試行する → true
+#   selftest: retry-rule failures=0 (exit 0)
+```
+
+**このセルフテストで「通った」にできないもの**: -12203 が実際に起きたときの自動再試行
+(断続的で誘発できないため)。実運用での発見は失敗表示の診断情報と統合ログ
+(`log show --predicate 'category == "transcription"'`) と計測イベント
+(`transcription_retry`) によります。
+
 録画セルフテストに `KILDE_GUI_SELFTEST_RECORD_TRANSCRIBE=1` を付けると、**実録画の
 完了から «AppDelegate が文字起こしを自動で積む» 配線、文字起こし、サイドカー書き出し
 までを 1 回で確かめて終わります** (TRANSCRIBE 単体では確かめられない «録画完了 →

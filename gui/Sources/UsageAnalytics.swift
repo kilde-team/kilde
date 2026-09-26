@@ -55,6 +55,16 @@ enum UsageAnalytics {
             recordingDuration: recordingDuration, processingTime: processingTime)
     }
 
+    /// 断続的な失敗を **自動で 1 回だけ** やり直した (issue #221)。«自動再試行で
+    /// 救われた» 実行は成功イベントにしか現れないため、再現頻度の測定には
+    /// このイベントが要る。再試行は失敗でもキャンセルでもない第三の経路なので
+    /// 別イベントにする — «失敗» に混ぜると «どこで壊れているか» の解析が誤る
+    /// (transcription_cancel と同じ分割)
+    static func transcriptionRetry(recordingDuration: TimeInterval?) {
+        log("transcription_retry",
+            recordingDuration: recordingDuration, processingTime: nil)
+    }
+
     private static func log(_ name: String, recordingDuration: TimeInterval?,
                             processingTime: TimeInterval?, errorKind: String? = nil) {
         guard isEnabled else { return }
