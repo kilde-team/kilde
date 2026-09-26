@@ -374,6 +374,10 @@ private struct LibrarySegmentRow: View {
     private static let clockFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
+        // start は «録画開始からの経過秒»。Date(timeIntervalSinceReferenceDate:) の
+        // 基準 (2001-01-01T00:00:00Z) を UTC で見れば 00:00:00 + 経過秒になる —
+        // ローカルタイムゾーンのままでは JST 環境で 0 秒が 09:00:00 と表示される
+        formatter.timeZone = TimeZone(identifier: "UTC")
         formatter.dateFormat = "HH:mm:ss"
         return formatter
     }()

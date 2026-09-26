@@ -64,8 +64,14 @@ enum SelfTestLibrarySearch {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyyMMdd-HHmmss"
-        check(formatter.string(from: entries[0].recordedAt) == stamp(forEntry: entryCount - 1),
-              "録画日時が既定名から解析される (\(formatter.string(from: entries[0].recordedAt)))")
+        // entries.first でガードする — 空配列の entries[0] は trap して
+        // exit(failures) を通らず、FAIL を出さずにクラッシュする
+        if let newest = entries.first {
+            check(formatter.string(from: newest.recordedAt) == stamp(forEntry: entryCount - 1),
+                  "録画日時が既定名から解析される (\(formatter.string(from: newest.recordedAt)))")
+        } else {
+            check(false, "録画日時が既定名から解析される (entries が空)")
+        }
 
         // 形式別パース: 5 形式すべてでセグメント 10 件が読める。
         // **return で抜けない** — 失敗があっても記録して最後の exit(failures) に流す
