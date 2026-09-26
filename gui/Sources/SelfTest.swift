@@ -98,6 +98,12 @@ enum SelfTest {
             reportPermissions(setup: setup, permissions: permissions)
             exit(0)
         }
+        // KILDE_GUI_SELFTEST_REVIEW=1: 評価依頼 (issue #156) の判定規則と状態保持を
+        // 実録画もシステムの評価ダイアログも伴わずに確かめて終わる
+        // (ReviewPromptCoordinator.swift)
+        if env["KILDE_GUI_SELFTEST_REVIEW"] == "1" {
+            reportReviewRequest()
+        }
         // KILDE_GUI_SELFTEST_NOTIFY=1: issue #20 の «通知・Finder 表示・最近の録画・ホットキー» を
         // UI 操作なしで確かめる。通知の配信自体は Notification Center の状態に依存して自動化
         // できないが、**kilde 側の責任範囲 (Finder に渡す URL が正しいか、一覧の走査が
