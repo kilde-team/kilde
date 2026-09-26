@@ -346,7 +346,9 @@ final class LibraryStore: ObservableObject {
         }
     }
 
-    static let recordingExtensions: Set<String> = ["mov", "mp4", "m4a"]
+    // nonisolated: LibraryStore は @MainActor だが、走査 (scan) は非分離で動くため。
+    // Set<String> は Sendable なので定数の共有は安全
+    nonisolated static let recordingExtensions: Set<String> = ["mov", "mp4", "m4a"]
 
     /// 録画フォルダを走査して LibraryEntry 列を作る (新しい順)。
     /// 録画の判定 (kilde- 接頭辞 + mov/mp4/m4a) とサイドカーの対応付けは
