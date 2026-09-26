@@ -408,7 +408,8 @@ private struct LibrarySegmentRow: View {
     /// 連結を崩さずに背景を付けるには AttributedString への変換が要るため割り切った
     static func highlighted(text: String, query: String) -> Text {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, let first = text.range(of: trimmed, options: .caseInsensitive) else {
+        // ヒット位置は下のループで探すので、ここでは «1 箇所でも一致するか» だけを見る
+        guard !trimmed.isEmpty, text.range(of: trimmed, options: .caseInsensitive) != nil else {
             return Text(text)
         }
         var parts: [Text] = []
