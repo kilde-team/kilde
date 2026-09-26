@@ -1,0 +1,16 @@
+gui/Resources/AppShortcuts.xcstrings
+  h_864205080385bc 1-90
+gui/project.yml
+  h_864205080385bc 80-84,221-224
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "aa04b4e2bfd57778d40ecf69309ceb6519f5159f",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
