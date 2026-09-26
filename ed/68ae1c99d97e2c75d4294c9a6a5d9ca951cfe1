@@ -1,0 +1,42 @@
+README.zh-CN.md
+  s_43fc94637f2d7b::t_41eca1e73e1fc6 31
+README.es.md
+  s_43fc94637f2d7b::t_a2cab9b6a91085 37-38
+gui/Sources/KildeIntents.swift
+  s_43fc94637f2d7b::t_61871709e0c650 1-10,15-47,49-50,52-55,57-69,71-72,75,77-93,95-165
+  s_43fc94637f2d7b::t_dd92393e8e0785 73-74
+  s_43fc94637f2d7b::t_ac021c0ac1a388 48,51,56,70,76,94
+  s_43fc94637f2d7b::t_ef6703e66701a2 11-14
+gui/Sources/AppDelegate.swift
+  s_43fc94637f2d7b::t_ccd9b29165dca7 424-426
+  s_43fc94637f2d7b::t_f7896eaba20b84 376-423,427-456
+README.md
+  s_43fc94637f2d7b::t_b9f049360c1d0c 35-36
+gui/Sources/RecordingSetup.swift
+  s_43fc94637f2d7b::t_665a7ee44d0ed6 253-261
+CLAUDE.md
+  s_43fc94637f2d7b::t_4729ac31880f25 155-157
+  s_43fc94637f2d7b::t_7988415afef62a 57-59
+README.ja.md
+  s_43fc94637f2d7b::t_2bd5bf903f02f7 31-32
+README.ko.md
+  s_43fc94637f2d7b::t_31d0d53834bd09 32
+docs/DEVELOPMENT.md
+  s_43fc94637f2d7b::t_9e8c48c0b38aa7 398-400
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ed68ae1c99d97e2c75d4294c9a6a5d9ca951cfe1",
+  "prompts": {},
+  "sessions": {
+    "s_43fc94637f2d7b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "807af000-6796-4c9b-a24d-6464d288ee4e",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
