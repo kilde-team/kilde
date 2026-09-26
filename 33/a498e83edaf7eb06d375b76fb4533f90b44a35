@@ -1,0 +1,50 @@
+docs/DEVELOPMENT.md
+  s_14e4bed2c1e21d::t_cfb36e0573940a 360-383
+gui/Sources/SelfTestLibrarySearch.swift
+  s_14e4bed2c1e21d::t_134a3df2bcb299 88-89
+  s_14e4bed2c1e21d::t_61b9033cfc085b 83-85,93,98-99
+  s_14e4bed2c1e21d::t_c4812cc057fabb 141,143
+  s_14e4bed2c1e21d::t_915db4aa583321 148,156,160-167
+  s_14e4bed2c1e21d::t_b72d6e312f7a5b 193-196,200
+  s_14e4bed2c1e21d::t_c5cd76165cb050 70-73,76,78,81
+  s_14e4bed2c1e21d::t_02c6a18e82f335 242
+  s_14e4bed2c1e21d::t_89029733d06cb1 1-61,64-66,68-69,74-75,79-80,82,86-87,90-92,94-97,100-140,142,144-147,149-155,157-159,168-192,197-199,201-241,243-264
+  s_14e4bed2c1e21d::t_263c4ad8b5183d 62-63,67
+  s_14e4bed2c1e21d::t_ed8ccec7a0147a 77
+gui/Sources/LibraryWindow.swift
+  s_14e4bed2c1e21d::t_2e8e239bafd9cd 1-368,370,372-381,385-392,395-397,399-430
+  s_14e4bed2c1e21d::t_4ed96b7f59a4c9 369,371
+  s_14e4bed2c1e21d::t_e774336b6477f6 382-384,393-394,398
+gui/Sources/LibraryIndex.swift
+  s_14e4bed2c1e21d::t_89659e67e0a88d 107,111,117,123-127
+  s_14e4bed2c1e21d::t_971927f93a19f4 297-298
+  s_14e4bed2c1e21d::t_597daf02e8b545 1-106,108-110,112-116,118-122,128-177,182-204,209,211-242,244-245,247-266,269,273-296,306-397
+  s_14e4bed2c1e21d::t_6dccf02619fc34 178-181
+  s_14e4bed2c1e21d::t_f648e64ed7ed1c 267-268,270-272
+  s_14e4bed2c1e21d::t_c854a8f039709e 299-305
+  s_14e4bed2c1e21d::t_4033fbae543296 205-208,210
+  s_14e4bed2c1e21d::t_5254f371249923 243,246
+gui/Sources/SelfTest.swift
+  s_14e4bed2c1e21d::t_df88eb2f4ee2de 29-35
+gui/Sources/AppDelegate.swift
+  s_14e4bed2c1e21d::t_a05af938eef3a5 44-46
+  s_14e4bed2c1e21d::t_0b5ec7bbca2076 402-409
+gui/Sources/ContentView.swift
+  s_14e4bed2c1e21d::t_ad3585c0866b14 63-69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "33a498e83edaf7eb06d375b76fb4533f90b44a35",
+  "prompts": {},
+  "sessions": {
+    "s_14e4bed2c1e21d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3b74c811-8a46-4769-a6c1-d6594ec2fc6e",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
