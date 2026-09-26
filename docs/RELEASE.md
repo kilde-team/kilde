@@ -211,7 +211,9 @@ DMG の 3 つの検査 (`codesign --verify` / `spctl --type open` / `stapler val
 **Release に upload した後、ダウンロードした DMG に対しても同じ結果になることを
 確認してください** (issue #216)。署名と staple がイメージ内に埋め込まれているので、
 `spctl --type open` はローカルの成果物とダウンロード物の両方で
-`accepted source=Notarized Developer ID` になるのが正しい状態です。
+`accepted source=Notarized Developer ID` になるのが正しい状態です (notarization
+まで通したリリース成果物の期待値。`--skip-notarize` の成果物は notarization を
+通していないため `Unnotarized Developer ID` で rejected になるのが正しい)。
 
 CLI は zip を展開して `codesign --verify --strict --verbose=2 kilde` と
 `codesign -d --entitlements :- kilde` を実行し、別の macOS ユーザー環境で初回起動時の
