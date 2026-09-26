@@ -60,6 +60,13 @@ struct ContentView: View {
             }
             Divider()
             HStack {
+                // 録画ライブラリ (issue #165)。録画は AppDelegate が持つので
+                // 開閉も経由する (AppDelegate.shared — NSApp.delegate は別物)
+                Button {
+                    AppDelegate.shared?.openLibrary()
+                } label: {
+                    Label(String(localized: "ライブラリ"), systemImage: "books.vertical")
+                }
                 Spacer()
                 Button("終了") {
                     // 録画中なら AppDelegate.applicationShouldTerminate がファイナライズを待つ
