@@ -1,0 +1,14 @@
+gui/Sources/LibraryWindow.swift
+  h_864205080385bc 262-273,285-287,299-305
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "495b8ea5163362baea0600c53c97b17a3c7e1632",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
