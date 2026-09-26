@@ -41,8 +41,9 @@ final class TranscriptionCoordinator: ObservableObject {
         /// 保存先フォルダ (recordingURL の親ディレクトリ) の security-scoped
         /// bookmark データ。**enqueue() が設定する** — 呼び出し側は渡さない。
         /// nil は «非サンドボックスビルド» «既定の ~/Movies (movies entitlement で
-        /// 担保)» «bookmark 作成に失敗» のどれかで、その場合は実行時にフォルダへ
-        /// 従来どおり直接アクセスする (issue #192)
+        /// 担保)» «bookmark 作成に失敗し、録画開始時の先取りも無かった» のどれかで、
+        /// その場合は実行時にフォルダへ従来どおり直接アクセスする (issue #192、
+        /// 先取りによる救済は issue #230)
         var directoryBookmark: Data? = nil
     }
 
@@ -105,6 +106,13 @@ final class TranscriptionCoordinator: ObservableObject {
     /// start/stop の対応が取れているのが契約 — 開始したら finish / fail /
     /// cancelAll の hung 観測のどれかで必ず解放する (issue #192)
     private var executingScopedURL: URL?
+    /// 録画 «開始» 時に先取りした保存先フォルダの bookmark (issue #230)。
+    /// 録画 «中» に保存先が変更されると persist() が完了より前に旧フォルダの
+    /// sandbox extension を解放し、enqueue 時の bookmark 作成が失敗する —
+    /// 開始時点 (extension が生きている) にとっておいたデータをその場合の
+    /// 代替に使う。データはアクセス権そのものではない (実行時に resolve +
+    /// start する) ので解放の概念はなく、次の録画開始で差し替える
+    private var heldDestination: (url: URL, bookmark: Data)?
 
     /// 完了 1 件ごとに呼ばれる (issue #147)。AppDelegate が «文字起こしを保存しました»
     /// 通知 (RecordingNotifier) につなぐためのフック。**@Published の lastCompletion を
@@ -131,15 +139,43 @@ final class TranscriptionCoordinator: ObservableObject {
         // sandbox extension を解放しても、実行時に bookmark からアクセスを
         // 取り直せる。捨てられる重複ジョブの前に行わないよう、guard の後で作る
         //
-        // **既知の制限**: 録画 «中» に保存先が変更された録画は救済されない —
-        // その場合は録画完了 (enqueue) より前に persist() が旧フォルダの
-        // extension を解放済みなので、ここでの bookmark 作成が失敗し nil になる
-        // (従来どおり失敗通知で可視化)。救済には«保存先変更をキュー処理と
-        // 協調させる»が必要で、issue #192 が非推奨としている第 2 案に相当する
+        // **録画 «中» の保存先変更** (issue #230) では、録画完了 (enqueue) より前に
+        // persist() が extension を解放済みなので上記の作成は失敗する — 代わりに
+        // 録画開始時に先取りした bookmark (holdDestinationForRecording) を使う。
+        // 先取りが無い (録画開始後に文字起こしをオフにした等) 場合は従来どおり
+        // 失敗通知で可視化される
         var job = job
-        job.directoryBookmark = Self.directoryBookmarkData(for: job.recordingURL)
+        let directory = job.recordingURL.deletingLastPathComponent()
+        job.directoryBookmark = Self.directoryBookmarkData(forDirectory: directory)
+            ?? preheldBookmark(matching: directory)
         queue.append(job)
         pump()
+    }
+
+    /// 録画 «開始» 時に、その保存先フォルダの security-scoped bookmark を
+    /// 先取りして保持する (issue #230)。AppDelegate の phase sink から、
+    /// 録画開始のたびに呼ぶ (bookmark はデータなので解放の概念がなく、
+    /// 次の録画開始での差し替えで足りる)。フォルダが bookmark 不要
+    /// (既定の ~/Movies) なら保持をクリアする — 古いフォルダの bookmark が
+    /// 後の別フォルダの Job に誤って使われる経路を断つため
+    func holdDestinationForRecording(at directory: URL) {
+        guard let data = Self.directoryBookmarkData(forDirectory: directory) else {
+            heldDestination = nil
+            return
+        }
+        heldDestination = (url: directory, bookmark: data)
+    }
+
+    /// 先取りした bookmark が、この Job のフォルダ (recordingURL の親) の
+    /// ものであるときだけ返す。フォルダ一致を見るのは、保持の後に
+    /// «後から文字起こし» で enqueue された別フォルダの Job に、古い
+    /// bookmark を渡さないため (issue #230)
+    private func preheldBookmark(matching directory: URL) -> Data? {
+        guard let held = heldDestination,
+              held.url.resolvingSymlinksInPath().standardizedFileURL.path
+                  == directory.resolvingSymlinksInPath().standardizedFileURL.path
+        else { return nil }
+        return held.bookmark
     }
 
     /// «後から文字起こしする» ボタン (issue #147) の無効化判定。
@@ -330,9 +366,8 @@ final class TranscriptionCoordinator: ObservableObject {
     /// (com.apple.security.assets.movies.read-write) で常に担保されるので、
     /// bookmark を取っても取り直す機会がないだけでなく不要 — nil にして
     /// «bookmark の保持は panel 選択フォルダだけ» に絞る
-    private static func directoryBookmarkData(for recordingURL: URL) -> Data? {
+    private static func directoryBookmarkData(forDirectory directory: URL) -> Data? {
         #if APPSTORE
-        let directory = recordingURL.deletingLastPathComponent()
         // 保存先の正規化 (SandboxSupport.userVisibleMoviesDirectory) は symlink を
         // 解決した実パスを返すので、比較側も解決して揃える。path 文字列で比べるのは
         // getpwuid 経路の URL が appendingPathComponent(isDirectory: true) 由来の

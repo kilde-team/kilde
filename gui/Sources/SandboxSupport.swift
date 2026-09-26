@@ -206,7 +206,10 @@ enum SandboxOutputDirectory {
     /// 無効にならない) 影響を受けないが、**録画完了後の文字起こしは旧フォルダを
     /// 読み・サイドカーを書く** — キュー中の Job は enqueue 時に自前で
     /// security-scoped bookmark を保持し、実行時に取り直す
-    /// (TranscriptionCoordinator、issue #192)
+    /// (TranscriptionCoordinator、issue #192)。録画 «中» の保存先変更では
+    /// この解放のせいで enqueue 時の bookmark 作成が失敗するため、
+    /// 録画開始時に先取りした bookmark (TranscriptionCoordinator の
+    /// holdDestinationForRecording、issue #230) が代替になる
     /// NSOpenPanel で選ばれた保存先を記録する。
     ///
     /// **panel.url に `startAccessingSecurityScopedResource()` を呼んではいけない。**
