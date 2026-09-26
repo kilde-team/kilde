@@ -77,6 +77,11 @@ targets:
       # SwiftUI のリテラルは LocalizedStringKey としてこのカタログを引く
       - path: Resources/Localizable.xcstrings
         buildPhase: resources
+      # AppShortcuts フレーズのローカライズ (issue #237)。キーは KildeIntents.swift の
+      # 既定フレーズ (ja) の ${applicationName} 記法。このカタログが無いと英語環境で
+      # Siri フレーズが日本語のままになる
+      - path: Resources/AppShortcuts.xcstrings
+        buildPhase: resources
       # Firebase の設定ファイル (issue #135)。バンドル直下に置くべきファイルなので
       # リソースとして«個別指定»する — Resources ディレクトリごと入れると Info.plist と
       # entitlements までコピーされる既存の罠 (上記コメント) を踏まないため
@@ -212,6 +217,10 @@ targets:
       # KildeGUI と同じ文字列カタログ (issue #137)。片方だけだと MAS 版だけ
       # 英語・中国語等が出ない (ja のキーがそのまま表示される)
       - path: Resources/Localizable.xcstrings
+        buildPhase: resources
+      # KildeGUI と同じ AppShortcuts フレーズのローカライズ (issue #237)。
+      # AppIntents は MAS でも有効なので、フレーズ翻訳も両ターゲットで必要
+      - path: Resources/AppShortcuts.xcstrings
         buildPhase: resources
       # Firebase の設定ファイル (issue #135)。KildeGUI と同じ理由で個別指定
       - path: Resources/GoogleService-Info.plist
