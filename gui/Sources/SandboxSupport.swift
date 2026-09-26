@@ -201,9 +201,12 @@ enum SandboxOutputDirectory {
     /// アクセスできる) なので、失敗は通知せず続行する — 次回起動時に既定へ戻るだけ
     ///
     /// restore() の「プロセス終了まで保持」はあくまで起動時の既定経路の話。
-    /// 保存先を **変更** したときは旧 URL のアクセスをここで解放する —
-    /// 録画済みファイルは既に開かれている (開いた fd は sandbox extension の
-    /// 取り消しで無効にならない) ので、書きかけへの影響はない
+    /// 保存先を **変更** したときは旧 URL のアクセスをここで解放する。
+    /// 録画中の書き込みは既に開かれた fd なので (sandbox extension の取り消しで
+    /// 無効にならない) 影響を受けないが、**録画完了後の文字起こしは旧フォルダを
+    /// 読み・サイドカーを書く** — キュー中の Job は enqueue 時に自前で
+    /// security-scoped bookmark を保持し、実行時に取り直す
+    /// (TranscriptionCoordinator、issue #192)
     /// NSOpenPanel で選ばれた保存先を記録する。
     ///
     /// **panel.url に `startAccessingSecurityScopedResource()` を呼んではいけない。**
@@ -233,8 +236,9 @@ enum SandboxOutputDirectory {
             return persisted
         }
         // 保存先の変更。旧 URL の 1 回分を解放し、パネルが開始した新 URL の分を保持する。
-        // 録画済みファイルは既に開かれている (開いた fd は sandbox extension の
-        // 取り消しで無効にならない) ので、書きかけへの影響はない
+        // 録画中の書き込みは開かれた fd なので無効にならないが、録画完了後の
+        // 文字起こしは旧フォルダを読み書きする — キュー中の Job は enqueue 時に
+        // 自前で bookmark を保持して取り直す (TranscriptionCoordinator、issue #192)
         accessedURL?.stopAccessingSecurityScopedResource()
         accessedURL = url
         return persisted

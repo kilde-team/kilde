@@ -38,6 +38,12 @@ final class TranscriptionCoordinator: ObservableObject {
         /// nil は «不明» (セルフテストの直接 enqueue など) — 計測のパラメータを省略する。
         /// 値そのものは送らない (UsageAnalytics が区分にしてから送る)
         let recordingDuration: TimeInterval?
+        /// 保存先フォルダ (recordingURL の親ディレクトリ) の security-scoped
+        /// bookmark データ。**enqueue() が設定する** — 呼び出し側は渡さない。
+        /// nil は «非サンドボックスビルド» «既定の ~/Movies (movies entitlement で
+        /// 担保)» «bookmark 作成に失敗» のどれかで、その場合は実行時にフォルダへ
+        /// 従来どおり直接アクセスする (issue #192)
+        var directoryBookmark: Data? = nil
     }
 
     /// 実行 1 件の段階と進捗 (0...1)。
@@ -94,6 +100,11 @@ final class TranscriptionCoordinator: ObservableObject {
     /// (Date は NTP 等で跳ねうる)。計測値そのものは UsageAnalytics で区分化し、
     /// 生の秒数は送らない
     private var runStartedAt: ContinuousClock.Instant?
+    /// 現在の実行が security-scoped アクセスを開始した URL (対応する stop を
+    /// まだ呼んでいない)。実行は 1 件ずつ直列なので «実行中» は常に高々 1 つ。
+    /// start/stop の対応が取れているのが契約 — 開始したら finish / fail /
+    /// cancelAll の hung 観測のどれかで必ず解放する (issue #192)
+    private var executingScopedURL: URL?
 
     /// 完了 1 件ごとに呼ばれる (issue #147)。AppDelegate が «文字起こしを保存しました»
     /// 通知 (RecordingNotifier) につなぐためのフック。**@Published の lastCompletion を
@@ -114,6 +125,19 @@ final class TranscriptionCoordinator: ObservableObject {
     func enqueue(_ job: Job) {
         guard running?.recordingURL != job.recordingURL,
               !queue.contains(where: { $0.recordingURL == job.recordingURL }) else { return }
+        // 旧保存先フォルダへのアクセスがまだ生きている **この時点** で bookmark を
+        // 取っておく (issue #192)。モデル準備 (数百 MB の DL もありうる) の待ち時間に
+        // 保存先が変更されて SandboxOutputDirectory.persist() が旧フォルダの
+        // sandbox extension を解放しても、実行時に bookmark からアクセスを
+        // 取り直せる。捨てられる重複ジョブの前に行わないよう、guard の後で作る
+        //
+        // **既知の制限**: 録画 «中» に保存先が変更された録画は救済されない —
+        // その場合は録画完了 (enqueue) より前に persist() が旧フォルダの
+        // extension を解放済みなので、ここでの bookmark 作成が失敗し nil になる
+        // (従来どおり失敗通知で可視化)。救済には«保存先変更をキュー処理と
+        // 協調させる»が必要で、issue #192 が非推奨としている第 2 案に相当する
+        var job = job
+        job.directoryBookmark = Self.directoryBookmarkData(for: job.recordingURL)
         queue.append(job)
         pump()
     }
@@ -156,6 +180,12 @@ final class TranscriptionCoordinator: ObservableObject {
             UsageAnalytics.transcriptionCancelled(
                 recordingDuration: self.running?.recordingDuration,
                 processingTime: self.takeProcessingTime())
+            // hung の実行は finish / fail を通らないため、ここでしか解放されない。
+            // 残すと sandbox extension がリークする。hung 判定後も元の Task は
+            // cancel() 受け取り後の次の checkCancellation まで生存しうるが、
+            // 停止後の残存読み取りに失敗しても fail 側の running?.id ガードが
+            // 次のジョブと状態を守る — リーク防止の stop を優先する (issue #192)
+            self.stopExecutingScopedAccess()
             self.running = nil
             self.runPhase = nil
             self.task = nil
@@ -191,6 +221,12 @@ final class TranscriptionCoordinator: ObservableObject {
     }
 
     private func execute(_ job: Job) {
+        // 保存先フォルダの security-scoped アクセスを先に開始する (issue #192)。
+        // モデル準備の待ち時間の間に保存先が変更されても、以降の録画ファイルの読みと
+        // サイドカーの書き出しが旧フォルダで通る。resolve に失敗した場合 (フォルダが
+        // 消えた等) はアクセスなしで進める — 文字起こしは従来どおり失敗し、
+        // 失敗通知で可視化される
+        startScopedAccess(for: job)
         // ロケールの解決は **enqueue 時ではなく実行時** に CLI と同じ
         // `Locale.current.identifier(.bcp47)` で行う (TranscribeCommand.swift と同じ規約)
         let localeID = job.localeID ?? Locale.current.identifier(.bcp47)
@@ -284,6 +320,66 @@ final class TranscriptionCoordinator: ObservableObject {
         }
     }
 
+    /// 実行する録画の保存先フォルダの security-scoped bookmark データ (issue #192)。
+    ///
+    /// **この機能は MAS 版 (App Store 配布、App Sandbox 有効) だけに意味がある** —
+    /// sandbox extension を取り消されるのが問題なので。直接配布ビルド (非サンドボックス)
+    /// では extension の仕組み自体が無いため nil を返し、実行時は従来どおり直接アクセスする
+    ///
+    /// 既定の ~/Movies は movies entitlement
+    /// (com.apple.security.assets.movies.read-write) で常に担保されるので、
+    /// bookmark を取っても取り直す機会がないだけでなく不要 — nil にして
+    /// «bookmark の保持は panel 選択フォルダだけ» に絞る
+    private static func directoryBookmarkData(for recordingURL: URL) -> Data? {
+        #if APPSTORE
+        let directory = recordingURL.deletingLastPathComponent()
+        // 保存先の正規化 (SandboxSupport.userVisibleMoviesDirectory) は symlink を
+        // 解決した実パスを返すので、比較側も解決して揃える。path 文字列で比べるのは
+        // getpwuid 経路の URL が appendingPathComponent(isDirectory: true) 由来の
+        // 末尾 «/» を持ち、URL 同士の等価だと false になるため (冗長な bookmark
+        // 1 件の無駄を避ける — start/stop は対で閉じるので害は無いが、絞る意図が
+        // 読み取れる形にしておく)
+        guard directory.resolvingSymlinksInPath().standardizedFileURL.path
+            != SandboxSupport.userVisibleMoviesDirectory().standardizedFileURL.path
+        else { return nil }
+        // 作成に失敗した場合 (entitlement の不足、まれな I/O エラー) は
+        // 保護なしで続行する — 実行時のアクセス失敗は従来どおり
+        // 失敗通知で可視化される (ベストエフォート)
+        return try? directory.bookmarkData(
+            options: .withSecurityScope,
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil)
+        #else
+        return nil
+        #endif
+    }
+
+    /// 実行の冒頭で、Job が保持する bookmark から保存先フォルダへのアクセスを
+    /// 開始する (issue #192)。Job は enqueue 時 (アクセスが生きている間) に
+    /// bookmark を作っているので、保存先変更で extension を解放された旧フォルダでも
+    /// ここで取り直せる。失敗時はアクセスなしで続行 — 文字起こしは従来どおり
+    /// 失敗し、失敗通知で可視化される
+    private func startScopedAccess(for job: Job) {
+        guard let data = job.directoryBookmark else { return }
+        var stale = false
+        guard let url = try? URL(
+            resolvingBookmarkData: data,
+            options: .withSecurityScope,
+            relativeTo: nil,
+            bookmarkDataIsStale: &stale),
+            url.startAccessingSecurityScopedResource()
+        else { return }
+        executingScopedURL = url
+    }
+
+    /// 現在の実行が開始した security-scoped アクセスを解放する。
+    /// finish / fail / cancelAll の hung 観測から呼ぶ — 実行 1 件の終了経路は
+    /// この 3 つに全て集約されており、開始したまま残す経路を作らない
+    private func stopExecutingScopedAccess() {
+        executingScopedURL?.stopAccessingSecurityScopedResource()
+        executingScopedURL = nil
+    }
+
     /// 進捗を反映する。**自分がまだ実行中のときだけ** — @Sendable の onProgress
     /// からの MainActor 転送は非同期なので、キャンセル後や次ジョブ開始後に古い
     /// 更新が遅れて届く。それが新しいジョブの進捗を上書きしないよう id で確認する
@@ -298,6 +394,7 @@ final class TranscriptionCoordinator: ObservableObject {
         guard running?.id == job.id else { return }
         // 処理時間は状態を戻す前に読む — runStartedAt はこの実行のもの
         let processingTime = takeProcessingTime()
+        stopExecutingScopedAccess()
         UsageAnalytics.transcriptionCompleted(
             recordingDuration: job.recordingDuration, processingTime: processingTime)
         running = nil
@@ -318,6 +415,7 @@ final class TranscriptionCoordinator: ObservableObject {
     private func fail(job: Job, error: Error) {
         guard running?.id == job.id else { return }
         let processingTime = takeProcessingTime()
+        stopExecutingScopedAccess()
         running = nil
         runPhase = nil
         task = nil
