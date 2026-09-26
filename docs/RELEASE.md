@@ -324,7 +324,7 @@ What's New / 説明文 / キーワード 5 言語、サブタイトル、レビ�
 サブタイトルは 0.8.1 向けに追加 (asc-submit PR #2 — 対応前の checkout では
 spec の該当フィールドが黙って無視されるため、実行前に最新化すること)。
 
-**既定の経路は GitHub Actions の [MAS workflow](../../.github/workflows/mas.yml)
+**既定の経路は GitHub Actions の [MAS workflow](../.github/workflows/mas.yml)
 (m1 self-hosted ランナー、issue #160)**。手元の Mac で実行する下のコマンド群は
 フォールバックとして同じものが動く:
 
