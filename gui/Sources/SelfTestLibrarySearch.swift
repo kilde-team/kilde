@@ -73,18 +73,28 @@ enum SelfTestLibrarySearch {
             check(false, "録画日時が既定名から解析される (entries が空)")
         }
 
-        // 形式別パース: 5 形式すべてでセグメント 10 件が読める。
+        // 形式別パース: 5 形式すべてでセグメント 10 件が読め、開始時刻も正しい。
+        // 開始時刻の検証をすべての形式に広げる — «ヒットの時刻» 検証が entry 42 (md)
+        // の 1 件だけだと、json/srt/vtt/txt パーサの «時刻を経過秒に戻す» 経路の
+        // 回帰を見逃す。形式ごとに時刻の書き方が違うため全 entry を見る。
         // **return で抜けない** — 失敗があっても記録して最後の exit(failures) に流す
         // (run() を return すると exit せずイベントループに戻り、プロセスが生き続ける)
         var parseFailures = 0
+        var startFailures = 0
         for entry in entries {
-            guard entry.segments?.count == segmentCount else {
+            guard let segments = entry.segments, segments.count == segmentCount else {
                 parseFailures += 1
                 print("selftest: library PARSE \(entry.id.lastPathComponent) segments=\(entry.segments?.count ?? -1)")
                 continue
             }
+            for (offset, segment) in segments.enumerated()
+            where segment.start != TimeInterval(offset) * secondsPerSegment {
+                startFailures += 1
+                print("selftest: library START \(entry.id.lastPathComponent) seg=\(offset) start=\(segment.start)")
+            }
         }
         check(parseFailures == 0, "全形式 (md/json/srt/vtt/txt) のパース (\(parseFailures) 件の失敗)")
+        check(startFailures == 0, "全形式のセグメント開始時刻が経過秒 (\(startFailures) 件の不一致)")
 
         // «予算»: 合成 entry 0〜19 のセグメント 7 だけに書いた日本語。
         // LibrarySearchHit.entryIndex は entries 配列 (新しい順) 上の index なので、
