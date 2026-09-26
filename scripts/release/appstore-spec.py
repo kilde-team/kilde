@@ -3,10 +3,12 @@
 """Build an asc-submit spec.json from the App Store metadata in this repo.
 
 The generated spec feeds `asc-submit run` (takezou621/asc-submit), which
-creates the App Store version, uploads What's New / descriptions / review
-notes / screenshots and submits for review. The metadata source of truth is:
+creates the App Store version, uploads What's New / descriptions / keywords /
+subtitles / review notes / screenshots and submits for review. The metadata
+source of truth is:
 
-- docs/appstore/metadata/metadata-*.md   What's New and Description per locale
+- docs/appstore/metadata/metadata-*.md   What's New, Description, Keywords and
+                                         Subtitle per locale
 - docs/appstore/review-notes.md          App Review notes (English section)
 - docs/appstore/screenshots/*.png        screenshots in display order
 
@@ -17,6 +19,9 @@ Usage:
 The What's New copy for the target version MUST already exist as a
 "What's New (<version>)" section in every metadata file — this script fails
 if it is missing, so the release cannot proceed with stale copy.
+
+Keywords (≤100 characters, version-level) and subtitle (≤30 characters,
+app-level) are validated here as well; asc-submit re-validates on apply.
 """
 
 from __future__ import annotations
@@ -48,10 +53,20 @@ APP_ID = "6812783176"  # com.takezou621.KildeGUI
 DESCRIPTION_HEADING = re.compile(r"description|説明|설명|描述|descripción", re.IGNORECASE)
 # Headings that carry this release's What's New block.
 WHATSNEW_HEADING = re.compile(r"what.?s.new|新着情報|새로운 기능|新功能|novedades", re.IGNORECASE)
+# Headings for the version-level keywords and the app-level subtitle. asc-submit
+# applies both (≥ 0.2 / commit 86c671b): keywords via appStoreVersionLocalizations,
+# subtitle via the editable appInfoLocalizations (takezou621/asc-submit#1).
+KEYWORDS_HEADING = re.compile(r"keywords|キーワード|关键词|키워드|palabras clave", re.IGNORECASE)
+SUBTITLE_HEADING = re.compile(r"subtitle|サブタイトル|副标题|부제|subtítulo", re.IGNORECASE)
 # The English section of review-notes.md that gets pasted into ASC.
 NOTES_SECTION = re.compile(
     r"## English \(paste into App Review Notes\)\n(.*?)\n---", re.S
 )
+
+# ASC field limits, enforced here so a bad value fails before asc-submit runs
+# (asc-submit re-validates on its side — the same numbers must stay in sync).
+KEYWORDS_MAX_CHARS = 100
+SUBTITLE_MAX_CHARS = 30
 
 
 def code_blocks(text: str) -> list[tuple[str, str]]:
@@ -105,9 +120,26 @@ def section_for_version(headings: list[tuple[str, str]], version: str, locale: s
     )
 
 
+def single_line_section(
+    headings: list[tuple[str, str]], heading_re: re.Pattern, what: str, locale: str, fname: str
+) -> str:
+    """Return the single-line code block for a field (keywords / subtitle)."""
+    matches = [block for heading, block in headings if heading_re.search(heading)]
+    if len(matches) != 1:
+        raise SystemExit(
+            f"{locale}: expected exactly one {what} block in {fname}, found {len(matches)}"
+        )
+    text = matches[0].strip()
+    if "\n" in text:
+        raise SystemExit(f"{locale}: {what} must be a single line in {fname}")
+    return text
+
+
 def build_spec(version: str, build: str | None) -> dict:
     whats_new: dict[str, str] = {}
     descriptions: dict[str, str] = {}
+    keywords: dict[str, str] = {}
+    subtitles: dict[str, str] = {}
     for locale, fname in LOCALES.items():
         path = META_DIR / fname
         if not path.is_file():
@@ -121,6 +153,21 @@ def build_spec(version: str, build: str | None) -> dict:
                 f"{locale}: expected exactly one Description block in {fname}, found {len(desc)}"
             )
         descriptions[locale] = unwrap(desc[0])
+
+        # キーワード (version-level) とサブタイトル (app-level)。両方単一行 —
+        # メタデータ側の記録の文字数上限もここで機械検証する
+        kw = single_line_section(headings, KEYWORDS_HEADING, "Keywords", locale, fname)
+        if len(kw) > KEYWORDS_MAX_CHARS:
+            raise SystemExit(
+                f"{locale}: keywords are {len(kw)} characters (limit {KEYWORDS_MAX_CHARS}) in {fname}"
+            )
+        keywords[locale] = kw
+        sub = single_line_section(headings, SUBTITLE_HEADING, "Subtitle", locale, fname)
+        if len(sub) > SUBTITLE_MAX_CHARS:
+            raise SystemExit(
+                f"{locale}: subtitle is {len(sub)} characters (limit {SUBTITLE_MAX_CHARS}) in {fname}"
+            )
+        subtitles[locale] = sub
 
     if not NOTES_FILE.is_file():
         raise SystemExit(f"review notes not found: {NOTES_FILE}")
@@ -145,6 +192,8 @@ def build_spec(version: str, build: str | None) -> dict:
         "screenshotsReplace": True,
         "whatsNew": whats_new,
         "descriptions": descriptions,
+        "keywords": keywords,
+        "subtitles": subtitles,
         "reviewNotes": notes_match.group(1).strip(),
         "screenshots": {"ja": [str(p) for p in screenshots]},
     }
@@ -173,6 +222,8 @@ def main() -> int:
     print(f"spec written: {output}")
     print(f"  whatsNew locales : {', '.join(sorted(spec['whatsNew']))}")
     print(f"  description chars: { {k: len(v) for k, v in spec['descriptions'].items()} }")
+    print(f"  keywords chars   : { {k: len(v) for k, v in spec['keywords'].items()} }")
+    print(f"  subtitle chars   : { {k: len(v) for k, v in spec['subtitles'].items()} }")
     print(f"  review notes     : {len(spec['reviewNotes'])} chars")
     print(f"  screenshots (ja) : {len(spec['screenshots']['ja'])} files")
     print("next: asc-submit run 6812783176 --spec " + str(output) + " [--submit]")

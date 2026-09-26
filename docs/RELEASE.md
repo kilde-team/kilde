@@ -317,10 +317,12 @@ scripts/release/appstore-archive.sh --version 0.4.0 --build 42
 ### 提出の自動化 (asc-submit、issue #234)
 
 [MAS 提出フロー一式](https://github.com/takezou621/asc-submit) (バージョン作成、
-What's New / 説明文 5 言語、レビューノート、スクリーンショット、build 割り当て、
-審査提出) は App Store Connect API で自動化してある。0.6.0 提出時にブラウザで
-手動入力した内容を正本 (docs/appstore/metadata) から再現できることを検証済み
-(0.6.0 の実データで dry-run 合格)。
+What's New / 説明文 / キーワード 5 言語、サブタイトル、レビューノート、
+スクリーンショット、build 割り当て、審査提出) は App Store Connect API で自動化
+してある。0.6.0 提出時にブラウザで手動入力した内容を正本 (docs/appstore/metadata)
+から再現できることを検証済み (0.6.0 の実データで dry-run 合格)。キーワードと
+サブタイトルは 0.8.1 向けに追加 (asc-submit PR #2 — 対応前の checkout では
+spec の該当フィールドが黙って無視されるため、実行前に最新化すること)。
 
 ```sh
 # 0. 初回のみ: App Manager ロールの API キーを発行して環境変数へ

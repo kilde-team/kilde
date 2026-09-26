@@ -38,18 +38,24 @@ App レコード (`com.takezou621.KildeGUI`, Apple ID `6812783176`) の App Stor
 
 ### #160 の新文面を ASC へ反映する手順 (0.6.0 承認後)
 
-1. `asc-submit create-version 6812783176 --version 0.8.1` で次バージョンを作成
-2. `python3 scripts/release/appstore-spec.py --version 0.8.1 --build <N>` で spec を
-   生成し、`asc-submit run 6812783176 --spec …` で説明・新着情報・スクリーンショット
-   を反映 (提出は `--submit` を付けたときだけ)
-3. **サブタイトルとキーワードは asc-submit 未対応** (2026-09-26 時点の spec は
-   whatsNew / descriptions / reviewNotes / screenshots のみ。ASC API では
-   キーワードが appStoreVersionLocalizations、サブタイトルが appInfoLocalizations
-   に属し、後者はバージョンをまたぐ)。下の「ASC での追加手順」どおり手動で
-   転記するか、asc-submit への対応追加 (takezou621/asc-submit) を先に済ませる
-4. 効果計測のため、反映日を [metrics.md](metrics.md) に記録する
+**全項目が asc-submit 経由で自動化済み** (keywords / subtitles 対応は
+takezou621/asc-submit#1 → PR #2、main 86c671b 以降。spec は `appstore-spec.py`
+が keywords・subtitles も出力し、上限 (キーワード 100 文字・サブタイトル 30 文字)
+を生成時に検証する):
 
-## ASC での追加手順 (手動転記の場合)
+1. `python3 scripts/release/appstore-spec.py --version 0.8.1 --build <N>` で spec を
+   生成し、`asc-submit run 6812783176 --spec …` でバージョン作成から
+   説明・新着情報・キーワード・サブタイトル・スクリーンショットまで反映
+   (提出は `--submit` を付けたときだけ。サブタイトルは app レベルで編集可能な
+   appInfo が必要なため、バージョン作成の**後**に適用される — run が順序を保証)
+2. 効果計測のため、反映日を [metrics.md](metrics.md) に記録する。**同じ ASC
+   セッションで分析の CSV エクスポートも済ませる** (ベースライン取得)
+
+asc-submit は ~/dev/asc-submit (main) を使用 — keywords/subtitles 対応より古い
+チェックアウトでは spec の該当フィールドが黙って無視されるため、実行前に
+`git -C ~/dev/asc-submit pull --ff-only` で最新化すること
+
+## ASC での追加手順 (手動転記の場合 — 通常は使わない)
 
 1. App Store Connect → 対象 App →「App情報」→「ローカライズ」→「編集」
 2. 各ロケールの「アプリ名」「サブタイトル」を確認する (名前は #160 では変えていない)
