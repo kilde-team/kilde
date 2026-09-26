@@ -243,9 +243,13 @@ hdiutil create -quiet -format UDZO -fs HFS+ -volname KildeGUI \
 # イメージ内に埋め込まれるため、upload を経ても «オフライン検証»
 # (docs/RELEASE.md §3) が生き残る。Hardened Runtime は Mach-O の属性で
 # ディスクイメージには効かない — 「実行コードは runtime 付き」という notarization
-# の要件はイメージ内の .app が満たすため、DMG には --options runtime を付けない
-echo "==> DMG を Developer ID で署名"
-codesign --force --sign "$SIGN_IDENTITY" --timestamp "$GUI_DMG"
+# の要件はイメージ内の .app が満たすため、DMG には --options runtime を付けない。
+# identifier は Apple の packaging ガイダンスに従い、アプリの bundle ID と違う
+# 固有の値を明示する (指定しないとファイル名由来になりリリースごとに変わる)
+DMG_IDENTIFIER="$(plutil -extract CFBundleIdentifier raw -o - "$GUI_APP/Contents/Info.plist").dmg"
+echo "==> DMG を Developer ID で署名 (identifier: $DMG_IDENTIFIER)"
+codesign --force --sign "$SIGN_IDENTITY" --timestamp \
+    --identifier "$DMG_IDENTIFIER" "$GUI_DMG"
 codesign --verify --strict --verbose=2 "$GUI_DMG"
 
 if [[ "$SKIP_NOTARIZE" == false ]]; then
@@ -257,6 +261,10 @@ if [[ "$SKIP_NOTARIZE" == false ]]; then
     xcrun notarytool submit "$GUI_DMG" --key "$NOTARY_KEY_PATH" \
         --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER" --wait
     xcrun stapler staple "$GUI_DMG"
+    # staple は DMG を書き換える — チケット埋め込み後に署名が壊れていないことを
+    # 確かめる (stapler validate はチケットの検査で、codesign の署名は見ない)。
+    # ここを通った DMG がそのまま appcast の EdDSA 署名と Release upload の対象になる
+    codesign --verify --strict --verbose=2 "$GUI_DMG"
     xcrun stapler validate "$GUI_DMG"
 else
     echo "==> --skip-notarize: notarization と staple を省略"

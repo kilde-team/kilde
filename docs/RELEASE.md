@@ -77,11 +77,11 @@ scripts/release/sign.sh \
 
 zip には notarization ticket を直接 staple できません。CLI の ticket は Gatekeeper が
 Apple のサービスから取得します。GUI の DMG はオフライン検証にも対応できるよう staple します。
-staple のチケットを DMG に残すには **DMG 自体の Developer ID 署名が前提**です (issue #216)。
-未署名の DMG では `stapler` がチケットを xattr (拡張属性) に記録するため、GitHub Release
-への upload (バイト転送) で失われ、ダウンロードした DMG の `spctl --type open` が
-rejected になります (v0.6.0 実測)。署名済みの DMG では codesign の署名と staple の
-チケットがイメージ内に埋め込まれるため、upload を経ても残ります。
+staple のチケットを **upload 後の DMG に残すには DMG 自体の Developer ID 署名が前提**です
+(issue #216)。未署名の DMG でも `stapler` 自体は成功しますが、チケットは xattr (拡張属性)
+に記録されるため、GitHub Release への upload (バイト転送) で失われ、ダウンロードした
+DMG の `spctl --type open` が rejected になります (v0.6.0 実測)。署名済みの DMG では
+codesign の署名と staple のチケットがイメージ内に埋め込まれるため、upload を経ても残ります。
 
 署名とパッケージ作成だけをローカルで確認する場合は `--skip-notarize` を使います。
 Developer ID の timestamp 取得は行うため、このモードでも署名時にネットワーク接続が必要です。
