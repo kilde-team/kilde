@@ -1,0 +1,19 @@
+scripts/release/appstore-spec.py
+  s_43fc94637f2d7b::t_b157c79ff8c273 58-64,66,83-89,93,108,115,127,138-140,169
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "26a1dcd45c1ad313bb1d2dee92f20c928f9ad939",
+  "prompts": {},
+  "sessions": {
+    "s_43fc94637f2d7b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "807af000-6796-4c9b-a24d-6464d288ee4e",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
