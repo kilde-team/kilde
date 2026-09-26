@@ -26,6 +26,13 @@ enum SelfTest {
                                permissions: PermissionsModel, updater: UpdaterCoordinator,
                                transcription: TranscriptionCoordinator, popover: PopoverControl) {
         let env = ProcessInfo.processInfo.environment
+        // KILDE_GUI_SELFTEST_LIBRARY_SEARCH: ライブラリの索引構築 + 全文検索の検証
+        // (issue #165)。一時ディレクトリに合成したサイドカー 100 件で実測時間を出す —
+        // 実録画を伴わないため録画のスロット (権限・スピーカー) を占有しない
+        if env["KILDE_GUI_SELFTEST_LIBRARY_SEARCH"] == "1" {
+            SelfTestLibrarySearch.run()
+            return
+        }
         // KILDE_GUI_SELFTEST_TRANSCRIBE: 文字起こし経路の検証。値で 2 つの経路を分ける。
         // 値 1 は録画なし版 (issue #146) — 入力音声を KILDE_GUI_SELFTEST_TRANSCRIBE_INPUT で
         // 渡し、実録画を伴わないため録画のスロット (権限・スピーカー) を占有しない。

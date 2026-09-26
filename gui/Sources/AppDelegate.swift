@@ -44,6 +44,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// パネルを閉じている間 (会議中のほとんどの時間) も監視を続けるため
     private lazy var meetingAutoRecorder = MeetingAutoRecorder(
         setup: setup, recording: recording, permissions: permissions, notifier: notifier)
+    /// 録画ライブラリのウィンドウ (issue #165)。録画と同じく AppDelegate が持つ —
+    /// パネルを閉じてもウィンドウを生かすため
+    private lazy var libraryController = LibraryWindowController(store: LibraryStore())
     /// 自動更新 (issue #122)。Sparkle の起動は環境変数で制御する — 録画系の
     /// セルフテストではネットワークアクセスと更新ダイアログを避けるため
     /// (updaterStartsAtLaunch 参照)
@@ -502,6 +505,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 開くたびに通知して一覧を更新させる (閉じている間のウィンドウ・デバイスの増減を拾う)
         NotificationCenter.default.post(
             name: .kildePopoverDidShow, object: popover.contentViewController)
+    }
+
+    /// 録画ライブラリを開く (issue #165)。ポップオーバーを閉じてからウィンドウを
+    /// 出す — ポップオーバーを開いたままにすると、フォーカスがウィンドウに移らず
+    /// 検索欄にキー入力できず、見た目も二重になる
+    func openLibrary() {
+        popover?.performClose(nil)
+        libraryController.present(fromDirectory: setup.request.outputDirectory)
     }
 
     private func updateStatusItem(phase: RecordingController.Phase, elapsed: TimeInterval) {
