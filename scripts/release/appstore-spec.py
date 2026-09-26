@@ -64,8 +64,13 @@ NOTES_SECTION = re.compile(
 )
 
 # ASC field limits, enforced here so a bad value fails before asc-submit runs
-# (asc-submit re-validates on its side — the same numbers must stay in sync).
+# (asc-submit re-validates the character limits on its side — keep in sync).
+# バイト上限は kilde の運用ルール (metadata README「キーワード欄の上限」):
+# Apple の資料は 100 文字 / 100 バイトで揺れており、ja は 71 文字 / 180 バイトの
+# 受理実績があるため 180 バイトまで許容、他ロケールは安全側の 100 バイト。
 KEYWORDS_MAX_CHARS = 100
+KEYWORDS_MAX_BYTES = {"ja": 180}
+KEYWORDS_DEFAULT_MAX_BYTES = 100
 SUBTITLE_MAX_CHARS = 30
 
 
@@ -160,6 +165,13 @@ def build_spec(version: str, build: str | None) -> dict:
         if len(kw) > KEYWORDS_MAX_CHARS:
             raise SystemExit(
                 f"{locale}: keywords are {len(kw)} characters (limit {KEYWORDS_MAX_CHARS}) in {fname}"
+            )
+        max_bytes = KEYWORDS_MAX_BYTES.get(locale, KEYWORDS_DEFAULT_MAX_BYTES)
+        kw_bytes = len(kw.encode("utf-8"))
+        if kw_bytes > max_bytes:
+            raise SystemExit(
+                f"{locale}: keywords are {kw_bytes} bytes (limit {max_bytes} — "
+                "metadata README「キーワード欄の上限」) in {fname}"
             )
         keywords[locale] = kw
         sub = single_line_section(headings, SUBTITLE_HEADING, "Subtitle", locale, fname)
