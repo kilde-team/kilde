@@ -324,6 +324,32 @@ What's New / 説明文 / キーワード 5 言語、サブタイトル、レビ�
 サブタイトルは 0.8.1 向けに追加 (asc-submit PR #2 — 対応前の checkout では
 spec の該当フィールドが黙って無視されるため、実行前に最新化すること)。
 
+**既定の経路は GitHub Actions の [MAS workflow](../../.github/workflows/mas.yml)
+(m1 self-hosted ランナー、issue #160)**。手元の Mac で実行する下のコマンド群は
+フォールバックとして同じものが動く:
+
+- Actions →「MAS (App Store)」→ Run workflow で 4 モードから選ぶ:
+  - `plan` — spec 生成 + 計画表示 (**API キー不要**。経路の検証用)
+  - `apply` — メタデータ反映 (+build 指定で割当て)。**提出はしない**
+  - `submit` — apply に加えて審査へ提出。**dispatch を手で押すことが提出のゲート**
+  - `upload` — MAS ビルドのアーカイブ + ASC へアップロード (m1 の Xcode の
+    Apple ID セッションでクラウド署名。`KILDE_ASC_API_KEY*` は使わない)
+- 必要な secrets: `ASC_CI_KEY_B64` / `ASC_CI_KEY_ID` / `ASC_CI_ISSUER`
+  (**CI 専用に新規発行した App Manager キー**。開発用キー (Z5TTR4P3DD) は
+  流用しない — 失効を独立にできないため)。`upload` は既存の
+  `KILDE_CLI_SWIFT_TOKEN` も使う
+- ランナーは kilde リポジトリスコープの `m1-kilde` (ラベル
+  `[self-hosted, macOS, ARM64, kilde-ci]`、ユーザー LaunchAgent
+  `~/Library/LaunchAgents/dev.kilde.actions-runner.m1-kilde.plist` で常駐。
+  cli-swift の CI 用ランナー (`~/actions-runner`) とは別プロセス)。**macOS
+  再起動時にログイン画面のままでも動かしたい場合は** m1 で
+  `sudo ~/actions-runner-kilde/svc.sh install && sudo ~/actions-runner-kilde/svc.sh start`
+  すると LaunchDaemon 化できる (既定の LaunchAgent は止めること)
+- m1 の前提ツール: Python 3.9+ / openssl / curl (OS 標準) と
+  `~/bin/xcodegen` (XcodeGen 2.46.0 を導入済み)
+
+手元の Mac で実行する場合 (フォールバック):
+
 ```sh
 # 0. 初回のみ: App Manager ロールの API キーを発行して環境変数へ
 #    (Developer ロールのキーは読み取り専用。~/.zshrc に設定済み)
