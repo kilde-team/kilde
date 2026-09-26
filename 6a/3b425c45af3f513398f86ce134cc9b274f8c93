@@ -1,0 +1,27 @@
+gui/Sources/ReviewPromptCoordinator.swift
+  s_cc24529b79f6d3::t_9a0747d8e1b05f 104-113
+  s_cc24529b79f6d3::t_8861965d54db2d 99
+  s_cc24529b79f6d3::t_ae4ec5a41ab94c 98
+  s_cc24529b79f6d3::t_5aaaaef16f2485 1-97,100-103,114-215
+gui/Sources/SelfTest.swift
+  s_cc24529b79f6d3::t_f5e49a13d59f4a 101-106
+gui/Sources/AppDelegate.swift
+  s_cc24529b79f6d3::t_8cb5da2089ac8e 200-219
+  s_cc24529b79f6d3::t_5f8224bf2fc6a8 40-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6a3b425c45af3f513398f86ce134cc9b274f8c93",
+  "prompts": {},
+  "sessions": {
+    "s_cc24529b79f6d3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "f262d801-c3f6-4f8d-9b47-5b8778a8af17",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
