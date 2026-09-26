@@ -288,13 +288,49 @@ scripts/release/appstore-archive.sh --version 0.4.0 --build 42
    **Crashlytics (issue #210) を含む最初の提出の前に「診断 > クラッシュデータ」を追加する**
    (docs/appstore/README.md §4)
    あわせて画面収録・マイクの用途説明
-3. **審査への提出** — アップロード済みビルドの選択と提出
+3. **審査への提出** — **0.7.0 から `asc-submit` で自動化済み** (下の「提出の自動化」)。
+   何らかの理由で CLI が使えないときは、ASC の画面でバージョン作成 →
+   What's New 5 言語転記 → スクリーンショット → レビューノート →
+   build 選択 → 提出 (正本は docs/appstore/ の各ファイル)
 
 アップロードの方法が `--upload` (xcodebuild が直接アップロード) で失敗する環境
 (ネットワーク制限など) では、`--upload` 無しで書き出した `.pkg` を Transporter app
 でアップロードできる。`xcrun altool --upload-app` も **Xcode 26 でまだ動く**
 (`xcrun altool --version` → 27.0.5 (2.1) を実測。cubic の「Xcode 26 では実行できない」は
 この環境では再現しなかった) が、Apple は非推奨としているので Transporter を先に試すこと。
+
+### 提出の自動化 (asc-submit、issue #234)
+
+[MAS 提出フロー一式](https://github.com/takezou621/asc-submit) (バージョン作成、
+What's New / 説明文 5 言語、レビューノート、スクリーンショット、build 割り当て、
+審査提出) は App Store Connect API で自動化してある。0.6.0 提出時にブラウザで
+手動入力した内容を正本 (docs/appstore/metadata) から再現できることを検証済み
+(0.6.0 の実データで dry-run 合格)。
+
+```sh
+# 0. 初回のみ: App Manager ロールの API キーを発行して環境変数へ
+#    (Developer ロールのキーは読み取り専用。~/.zshrc に設定済み)
+export ASC_KEY_PATH=~/.klide-asc/AuthKey_Z5TTR4P3DD.p8
+export ASC_KEY_ID=Z5TTR4P3DD
+export ASC_ISSUER=69a6de6f-7282-47e3-e053-5b8c7c11a4d1
+asc-submit doctor 6812783176   # exit 0 なら提出可能
+
+# 1. アーカイブとアップロード (上の「ビルドとアップロード」)
+scripts/release/appstore-archive.sh --version 0.7.0 --build <N> --upload
+
+# 2. metadata から spec を生成 (What's New (<version>) セクションが無いと
+#    ここでエラーになる — 文面はリリース前に metadata/*.md へ書いておく)
+python3 scripts/release/appstore-spec.py --version 0.7.0 --build <N>
+
+# 3. 提出まで一括 (--submit を外すと提出の手前で止まる)
+asc-submit run 6812783176 --spec dist/appstore/release-0.7.0.json --submit
+```
+
+asc-submit の前提: Python 3.9+ / openssl / curl。`asc_submit` パッケージは
+takezou621/asc-submit の checkout で `pip install .` する (依存は PyPI から
+取らない)。書き込み系の操作は **App Manager ロール**が必須 — Developer ロールの
+キーでは全書き込みが HTTP 403 になる (ロールは発行後に変更できないため、
+その場合は新規発行する)。
 
 ## 8. Crashlytics の dSYM (issue #210)
 
