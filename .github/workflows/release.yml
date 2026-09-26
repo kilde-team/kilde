@@ -50,8 +50,12 @@ jobs:
           # 未指定時の $ROOT_DIR/kilde-cli-swift) と一致させる
           repository: kilde-team/kilde-cli-swift
           # GUI (gui/project.yml) と同じ pin。リリース成果物が「どのコミットで
-          # ビルドされたか」を追跡可能にするため。更新時は GUI 側と揃える
-          ref: 4d2f251535ed6e907fea185e116ed9b9eb1392b3
+          # ビルドされたか」を追跡可能にするため。更新時は GUI 側と揃える。
+          # GUI は exactVersion 0.8.0 (kilde#226) なので CLI も同じ v0.8.0 タグ —
+          # v0.8.0 は要約テンプレート (kilde-cli-swift#67)、オンデバイス要約 (#40)、
+          # エラーコード層 (#32)、開始前キャンセルのハング修正 (#54)、
+          # m4af 入力のクラッシュ修正 (#50) を含む (issue #154)
+          ref: v0.8.0
           # private リポジトリ: GITHUB_TOKEN は他リポジトリを読めないため
           # fine-grained PAT (contents:read) を使う
           token: ${{ secrets.KILDE_CLI_SWIFT_TOKEN }}
