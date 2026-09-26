@@ -187,7 +187,12 @@ log "xcodegen でプロジェクトを生成"
 xcodegen
 
 log "パッケージ依存を解決"
-xcodebuild -resolvePackageDependencies
+# CODE_SIGNING_ALLOWED=NO / REQUIRED=NO は **解決時のみ** 署名を無効化する。Xcode 26+
+# は解決時にパッケージ内 (Firebase / GoogleUtilities など) の全ターゲットの署名計画を
+# 評価するため、Mac Development 証明書の無い環境 (m1 の CI ランナーなど) で
+# "No Accounts" / "No signing certificate" で解決ごと落ちる。解決は署名と無関係なので
+# 無効化して通す — 直後の archive は別の xcodebuild 呼び出しで既定 (自動署名) のまま
+xcodebuild -resolvePackageDependencies CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
 
 # バージョン・ビルド番号をビルド前に差し込む (release.yml と同じ plutil 手法)。
 # このリポジトリには CFBundleVersion の単調増加を強制する仕組みが無いので、
