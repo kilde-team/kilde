@@ -200,12 +200,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 録画の成功完了 → 評価依頼の判定 (issue #156)。«成功した録画の完了 3 回目»
         // を数える。判定は次の MainActor ひと仕事で行う — @Published は willSet で
         // 流れるのでこの場で isActive を読むとまだ .finalizing («録画中») になる
-        // (下の updateStatusItem の sink と同じ落とし穴)。elapsed だけはここで確保する
-        // — 次の start() で 0 に戻るため
+        // (下の updateStatusItem の sink と同じ落とし穴)。長さは elapsed ではなく
+        // lastRecordedDuration — elapsed は 0.5 秒周期の刻みなので、閾値ぎりぎりの
+        // 録画で最後の更新が 14.5 秒のまま «15 秒以上録ったのに数えられない» ことがある
         recording.$phase
             .sink { [weak self] phase in
                 guard let self, case .finished = phase else { return }
-                let duration = self.recording.elapsed
+                let duration = self.recording.lastRecordedDuration
                 Task { @MainActor in
                     self.reviewPrompt.noteRecordingCompleted(
                         duration: duration,

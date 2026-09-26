@@ -48,6 +48,11 @@ final class RecordingController: ObservableObject {
     /// 終点を `.finalizing` にしているのも同じ理由で、writer の finish は収録ではない
     private var recordingStartedAt: Date?
     private var stoppedAt: Date?
+    /// 完了時に確定した実収録時間 (準備フェーズと一時停止を除く)。評価依頼 (issue #156)
+    /// の 15 秒判定はこの値を使う — progress の `elapsed` は 0.5 秒周期の刻みなので、
+    /// 閾値ぎりぎりの録画で最後の更新が 14.5 秒のまま止まり «15 秒以上録ったのに
+    /// 数えられない» ことがある。通知 (`notifyCompleted`) と同じ値
+    private(set) var lastRecordedDuration: TimeInterval = 0
     /// 収録開始前に stop() が呼ばれたか (準備中の失敗が自発的な停止かの判定に使う)
     private var stopRequestedDuringPreparation = false
 
@@ -179,15 +184,19 @@ final class RecordingController: ObservableObject {
             // monitor の既定出力の復元失敗など。録画は成立しているので結果と一緒に見せる
             warnings.append(warning)
         case .completed(let summary):
+            // 実収録時間の確定は **phase 更新の前**。評価依頼 (issue #156) の sink は
+            // .finished の willSet の次の MainActor ホップで lastRecordedDuration を
+            // 読む — 更新後に計算すると sink が古い値 (0) を見てしまう
+            let recorded = recordingStartedAt.map { started in
+                max(0, (stoppedAt ?? Date()).timeIntervalSince(started) - summary.pausedDuration)
+            } ?? 0
+            lastRecordedDuration = recorded
             phase = .finished(summary.outputURL)
             // 通知は endSession の前に出す — endSession はハンドラ経由でアプリを
             // 終了させることがあり (applicationShouldTerminate の待ち)、
             // 後に置くと «終了時に録画を止めた» 場合に通知が出ないまま消える
             // .recording に到達しないまま完了することはないはずだが、到達していなければ
             // 収録時間 0 として扱う (準備中に止めた場合など)
-            let recorded = recordingStartedAt.map { started in
-                max(0, (stoppedAt ?? Date()).timeIntervalSince(started) - summary.pausedDuration)
-            } ?? 0
             notifyThenEndSession { [weak self] done in
                 self?.notifier?.notifyCompleted(url: summary.outputURL, elapsed: recorded,
                                                 bytes: self?.outputBytes ?? 0, completion: done)

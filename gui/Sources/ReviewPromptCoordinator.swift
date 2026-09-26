@@ -21,8 +21,9 @@ enum ReviewPromptPolicy {
     /// これより短い録画は «極端に短い» として成功回数に数えない (秒)。
     /// 誤操作や動作確認で止めた録画を «使い込んだ実績» とみなさないための下限で、
     /// 15 秒は «収録したものがあってファイナライズまで終わった» と言える最小の長さ
-    /// の目安。経過時間は progress の最終値 (0.5 秒周期) なので実長より最大 0.5 秒
-    /// 短く出るが、この閾値の判定には影響しない
+    /// の目安。渡す長さは RecordingController.lastRecordedDuration (完了時に確定した
+    /// 実収録時間。一時停止を除く) — progress の 0.5 秒周期の elapsed を使うと、
+    /// 閾値ぎりぎりの録画で最後の更新が 14.5 秒のまま止まり数え落ちる
     static let minimumCountableDuration: TimeInterval = 15
 
     /// 依頼してからこの日数が経過するまで再依頼しない («最低 90 日は再表示しない»)
@@ -71,6 +72,13 @@ final class ReviewPromptCoordinator {
         self.defaults = defaults
     }
 
+    /// 依頼の窓と実行の供給源。実行時の既定は reviewPresenter() / StoreKit。
+    /// **セルフテストが差し替える** — 窓を偽装すれば «窓があれば依頼が出る» 経路を
+    /// headless で検証でき、実行先の差し替えが実システムの評価ダイアログが出ない
+    /// ことを保証する (審査で出るのを避けるため定期的に出す頻度はシステムが制御する)
+    var presenterProvider: @MainActor () -> NSViewController? = { ReviewPromptCoordinator.reviewPresenter() }
+    var submitReviewRequest: @MainActor (NSViewController) -> Void = { AppStore.requestReview(in: $0) }
+
     /// 録画の成功完了を記録し、規則を満たしていれば評価を依頼する。
     /// **«録画中・文字起こし中には出さない» の判定材料は呼び出し側 (AppDelegate) が
     /// 渡す** — @Published は willSet で流れるので、確定値を見るには次の MainActor
@@ -95,8 +103,8 @@ final class ReviewPromptCoordinator {
         // «90 日の再依頼禁止» が «窓が無かった» ことまで束縛してしまい、次の完了で
         // 再試行できなくなる。LSUIElement のアプリは popover を閉じている間窓を
         // 持たないので、«次の録画完了時にパネルが開いていれば依頼» が自然な再試行になる
-        guard let presenter = Self.reviewPresenter() else { return false }
-        AppStore.requestReview(in: presenter)
+        guard let presenter = presenterProvider() else { return false }
+        submitReviewRequest(presenter)
         defaults.set(Date(), forKey: Keys.lastRequestDate)
         return true
     }
@@ -173,13 +181,22 @@ extension SelfTest {
 
 #if APPSTORE
         // 2. 状態保持の配線 (MAS ビルドのみ)。実データと分離するため suite を
-        // 分けて使い、検証後に掃除する
+        // 分けて使い、検証後に掃除する。**窓と依頼の実行先は差し替える** —
+        // 実行先の差し替えが実システムの評価ダイアログが出ないことを保証し、
+        // 窓の偽装が «窓があれば依頼が出る» 経路も headless で確かめられる
         let suiteName = "kilde-selftest-review-prompt"
         UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName)
-        let defaults = UserDefaults(suiteName: suiteName)!
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            print("selftest: review [FAIL] suite の確保に失敗")
+            fflush(stdout)
+            exit(1)
+        }
         let coordinator = ReviewPromptCoordinator(defaults: defaults)
         let countKey = ReviewPromptCoordinator.Keys.successfulRecordings
         let dateKey = ReviewPromptCoordinator.Keys.lastRequestDate
+        coordinator.presenterProvider = { nil }
+        var submitted = false
+        coordinator.submitReviewRequest = { _ in submitted = true }
 
         // 極端に短い録画は数えない
         coordinator.noteRecordingCompleted(duration: 5, recordingActive: false,
@@ -187,23 +204,46 @@ extension SelfTest {
         check("配線: 短い録画は数えない (count=0)", defaults.integer(forKey: countKey) == 0)
 
         // 文字起こし中でも回数は進むが、依頼は出ない
-        var requested = false
         for _ in 0..<3 {
-            requested = coordinator.noteRecordingCompleted(
-                duration: 60, recordingActive: false, transcriptionBusy: true) || requested
+            coordinator.noteRecordingCompleted(duration: 60, recordingActive: false,
+                                               transcriptionBusy: true)
         }
         check("配線: 文字起こし中も回数は進む (count=3)", defaults.integer(forKey: countKey) == 3)
-        check("配線: 文字起こし中は依頼しない", !requested)
+        check("配線: 文字起こし中は依頼しない", !submitted)
         check("配線: 依頼していないので日付は記録されない",
               defaults.object(forKey: dateKey) == nil)
 
-        // 空きが出た次の完了。このセルフテストはパネル (popover) を開かないので
-        // 依頼の窓は無い — «窓が無ければ見送り、日付も記録しない» を確かめる
-        requested = coordinator.noteRecordingCompleted(
+        // 録画中の完了も依頼しない (sink の次のホップでも録画が続いている場合)
+        coordinator.noteRecordingCompleted(duration: 60, recordingActive: true,
+                                           transcriptionBusy: false)
+        check("配線: 録画中は依頼しない", !submitted)
+        check("配線: 録画中でも回数は進む (count=4)", defaults.integer(forKey: countKey) == 4)
+        check("配線: 見送りの間は日付が記録されない", defaults.object(forKey: dateKey) == nil)
+
+        // 窓が空いた次の完了で依頼する (実行先は差し替え済み — 実ダイアログは出ない)
+        coordinator.presenterProvider = { NSViewController() }
+        submitted = false
+        let requested = coordinator.noteRecordingCompleted(
             duration: 60, recordingActive: false, transcriptionBusy: false)
-        check("配線: 窓が無ければ依頼しない", !requested)
-        check("配線: 見送りでも日付は記録しない", defaults.object(forKey: dateKey) == nil)
-        check("配線: 見送りでも回数は進む (count=4)", defaults.integer(forKey: countKey) == 4)
+        check("配線: 窓があれば依頼する", requested && submitted)
+        check("配線: 依頼時に日付を記録する", defaults.object(forKey: dateKey) != nil)
+        check("配線: 依頼しても回数は進む (count=5)", defaults.integer(forKey: countKey) == 5)
+
+        // 依頼直後の再完了では再依頼しない («最低 90 日は再表示しない» の配線)
+        let lastRequestDate = defaults.object(forKey: dateKey) as? Date
+        submitted = false
+        let notRequested = coordinator.noteRecordingCompleted(
+            duration: 60, recordingActive: false, transcriptionBusy: false)
+        check("配線: 依頼直後の再完了では再依頼しない", !notRequested && !submitted)
+        check("配線: 再依頼しないときは日付を書き替えない",
+              (defaults.object(forKey: dateKey) as? Date) == lastRequestDate)
+
+        // 90 日を越えたら再依頼する (日付を 91 日前にずらす)
+        defaults.set(lastRequestDate!.addingTimeInterval(-91 * 86400), forKey: dateKey)
+        submitted = false
+        let reRequested = coordinator.noteRecordingCompleted(
+            duration: 60, recordingActive: false, transcriptionBusy: false)
+        check("配線: 90 日を越えたら再依頼する", reRequested && submitted)
 
         UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName)
 #endif
