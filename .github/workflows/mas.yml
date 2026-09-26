@@ -160,12 +160,6 @@ jobs:
           fi
           python3 -m asc_submit run "$APP_ID" --spec "$spec_path" "${ARGS[@]}"
 
-      - name: Remove the decoded key
-        if: ${{ always() && (inputs.mode != 'plan') }}
-        run: |
-          # .p8 を RUNNER_TEMP に残さない (self-hosted はジョブ間でディレクトリが残る)
-          rm -rf "$RUNNER_TEMP/asc"
-
       - name: Archive and upload the MAS build
         if: inputs.mode == 'upload'
         env:
@@ -193,3 +187,12 @@ jobs:
           scripts/release/appstore-archive.sh --version "$VERSION" --build "$BUILD" --upload
           echo "アップロードが終わったら ASC でビルドが VALID になるのを待ってから"
           echo "apply (build 割当て + メタデータ) → submit を実行してください"
+
+      # この cleanup は **最後の step** でなければならない (run 36280364021 実測:
+      # 前に置くと upload モードで decode → cleanup → archive の順に走り、アーカイブの
+      # 時点で .p8 が消えて「API キーが見つかりません」で落ちた)
+      - name: Remove the decoded key
+        if: ${{ always() && (inputs.mode != 'plan') }}
+        run: |
+          # .p8 を RUNNER_TEMP に残さない (self-hosted はジョブ間でディレクトリが残る)
+          rm -rf "$RUNNER_TEMP/asc"
