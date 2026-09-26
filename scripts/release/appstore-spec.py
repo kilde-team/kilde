@@ -55,9 +55,15 @@ NOTES_SECTION = re.compile(
 
 
 def code_blocks(text: str) -> list[tuple[str, str]]:
-    """Return (heading, code block content) pairs in document order."""
+    """Return (first heading line, code block content) pairs in document order.
+
+    Only the heading's first line is kept on purpose: the ``##`` heading and
+    the fenced block may be separated by prose (the What's New sections carry
+    editorial notes), and letting ``.+?`` swallow that prose would make
+    version matching below see version strings from the notes.
+    """
     return [
-        (m.group(1).strip(), m.group(2))
+        (m.group(1).strip().split("\n", 1)[0], m.group(2))
         for m in re.finditer(r"## (.+?)\n+```text\n(.*?)\n```", text, re.S)
     ]
 
@@ -74,11 +80,17 @@ def unwrap(block: str) -> str:
 
 
 def section_for_version(headings: list[tuple[str, str]], version: str, locale: str) -> str:
-    """Find the What's New code block whose heading names this version."""
+    """Find the What's New code block whose heading names this version.
+
+    Matching happens on the heading's first line against the exact
+    ``(version)`` token, so editorial prose elsewhere in the file cannot make
+    e.g. ``--version 0.5.0`` match the 0.6.0 section.
+    """
+    token = f"({version})"
     matches = [
         block
         for heading, block in headings
-        if WHATSNEW_HEADING.search(heading) and version in heading
+        if WHATSNEW_HEADING.search(heading) and token in heading
     ]
     if len(matches) == 1:
         return matches[0].strip()
@@ -93,14 +105,14 @@ def section_for_version(headings: list[tuple[str, str]], version: str, locale: s
     )
 
 
-def build_spec(version: str, build: str | None, submit: bool) -> dict:
+def build_spec(version: str, build: str | None) -> dict:
     whats_new: dict[str, str] = {}
     descriptions: dict[str, str] = {}
     for locale, fname in LOCALES.items():
         path = META_DIR / fname
         if not path.is_file():
             raise SystemExit(f"metadata file not found: {path}")
-        headings = code_blocks(path.read_text())
+        headings = code_blocks(path.read_text(encoding="utf-8"))
         whats_new[locale] = section_for_version(headings, version, locale)
 
         desc = [block for heading, block in headings if DESCRIPTION_HEADING.search(heading)]
@@ -112,7 +124,7 @@ def build_spec(version: str, build: str | None, submit: bool) -> dict:
 
     if not NOTES_FILE.is_file():
         raise SystemExit(f"review notes not found: {NOTES_FILE}")
-    notes_match = NOTES_SECTION.search(NOTES_FILE.read_text())
+    notes_match = NOTES_SECTION.search(NOTES_FILE.read_text(encoding="utf-8"))
     if not notes_match:
         raise SystemExit(
             f"could not find the English section in {NOTES_FILE} "
@@ -123,6 +135,9 @@ def build_spec(version: str, build: str | None, submit: bool) -> dict:
     if not screenshots:
         raise SystemExit(f"no screenshots in {SHOTS_DIR}")
 
+    # Deliberately no "submit" key: submitting is controlled by the
+    # `asc-submit run --submit` flag alone, so a stale spec can never submit
+    # on its own.
     spec: dict = {
         "version": version,
         "releaseType": "AFTER_APPROVAL",
@@ -132,7 +147,6 @@ def build_spec(version: str, build: str | None, submit: bool) -> dict:
         "descriptions": descriptions,
         "reviewNotes": notes_match.group(1).strip(),
         "screenshots": {"ja": [str(p) for p in screenshots]},
-        "submit": submit,
     }
     if build:
         spec["build"] = build
@@ -149,13 +163,10 @@ def main() -> int:
         "--output",
         help=f"output path (default: dist/appstore/release-<version>.json)",
     )
-    parser.add_argument(
-        "--no-submit", action="store_true", help='set "submit": false in the spec'
-    )
     args = parser.parse_args()
 
     output = Path(args.output) if args.output else ROOT_DIR / f"dist/appstore/release-{args.version}.json"
-    spec = build_spec(args.version, args.build, submit=not args.no_submit)
+    spec = build_spec(args.version, args.build)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(spec, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
