@@ -1,0 +1,181 @@
+name: MAS (App Store)
+
+# issue #160 / #154: Mac App Store 提出の m1 (self-hosted) ライン。
+# kilde リポジトリに登録した 2 つ目のランナー (m1-kilde, ラベル kilde-ci) でだけ動く。
+#
+# モード (workflow_dispatch の mode):
+#   plan   — spec を生成して干渉なく計画を表示 (API キー不要。asc-submit v0.2.0 の
+#            キー無し dry-run)。設定検証・レビュー用
+#   apply  — バージョン作成 (無ければ) + メタデータ (説明 / What's New / キーワード /
+#            サブタイトル) + スクリーンショットを反映。build を指定すれば割当ても。
+#            **審査への提出はしない**
+#   submit — apply の内容に加えて審査へ提出する。提出判断 (前バージョンの審査結果待ち等)
+#            は人間が行う前提なので、このモードの実行自体がゲート
+#   upload — KildeGUI-AppStore をアーカイブして ASC へアップロード (appstore-archive.sh)。
+#            **提出は始まらない**。Xcode の Apple ID セッション (m1 にログイン済み) で
+#            クラウド署名するため KILDE_ASC_API_KEY* は使わない (CLAUDE.md §5-19)
+#
+# 必要な secrets (apply / submit):
+#   ASC_CI_KEY_B64   CI 専用 App Manager キーの .p8 を base64 したもの
+#                    (**開発用の鍵を使い回さない** — 失効を独立にできるよう別発行)
+#   ASC_CI_KEY_ID    キー ID
+#   ASC_CI_ISSUER    issuer ID
+#   (upload のみ) KILDE_CLI_SWIFT_TOKEN — 既存の fine-grained PAT (cli-swift 読み取り)
+#
+# トリガは workflow_dispatch のみ。kilde は public リポジトリのため、fork PR から
+# self-hosted runner や secrets に触れる経路を持ち得ない — この構成を変えるときは
+# その点を再確認すること。
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "What to do"
+        type: choice
+        options: [plan, apply, submit, upload]
+        default: plan
+      version:
+        description: "MAS version (e.g. 0.8.1)"
+        type: string
+        required: true
+      build:
+        description: "Build number (attach in apply/upload; e.g. 8)"
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mas-${{ inputs.version }}
+  cancel-in-progress: false
+
+env:
+  APP_ID: "6812783176" # com.takezou621.KildeGUI
+
+jobs:
+  mas:
+    name: MAS ${{ inputs.mode }} (m1)
+    # kilde リポジトリスコープの self-hosted ランナー (m1-kilde) を指すラベル。
+    # cli-swift の CI と同じ kilde-ci ラベルだが、あちらのランナーは別リポジトリ
+    # スコープのためここには来ない
+    runs-on: [self-hosted, macOS, ARM64, kilde-ci]
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout kilde
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # 認証情報を .git/config に残さない (zizmor artipacked — kilde#201)。
+          # この workflow は push も git 認証もしない
+          persist-credentials: false
+
+      - name: Checkout asc-submit (pinned)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: takezou621/asc-submit
+          # spec の keywords / subtitles フィールドは v0.2.0 から。それ未満の
+          # asc-submit は未知のキーを黙って無視するため、必ずこの ref 以上に固定する
+          ref: v0.2.0
+          path: asc-submit
+          persist-credentials: false
+
+      - name: Generate the spec from the metadata files
+        # 全モード共通: docs/appstore/metadata から spec.json を作る。
+        # メタデータの上限 (キーワード 100 文字 / ロケール別バイト、サブタイトル 30 文字) は
+        # この生成が機械検証する (appstore-spec.py)。spec に secrets は含まれないため
+        # ログへ全文出して監査証跡にする
+        env:
+          MODE: ${{ inputs.mode }}
+          VERSION: ${{ inputs.version }}
+          BUILD: ${{ inputs.build }}
+        run: |
+          # 入力は env 経由 (テンプレート展開のシェルインジェクション防止 — kilde#203)
+          echo "$VERSION" | grep -Eq '^[0-9A-Za-z][0-9A-Za-z._-]*$' \
+            || { echo "バージョンに使えない文字が含まれます: $VERSION"; exit 1; }
+          if [ "$MODE" = upload ] && [ -z "$BUILD" ]; then
+            echo "upload モードには build 番号が必要です (CFBundleVersion。前回の MAS 提出より大きい値)"
+            exit 1
+          fi
+          ARGS=(--version "$VERSION")
+          [ -n "$BUILD" ] && ARGS+=(--build "$BUILD")
+          python3 scripts/release/appstore-spec.py "${ARGS[@]}"
+          echo "spec_path=dist/appstore/release-$VERSION.json" >> "$GITHUB_ENV"
+          cat "dist/appstore/release-$VERSION.json"
+
+      - name: Show the plan (no API key required)
+        if: inputs.mode == 'plan'
+        env:
+          PYTHONPATH: asc-submit
+        run: |
+          # asc-submit v0.2.0 の --dry-run は API キー無しで動く (計画表示のみ)。
+          # secrets を設定する前にこのワークフローの経路を検証できる
+          python3 -m asc_submit run "$APP_ID" --spec "$spec_path" --dry-run
+
+      - name: Decode the App Store Connect API key
+        if: inputs.mode == 'apply' || inputs.mode == 'submit'
+        env:
+          ASC_CI_KEY_B64: ${{ secrets.ASC_CI_KEY_B64 }}
+          ASC_CI_KEY_ID: ${{ secrets.ASC_CI_KEY_ID }}
+          ASC_CI_ISSUER: ${{ secrets.ASC_CI_ISSUER }}
+        run: |
+          # 部分的な設定は黙って進めない (release.yml の署名 secrets と同じ方針)。
+          # セッションは self-hosted のため残したくないものは必ず後段の cleanup で消す
+          SET_COUNT=0
+          [ -n "$ASC_CI_KEY_B64" ] && SET_COUNT=$((SET_COUNT+1))
+          [ -n "$ASC_CI_KEY_ID" ] && SET_COUNT=$((SET_COUNT+1))
+          [ -n "$ASC_CI_ISSUER" ] && SET_COUNT=$((SET_COUNT+1))
+          if [ "$SET_COUNT" -ne 3 ]; then
+            echo "ASC_CI_KEY_B64 / ASC_CI_KEY_ID / ASC_CI_ISSUER の 3 つすべてが必要です"
+            echo "(CI 専用の App Manager キーを ASC の Users and Access → Integrations で発行し、"
+            echo " .p8 を base64 して ASC_CI_KEY_B64 に登録してください — 開発用キーの流用はしない)"
+            exit 1
+          fi
+          umask 077
+          mkdir -p "$RUNNER_TEMP/asc"
+          printf '%s' "$ASC_CI_KEY_B64" | base64 --decode -o "$RUNNER_TEMP/asc/AuthKey.p8"
+          # ASC_KEY_* は asc-submit が読む環境変数。GITHUB_ENV 経由で以降の step へ
+          echo "ASC_KEY_PATH=$RUNNER_TEMP/asc/AuthKey.p8" >> "$GITHUB_ENV"
+          echo "ASC_KEY_ID=$ASC_CI_KEY_ID" >> "$GITHUB_ENV"
+          echo "ASC_ISSUER=$ASC_CI_ISSUER" >> "$GITHUB_ENV"
+
+      - name: Apply metadata (and submit, when mode=submit)
+        if: inputs.mode == 'apply' || inputs.mode == 'submit'
+        env:
+          MODE: ${{ inputs.mode }}
+          PYTHONPATH: asc-submit
+        run: |
+          # 先に doctor で鍵が実際に書き込み・提出可能か確かめる (失効・ロール不足を
+          # ここで弾く。doctor はプローブのみで副作用なし)
+          python3 -m asc_submit doctor "$APP_ID"
+          ARGS=()
+          if [ "$MODE" = submit ]; then
+            # CI (非 tty) では asc-submit の確認プロンプトは出ない。提出のゲートは
+            # この workflow_dispatch を手で押すこと自体なので --yes で確定させる
+            ARGS+=(--submit --yes)
+            echo ">>> 審査へ提出します (mode=submit)"
+          fi
+          python3 -m asc_submit run "$APP_ID" --spec "$spec_path" "${ARGS[@]}"
+
+      - name: Remove the decoded key
+        if: ${{ always() && (inputs.mode == 'apply' || inputs.mode == 'submit') }}
+        run: |
+          # .p8 を RUNNER_TEMP に残さない (self-hosted はジョブ間でディレクトリが残る)
+          rm -rf "$RUNNER_TEMP/asc"
+
+      - name: Archive and upload the MAS build
+        if: inputs.mode == 'upload'
+        env:
+          VERSION: ${{ inputs.version }}
+          BUILD: ${{ inputs.build }}
+          KILDE_CLI_SWIFT_TOKEN: ${{ secrets.KILDE_CLI_SWIFT_TOKEN }}
+        run: |
+          # appstore-archive.sh は KILDE_CLI_SWIFT_TOKEN を環境変数だけで使う
+          # (git config を汚さない)。クラウド署名は m1 の Xcode にログイン済みの
+          # Apple ID セッションで行う (KILDE_ASC_API_KEY* は渡さない — CLAUDE.md §5-19)
+          export PATH="$HOME/bin:$PATH"
+          command -v xcodegen >/dev/null \
+            || { echo "~/bin/xcodegen が見つかりません (XcodeGen 2.46.0 を m1 の ~/bin へインストール済みのはず)"; exit 1; }
+          scripts/release/appstore-archive.sh --version "$VERSION" --build "$BUILD" --upload
+          echo "アップロードが終わったら ASC でビルドが VALID になるのを待ってから"
+          echo "apply (build 割当て + メタデータ) → submit を実行してください"

@@ -39,19 +39,25 @@ App レコード (`com.takezou621.KildeGUI`, Apple ID `6812783176`) の App Stor
 ### #160 の新文面を ASC へ反映する手順 (0.6.0 承認後)
 
 **全項目が asc-submit 経由で自動化済み** (keywords / subtitles 対応は
-takezou621/asc-submit#1 → PR #2、main 86c671b 以降。spec は `appstore-spec.py`
+takezou621/asc-submit#1 → PR #2、v0.2.0 以降。spec は `appstore-spec.py`
 が keywords・subtitles も出力し、上限 (キーワード 100 文字・サブタイトル 30 文字)
-を生成時に検証する):
+を生成時に検証する)。**既定の経路は GitHub Actions の「MAS (App Store)」
+workflow (m1 self-hosted、`plan` / `apply` / `submit` / `upload` の 4 モード。
+詳細と secrets は docs/RELEASE.md「提出の自動化」)**:
 
-1. `python3 scripts/release/appstore-spec.py --version 0.8.1 --build <N>` で spec を
-   生成し、`asc-submit run 6812783176 --spec …` でバージョン作成から
-   説明・新着情報・キーワード・サブタイトル・スクリーンショットまで反映
-   (提出は `--submit` を付けたときだけ。サブタイトルは app レベルで編集可能な
-   appInfo が必要なため、バージョン作成の**後**に適用される — run が順序を保証)
-2. 効果計測のため、反映日を [metrics.md](metrics.md) に記録する。**同じ ASC
+1. (ビルドが未アップロードなら) `upload` モードでアーカイブ + アップロード
+2. `apply` モード (version + build 指定) でバージョン作成から説明・新着情報・
+   キーワード・サブタイトル・スクリーンショットまで反映。**提出はしない**
+3. 提出してよいタイミングで `submit` モードを実行 (dispatch を手で押すことが
+   提出のゲート)。サブタイトルは app レベルで編集可能な appInfo が必要なため、
+   バージョン作成の**後**に適用される — run が順序を保証
+4. 効果計測のため、反映日を [metrics.md](metrics.md) に記録する。**同じ ASC
    セッションで分析の CSV エクスポートも済ませる** (ベースライン取得)
 
-asc-submit は ~/dev/asc-submit (main) を使用 — keywords/subtitles 対応より古い
+手元の Mac から実行する場合 (フォールバック) は
+`python3 scripts/release/appstore-spec.py --version 0.8.1 --build <N>` →
+`asc-submit run 6812783176 --spec …` (提出は `--submit`)。asc-submit は
+~/dev/asc-submit (main) を使用 — keywords/subtitles 対応 (v0.2.0) より古い
 チェックアウトでは spec の該当フィールドが黙って無視されるため、実行前に
 `git -C ~/dev/asc-submit pull --ff-only` で最新化すること
 
