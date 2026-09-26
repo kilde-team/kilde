@@ -69,6 +69,12 @@ texto se mantiene breve y honesto — sin anunciar funciones que no existen.
 Mejoras de estabilidad y fiabilidad.
 ```
 
+## Novedades (0.8.1)
+
+```text
+Añade transcripción de grabaciones y resúmenes (en el dispositivo), soporte de Atajos para iniciar y detener grabaciones, y una biblioteca de grabaciones con búsqueda de texto completo y reproducción desde el momento exacto. La transcripción ahora también funciona aunque cambies la carpeta de destino durante la grabación.
+```
+
 ## Novedades (plantilla)
 
 ```text
