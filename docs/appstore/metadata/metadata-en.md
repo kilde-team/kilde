@@ -60,6 +60,12 @@ honest and short — do not pad it with feature claims.
 Stability and reliability improvements.
 ```
 
+## What's New (0.8.1)
+
+```text
+Adds on-device recording transcription and summaries, Shortcuts support for starting and stopping recordings, and a recording library with full-text search and playback from the exact moment. Transcription now also survives changing the save destination mid-recording.
+```
+
 ## What's New (template)
 
 ```text
