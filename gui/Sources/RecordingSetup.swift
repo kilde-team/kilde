@@ -250,6 +250,15 @@ final class RecordingSetup: ObservableObject {
     /// 文字列を返すのは、ホットキー経路が «なぜ始まらないか» を出す必要があるため
     /// (ボタンは押せないことで伝わるが、他アプリ前面で押したキーには何も見えない)
     func startBlockReason(permissions: PermissionsModel) -> String? {
+        startBlockReason(for: request, permissions: permissions)
+    }
+
+    /// パネルの現在の選択とは別の構成で同じ判定を行う版 — ショートカット
+    /// (AppIntents, issue #167) がモードに応じて target を差し替えた request で使う。
+    /// **開始の全経路 (ボタン・ホットキー・ショートカット・会議の自動録画) が同じ
+    /// 判定を通る**ことで、«この経路だけ列挙中でも録画を始められる» 状態を作らない
+    func startBlockReason(for request: RecordRequest,
+                          permissions: PermissionsModel) -> String? {
         // SCK を使う構成でだけ列挙との競合を避ける (音声のみ + システム音声オフは競合しない)。
         // 判定は RecordRequest が持つ — ここに書き写すと Recorder 側とずれる (issue #72)
         let usesScreenCapture = request.usesScreenCapture
