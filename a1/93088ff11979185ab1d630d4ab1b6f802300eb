@@ -1,0 +1,21 @@
+gui/Sources/SelfTestLibrarySearch.swift
+  s_14e4bed2c1e21d::t_f27ec9ea37a452 67-74
+gui/Sources/LibraryWindow.swift
+  s_14e4bed2c1e21d::t_c112938767452e 377-380
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a193088ff11979185ab1d630d4ab1b6f802300eb",
+  "prompts": {},
+  "sessions": {
+    "s_14e4bed2c1e21d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3b74c811-8a46-4769-a6c1-d6594ec2fc6e",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
