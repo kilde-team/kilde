@@ -33,14 +33,17 @@ packages:
     # を消すため)。エンジンの更新を取り込むときは revision を新コミットに更新する。
     # kilde-cli-swift#10 のタグ整備後は from: "0.2.0" への切替を推奨
     # (成立条件は kilde-cli-swift#8 スパイク記録を参照)
-    # 0b2e3aa: 要約のテンプレート API (kilde-cli-swift#67 — issue #163 が使用) と
+    # v0.8.0: 要約のテンプレート API (kilde-cli-swift#67 — issue #163 が使用) と
     # オンデバイス要約 (kilde-cli-swift#40)、エラーコード層 (kilde-cli-swift#32)、
     # 文字起こし開始前キャンセルでのハング修正 (kilde-cli-swift#54)、
     # 単一ウィンドウ収録の子ウィンドウ除外 (kilde-cli-swift#51)、
-    # 文字起こし PCM の little endian 固定 (kilde-cli-swift#39) を含む。
-    # 以前の 4d2f251 は文字起こし対応版 (kilde#199)。v0.7.0 タグ (exact: "0.7.0") への
-    # 切替は kilde#163 の後続で検討 (kilde-cli-swift の check-version-pin.sh は緑)
-    revision: 0b2e3aac1d8ddb82e50d26fd053dfcedfa2f84aa
+    # 文字起こし PCM の little endian 固定 (kilde-cli-swift#39) を含む (kilde#163)。
+    # kilde-cli-swift 側でタグ運用が始まった (#67 マージ時に v0.8.0 を打設、
+    # remote exact: 消費を検証済み) ので、revision 固定から exactVersion へ切替。
+    # 消費側の注意: exact には **v 接頭辞なし**の "0.8.0" を指定する
+    # (SwiftPM のセマンバージョン解釈。接頭辞付きタグは自動で解決される)。
+    # エンジンの更新手順: kilde-cli-swift でタグを打設 → この exactVersion を上げる
+    exactVersion: 0.8.0
   # GUI の自動更新 (issue #122)。Sparkle 2 のバイナリターゲット (macOS 12+) で、
   # リンクすると Sparkle.framework が Contents/Frameworks に埋め込まれる。
   # バージョンを固定する理由は kilde-cli-swift と同じ: 浮動参照だと上流の push が
