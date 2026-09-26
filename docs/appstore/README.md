@@ -138,9 +138,12 @@ kilde.site の両方を更新すること。
 | en-US / zh-Hans / ko / es-ES | `https://kilde.site/` | `https://kilde.site/privacy/` |
 
 製品ページのローカライズ (ja / en / zh-Hans / ko / es) の正本は
-[metadata/](metadata/README.md) (issue #137)。ASC 側で直接編集せず、
-まずここのファイルを更新してから転記する。スクリーンショットは現状 ja の
-みで、未登録ロケールは ASC がフォールバック表示する (§metadata README の注意)。
+[metadata/](metadata/README.md) (issue #137)。2026-09-26 に issue #160 で
+全ロケールのサブタイトル・説明・キーワードを文字起こし前面の文面に書き直した
+(他社商標の除去を含む。効果計測の台帳は [metadata/metrics.md](metadata/metrics.md))。
+ASC 側で直接編集せず、まずここのファイルを更新してから転記する。
+スクリーンショットは現状 ja のみで、未登録ロケールは ASC がフォールバック表示する
+(§metadata README の注意)。プレビュー動画は未登録 (kilde-site#1 の素材待ち)。
 
 ## 5. 審査の履歴
 
