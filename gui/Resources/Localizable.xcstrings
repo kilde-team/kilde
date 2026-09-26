@@ -413,25 +413,25 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Starts recording screen and audio in kilde. Uses the audio sources and save location currently selected in the app's panel"
+            "value": "Starts a screen or audio recording in kilde. Uses the audio sources and save location currently selected in the app's panel"
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Inicia la grabación de pantalla y audio en kilde. Usa las fuentes de audio y la ubicación de guardado seleccionadas en el panel de la app"
+            "value": "Inicia una grabación de pantalla o de audio en kilde. Usa las fuentes de audio y la ubicación de guardado seleccionadas en el panel de la app"
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "kilde에서 화면 및 오디오 녹화를 시작합니다. 오디오 소스와 저장 위치는 앱 패널에서 현재 선택한 설정을 사용합니다"
+            "value": "kilde에서 화면 또는 오디오 녹화를 시작합니다. 오디오 소스와 저장 위치는 앱 패널에서 현재 선택한 설정을 사용합니다"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "在 kilde 中开始录制屏幕和音频。音频来源与保存位置使用应用面板中当前的所选设置"
+            "value": "在 kilde 中开始录制屏幕或音频。音频来源与保存位置使用应用面板中当前的所选设置"
           }
         }
       }

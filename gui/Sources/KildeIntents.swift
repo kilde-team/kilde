@@ -159,9 +159,28 @@ nonisolated enum TranscriptLookup {
             $0.lastPathComponent.hasPrefix("kilde-")
                 && recordingExtensions.contains($0.pathExtension.lowercased())
         }
+        // «録画 stem → 対応サイドカー» の辞書を先に作る — 録画ごとに
+        // transcriptSidecar が候補を全部走査すると O(録画数 × 候補数) になるため
+        // (録画・サイドカーが多い保存先でショートカットの応答が遅れる)。ここでの
+        // 割り当ては候補の絞り込みに限る — 完全一致 / `<stem>-<数字>` のペア判定と
+        // 優先選択は transcriptSidecar が最終判定する
+        let recordingStems = Set(recordings.map { $0.deletingPathExtension().lastPathComponent })
+        var sidecarsByRecordingStem: [String: [URL]] = [:]
+        for sidecar in sidecars {
+            let stem = sidecar.deletingPathExtension().lastPathComponent
+            sidecarsByRecordingStem[stem, default: []].append(sidecar)
+            guard let lastDash = stem.lastIndex(of: "-") else { continue }
+            let base = String(stem[..<lastDash])
+            let digits = stem[stem.index(after: lastDash)...]
+            guard recordingStems.contains(base), !digits.isEmpty,
+                  digits.allSatisfy(\.isNumber) else { continue }
+            sidecarsByRecordingStem[base, default: []].append(sidecar)
+        }
         // 新しい録画に対応するサイドカーから順に読む («最新» は録画の新しい順)
         for recording in recordings.sorted(by: { modificationDate(of: $0) > modificationDate(of: $1) }) {
-            guard let sidecar = RecordingSetup.transcriptSidecar(for: recording, among: sidecars),
+            let stem = recording.deletingPathExtension().lastPathComponent
+            guard let candidates = sidecarsByRecordingStem[stem], !candidates.isEmpty,
+                  let sidecar = RecordingSetup.transcriptSidecar(for: recording, among: candidates),
                   let text = try? String(contentsOf: sidecar, encoding: .utf8),
                   !text.isEmpty else {
                 continue
