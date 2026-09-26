@@ -114,7 +114,9 @@ jobs:
           python3 -m asc_submit run "$APP_ID" --spec "$spec_path" --dry-run
 
       - name: Decode the App Store Connect API key
-        if: inputs.mode == 'apply' || inputs.mode == 'submit'
+        # upload も含める: アーカイブ〜アップロードのクラウド署名を ASC API キーで
+        # 行う (下の upload step 参照)。plan は書き込まないので鍵不要
+        if: inputs.mode != 'plan'
         env:
           ASC_CI_KEY_B64: ${{ secrets.ASC_CI_KEY_B64 }}
           ASC_CI_KEY_ID: ${{ secrets.ASC_CI_KEY_ID }}
@@ -159,7 +161,7 @@ jobs:
           python3 -m asc_submit run "$APP_ID" --spec "$spec_path" "${ARGS[@]}"
 
       - name: Remove the decoded key
-        if: ${{ always() && (inputs.mode == 'apply' || inputs.mode == 'submit') }}
+        if: ${{ always() && (inputs.mode != 'plan') }}
         run: |
           # .p8 を RUNNER_TEMP に残さない (self-hosted はジョブ間でディレクトリが残る)
           rm -rf "$RUNNER_TEMP/asc"
@@ -170,10 +172,18 @@ jobs:
           VERSION: ${{ inputs.version }}
           BUILD: ${{ inputs.build }}
           KILDE_CLI_SWIFT_TOKEN: ${{ secrets.KILDE_CLI_SWIFT_TOKEN }}
+          # クラウド署名は ASC API キー (App Manager ロール、クラウド署名の権限) で
+          # 行う。m1 の Xcode Apple ID セッションは xcodebuild から見えない実測
+          # (run 36279294564: "No Accounts" でアーカイブが落ちた) ので、キー経路に
+          # 統一する。変数名が asc-submit の ASC_KEY_* と違うのはわざと (CLAUDE.md §5-19:
+          # notarization 用の AC_API_KEY* と混線しないようにスクリプト側で分けている)
+          KILDE_ASC_API_KEY: ${{ env.ASC_KEY_PATH }}
+          KILDE_ASC_API_KEY_ID: ${{ env.ASC_KEY_ID }}
+          KILDE_ASC_API_KEY_ISSUER: ${{ env.ASC_ISSUER }}
         run: |
           # appstore-archive.sh は KILDE_CLI_SWIFT_TOKEN を環境変数だけで使う
-          # (git config を汚さない)。クラウド署名は m1 の Xcode にログイン済みの
-          # Apple ID セッションで行う (KILDE_ASC_API_KEY* は渡さない — CLAUDE.md §5-19)
+          # (git config を汚さない)
+          [ -n "$KILDE_ASC_API_KEY" ] || { echo "ASC API キーが展開できていません (decode step を確認)"; exit 1; }
           export PATH="$HOME/bin:$PATH"
           command -v xcodegen >/dev/null \
             || { echo "~/bin/xcodegen が見つかりません (XcodeGen 2.46.0 を m1 の ~/bin へインストール済みのはず)"; exit 1; }
