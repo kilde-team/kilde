@@ -1,9 +1,9 @@
 class Kilde < Formula
   desc "Command-line screen and audio recorder for macOS"
   homepage "https://github.com/kilde-team/kilde"
-  url "https://github.com/kilde-team/kilde/releases/download/v0.6.0/kilde-0.6.0-macos.zip"
+  url "https://github.com/kilde-team/kilde/releases/download/v0.7.0/kilde-0.7.0-macos.zip"
   # v0.6.0 の実配布物のハッシュ (2026-09-25 のリリースで確定)
-  sha256 "0ad4c910dede65bea348c63f47d5a94053a4cb9e52950e8441c26508188ea678"
+  sha256 "e105d07cb88215582d051c5406da41f333af365c106e821987bfff19d65c8d7c"
   license "MIT"
 
   # 配布 zip は arm64 (Apple Silicon) ビルドのみ (release workflow の macos-26
