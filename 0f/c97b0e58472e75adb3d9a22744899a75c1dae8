@@ -1,0 +1,14 @@
+homebrew/Formula/kilde.rb
+  h_864205080385bc 4-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0fc97b0e58472e75adb3d9a22744899a75c1dae8",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
