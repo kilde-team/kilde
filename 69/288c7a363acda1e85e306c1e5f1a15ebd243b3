@@ -1,0 +1,21 @@
+gui/Resources/Localizable.xcstrings
+  s_43fc94637f2d7b::t_bbb93d0f9b4904 416,422,428,434
+gui/Sources/KildeIntents.swift
+  s_43fc94637f2d7b::t_d4805338b0158a 162-178,181-183
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "69288c7a363acda1e85e306c1e5f1a15ebd243b3",
+  "prompts": {},
+  "sessions": {
+    "s_43fc94637f2d7b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "807af000-6796-4c9b-a24d-6464d288ee4e",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
