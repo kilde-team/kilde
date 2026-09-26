@@ -74,9 +74,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: takezou621/asc-submit
-          # spec の keywords / subtitles フィールドは v0.2.0 から。それ未満の
-          # asc-submit は未知のキーを黙って無視するため、必ずこの ref 以上に固定する
-          ref: v0.2.0
+          # v0.2.0: spec の keywords / subtitles 対応 (未満は未知のキーを黙って無視)。
+          # v0.2.1: create-version の platform 列挙値修正 (OS_X → MAC_OS。v0.2.0 は
+          # バージョン作成が HTTP 409 で失敗する — apply の初回実行 run 36252411489 で発見)
+          ref: v0.2.1
           path: asc-submit
           persist-credentials: false
 
