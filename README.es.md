@@ -58,8 +58,8 @@ el App Store la mantiene actualizada automáticamente:
 
 <a href="https://apps.apple.com/app/id6812783176">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/appstore/badge/mac-app-store-badge-en-white.svg">
-    <img src="docs/appstore/badge/mac-app-store-badge-en-black.svg" alt="Descargar en el Mac App Store" height="40">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/appstore/badge/mac-app-store-badge-es-white.svg">
+    <img src="docs/appstore/badge/mac-app-store-badge-es-black.svg" alt="Descargar en el Mac App Store" height="40">
   </picture>
 </a>
 
