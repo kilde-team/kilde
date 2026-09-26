@@ -408,7 +408,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 case .screen: return String(localized: "画面収録")
                 case .mic: return String(localized: "マイク")
                 }
-            }.joined(separator: "・")
+            }.joined(separator: ", ")
             return String(localized: "\(names)の権限が足りないため開始できません")
         }
         // ボタン・ホットキーと同じ判定 (issue #70 の列挙との競合を避ける)。
@@ -440,18 +440,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// ショートカット用: 最新の文字起こしの内容。見つからなければ nil。
     /// アプリ内で最後に完了した文字起こしを優先し、再起動でメモリ内の記録が消えていたら
-    /// 保存先の走査で最新のサイドカーを探す (録画と同じディレクトリに書かれる)
-    func latestTranscriptForIntent() -> String? {
-        if let url = transcription.lastCompletion?.sidecarURL,
-           let text = try? String(contentsOf: url, encoding: .utf8) {
-            return text
-        }
+    /// 保存先の走査で最新のサイドカーを探す (録画と同じディレクトリに書かれる)。
+    /// ファイルの走査とテキストの読み込みは MainActor の外 (Task.detached) で行う —
+    /// 保存先が遅いボリュームでもメニューバーの UI を止めないため
+    /// («最近の録画» の走査と同じ扱い)
+    func latestTranscriptForIntent() async -> String? {
+        let lastURL = transcription.lastCompletion?.sidecarURL
         let directory = setup.request.outputDirectory
-        guard let url = TranscriptLookup.latestSidecar(in: directory),
-              let text = try? String(contentsOf: url, encoding: .utf8) else {
-            return nil
-        }
-        return text
+        return await Task.detached {
+            if let lastURL,
+               let text = try? String(contentsOf: lastURL, encoding: .utf8),
+               !text.isEmpty {
+                return text
+            }
+            return TranscriptLookup.latestText(in: directory)
+        }.value
     }
 
     @objc private func togglePopover() {

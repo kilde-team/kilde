@@ -59,6 +59,35 @@
         }
       }
     },
+    "%@の権限が足りないため開始できません": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cannot start: missing %@ permission"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se puede iniciar: falta el permiso de %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 권한이 부족하여 시작할 수 없습니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缺少%@权限，无法开始"
+          }
+        }
+      }
+    },
     "(タイトルなし)": {
       "extractionState": "manual",
       "localizations": {
@@ -349,6 +378,122 @@
         }
       }
     },
+    "kilde で最後に文字起こしした録画のテキストを返します": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Returns the text of the recording you last transcribed in kilde"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Devuelve el texto de la grabación que transcribiste por última vez en kilde"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "kilde에서 마지막으로 텍스트 변환한 녹화의 텍스트를 반환합니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "返回在 kilde 中最后一次转写的录制的文本"
+          }
+        }
+      }
+    },
+    "kilde で録画・録音を始めます。音声ソースと保存先はアプリのパネルの現在の選択を使います": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starts recording screen and audio in kilde. Uses the audio sources and save location currently selected in the app's panel"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inicia la grabación de pantalla y audio en kilde. Usa las fuentes de audio y la ubicación de guardado seleccionadas en el panel de la app"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "kilde에서 화면 및 오디오 녹화를 시작합니다. 오디오 소스와 저장 위치는 앱 패널에서 현재 선택한 설정을 사용합니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 kilde 中开始录制屏幕和音频。音频来源与保存位置使用应用面板中当前的所选设置"
+          }
+        }
+      }
+    },
+    "kilde の録画・録音を停止してファイルを保存します。保存の完了は通知でお知らせします": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stops kilde's recording and saves the file. A notification appears when saving completes"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detiene la grabación de kilde y guarda el archivo. Se muestra una notificación al terminar de guardar"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "kilde의 녹화·녹음을 중지하고 파일을 저장합니다. 저장이 완료되면 알림으로 알려드립니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止 kilde 的录制并保存文件。保存完成时会通过通知告知"
+          }
+        }
+      }
+    },
+    "kilde を起動してからもう一度お試しください": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Launch kilde and try again"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abre kilde e inténtalo de nuevo"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "kilde를 실행한 후 다시 시도해 주세요"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先启动 kilde，然后重试"
+          }
+        }
+      }
+    },
     "~/.kilde/config.json に保存します (CLI の kilde rec の既定値も変わります)": {
       "extractionState": "manual",
       "localizations": {
@@ -548,6 +693,35 @@
           "stringUnit": {
             "state": "translated",
             "value": "将此音频和保存位置的选择设为默认"
+          }
+        }
+      }
+    },
+    "すでに録画中です": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Already recording"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ya se está grabando"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이미 녹화 중입니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已在录制中"
           }
         }
       }
@@ -2234,6 +2408,35 @@
         }
       }
     },
+    "文字起こしが見つかりません。kilde で録画し、文字起こしを有効にすると作成されます": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No transcript found. Record in kilde with transcription enabled to create one"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se encontró ninguna transcripción. Graba en kilde con la transcripción activada para crear una"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "텍스트 변환을 찾을 수 없습니다. kilde에서 녹화하고 텍스트 변환을 활성화하면 생성됩니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到转写文本。在 kilde 中录制并启用转写后会生成"
+          }
+        }
+      }
+    },
     "文字起こしの準備中…": {
       "extractionState": "manual",
       "localizations": {
@@ -2553,6 +2756,64 @@
         }
       }
     },
+    "最新の文字起こしを取得": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Get latest transcript"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Obtener la última transcripción"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "최근 텍스트 변환 가져오기"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "获取最新转写文本"
+          }
+        }
+      }
+    },
+    "最新の文字起こしを返しました": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Returned the latest transcript"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se devolvió la última transcripción"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "최근 텍스트 변환을 반환했습니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已返回最新转写文本"
+          }
+        }
+      }
+    },
     "最近の録画": {
       "extractionState": "manual",
       "localizations": {
@@ -2698,6 +2959,35 @@
         }
       }
     },
+    "画面 / ウィンドウを録画": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record screen or window"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grabar pantalla o ventana"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "화면 / 창 녹화"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "录制屏幕 / 窗口"
+          }
+        }
+      }
+    },
     "画面/ウィンドウの一覧を読み込み中です": {
       "extractionState": "manual",
       "localizations": {
@@ -2839,6 +3129,35 @@
           "stringUnit": {
             "state": "translated",
             "value": "正在枚举显示器/窗口（与开始录制同时进行会导致两者都卡住）"
+          }
+        }
+      }
+    },
+    "画面収録": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Screen recording"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grabación de pantalla"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "화면 녹화"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "屏幕录制"
           }
         }
       }
@@ -3394,6 +3713,180 @@
         }
       }
     },
+    "録画を停止": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop recording"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detener grabación"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "녹화 중지"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止录制"
+          }
+        }
+      }
+    },
+    "録画を停止しています": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stopping recording"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deteniendo la grabación"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "녹화를 중지합니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在停止录制"
+          }
+        }
+      }
+    },
+    "録画を開始": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start recording"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iniciar grabación"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "녹화 시작"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开始录制"
+          }
+        }
+      }
+    },
+    "録画を開始します": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Starting recording"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Iniciando la grabación"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "녹화를 시작합니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在开始录制"
+          }
+        }
+      }
+    },
+    "録画モード": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording mode"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modo de grabación"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "녹화 모드"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "录制模式"
+          }
+        }
+      }
+    },
+    "録画中ではありません": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not recording"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se está grabando"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "녹화 중이 아닙니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未在录制中"
+          }
+        }
+      }
+    },
     "録画中に更新を適用したときは、録画を停止してファイルの保存が終わってから再起動します": {
       "extractionState": "manual",
       "localizations": {
@@ -3622,6 +4115,35 @@
           "stringUnit": {
             "state": "translated",
             "value": "仅音频"
+          }
+        }
+      }
+    },
+    "音声のみを録音": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Record audio only"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grabar solo audio"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "오디오만 녹음"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅录制音频"
           }
         }
       }
