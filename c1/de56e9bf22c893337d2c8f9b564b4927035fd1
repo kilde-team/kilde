@@ -1,0 +1,18 @@
+docs/appstore/metadata/README.md
+  h_864205080385bc 57-58,68,70-85,88-92,115-120,122-124
+docs/appstore/metadata/metadata-ja.md
+  h_864205080385bc 68,71-76
+docs/appstore/metadata/metrics.md
+  h_864205080385bc 15-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c1de56e9bf22c893337d2c8f9b564b4927035fd1",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
