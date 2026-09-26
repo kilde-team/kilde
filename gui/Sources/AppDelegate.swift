@@ -83,19 +83,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
+    /// Firebase を初期化して利用状況の送信 (Analytics / Crashlytics) を始めるか。
+    /// - セルフテスト (KILDE_GUI_SELFTEST_*): 送らない。ネットワーク送信とクラッシュ
+    ///   報告が検証の邪魔になる (Sparkle と分岐は違う — updaterStartsAtLaunch 参照)
+    /// - **Debug 構成: 送らない** (issue #219)。GoogleService-Info.plist は本番アプリの
+    ///   BUNDLE_ID / GOOGLE_APP_ID を指したまま (plist は .dev 用に分けない — Firebase
+    ///   アプリの追加登録と 2 plist 管理のコストの方が高い)。configure() は plist の
+    ///   BUNDLE_ID をそのまま使うため (firebase-ios-sdk 12.19.2 FIROptions.m:208-218 —
+    ///   上書きが起こるのはプログラム経路の initWithGoogleAppID:GCMSenderID: のみ)、
+    ///   .dev バンドル ID のまま本番 Firebase アプリに繋がる。Debug から送ると本番の
+    ///   計測に開発機のデータが混ざり、Crashlytics の報告は dSYM を送っていない
+    ///   (project.yml の postBuildScripts は Release 専用) のでシンボル無しで混ざるだけ。
+    ///   開発時のクラッシュは Xcode / Console.app で見るため Crashlytics に頼らない
+    /// - 通常起動 (Release 構成): 送る
+    ///
+    /// UsageAnalytics.isEnabled は `FirebaseApp.app() != nil` を見るので、configure()
+    /// を飛ばせばイベント送信も Crashlytics も自動で止まる。plist 漏れ (configure() が
+    /// NSException を投げて起動即クラッシュ) の検出は Debug ではもう起こらない —
+    /// 配布ビルドはすべて Release 構成 (sign.sh / appstore-archive.sh) なので、
+    /// アーカイブ時の初回起動で気づく
+    static func sendsUsageToFirebase(isSelfTest: Bool) -> Bool {
+#if DEBUG
+        return false
+#else
+        return !isSelfTest
+#endif
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         Self.shared = self
         // Firebase Analytics (issue #135)。GoogleService-Info.plist を読んで計測を始める。
         // **plist が無い・不正な場合 configure() は NSException を投げて起動即クラッシュ
         // する** (Swift から捕捉できない)。握りつぶしのガードは足さない — plist は
-        // 両ターゲットの resources に必須で、漏れは開発時の初回起動で即気づく方が、
-        // 計測が黙って欠けるより安全
-        // セルフテストでは実利用のイベントを送らない。**Sparkle と分岐は違う** —
+        // 両ターゲットの resources に必須で、漏れは配布ビルド (Release 構成) の初回
+        // 起動で即気づく方が、計測が黙って欠けるより安全 (Debug 構成では送らないため
+        // 検出はアーカイブ時になる — sendsUsageToFirebase 参照)
+        // 送信を始める条件は sendsUsageToFirebase — セルフテストに加え **Debug 構成でも
+        // 送らない** (issue #219、理由は関数のコメント)。**Sparkle と分岐は違う** —
         // Sparkle は KILDE_GUI_SELFTEST_UPDATE=1 でも起動する (updaterStartsAtLaunch)
-        // が、Firebase は全セルフテストで起動しない
+        // が、Firebase はセルフテスト・Debug 構成のどちらでも起動しない
         let isSelfTest = ProcessInfo.processInfo.environment.keys
             .contains { $0.hasPrefix("KILDE_GUI_SELFTEST_") }
-        if !isSelfTest {
+        if Self.sendsUsageToFirebase(isSelfTest: isSelfTest) {
             FirebaseApp.configure()
             // Analytics の初期化は project.yml の OTHER_LDFLAGS: -ObjC に依存する。
             // -ObjC が無いと Analytics の ObjC クラスが「どこからも参照されない」扱いで
@@ -107,7 +136,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // クラッシュ解析 (issue #210)。FirebaseCrashlytics をリンクしていれば
             // configure() が自動で有効にし、次回起動時に前回のクラッシュを送る。
             // 明示的に取り出すのは «リンクされて初期化されている» ことをコードに残すため。
-            // セルフテストでは上の configure() 自体を呼ばないので、クラッシュも送らない。
+            // セルフテスト・Debug 構成では上の configure() 自体を呼ばないので、
+            // クラッシュも送らない。
             //
             // **NSApplicationCrashOnExceptions は有効にしない。** Firebase は macOS で
             // これを YES にするよう勧めているが、有効にすると AppKit が握りつぶしていた

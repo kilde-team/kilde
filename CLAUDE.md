@@ -230,6 +230,16 @@ Info.plist 埋め込みの `unsafeFlags`、SDK シンボルの CI 確認) は
     プロセス再起動 (docs/DEVELOPMENT.md §2)。MAS ターゲットの旧コメントにあった
     «TCC は署名チーム単位で効く» は誤り — DR が互換なら同一チームでも、互換が
     無ければ別系統でも、分かれる単位はバンドル ID
+22. **Debug 構成は Firebase を初期化しない** (issue #219)。`GoogleService-Info.plist`
+    は本番アプリの BUNDLE_ID / GOOGLE_APP_ID を指したまま (#217 の .dev 分離と違い
+    plist は 1 個のまま — Debug 用 Firebase アプリの登録と 2 plist 管理はしない) で、
+    `FirebaseApp.configure()` は plist の BUNDLE_ID をそのまま使うため .dev バンドル
+    ID のまま本番 Firebase に繋がる。AppDelegate の `sendsUsageToFirebase` が Debug で
+    false を返し、Analytics も Crashlytics も送らない — **«Debug なのに計測が飛ばない»
+    は仕様**。開発時のクラッシュは Xcode / Console.app で見る。分岐は `#if DEBUG` だが
+    **KildeGUI-AppStore の Debug 構成は base の APPSTORE が XcodeGen 既定の DEBUG を
+    上書きする**ため、project.yml の configs.Debug に `APPSTORE DEBUG` を明示してある
+    — この行を消すと MAS の Debug ビルドだけ本番 Firebase に送る状態へ戻る
 
 ## 6. 作業の進め方 — issue 駆動 (共通ルールは AGENTS.md)
 

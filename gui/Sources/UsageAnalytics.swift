@@ -19,10 +19,10 @@ import FirebaseCore
 /// «利用統計» の枠にとどまる (App Privacy ラベル «製品の操作» も変えない)。
 enum UsageAnalytics {
 
-    /// Firebase が初期化済みのときだけ送る。**セルフテストは configure しない**
-    /// (AppDelegate.applicationDidFinishLaunching 参照) ので、ここで跳ねる。
+    /// Firebase が初期化済みのときだけ送る。**セルフテストと Debug 構成は configure
+    /// しない** (AppDelegate.sendsUsageToFirebase 参照) ので、ここで跳ねる。
     /// 未初期化のまま logEvent しても送信は起こらないが、明示しておくと
-    /// «セルフテストでは何も送っていない» が読み取れる
+    /// «セルフテスト・Debug では何も送っていない» が読み取れる
     private static var isEnabled: Bool { FirebaseApp.app() != nil }
 
     /// 文字起こしの実行に取りかかった (待ち行列に積まれた時点ではなく、

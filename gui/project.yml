@@ -260,6 +260,11 @@ targets:
       configs:
         Debug:
           PRODUCT_BUNDLE_IDENTIFIER: com.takezou621.KildeGUI.dev
+          # base の APPSTORE が XcodeGen 既定の Debug 用 DEBUG を上書きするため、
+          # Debug 構成では DEBUG を明示して戻す (issue #219)。この行が無いと MAS の
+          # Debug ビルドだけ #if DEBUG 分岐が死に、AppDelegate の Firebase 送信の
+          # 抑制 (.dev バンドル ID のまま本番 Firebase へ送る問題) が効かなくなる
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: APPSTORE DEBUG
     dependencies:
       - package: kilde-cli-swift
         product: KildeCore

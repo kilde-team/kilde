@@ -65,6 +65,13 @@ UserDefaults (Sparkle の `SU*` キーを含む) も `.dev` ドメインに分�
 システム設定では同名の「KildeGUI」が 2 つ並ぶので、どちらが開発用かは
 Xcode から起動したときに出るダイアログから許可すれば間違いありません。
 
+計測も本番から切り離してあります。**Debug 構成は Firebase を初期化しない**ため
+(issue #219)、Analytics の利用統計も Crashlytics のクラッシュレポートも本番の
+Firebase プロジェクトへ送られません。`GoogleService-Info.plist` は本番アプリを
+指したままです (Debug 用の Firebase アプリは登録していない — plist を 2 種類
+管理しない選択)。«Debug なのに計測が飛ばない» は仕様で、開発時のクラッシュは
+Xcode か Console.app のクラッシュレポートで確認してください。
+
 過去に権限の取り合いで壊れたレコードは、対象バンドル ID を指定してリセットします
 (ターミナルから実行可能。Full Disk Access は不要):
 
