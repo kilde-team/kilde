@@ -1,0 +1,136 @@
+name: MAS watch
+
+# issue #160: MAS 審査結果 (リジェクト / 承認) の自動検知。ASC に webhook は無いので
+# バージョン状態を 30 分ごとにポーリングする (読み取りのみ、書き込みなし)。
+#
+# - REJECTED / METADATA_REJECTED / DEVELOPER_REJECTED → **ジョブを失敗させる**
+#   (GitHub の通知設定でメールが届く) + Resolution Center へのリンク付きで issue 起票
+#   (既存 open issue と同じタイトルなら起票しない — 収束する設計)
+# - READY_FOR_SALE → metrics.md の承認日記入と CSV エクスポートを促す issue を起票
+# - 審査中など上記以外 → 黙って成功 (ログに状態を残すだけ)
+#
+# なぜ m1 ではなく ubuntu-latest か: ポーリングは数秒の macOS 非依存ジョブで
+# m1 を占有する理由が無いこと、m1 がオフラインの間も検知が止まらないこと
+# (self-hosted はランナー待ちで scheduled ジョブが滞留する)。schedule は fork PR
+# から触れないトリガなので secrets の扱いは安全。
+#
+# 注意: GitHub は public リポジトリで 60 日間活動が無いと schedule を自動停止する。
+# 停止時はこの workflow のページから Enable し直す。cron はデフォルトブランチの
+# workflow でのみ動く。
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: mas-watch
+  cancel-in-progress: false
+
+env:
+  APP_ID: "6812783176" # com.takezou621.KildeGUI
+
+jobs:
+  watch:
+    name: Watch the review state
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout kilde
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Checkout asc-submit (pinned)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: takezou621/asc-submit
+          ref: v0.2.4
+          path: asc-submit
+          persist-credentials: false
+
+      - name: Selftest the decision logic
+        run: |
+          # 判別規則のオフライン検証 (ネットワーク・鍵不要)。壊れたまま 30 分ごとに
+          # 動かすことを防ぐ
+          python3 scripts/release/appstore-watch.py --selftest
+
+      - name: Check the review state
+        id: check
+        env:
+          PYTHONPATH: asc-submit
+          ASC_CI_KEY_B64: ${{ secrets.ASC_CI_KEY_B64 }}
+          ASC_CI_KEY_ID: ${{ secrets.ASC_CI_KEY_ID }}
+          ASC_CI_ISSUER: ${{ secrets.ASC_CI_ISSUER }}
+        run: |
+          SET_COUNT=0
+          [ -n "$ASC_CI_KEY_B64" ] && SET_COUNT=$((SET_COUNT+1))
+          [ -n "$ASC_CI_KEY_ID" ] && SET_COUNT=$((SET_COUNT+1))
+          [ -n "$ASC_CI_ISSUER" ] && SET_COUNT=$((SET_COUNT+1))
+          [ "$SET_COUNT" -eq 3 ] || { echo "ASC_CI_* の 3 secrets が必要です (mas.yml と共通)"; exit 1; }
+          umask 077
+          mkdir -p "$RUNNER_TEMP/asc"
+          printf '%s' "$ASC_CI_KEY_B64" | base64 --decode -o "$RUNNER_TEMP/asc/AuthKey.p8"
+          export ASC_KEY_PATH="$RUNNER_TEMP/asc/AuthKey.p8"
+          export ASC_KEY_ID="$ASC_CI_KEY_ID"
+          export ASC_ISSUER="$ASC_CI_ISSUER"
+          trap 'rm -rf "$RUNNER_TEMP/asc"' EXIT
+          python3 scripts/release/appstore-watch.py --app "$APP_ID" | tee watch-result.txt
+          # KIND 行を後続 step へ (env 経由。run 内展開はインジェクション防止でしない)
+          echo "kind=$(sed -n 's/^KIND=//p' watch-result.txt)" >> "$GITHUB_OUTPUT"
+          echo "watched_version=$(sed -n 's/^VERSION=//p' watch-result.txt)" >> "$GITHUB_OUTPUT"
+          echo "watched_state=$(sed -n 's/^STATE=//p' watch-result.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Open a rejection issue
+        if: steps.check.outputs.kind == 'rejected'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.check.outputs.watched_version }}
+          STATE: ${{ steps.check.outputs.watched_state }}
+        run: |
+          TITLE="MAS: ${VERSION} がリジェクトされました (${STATE})"
+          COUNT="$(gh issue list --state open --limit 200 --json title --jq '.[].title' | grep -cxF "$TITLE" || true)"
+          if [ "$COUNT" -gt 0 ]; then
+            echo "issue は既にあるため起票しない (1 件の失敗通知で収束させる)"
+          else
+            {
+              echo "ASC が **${STATE}** を返しました (m1 の MAS watch による自動検知)。"
+              echo
+              echo "**対応手順**:"
+              echo "1. Apple のメール / Resolution Center で理由を確認する — 理由の本文は API に存在しない: <https://appstoreconnect.apple.com/apps/6812783176/distribution>"
+              echo "2. 指摘に応じて対応 issue を切り、修正する (メタデータ文面の正本は \`docs/appstore/metadata/\`、レビューノートは \`docs/appstore/review-notes.md\`)"
+              echo "3. 修正後は MAS workflow の \`upload\` → \`apply\` → \`submit\` で再提出する"
+              echo
+              echo "Refs #160"
+            } > issue-body.md
+            gh issue create --title "$TITLE" --body-file issue-body.md
+          fi
+          # リジェクトは見過ごしにできないので、通知 (失敗メール) も確実に飛ばす
+          exit 1
+
+      - name: Open an approval reminder issue
+        if: steps.check.outputs.kind == 'approved'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.check.outputs.watched_version }}
+        run: |
+          TITLE="MAS: ${VERSION} が承認されました (metrics 記入と計測開始)"
+          COUNT="$(gh issue list --state open --limit 200 --json title --jq '.[].title' | grep -cxF "$TITLE" || true)"
+          if [ "$COUNT" -gt 0 ]; then
+            echo "issue は既にあるため起票しない"
+          else
+            {
+              echo "**${VERSION}** が READY_FOR_SALE になりました (m1 の MAS watch による自動検知)。"
+              echo
+              echo "**残作業 (issue #160 の計測フロー)**:"
+              echo "1. \`docs/appstore/metadata/metrics.md\` に承認日を記入 (ここが変更前後比較の境界)"
+              echo "2. ASC → 分析 から CSV をエクスポートし、metrics.md の週次表に転記"
+              echo "3. 変更後 4 週間の計測が揃ったら #160 を close"
+            } > issue-body.md
+            gh issue create --title "$TITLE" --body-file issue-body.md
+          fi
