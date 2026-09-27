@@ -10,9 +10,10 @@ SCHEME="KildeGUI-AppStore"
 # App Store Connect API キー (**任意** — 「ユーザとアクセス → 統合」で発行する .p8)。
 # 未指定なら xcodebuild -allowProvisioningUpdates がこの Mac の Xcode にログイン済みの
 # Apple ID セッションで証明書・プロファイルを作り、アップロードもそこから行う。
-# API キーを渡す場合は «クラウド署名» の権限 (キーロール App Manager 以上) が要る —
-# 権限の無いキーだとエクスポートが "Cloud signing permission error" で失敗する
-# (Xcode 26 実測)。
+# API キーを渡す場合は **Admin ロール** が要る — 配布証明書 (クラウド管理証明書) の
+# 作成は Account Holder/Admin 限定で、App Manager のキーだとエクスポートが
+# "Cloud signing permission error / You haven't been given access to cloud-managed
+# distribution certificates" で失敗する (0.8.1 の m1 ラインで実測。Xcode 26)。
 # **変数名は sign.sh (notarization) の AC_API_KEY* とわざと分けてある**。以前は同じ名前を
 # 読んでいたため、notarization 用に AC_API_KEY* を export したままのシェルで実行すると
 # クラウド署名の権限を持たないキーが黙って使われ、アーカイブ (十数分) の後の

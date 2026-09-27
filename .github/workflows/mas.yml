@@ -166,11 +166,14 @@ jobs:
           VERSION: ${{ inputs.version }}
           BUILD: ${{ inputs.build }}
           KILDE_CLI_SWIFT_TOKEN: ${{ secrets.KILDE_CLI_SWIFT_TOKEN }}
-          # クラウド署名は ASC API キー (App Manager ロール、クラウド署名の権限) で
-          # 行う。m1 の Xcode Apple ID セッションは xcodebuild から見えない実測
-          # (run 36279294564: "No Accounts" でアーカイブが落ちた) ので、キー経路に
-          # 統一する。変数名が asc-submit の ASC_KEY_* と違うのはわざと (CLAUDE.md §5-19:
-          # notarization 用の AC_API_KEY* と混線しないようにスクリプト側で分けている)
+          # クラウド署名は ASC API キー (**Admin ロール** — 配布証明書の作成は
+          # Account Holder/Admin 限定で、App Manager のキーだと "You haven't been
+          # given access to cloud-managed distribution certificates" でエクスポートが
+          # 落ちた。run 36281605553 で Admin 鍵により成功を実証) で行う。m1 の Xcode
+          # Apple ID セッションは xcodebuild から見えない実測 (run 36279294564:
+          # "No Accounts" でアーカイブが落ちた) ので、キー経路に統一する。変数名が
+          # asc-submit の ASC_KEY_* と違うのはわざと (CLAUDE.md §5-19: notarization 用の
+          # AC_API_KEY* と混線しないようにスクリプト側で分けている)
           KILDE_ASC_API_KEY: ${{ env.ASC_KEY_PATH }}
           KILDE_ASC_API_KEY_ID: ${{ env.ASC_KEY_ID }}
           # KILDE_ASC_API_ISSUER — 「KEY」を挟まない (スクリプトの変数名。PR #255 で

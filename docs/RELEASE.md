@@ -351,10 +351,12 @@ spec の該当フィールドが黙って無視されるため、実行前に最
 手元の Mac で実行する場合 (フォールバック):
 
 ```sh
-# 0. 初回のみ: App Manager ロールの API キーを発行して環境変数へ
-#    (Developer ロールのキーは読み取り専用。~/.zshrc に設定済み)
-export ASC_KEY_PATH=~/.klide-asc/AuthKey_Z5TTR4P3DD.p8
-export ASC_KEY_ID=Z5TTR4P3DD
+# 0. 初回のみ: **Admin ロール**の API キーを発行して環境変数へ
+#    (Developer ロールのキーは読み取り専用。App Manager はメタデータ書き込みは
+#     できるが、**クラウド署名 (配布証明書の作成) は Admin 限定** — 0.8.1 で実測。
+#     詳細は上の mas.yml の secrets 欄とワークフローコメント参照)
+export ASC_KEY_PATH=~/.klide-asc/AuthKey_<KEYID>.p8
+export ASC_KEY_ID=<KEYID>
 export ASC_ISSUER=69a6de6f-7282-47e3-e053-5b8c7c11a4d1
 asc-submit doctor 6812783176   # exit 0 なら提出可能
 
@@ -371,9 +373,11 @@ asc-submit run 6812783176 --spec dist/appstore/release-0.7.0.json --submit
 
 asc-submit の前提: Python 3.9+ / openssl / curl。`asc_submit` パッケージは
 takezou621/asc-submit の checkout で `pip install .` する (依存は PyPI から
-取らない)。書き込み系の操作は **App Manager ロール**が必須 — Developer ロールの
-キーでは全書き込みが HTTP 403 になる (ロールは発行後に変更できないため、
-その場合は新規発行する)。
+取らない)。必要なロールは用途で分かれる (ロールは発行後に変更できないため、
+足りなければ新規発行する): メタデータ書き込み・提出は **App Manager 以上**、
+`--upload` のクラウド署名 (配布証明書の作成) は **Admin** (Developer ロールでは
+全書き込みが HTTP 403、App Manager ではエクスポートが "Cloud signing permission
+error" になる — 0.8.1 の m1 ラインで実測)。
 
 ## 8. Crashlytics の dSYM (issue #210)
 
