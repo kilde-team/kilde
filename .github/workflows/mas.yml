@@ -115,16 +115,6 @@ jobs:
           # secrets を設定する前にこのワークフローの経路を検証できる
           python3 -m asc_submit run "$APP_ID" --spec "$spec_path" --dry-run
 
-      - name: Show the version status (read-only)
-        if: inputs.mode == 'status'
-        env:
-          VERSION: ${{ inputs.version }}
-          PYTHONPATH: asc-submit
-        run: |
-          # 書き込みなしの監査用: バージョンの状態・ビルド・提出の有無を表示する。
-          # apply/submit の反映結果の裏取りに使う
-          python3 -m asc_submit status "$APP_ID" --version "$VERSION"
-
       - name: Decode the App Store Connect API key
         # upload も含める: アーカイブ〜アップロードのクラウド署名を ASC API キーで
         # 行う (下の upload step 参照)。plan は書き込まないので鍵不要
@@ -153,6 +143,16 @@ jobs:
           echo "ASC_KEY_PATH=$RUNNER_TEMP/asc/AuthKey.p8" >> "$GITHUB_ENV"
           echo "ASC_KEY_ID=$ASC_CI_KEY_ID" >> "$GITHUB_ENV"
           echo "ASC_ISSUER=$ASC_CI_ISSUER" >> "$GITHUB_ENV"
+
+      - name: Show the version status (read-only)
+        if: inputs.mode == 'status'
+        env:
+          VERSION: ${{ inputs.version }}
+          PYTHONPATH: asc-submit
+        run: |
+          # 書き込みなしの監査用: バージョンの状態・ビルド・提出の有無を表示する。
+          # apply/submit の反映結果の裏取りに使う
+          python3 -m asc_submit status "$APP_ID" --version "$VERSION"
 
       - name: Apply metadata (and submit, when mode=submit)
         if: inputs.mode == 'apply' || inputs.mode == 'submit'
