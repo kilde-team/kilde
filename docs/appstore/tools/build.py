@@ -141,49 +141,55 @@ def page(eyebrow, h1, sub, points, body, icon_uri, menubar_recording=False):
 </div></body></html>"""
 
 
+# 表示順はファイル名順 (appstore-spec.py が sorted(glob("*.png")) で全件を拾う)。
+# 先頭 2 枚は製品ページを流し見した人に「会議を録る → 文字起こし・議事録」と
+# サブタイトル (「システム音声ごと録って文字起こし」) と同じ意図が伝わる並びに
+# してある (issue #266: 0.8.1 でサブタイトルを文字起こし訴求に変えたのに、旧先頭
+# 2 枚は録音機能中心だったため)。文字起こし (旧 06 → 02 に移動) の sub には
+# macOS 26 以降の条件を括弧ではなく平文で書く — 条件を後段まで読ませない
 SHOTS = [
-    dict(name="01-capture-system-and-mic",
-         h1='システム音声とマイクを、<br><span class="hl">1 本のファイル</span>に。',
-         sub="標準の画面収録では録れない「相手の声」を、自分の声と一緒に。メニューバーからワンクリックで。",
-         points=["画面・ウィンドウ・音声のみを選んで収録",
-                 "1 トラック合成／ソースごとに分離を切り替え",
-                 "選んだ音声と保存先は次回も保持"],
+    dict(name="01-meeting",
+         h1='会議の相手の声も、<br>自分の声も、<span class="hl">1 本に</span>。',
+         sub="標準の画面収録では録れない相手の声を、マイクと一緒にそのまま録音。追加インストールは不要で、メニューバーからすぐ始められます。",
+         points=["オンライン会議をシステム音声ごと録れる",
+                 "相手の声 (システム音声) もマイクも 1 ファイルに",
+                 "録ったら自動で文字起こし (macOS 26 以降)"],
          body=panel.panel_setup()),
-    dict(name="02-recording",
+    dict(name="02-transcribe",
+         h1='録ったら、自動で<br><span class="hl">文字起こし・議事録</span>に。',
+         sub="録画が終わると、この Mac の中だけで処理される文字起こしを Markdown で書き出します。文字起こしには macOS 26 以降が必要です。",
+         points=["議事録 (Markdown) を録画の隣に自動保存",
+                 "字幕 (SRT) / テキスト / JSON も選べる",
+                 "音声をソースごとに分離すれば話者ラベル付き"],
+         body=panel.panel_transcribe()),
+    dict(name="03-recording",
          h1='録画中も、<br><span class="hl">メニューバーだけ</span>。',
          sub="経過時間・ファイルサイズ・ソースごとの入力レベルをその場で確認。パネルを閉じても録画は続きます。",
          points=["ソース別レベルメーターで録り逃しを防ぐ",
                  "経過時間はメニューバーに常時表示",
                  "グローバルホットキーで他アプリからでも停止"],
          body=panel.panel_recording(), menubar_recording=True),
-    dict(name="03-window-capture",
+    dict(name="04-window-capture",
          h1='会議アプリの<br><span class="hl">ウィンドウだけ</span>を録る。',
          sub="収録したいウィンドウを選べば、そのアプリの音声だけがきれいに入ります。デスクトップ全体を映す必要はありません。",
          points=["ウィンドウ一覧はサムネイル付き",
                  "そのアプリの音声だけを収録",
                  "デスクトップ全体を映さずに共有できる"],
          body=panel.panel_window()),
-    dict(name="04-audio-only",
+    dict(name="05-audio-only",
          h1='音声だけを、<br><span class="hl">M4A</span> で残す。',
          sub="打ち合わせの記録や文字起こし用途なら、映像を録らずに音声のみ。ファイルは小さく、扱いやすく。",
          points=["映像なし・音声のみの収録モード",
                  "ソースごとに分離して書き出せる",
                  "ログイン時に自動起動して録り逃さない"],
          body=panel.panel_audio_only()),
-    dict(name="05-safe-finish",
+    dict(name="06-safe-finish",
          h1='停止しても終了しても、<br><span class="hl">壊れたファイルを残さない</span>。',
          sub="停止ボタンでも、メニューからの終了でも。書き込み中のファイルは仕上げてから終了します。",
          points=["停止・アプリ終了のどちらでもファイナライズ",
                  "最近の録画から Finder へワンクリック",
                  "オープンソース (MIT) / 録画は Mac の外に出さない"],
          body=panel.panel_done()),
-    dict(name="06-transcribe",
-         h1='録画が終わったら、<br><span class="hl">自動で文字起こし</span>。',
-         sub="処理はこの Mac の中だけで完結。Markdown や字幕ファイルを録画と同じフォルダに自動で保存します (macOS 26 以降)。",
-         points=["録画が終わると自動で文字起こしを開始",
-                 "Markdown / 字幕 (SRT) / テキスト / JSON から選択",
-                 "音声をソースごとに分離すれば話者ラベル付き"],
-         body=panel.panel_transcribe()),
 ]
 
 
