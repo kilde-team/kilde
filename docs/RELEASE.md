@@ -347,6 +347,15 @@ spec の該当フィールドが黙って無視されるため、実行前に最
   すると LaunchDaemon 化できる (既定の LaunchAgent は止めること)
 - m1 の前提ツール: Python 3.9+ / openssl / curl (OS 標準) と
   `~/bin/xcodegen` (XcodeGen 2.46.0 を導入済み)
+- **審査結果の自動検知は [MAS watch](../.github/workflows/mas-watch.yml)**:
+  30 分ごとにバージョン状態をポーリングし、リジェクトならジョブ失敗 (通知メール) +
+  Resolution Center へのリンク付き issue、承認なら metrics 記入を促す issue を起票する
+  (既存の open **/ closed** issue と同じタイトルなら再起票しない)。Apple の webhook
+  通知を受けるサーバーを運用していないためのポーリング方式。**リジェクト理由の本文は
+  API に無く**メール / Resolution Center にしか存在しない。実行は ubuntu-latest
+  (ホスト) — m1 がオフラインでも検知が止まらないようにするため。public リポジトリの
+  schedule は **60 日間活動が無いと自動停止する**ので、止まっていたら workflow ページで
+  再有効化する
 
 手元の Mac で実行する場合 (フォールバック):
 
