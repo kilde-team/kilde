@@ -6,18 +6,19 @@ name: MAS (App Store)
 # モード (workflow_dispatch の mode):
 #   plan   — spec を生成して干渉なく計画を表示 (API キー不要。asc-submit v0.2.0 の
 #            キー無し dry-run)。設定検証・レビュー用
+#   status — バージョンの状態・ビルド・提出の有無を表示 (読み取りのみ。反映結果の裏取り)
 #   apply  — バージョン作成 (無ければ) + メタデータ (説明 / What's New / キーワード /
 #            サブタイトル) + スクリーンショットを反映。build を指定すれば割当ても。
 #            **審査への提出はしない**
 #   submit — apply の内容に加えて審査へ提出する。提出判断 (前バージョンの審査結果待ち等)
 #            は人間が行う前提なので、このモードの実行自体がゲート
 #   upload — KildeGUI-AppStore をアーカイブして ASC へアップロード (appstore-archive.sh)。
-#            **提出は始まらない**。Xcode の Apple ID セッション (m1 にログイン済み) で
-#            クラウド署名するため KILDE_ASC_API_KEY* は使わない (CLAUDE.md §5-19)
+#            **提出は始まらない**。クラウド署名は ASC API キー (Admin ロール) で行う
 #
-# 必要な secrets (apply / submit):
-#   ASC_CI_KEY_B64   CI 専用 App Manager キーの .p8 を base64 したもの
-#                    (**開発用の鍵を使い回さない** — 失効を独立にできるよう別発行)
+# 必要な secrets (status / apply / submit / upload):
+#   ASC_CI_KEY_B64   CI 専用 **Admin** ロール鍵の .p8 を base64 したもの
+#                    (クラウド署名は Admin 限定。メタデータ書き込みは App Manager でも可 —
+#                    鍵は 1 本にまとめる。開発用の鍵を使い回さない)
 #   ASC_CI_KEY_ID    キー ID
 #   ASC_CI_ISSUER    issuer ID
 #   (upload のみ) KILDE_CLI_SWIFT_TOKEN — 既存の fine-grained PAT (cli-swift 読み取り)
@@ -32,7 +33,7 @@ on:
       mode:
         description: "What to do"
         type: choice
-        options: [plan, apply, submit, upload]
+        options: [plan, status, apply, submit, upload]
         default: plan
       version:
         description: "MAS version (e.g. 0.8.1)"
@@ -82,7 +83,8 @@ jobs:
           persist-credentials: false
 
       - name: Generate the spec from the metadata files
-        # 全モード共通: docs/appstore/metadata から spec.json を作る。
+        if: inputs.mode != 'status'
+        # 全モード共通 (status を除く): docs/appstore/metadata から spec.json を作る。
         # メタデータの上限 (キーワード 100 文字 / ロケール別バイト、サブタイトル 30 文字) は
         # この生成が機械検証する (appstore-spec.py)。spec に secrets は含まれないため
         # ログへ全文出して監査証跡にする
@@ -112,6 +114,16 @@ jobs:
           # asc-submit v0.2.0 の --dry-run は API キー無しで動く (計画表示のみ)。
           # secrets を設定する前にこのワークフローの経路を検証できる
           python3 -m asc_submit run "$APP_ID" --spec "$spec_path" --dry-run
+
+      - name: Show the version status (read-only)
+        if: inputs.mode == 'status'
+        env:
+          VERSION: ${{ inputs.version }}
+          PYTHONPATH: asc-submit
+        run: |
+          # 書き込みなしの監査用: バージョンの状態・ビルド・提出の有無を表示する。
+          # apply/submit の反映結果の裏取りに使う
+          python3 -m asc_submit status "$APP_ID" --version "$VERSION"
 
       - name: Decode the App Store Connect API key
         # upload も含める: アーカイブ〜アップロードのクラウド署名を ASC API キーで
