@@ -17,11 +17,11 @@ idempotent issue, and 20 into an issue reminding the metrics update.
 **Which version is watched**: the newest version (parsed version string)
 among the non-draft ones. Drafts (PREPARE_FOR_SUBMISSION / PLANNED) are
 ignored, so a rejection stays detectable even after the next version has
-been created. Consequence: once the newest live version reaches
-READY_FOR_SALE the "approved" report keeps firing until a newer version is
-created — the workflow's issue deduplication keeps that to a single open
-issue (App Store Connect has no webhook and the API carries no per-version
-"seen" marker, so this is the simplest converging rule).
+been created. Consequence: once the newest live version reaches an
+approved state the "approved" report keeps firing until a newer version is
+created — the workflow's issue deduplication (open **and** closed issues)
+keeps that to a single issue (Apple's webhook notifications would need a
+hosted endpoint we don't operate, so polling is the pragmatic choice).
 
 Usage:
 
@@ -45,6 +45,8 @@ SELFTEST_CASES = [
     ({"0.8.1": "METADATA_REJECTED", "0.6.0": "READY_FOR_SALE"}, "rejected", "0.8.1"),
     ({"0.8.1": "DEVELOPER_REJECTED", "0.6.0": "READY_FOR_SALE"}, "rejected", "0.8.1"),
     ({"0.8.1": "READY_FOR_SALE", "0.6.0": "READY_FOR_SALE"}, "approved", "0.8.1"),
+    # MANUAL リリースの場合は承認後いったん PENDING_DEVELOPER_RELEASE になる
+    ({"0.8.1": "PENDING_DEVELOPER_RELEASE", "0.6.0": "READY_FOR_SALE"}, "approved", "0.8.1"),
     # 次バージョンのドラフトがあっても判別対象はドラフト以外の最新
     ({"0.8.1": "REJECTED", "0.9.0": "PREPARE_FOR_SUBMISSION"}, "rejected", "0.8.1"),
     ({"0.8.1": "READY_FOR_SALE", "0.9.0": "PREPARE_FOR_SUBMISSION"}, "approved", "0.8.1"),
@@ -79,7 +81,10 @@ def decide(states: dict[str, str]) -> tuple[str, str, str]:
     state = candidates[watched]
     if state in REJECTED_STATES:
         return ("rejected", watched, state)
-    if state == "READY_FOR_SALE":
+    # PENDING_DEVELOPER_RELEASE は「承認済み・リリース待ち」(MANUAL リリース時)。
+    # kilde は AFTER_APPROVAL なので通常 READY_FOR_SALE に直行するが、
+    # リリース方式を変えても通知が欠けないように承認扱いにする
+    if state in ("READY_FOR_SALE", "PENDING_DEVELOPER_RELEASE"):
         return ("approved", watched, state)
     return ("quiet", watched, state)
 

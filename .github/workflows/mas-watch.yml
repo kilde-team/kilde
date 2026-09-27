@@ -1,7 +1,8 @@
 name: MAS watch
 
-# issue #160: MAS 審査結果 (リジェクト / 承認) の自動検知。ASC に webhook は無いので
-# バージョン状態を 30 分ごとにポーリングする (読み取りのみ、書き込みなし)。
+# issue #160: MAS 審査結果 (リジェクト / 承認) の自動検知。Apple の webhook 通知を
+# 受け取るサーバーを運用しないため、バージョン状態を 30 分ごとにポーリングする
+# (読み取りのみ、書き込みなし)。
 #
 # - REJECTED / METADATA_REJECTED / DEVELOPER_REJECTED → **ジョブを失敗させる**
 #   (GitHub の通知設定でメールが届く) + Resolution Center へのリンク付きで issue 起票
@@ -50,7 +51,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: takezou621/asc-submit
-          ref: v0.2.4
+          # schedule 実行は無人で鍵と一緒に走るため、タグではなくコミット SHA に固定
+          # する (タグが移動させられると異なるコードが PYTHONPATH で読み込まれる —
+          # CodeRabbit セキュリティ指摘)。SHA は v0.2.4 を指す
+          ref: 03695e373c5cfb3c0ac1ce4928484ece6e6804be # v0.2.4
           path: asc-submit
           persist-credentials: false
 
@@ -75,7 +79,8 @@ jobs:
           [ "$SET_COUNT" -eq 3 ] || { echo "ASC_CI_* の 3 secrets が必要です (mas.yml と共通)"; exit 1; }
           umask 077
           mkdir -p "$RUNNER_TEMP/asc"
-          printf '%s' "$ASC_CI_KEY_B64" | base64 --decode -o "$RUNNER_TEMP/asc/AuthKey.p8"
+          # ubuntu (GNU base64) は -o を持たないのでリダイレクトで書く
+          printf '%s' "$ASC_CI_KEY_B64" | base64 --decode > "$RUNNER_TEMP/asc/AuthKey.p8"
           export ASC_KEY_PATH="$RUNNER_TEMP/asc/AuthKey.p8"
           export ASC_KEY_ID="$ASC_CI_KEY_ID"
           export ASC_ISSUER="$ASC_CI_ISSUER"
@@ -94,7 +99,9 @@ jobs:
           STATE: ${{ steps.check.outputs.watched_state }}
         run: |
           TITLE="MAS: ${VERSION} がリジェクトされました (${STATE})"
-          COUNT="$(gh issue list --state open --limit 200 --json title --jq '.[].title' | grep -cxF "$TITLE" || true)"
+          # open だけでなく closed も重複判定に含める — ユーザーが処理済みで閉じた
+          # 後に同じ issue が 30 分ごとに再起票するのを防ぐ
+          COUNT="$(gh issue list --state all --limit 200 --json title --jq '.[].title' | grep -cxF "$TITLE" || true)"
           if [ "$COUNT" -gt 0 ]; then
             echo "issue は既にあるため起票しない (1 件の失敗通知で収束させる)"
           else
@@ -118,14 +125,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.check.outputs.watched_version }}
+          STATE: ${{ steps.check.outputs.watched_state }}
         run: |
           TITLE="MAS: ${VERSION} が承認されました (metrics 記入と計測開始)"
-          COUNT="$(gh issue list --state open --limit 200 --json title --jq '.[].title' | grep -cxF "$TITLE" || true)"
+          # リジェクト側と同じく closed も含めて重複判定 (処理済みで閉じた後の再起票防止)
+          COUNT="$(gh issue list --state all --limit 200 --json title --jq '.[].title' | grep -cxF "$TITLE" || true)"
           if [ "$COUNT" -gt 0 ]; then
             echo "issue は既にあるため起票しない"
           else
             {
-              echo "**${VERSION}** が READY_FOR_SALE になりました (m1 の MAS watch による自動検知)。"
+              echo "**${VERSION}** が **${STATE}** になりました (m1 の MAS watch による自動検知)。"
               echo
               echo "**残作業 (issue #160 の計測フロー)**:"
               echo "1. \`docs/appstore/metadata/metrics.md\` に承認日を記入 (ここが変更前後比較の境界)"

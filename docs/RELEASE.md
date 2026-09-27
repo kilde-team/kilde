@@ -350,10 +350,12 @@ spec の該当フィールドが黙って無視されるため、実行前に最
 - **審査結果の自動検知は [MAS watch](../.github/workflows/mas-watch.yml)**:
   30 分ごとにバージョン状態をポーリングし、リジェクトならジョブ失敗 (通知メール) +
   Resolution Center へのリンク付き issue、承認なら metrics 記入を促す issue を起票する
-  (既存 open issue があれば再起票しない)。ASC に webhook は無く、リジェクト理由の
-  本文はメール / Resolution Center にしか存在しない。実行は ubuntu-latest (ホスト) —
-  m1 がオフラインでも検知が止まらないようにするため。public リポジトリの schedule は
-  **60 日間活動が無いと自動停止する**ので、止まっていたら workflow ページで再有効化する
+  (既存の open **/ closed** issue と同じタイトルなら再起票しない)。Apple の webhook
+  通知を受けるサーバーを運用していないためのポーリング方式。**リジェクト理由の本文は
+  API に無く**メール / Resolution Center にしか存在しない。実行は ubuntu-latest
+  (ホスト) — m1 がオフラインでも検知が止まらないようにするため。public リポジトリの
+  schedule は **60 日間活動が無いと自動停止する**ので、止まっていたら workflow ページで
+  再有効化する
 
 手元の Mac で実行する場合 (フォールバック):
 
