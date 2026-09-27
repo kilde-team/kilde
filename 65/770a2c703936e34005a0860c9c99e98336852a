@@ -1,0 +1,20 @@
+.github/workflows/mas.yml
+  h_864205080385bc 169-176
+docs/RELEASE.md
+  h_864205080385bc 354-359,376-380
+docs/appstore/metadata/metrics.md
+  h_864205080385bc 40
+scripts/release/appstore-archive.sh
+  h_864205080385bc 13-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "65770a2c703936e34005a0860c9c99e98336852a",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
