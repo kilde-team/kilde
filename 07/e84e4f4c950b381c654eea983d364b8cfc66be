@@ -1,0 +1,16 @@
+docs/appstore/README.md
+  h_864205080385bc 52-57,59-63,67-70
+docs/appstore/tools/build.py
+  h_864205080385bc 144-149,151-156,158-165,172,179,186
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "07e84e4f4c950b381c654eea983d364b8cfc66be",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
