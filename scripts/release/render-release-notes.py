@@ -40,19 +40,70 @@ def xml_escape(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
+# 生成済み HTML は \x00数字\x00 のプレースホルダで退避する — 後続の置換が
+# コード span の内容やリンクの href を再解釈しないようにするため
+_PLACEHOLDER = re.compile(r"\x00(\d+)\x00")
+
+
 def inline(text: str) -> str:
     # 先に HTML エスケープしてから markdown 記法を置換する。URL 中の " は
     # ここで &quot; になるため、後段の <a href="…"> 挿入で属性を破れない
     s = html.escape(text, quote=True)
-    # インラインコードを先に処理する (コード内容に ** があっても強調しない)
-    s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
+    protected: list[str] = []
+
+    def stash(fragment: str) -> str:
+        protected.append(fragment)
+        return f"\x00{len(protected) - 1}\x00"
+
+    # 1) コード span を最初に退避する (内容に ** や URL があっても
+    #    太字化・リンク化されない)
+    s = re.sub(r"`([^`]+)`", lambda m: stash(f"<code>{m.group(1)}</code>"), s)
+
+    # 2) markdown リンク。href は生成後に退避し、本文中で二重に
+    #    リンク化されないようにする。ラベルには太字だけを適用する
+    #    (ラベル内の URL は既に <a> の中 — 自動リンクしない)。
+    #    href の括弧は 1 段のバランスを許す (Wikipedia の
+    #    «…_(言語)» 形式の URL を壊さないため)
+    def markdown_link(m: re.Match) -> str:
+        label = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", m.group(1))
+        return stash(f'<a href="{m.group(2)}">{label}</a>')
+
+    s = re.sub(
+        r"\[([^\]]+)\]\((https?://[^()\s]*(?:\([^()\s]*\)[^()\s]*)*)\)",
+        markdown_link,
+        s,
+    )
+
+    # 3) 太字 (残りの素のテキストが対象)
     s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
-    s = re.sub(r"\[([^\]]+)\]\((https?://[^)\s]+)\)", r'<a href="\2">\1</a>', s)
-    # 残ったベア URL の自動リンク。直前が " / = / < / > の URL (href 属性の中、
-    # または既にリンク化済みのテキスト) は二重にリンクしない。\w を除外条件に
-    # 入れない — 日本語の直後の URL («…はhttps://…») もリンク対象にするため
-    s = re.sub(r'(?<!["=<>])(https?://[^\s<]+)', r'<a href="\1">\1</a>', s)
-    return s
+
+    # 4) ベア URL の自動リンク。この時点で生成済み HTML はプレースホルダに
+    #    なっているため、href やリンクラベルを再走査しない。
+    #    URL 本体は印字可能 ASCII に限る — 日本語文 («…path。次の文») が
+    #    空白を挟まず URL に続いても、そこで URL が止まる
+    def autolink(m: re.Match) -> str:
+        url = m.group(0)
+        trail = ""
+        # 末尾の句読点は文の一部で URL に含まれないことが多い — 分離する。
+        # 括弧は対応する開き括弧が URL 内に無い場合だけ分離する
+        # (Wikipedia の «…_(言語)» のような URL を壊さないため)
+        while url:
+            last = url[-1]
+            if last in ".,;:!?":
+                trail = last + trail
+                url = url[:-1]
+            elif last in ")]" and url.count(last) > url.count("(" if last == ")" else "["):
+                trail = last + trail
+                url = url[:-1]
+            else:
+                break
+        if not url:
+            url, trail = m.group(0), ""
+        return f'<a href="{url}">{url}</a>{trail}'
+
+    s = re.sub(r"https?://[\x21-\x7e]+", autolink, s)
+
+    return _PLACEHOLDER.sub(lambda m: protected[int(m.group(1))], s)
 
 
 def render_markdown(md_text: str) -> str:

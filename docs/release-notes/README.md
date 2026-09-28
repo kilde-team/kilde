@@ -11,9 +11,10 @@
 2. **GitHub Release の本文** — `release.yml` が本文の先頭に組み込みます
    (従来の「Release 作成後に本文へ手動追記」は不要です)
 
-対応する markdown 記法 (見出し・箇条書き・フェンスコードブロック・
-`**強調**` / `` `コード` `` / リンク) は `scripts/release/render-release-notes.py`
-の docstring を参照してください。ネストした箇条書きは対応していません。
+対応する markdown 記法 (見出し・箇条書き・フェンスコードブロック・水平線 `---`・
+`**強調**` / `` `コード` `` / `[リンク](https://…)` / ベア URL の自動リンク) は
+`scripts/release/render-release-notes.py` の docstring を参照してください。
+ネストした箇条書きは対応していません。
 
 ファイルが無いリリースでは、更新ダイアログに GitHub Release への誘導文が
 表示されます (ビルドは失敗しません)。**空のファイルは失敗します** —
