@@ -53,8 +53,9 @@ jobs:
           repository: takezou621/asc-submit
           # schedule 実行は無人で鍵と一緒に走るため、タグではなくコミット SHA に固定
           # する (タグが移動させられると異なるコードが PYTHONPATH で読み込まれる —
-          # CodeRabbit セキュリティ指摘)。SHA は v0.2.4 を指す
-          ref: 03695e373c5cfb3c0ac1ce4928484ece6e6804be # v0.2.4
+          # CodeRabbit セキュリティ指摘)。SHA は v0.3.0 を指す (ジャーナル記録の追加 —
+# run の引数・出口コード・プロンプト挙動は v0.2.4 から不変)
+          ref: c2b0150778c3894982163062d197fe5352c3f16a # v0.3.0
           path: asc-submit
           persist-credentials: false
 

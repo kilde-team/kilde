@@ -79,8 +79,10 @@ jobs:
           # v0.2.1: create-version の platform 列挙値修正 (OS_X → MAC_OS。v0.2.0 は
           # バージョン作成が HTTP 409 で失敗する — apply の初回実行 run 36252411489 で発見)
           # タグではなくコミット SHA に固定する (タグ移動で異なるコードが走るのを防ぐ —
-          # CodeRabbit セキュリティ指摘)。SHA は v0.2.4 (reviewSubmissionItems 対応) を指す
-          ref: 03695e373c5cfb3c0ac1ce4928484ece6e6804be # v0.2.4
+          # CodeRabbit セキュリティ指摘)。SHA は v0.3.0 を指す
+# v0.3.0: ワークフローのジャーナル記録 (各ステップの状況・ログを .asc-submit/runs に
+# 記録。submit 確認の辞退はキャンセル扱い。run/serve/runs/logs の下位互換は維持)
+          ref: c2b0150778c3894982163062d197fe5352c3f16a # v0.3.0
           path: asc-submit
           persist-credentials: false
 
