@@ -82,8 +82,11 @@ config.minimumFrameInterval = CMTime(value: 1, timescale: 30)  // 30 fps
 ```swift
 let config = SCStreamConfiguration()
 // ストリーム構成側で子ウィンドウを含めない (macOS 14.2 以降のプロパティ)。
-// 既定のままだと外接矩形が広がって目的のウィンドウが縮んで写る
-config.includeChildWindows = false
+// 既定のままだと外接矩形が広がって目的のウィンドウが縮んで写る。
+// 14.0 / 14.1 向けのビルドでは availability ガードが必要
+if #available(macOS 14.2, *) {
+    config.includeChildWindows = false
+}
 ```
 
 「撮ったはずのウィンドウが妙に小さい」「変なパネルが写っている」ときは
@@ -108,9 +111,9 @@ anchor = sampleBuffer.presentationTimeStamp
 ```
 
 以降の音声は「PTS − アンカー」を書き出し側の 0 秒に写像します。
-この処理を入れるだけで、長時間録画でもズレの累積がありません
-(サンプルカウントで積算する方式だと、ドロップが起きたときにずれ続けるので、
-基準は常に PTS 側に置くのが安全です)。
+これで**ドロップ起因の累積ズレは防げます** (サンプルカウントで積算する方式だと、
+ドロップが起きたときにずれ続けるので、基準は常に PTS 側に置くのが安全です。
+長時間録画でのドリフトの有無そのものは、別途の実測事項です)。
 
 ## AVAssetWriter 側の落とし穴
 
@@ -162,6 +165,6 @@ ScreenCaptureKit のストリームより**先に**開始します。先に SCSt
 
 これらをまとめて実装したものが、macOS 用の録画ツール
 [kilde](https://kilde.site/) です (会議プリセットでウィンドウを選ぶと
-システム音声とマイクを 1 つのファイルにミックスします。Mac App Store から
-入ります)。次の記事では、録った音声を macOS 26 の SpeechAnalyzer で
+システム音声とマイクを 1 つのファイルにミックスします。[Mac App Store](https://apps.apple.com/app/id6812783176)
+から入ります)。次の記事では、録った音声を macOS 26 の SpeechAnalyzer で
 文字起こしする話を書きます。

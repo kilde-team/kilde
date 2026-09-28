@@ -8,8 +8,8 @@ issue #158 の下書き置き場。公開先は次の 3 本構成:
 | `2-zenn-speechanalyzer-transcribe.md` | Zenn (技術記事) | macOS / Swift エンジニア | macOS 26 の SpeechAnalyzer で会議録音を文字起こしする |
 | `3-note-private-meeting-minutes.md` | note | 会議の議事録に困っている人 | 機密性の高い会議をクラウドに上げずに議事録化する |
 
-いずれも kilde の利用・実装を題材にした紹介記事で、
-末尾に kilde.site と Mac App Store への導線を置いてある (issue #158 のスコープ)。
+いずれも kilde の利用・実装を題材にした紹介記事で、末尾に kilde.site への導線を置いてあり、
+記事 1・2 の末尾には Mac App Store へのリンクも置いてある (issue #158 のスコープ)。
 
 ## 公開手順
 

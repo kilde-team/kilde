@@ -17,14 +17,14 @@ macOS 26 の Speech framework に加わった `SpeechAnalyzer` は、**オンデ
 「認識セッションに話しかける」形だったのに対し、SpeechAnalyzer は
 **分析器に PCM を流し込むストリーム処理**の形をしています。
 
-- `SpeechTranscriber` — 音声 → テキストのセグメント列。タイムスタンプ付き
+- `SpeechTranscriber` — 音声 → テキストのセグメント列。時刻範囲は後述の指定で付与
 - `AssetInventory` — 言語モデルの確保。モデルはシステムが管理し、
   その言語のモデルが端末に無いときに Apple からダウンロードが走る
 - `SpeechAnalyzer` — モジュール (transcriber など) を載せて入力を受け付ける本体
 
 音声の入力は `AnalyzerInput` に `AVAudioPCMBuffer` を包んで渡します。
 「マイクをリアルタイムで」だけでなく「**録画済みファイルを**」文字起こしする場合、
-こちらが主役になります。以下はファイル経路の話です。
+こちらが主役になります (動作は Apple silicon の Mac が対象。以下はファイル経路の話です)。
 
 ## ファイル → PCM: AVAssetReader で読む
 
@@ -130,4 +130,5 @@ cancel すると、analyzer が応答しなくなることがあります** (mac
 - 開始直前のキャンセルにはガードを置く
 
 録画からここまでを一気通貫でやるのが [kilde](https://kilde.site/)
-(録画の停止と同時に文字起こしが走ります。Mac App Store / Homebrew で入ります) です。
+(«録画後に文字起こし» を有効にしている場合は、録画の停止と同時に文字起こしが走ります。
+[Mac App Store](https://apps.apple.com/app/id6812783176) / Homebrew で入ります) です。
