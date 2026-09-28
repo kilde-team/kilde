@@ -1,6 +1,6 @@
 # プライバシーポリシー / Privacy Policy
 
-最終更新日 / Last updated: 2026-09-25
+最終更新日 / Last updated: 2026-09-28
 
 対象: kilde (macOS 用の画面・音声録画アプリ `Kilde` と `kilde` コマンドライン)
 
@@ -21,6 +21,9 @@ Google の **Firebase Analytics** で行います。収集するのは起動回�
 Google のサーバーに送信され、取り扱いは
 [Google のプライバシーポリシー](https://policies.google.com/privacy) に従います。
 開発者が取得できるのは集計された利用統計のみです。
+録画の利用状況 (録画が完了した回数、録音の長さの区分、お使いの版の別
+— Mac App Store 版か直接配布版か —、端末内で数えた累計の録画完了回数の区分)
+も同じ利用統計に含まれます。
 文字起こし機能 (macOS 26 以降) の利用状況 (開始・完了・失敗・キャンセルの回数、
 処理時間と録音の長さの区分、失敗の種別) も同じ利用統計に含まれます。
 **書き起こしたテキストや、録画・サイドカーのファイル名・保存先は含まれません。**
@@ -150,7 +153,11 @@ includes the content of your recordings (video, audio, file names, save
 locations) or your settings (hotkeys, save locations, and so on).** These data
 are sent to Google's servers and handled under
 [Google's privacy policy](https://policies.google.com/privacy). The developer
-only sees aggregated usage statistics. Usage of the transcription feature
+only sees aggregated usage statistics. Usage of recording — the count of
+completed recordings, coarse buckets for recording length, which version you
+use (Mac App Store or direct download), and a coarse bucket for the lifetime
+count of completed recordings counted on your Mac — is part of the same usage
+statistics. Usage of the transcription feature
 (macOS 26 or later) — counts of starts, completions, failures, cancellations,
 and automatic retries, coarse buckets for processing time and recording length,
 and the kind of failure — is part of the same usage statistics. **It never

@@ -131,7 +131,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // dead-strip され、configure() してもフレームワークが初期化されない
             // (2026-09-23 実測: -ObjC を付けると configure() 単独で Analytics started)。
             // macOS には UIApplicationDelegate swizzling が無く app_open は自動送信
-            // されないので、最初のイベントとして明示的に送る
+            // されないので、最初のイベントとして明示的に送る。**ユーザー プロパティを
+            // 先に設定する** — プロパティは過去のイベントに遡って適用されないため、
+            // 先に app_open を送ると初回起動の app_open にチャネルが載らない
+            // (CodeRabbit レビュー指摘)
+            UsageAnalytics.setUserProperties()
             Analytics.logEvent("app_open", parameters: nil)
             // クラッシュ解析 (issue #210)。FirebaseCrashlytics をリンクしていれば
             // configure() が自動で有効にし、次回起動時に前回のクラッシュを送る。

@@ -3,9 +3,9 @@ import KildeCore
 import FirebaseAnalytics
 import FirebaseCore
 
-/// 文字起こしの利用状況イベント (issue #153)。録画後文字起こし (issue #146) が
-/// «どれだけ使われ、どこで失敗しているか» を Firebase Analytics (#136) で見るための窓口。
-/// AppDelegate の `app_open` と同じく、両ターゲット (直接配布 / MAS) で
+/// 利用状況イベントの窓口。文字起こし (#153) に加え、録画完了 (#159) も見る。
+/// «どれだけ使われ、どこで失敗しているか» を Firebase Analytics (#136) で見るための
+/// 窓口。AppDelegate の `app_open` と同じく、両ターゲット (直接配布 / MAS) で
 /// FirebaseAnalyticsCore をリンクしているため `#if APPSTORE` 分岐は不要
 /// (PRIVACY.md «直接配布版・Mac App Store 版の両方» どおり)。
 ///
@@ -24,6 +24,109 @@ enum UsageAnalytics {
     /// 未初期化のまま logEvent しても送信は起こらないが、明示しておくと
     /// «セルフテスト・Debug では何も送っていない» が読み取れる
     private static var isEnabled: Bool { FirebaseApp.app() != nil }
+
+    /// 完了した録画の生涯累計。**区分に変換した値だけを送る** ので生の回数が
+    /// Google へ出ることはないが、数え続ける台帳として端末の UserDefaults に置く。
+    /// issue #159 の «録画完了 3 回以上のユーザー率» は 1 ユーザーあたりの回数が
+    /// 無いと出せない — Firebase コンソールのイベント集計は «何回発火したか» だけで
+    /// «何人のユーザーが 3 回以上録ったか» を返さない。キーは «利用統計の内部
+    /// カウンタ» であることが読み取れる名前にする (RecordingSetup の設定キーと混ぜない)。
+    /// 旧バージョンからの引き継ぎは migrateRecordingCountIfNeeded が行う
+    private static let recordingsCompletedKey = "usage_recordings_completed"
+
+    /// 配布チャネル (issue #159 の «チャネル別 (MAS / Homebrew / 直接配布)»)。
+    /// **Homebrew は CLI 専用** (formula は `bin.install` のみ) で、CLI は計測しない
+    /// 方針 (PRIVACY.md «kilde コマンドラインは解析を行いません») なので、語彙は
+    /// 計測できる GUI の 2 チャネル。コンパイル条件で確定する — レシート検証など
+    /// 実行時の判別を持ち込むほど、この内訳に精度は要らない
+    static var distributionChannel: String {
+#if APPSTORE
+        return "mas"
+#else
+        return "direct"
+#endif
+    }
+
+    /// 起動時に 1 回、ユーザー プロパティを設定する (AppDelegate の app_open と並べる)。
+    /// ユーザー プロパティは **直近の値でユーザーを分類する** ので、起動ごとに
+    /// 設定し直して最新に保つ。recordings_bucket は端末の累計から復元する —
+    /// 録画のたびにしか更新しないと、前回録画時の値のまま取り込まれる恐れがある
+    /// (プロパティの反映はコンソールのレポートにまで時間がかかるため、起動時の
+    /// 復元で古い値のままでいる期間を減らす)
+    static func setUserProperties() {
+        guard isEnabled else { return }
+        Analytics.setUserProperty(distributionChannel, forName: "distribution_channel")
+        let defaults = UserDefaults.standard
+        migrateRecordingCountIfNeeded(defaults)
+        let count = defaults.integer(forKey: recordingsCompletedKey)
+        if let bucket = recordingsBucket(count) {
+            Analytics.setUserProperty(bucket, forName: "recordings_bucket")
+        }
+    }
+
+    /// 旧カウンタ (issue #156 の評価依頼が数えた «15 秒以上の録画完了») からの移行。
+    /// **キーがまだ無い端末だけで 1 回** 行い、移行の有無はキーの存在で表す —
+    /// キーが無いと UserDefaults の読み取りは 0 になるので、移行しないと既存
+    /// ユーザーが «0 回» に戻り、生涯累計という KPI の定義が崩れる (CodeRabbit
+    /// レビュー指摘)。旧カウンタを書くのは **MAS ビルドだけ** (#156 は App Store の
+    /// 評価依頼で、直接配布版の ReviewPromptCoordinator はカウントもしない) ので、
+    /// 直接配布版は履歴源が無く 0 から始まる («履歴が無い» は真)。旧カウンタは
+    /// 15 秒未満の録画を数えていないため **下振れする** — 短い録画が «3_5» の
+    /// 境界を跨ぐ程度で、«定着している» 側に上振れする (0 に戻す) より安全。
+    /// 以後は bumpRecordingCount が進める
+    private static func migrateRecordingCountIfNeeded(_ defaults: UserDefaults) {
+        guard defaults.object(forKey: recordingsCompletedKey) == nil else { return }
+#if APPSTORE
+        let seeded = defaults.integer(
+            forKey: ReviewPromptCoordinator.Keys.successfulRecordings)
+#else
+        // 直接配布版に書いた旧カウンタは存在しない (上のコメント)
+        let seeded = 0
+#endif
+        defaults.set(seeded, forKey: recordingsCompletedKey)
+    }
+
+    /// 録画 1 件が完了した (issue #159)。«月間アクティブ (録画完了) ユーザー数» と
+    /// «録画完了 3 回以上のユーザー率» の基礎データ。チャネルはユーザー プロパティ
+    /// だけでなくイベントのパラメータにも載せる — «recording_complete の何%が
+    /// MAS か» をイベント側だけで読めるようにするため
+    static func recordingCompleted(recordingDuration: TimeInterval?) {
+        bumpRecordingCount()
+        log("recording_complete", recordingDuration: recordingDuration,
+            processingTime: nil, channel: distributionChannel)
+    }
+
+    /// 完了回数を進めて、区分をユーザー プロパティに反映する。
+    /// **isEnabled の下に置く** — セルフテストの録画経路でカウンタを進めない
+    /// (UserDefaults はセルフテストで触れたままにしたくないし、setUserProperty も
+    /// 届かない方が清潔)
+    private static func bumpRecordingCount() {
+        guard isEnabled else { return }
+        let count = UserDefaults.standard.integer(forKey: recordingsCompletedKey) + 1
+        UserDefaults.standard.set(count, forKey: recordingsCompletedKey)
+        if let bucket = recordingsBucket(count) {
+            Analytics.setUserProperty(bucket, forName: "recordings_bucket")
+        }
+    }
+
+    /// 累計録画完了回数の区分。**返す値はこの関数に閉じる** (recordingLengthBucket と
+    /// 同じ規約)。«3 回以上» の判定に使うので 3 の境界をまたがない — 1・2 はそのまま、
+    /// 3 以降は荒い区分にする (定着を見るのに «7 回» と «8 回» の違いは要らない)。
+    /// **0 («まだ録っていない») も語彙に含める** — 0 を外すと録画したことのない
+    /// ユーザーが分布から消え、«3 回以上のユーザー率» の分母が «1 回以上録った
+    /// ユーザー» にすり替わる (CodeRabbit レビュー指摘)。分母は «起動したことが
+    /// あるユーザー全体» とするのがこの KPI の意図
+    static func recordingsBucket(_ count: Int) -> String? {
+        guard count >= 0 else { return nil }
+        switch count {
+        case 0: return "0"
+        case 1: return "1"
+        case 2: return "2"
+        case 3...5: return "3_5"
+        case 6...9: return "6_9"
+        default: return "10_plus"
+        }
+    }
 
     /// 文字起こしの実行に取りかかった (待ち行列に積まれた時点ではなく、
     /// 実行が始まった時点)
@@ -66,10 +169,12 @@ enum UsageAnalytics {
     }
 
     private static func log(_ name: String, recordingDuration: TimeInterval?,
-                            processingTime: TimeInterval?, errorKind: String? = nil) {
+                            processingTime: TimeInterval?, errorKind: String? = nil,
+                            channel: String? = nil) {
         guard isEnabled else { return }
         var parameters: [String: String] = [:]
         if let errorKind { parameters["error_kind"] = errorKind }
+        if let channel { parameters["channel"] = channel }
         if let bucket = recordingLengthBucket(recordingDuration) {
             parameters["recording_length"] = bucket
         }
