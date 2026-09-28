@@ -1,12 +1,18 @@
-# docs/articles — kilde の紹介記事 (下書き)
+# docs/articles — kilde の紹介記事
 
-issue #158 の下書き置き場。公開先は次の 3 本構成:
+issue #158 の記事原稿。公開先は次の 3 本構成:
 
 | ファイル | 公開先 | 読者 | 内容 |
 |---|---|---|---|
 | `1-zenn-screencapturekit-app-audio.md` | Zenn (技術記事) | macOS / Swift エンジニア | ScreenCaptureKit でアプリ単位のシステム音声を録る実装の勘所 |
 | `2-zenn-speechanalyzer-transcribe.md` | Zenn (技術記事) | macOS / Swift エンジニア | macOS 26 の SpeechAnalyzer で会議録音を文字起こしする |
 | `3-note-private-meeting-minutes.md` | note | 会議の議事録に困っている人 | 機密性の高い会議をクラウドに上げずに議事録化する |
+
+## 公開済み記事
+
+- [ScreenCaptureKit で「アプリ単位のシステム音声」を録る — macOS の画面収録 API の勘所](https://zenn.dev/takezou621/articles/a7f3df15b3a9ff) (Zenn)
+- [macOS 26 の SpeechAnalyzer で会議録音を文字起こしする — ファイルから PCM を流し込むときの注意](https://zenn.dev/takezou621/articles/7a8de3ca6ccb59) (Zenn)
+- [機密性の高い会議を、クラウドに上げずに議事録にする](https://note.com/quiet_lilac7877/n/nf58dbb6e6a76) (note)
 
 いずれも kilde の利用・実装を題材にした紹介記事で、末尾に kilde.site への導線を置いてあり、
 記事 1・2 の末尾には Mac App Store へのリンクも置いてある (issue #158 のスコープ)。
