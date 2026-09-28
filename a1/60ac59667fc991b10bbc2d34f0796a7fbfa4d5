@@ -1,0 +1,18 @@
+.github/workflows/release.yml
+  h_864205080385bc 332-335,337
+scripts/release/render-release-notes.py
+  h_864205080385bc 62,88-91,101
+scripts/release/sign.sh
+  h_864205080385bc 351-360
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a160ac59667fc991b10bbc2d34f0796a7fbfa4d5",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
