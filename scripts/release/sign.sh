@@ -348,6 +348,16 @@ cat > "$APPCAST" <<XML
   </channel>
 </rss>
 XML
+# item は常に 1 件 — SUFeedURL が latest 固定なので過去分の累積は不要。
+# 展開漏れのプレースホルダ (${VAR}) は **ノート挿入前のテンプレート** に対して
+# 検査する — 挿入後だと、ノート本文に «${HOME}» のようなリテラルがあるだけで
+# 誤検知してリリースが止まる (CodeRabbit 指摘)。
+# @@RELEASE_NOTES@@ をこの検査に入れないのは同じ理由 (本文にリテラルが
+# 入りうる)。置換漏れは下の python3 の置換 step がプレースホルダの欠落を
+# エラーにするため弾ける
+if grep -q '\${' "$APPCAST"; then
+    die "appcast に未置換のプレースホルダが残っています: $APPCAST"
+fi
 # @@RELEASE_NOTES@@ はここで置換する。heredoc に $NOTES_DESC を直接展開しない —
 # ノート本文に $ やバッククォートが入ると unquoted heredoc でシェル展開されてしまう。
 # NOTES_DESC は XML エスケープ済み (render-release-notes.py) なので置換後も整形式を保つ
@@ -362,11 +372,6 @@ if "@@RELEASE_NOTES@@" not in xml:
 with open(path, "w", encoding="utf-8") as f:
     f.write(xml.replace("@@RELEASE_NOTES@@", desc))
 PY
-# item は常に 1 件 — SUFeedURL が latest 固定なので過去分の累積は不要。
-# 展開漏れのプレースホルダが残っていないか機械的に検査する (sed の失敗は黙って通るため)
-if grep -q -e '\${' -e '@@RELEASE_NOTES@@' "$APPCAST"; then
-    die "appcast に未置換のプレースホルダが残っています: $APPCAST"
-fi
 if command -v xmllint >/dev/null 2>&1; then
     xmllint --noout "$APPCAST" || die "appcast.xml が整形式ではありません: $APPCAST"
 else

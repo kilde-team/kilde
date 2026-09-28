@@ -329,8 +329,12 @@ jobs:
           for extra in dist/KildeGUI-*.dmg dist/appcast.xml; do
             [ -e "$extra" ] && ARGS+=("$extra")
           done
-          # 同じタグで再実行した場合、既存 Release の資産を差し替える (作り直しはしない)
+          # 同じタグで再実行した場合、既存 Release の資産を差し替える (作り直しはしない)。
+          # 本文も $NOTES から差し替える — ノートの正本は docs/release-notes/ なので、
+          # 再実行時に資産だけ新しくなって本文が古いまま、を防ぐ (CodeRabbit 指摘)。
+          # 本文の手動編集はここで上書きされる — 正本は docs/release-notes/v<VERSION>.md
           if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --notes-file "$NOTES"
             gh release upload "$TAG" "${ARGS[@]}" --clobber
           else
             gh release create "$TAG" "${ARGS[@]}" \

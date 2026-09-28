@@ -59,6 +59,7 @@ def render_markdown(md_text: str) -> str:
     out: list[str] = []
     in_list = False
     in_code = False
+    code_fence_length = 0
     code_lines: list[str] = []
     para: list[str] = []
 
@@ -84,7 +85,10 @@ def render_markdown(md_text: str) -> str:
     for raw_line in md_text.splitlines():
         line = raw_line.strip()
         if in_code:
-            if line.startswith("```"):
+            # 閉じフェンスは «開きフェンスと同数以上のバッククォートだけの行»
+            # (CommonMark)。startswith で判定すると ```js のような内容行を
+            # 閉じと誤認して、以降の行がコード外に出てしまう
+            if re.fullmatch(rf"`{{{code_fence_length},}}", line):
                 out.append("<pre><code>" + html.escape("\n".join(code_lines)) + "</code></pre>")
                 code_lines.clear()
                 in_code = False
@@ -94,6 +98,7 @@ def render_markdown(md_text: str) -> str:
         if line.startswith("```"):
             flush_para()
             close_list()
+            code_fence_length = len(line) - len(line.lstrip("`"))
             in_code = True
             continue
         heading = re.match(r"^(#{1,3})\s+(.*)$", line)
