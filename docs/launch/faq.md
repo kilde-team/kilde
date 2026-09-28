@@ -39,10 +39,11 @@ Show HN / r/macapps / Product Hunt のコメント欄で想定される質問と
 
 言われたときの追い質問 «Can I turn it off?»:
 
-> There's no opt-out switch in the app today — honest answer. What's sent
-> is aggregate stats only (the full list is in the privacy policy), and the
-> CLI, which sends nothing, covers scripted/automation use. If enough people
-> want a toggle we'll consider it.
+> There's no opt-out switch in the app today — honest answer. Two things
+> leave the GUI: aggregate usage stats (never content, filenames, or paths)
+> and, when the app crashes, a crash report with a stack trace — both listed
+> in the privacy policy. The CLI, which sends nothing, covers scripted and
+> automation use. If enough people want a toggle we'll consider it.
 
 補足 (日本語注記): «オプトアウトは現状無し» が事実 (gui/Sources/UsageAnalytics.swift —
 isEnabled は Firebase の設定有無のみ)。«consider it» は約束しない言い方。
@@ -70,9 +71,11 @@ Homebrew 経路も現状 arm64 のため提供なし — 素直に «not right n
 > They're great tools with different centers of gravity. kilde is focused on
 > meetings: native ScreenCaptureKit capture means system audio (everyone
 > else in the call) records without a virtual audio driver; window capture
-> can scope audio to that app; stopping any way — even Ctrl+C — always
-> leaves a finalized file; and on macOS 26+ the recording is transcribed
-> on-device with speaker labels and summarized locally. If you need
+> can scope audio to that app; stopping the normal ways — the stop button,
+> the hotkey, quitting the app, or Ctrl+C — always leaves a finalized file;
+> and on macOS 26+ the recording can be transcribed on-device (speaker
+> labels when mic and system audio are kept as separate tracks) and
+> summarized locally on Apple Intelligence-capable Macs. If you need
 > scenes, streaming, or deep audio routing, those tools do more; if you
 > want the meeting on record with a transcript, kilde does less, faster.
 > (And the usual reminder: record meetings only with everyone's informed
@@ -97,9 +100,9 @@ Homebrew 経路も現状 arm64 のため提供なし — 素直に «not right n
 
 > *kilde* is Danish/Norwegian for "source" — a spring where water rises,
 > and the source of information. Meetings and screens create more and more
-> knowledge; the recordings are sources worth keeping. That's also why a
-> stopped recording always leaves a finalized file — a source you can't
-> open again is no source at all.
+> knowledge; the recordings are sources worth keeping. That's also why
+> stopping a recording the normal ways — Ctrl+C included — always leaves a
+> finalized file: a source you can't open again is no source at all.
 
 ## 9. 有料化の予定は?
 
@@ -113,8 +116,8 @@ Homebrew 経路も現状 arm64 のため提供なし — 素直に «not right n
 
 ## 10. 文字起こしの精度は? (日本語は?)
 
-> It uses Apple's on-device speech recognition (the same stack behind
-> system dictation), so quality follows your macOS version and locale —
+> It uses the speech recognition built into macOS (on-device, via the
+> Speech framework), so quality follows your macOS version and locale —
 > macOS 26 required. Try it with `kilde transcribe FILE` on an existing
 > recording and tell us how it does in your language; reports (good and
 > bad) genuinely shape what we fix next.

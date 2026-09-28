@@ -35,9 +35,11 @@ separate for speaker-labeled transcripts).
 It comes in two shapes:
 
 - A menu bar app: pick screen/window/audio-only, sources, and destination;
-  recordings are transcribed on-device (macOS 26+) into markdown/SRT/VTT/TXT/JSON
-  with speaker labels, summarized with on-device models, and exported to a
-  notes folder like your Obsidian vault
+  with transcription enabled (macOS 26+), recordings are transcribed
+  on-device into markdown/SRT/VTT/TXT/JSON — speaker labels when mic and
+  system audio stay as separate tracks — and summarized locally on Apple
+  Intelligence-capable Macs, or exported to a notes folder like your
+  Obsidian vault
 - A CLI (`kilde rec` / `kilde transcribe`) for scripts and automation.
   A few things we sweated: Ctrl+C always leaves a finalized, playable file;
   window capture can scope system audio to that app only; no virtual audio
@@ -45,8 +47,9 @@ It comes in two shapes:
 
 Everything runs locally — no meeting bot joins your call, recordings and
 transcripts never leave your Mac, and the CLI sends no analytics at all.
-The GUI sends aggregate usage stats only (bucketed durations, never content,
-filenames, or paths) — details: https://kilde.site/privacy/
+The GUI sends aggregate usage stats (bucketed durations, never content,
+filenames, or paths) and, if it crashes, a crash report with a stack trace —
+details: https://kilde.site/privacy/
 
 Honest caveats: Apple Silicon only for now, and the recording engine lives in
 a separate private repo while we decide its long-term source policy — the app,

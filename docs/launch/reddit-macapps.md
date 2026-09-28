@@ -29,11 +29,12 @@ which QuickTime's screen recording doesn't capture** — so you end up with only
 your own side of the conversation.
 
 kilde records system audio + your mic (mixed into one track, or kept separate)
-from a menu bar app, and — on macOS 26+ — transcribes everything **entirely
-on your Mac**, with speaker labels (you vs. the other side), into markdown,
-SRT, VTT, TXT, or JSON next to the recording. It also summarizes the
-transcript on-device and can export it to a notes folder like your Obsidian
-vault.
+from a menu bar app, and — on macOS 26+, with transcription enabled —
+transcribes the recording **entirely on your Mac** into markdown, SRT, VTT,
+TXT, or JSON next to the file (speaker labels — you vs. the other side —
+when mic and system audio are kept as separate tracks). It also summarizes
+the transcript on-device (Apple Intelligence-capable Macs) and can export it
+to a notes folder like your Obsidian vault.
 
 **What it does:**
 
@@ -41,10 +42,11 @@ vault.
   ScreenCaptureKit capture, **no BlackHole / virtual audio driver needed**
 - 🎙️ Window capture can scope the audio to that app only, so notification
   pings don't end up in your recording
-- 🛡️ Stop it any way you like (even force-quit-level Ctrl+C) and the file is
-  always finalized and playable
-- 📝 On-device transcription with speaker labels + summaries (macOS 26+,
-  no audio or text ever leaves your Mac)
+- 🛡️ Stop it the normal ways — stop button, hotkey, app quit, or Ctrl+C —
+  and the file is finalized and playable
+- 📝 On-device transcription + summaries (macOS 26+; speaker labels when
+  mic and system audio are kept as separate tracks — no audio or text ever
+  leaves your Mac)
 - ⌨️ Global hotkey, Shortcuts app support, notification + recent recordings
 - It also detects when a meeting app starts using the mic and offers to
   start recording (opt-in, off by default)
@@ -56,9 +58,9 @@ source live in a separate private repo while we decide their long-term
 source policy): https://github.com/kilde-team/kilde
 
 Requirements: Apple Silicon Mac, macOS 14+ (transcription needs macOS 26+).
-CLI sends no analytics; the GUI sends aggregate usage stats only — no
-recording content, filenames, or paths (privacy policy:
-https://kilde.site/privacy/).
+CLI sends no analytics; the GUI sends aggregate usage stats (no recording
+content, filenames, or paths) plus crash reports if it ever crashes —
+privacy policy: https://kilde.site/privacy/
 
 Would love your feedback — especially on transcription quality in your
 language, and anything that feels missing. (And the usual reminder: when

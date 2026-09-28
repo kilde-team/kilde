@@ -7,7 +7,9 @@
 
 **投稿前チェックリスト**:
 - [ ] デモ動画 (kilde-team/kilde-site#1) がギャラリーに入っている (PH では実質必須)
-- [ ] スクショ 6 枚を 16:9 (1270×760 以上) にクロップ/パディングした
+- [ ] **スクショを実機キャプチャに差し替えた** — `docs/appstore/screenshots/` の
+      6 枚は HTML/CSS で UI を再現した**モック** (docs/appstore/README.md §2)
+- [ ] スクショを 16:9 (1270×760 以上) にクロップ/パディングした
 - [ ] ギャラリー画像 1 枚目に«価値提案の一文»を焼き込んだカバーを作った
 - [ ] タグライン・説明文の文字数を投稿画面で再確認 (上限は変わりうる)
 - [ ] 投稿日の 0:01 PT から数時間はコメント返信に張り付く体制
@@ -23,17 +25,18 @@
 | Topics | Productivity / Artificial Intelligence / Mac |
 | Price | Free |
 
-タグライン候補 2: `The meeting recorder that keeps everything on your Mac.` (56 字)
+タグライン候補 2: `The meeting recorder that keeps everything on your Mac.` (55 字)
 
 ## Description (260 字上限)
 
 ```text
 kilde records your screen with system audio + mic in one track — the sound
-most recorders miss. On macOS 26+, meetings are transcribed on-device with
-speaker labels and summarized locally. No bots in your calls. No cloud.
+most recorders miss. On macOS 26+ (Apple Intelligence Macs), meetings are
+transcribed and summarized on-device. No bots in your calls. No cloud.
 Free. App and docs are open source.
 ```
-(257 字)
+(255 字 — 話者ラベルは分離トラック時の機能なので説明文には書かず、
+メーカーコメントとギャラリーで条件付きに記載)
 
 ## ギャラリー (順番が重要 — 1 枚目で価値を伝える)
 
@@ -41,7 +44,7 @@ Free. App and docs are open source.
 
 1. カバー: «Your meetings. Recorded and transcribed. On your Mac.» + アイコン
 2. `01-meeting.png` — 会議録画の価値提案 (system audio + mic)
-3. `02-transcribe.png` — オンデバイス文字起こし + 話者ラベル
+3. `02-transcribe.png` — オンデバイス文字起こし + 話者ラベル (分離トラック時)
 4. `03-recording.png` — 録画パネル (レベルメーター)
 5. `05-audio-only.png` — 音声のみ録音
 6. `06-safe-finish.png` — Ctrl+C でも必ずファイナライズ
@@ -58,15 +61,17 @@ everyone else. On a Mac, the other participants' voices are *system audio*,
 and that's exactly what most recorders can't capture.
 
 kilde records system audio + your mic together (native ScreenCaptureKit —
-no virtual audio driver), from a menu bar app or a CLI. On macOS 26+ it
-transcribes everything on-device with speaker labels, summarizes it with
-on-device models, and drops the markdown next to your recording — ready for
-your Obsidian vault or wherever you keep notes.
+no virtual audio driver), from a menu bar app or a CLI. On macOS 26+, with
+transcription enabled, it transcribes the recording on-device (speaker
+labels when mic and system audio stay as separate tracks), summarizes it
+locally on Apple Intelligence-capable Macs, and drops the markdown next to
+your recording — ready for your Obsidian vault or wherever you keep notes.
 
 What I'm proudest of: everything stays on your Mac. No meeting bot joins
 your calls; recordings, transcripts, and summaries never leave your machine.
-The CLI sends no analytics at all; the GUI sends aggregate usage stats only
-(bucketed durations — never content, filenames, or paths).
+The CLI sends no analytics at all; the GUI sends aggregate usage stats
+(bucketed durations — never content, filenames, or paths) and, if it ever
+crashes, a crash report with a stack trace.
 
 It's free: Mac App Store, Homebrew, or download from GitHub (MIT).
 Apple Silicon, macOS 14+ (transcription needs macOS 26+).
