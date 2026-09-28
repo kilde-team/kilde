@@ -94,8 +94,11 @@ Updated the App Store product page. No changes to the app's features.
 
 ## What's New (0.8.3)
 
-The only changes since 0.8.2 are internal telemetry (recording-completion
-analytics, issue #159); no user-visible feature changes. Keep the copy honest
+The only changes since 0.8.2 are internal telemetry: recording-completion
+analytics and migrating the recordings lifetime counter off the MAS
+review-prompt counter (issue #159). No user-visible feature changes — #283
+(update-dialog release notes) is not in the MAS build, where
+UpdaterCoordinator is compiled out with `#if !APPSTORE`. Keep the copy honest
 and short.
 
 ```text
