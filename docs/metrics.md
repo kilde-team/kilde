@@ -57,13 +57,19 @@ Custom Definitions の埋め込み画面から):
 
 **未登録の残り 2 件**: `channel` と `error_kind` (イベント スコープ)。GA4 の UI は
 **端末から受信済みのパラメータしか選べない** ためで、両パラメータは 0.8.2 以降の
-配布ビルドが送る (Admin API は gcloud / OAuth Playground の既定クライアントが
-`analytics.admin` スコープに対応せず使えなかった)。検知されたら上の手順で
-登録する。検知を早めるため Measurement Protocol で検知用イベントを 1 件送って
-ある (API secret `issue159-setup`。イベント名 `custom_definition_setup`、
-`channel` / `error_kind` を含む 1 ユーザー 1 イベント — 月次の数値には影響しない
-規模だが、厳密には合成データが 1 件混まる)。**2 件の登録が確認できたら、
-secret は Measurement Protocol の画面から削除してよい**。
+配布ビルドが送る。検知されたら上の手順で登録する。検知を早めるため
+Measurement Protocol で検知用イベントを 1 件送ってある (API secret
+`issue159-setup`。イベント名 `custom_definition_setup`、`channel` / `error_kind` を
+含む 1 ユーザー 1 イベント — 月次の数値には影響しない規模だが、厳密には
+合成データが 1 件混まる)。**2 件の登録が確認できたら、secret は
+Measurement Protocol の画面から削除してよい**。
+
+Admin API での事前登録は試みたが不可だった — カスタム定義の作成に必要な
+OAuth スコープは `analytics.edit` だが、gcloud / OAuth Playground が使う共有
+OAuth クライアントはこのスコープについて Google の審査を通っておらず
+(401 `disabled_client`)、自分で OAuth クライアントを登録・審査するコストに
+見合わない。将来やり直すときは独自クライアントの登録から始めること
+(cubic レビュー指摘でスコープ名の誤記 `analytics.admin` を `analytics.edit` に修正)。
 
 ## 月次の振り返り手順 (毎月 1 回。月初の第 1 月曜を推奨)
 
