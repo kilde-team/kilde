@@ -1,0 +1,16 @@
+.github/workflows/mas-watch.yml
+  h_864205080385bc 56-58
+.github/workflows/mas.yml
+  h_864205080385bc 82-85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "30e533696bacbd0a7b111f3f941a5ae262cc22c5",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
