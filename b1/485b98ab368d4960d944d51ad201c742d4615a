@@ -1,0 +1,21 @@
+docs/articles/README.md
+  s_3f07bb04ac0ce4::t_b340cd68cb01a4 20,22-27,29,36
+docs/articles/2-zenn-speechanalyzer-transcribe.md
+  s_3f07bb04ac0ce4::t_b340cd68cb01a4 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b1485b98ab368d4960d944d51ad201c742d4615a",
+  "prompts": {},
+  "sessions": {
+    "s_3f07bb04ac0ce4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0e7c1-d468-7912-bb73-5794e549718b",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
