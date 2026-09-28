@@ -101,6 +101,12 @@ Mejoras de estabilidad y fiabilidad.
 Añade transcripción de grabaciones y resúmenes (en el dispositivo), soporte de Atajos para iniciar y detener grabaciones, y una biblioteca de grabaciones con búsqueda de texto completo y reproducción desde el momento exacto. La transcripción ahora también funciona aunque cambies la carpeta de destino durante la grabación.
 ```
 
+## Novedades (0.8.2)
+
+```text
+Actualizamos la página del producto en el App Store. No hay cambios en las funciones de la aplicación.
+```
+
 ## Novedades (plantilla)
 
 ```text

@@ -83,6 +83,15 @@ Stability and reliability improvements.
 Adds on-device recording transcription and summaries, Shortcuts support for starting and stopping recordings, and a recording library with full-text search and playback from the exact moment. Transcription now also survives changing the save destination mid-recording.
 ```
 
+## What's New (0.8.2)
+
+The only change since 0.8.1 is the App Store screenshots (issue #266); the app
+itself is identical (build number only). Keep the copy honest and short.
+
+```text
+Updated the App Store product page. No changes to the app's features.
+```
+
 ## What's New (template)
 
 ```text
