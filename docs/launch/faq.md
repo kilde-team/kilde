@@ -75,6 +75,8 @@ Homebrew 経路も現状 arm64 のため提供なし — 素直に «not right n
 > on-device with speaker labels and summarized locally. If you need
 > scenes, streaming, or deep audio routing, those tools do more; if you
 > want the meeting on record with a transcript, kilde does less, faster.
+> (And the usual reminder: record meetings only with everyone's informed
+> consent, per your local laws.)
 
 ## 6. 録音をクラウドに送らない本当の根拠は? (信頼質問)
 

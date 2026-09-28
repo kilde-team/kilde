@@ -11,7 +11,7 @@ App Store ですぐ試せる状態にしてから投稿する。デモ動画
 ## タイトル候補 (1 行。80 文字前後に収める)
 
 1. `Show HN: Kilde – record system audio on macOS and transcribe it on-device`
-2. `Show HN: Kilde – open-source macOS recorder that captures system audio`
+2. `Show HN: Kilde – macOS recorder that captures system audio`
 3. `Show HN: Kilde – menu-bar recorder for meetings with on-device transcription`
 
 1 番を第一候補とする («system audio» が機能の核心で、«on-device» が
@@ -22,7 +22,7 @@ App Store ですぐ試せる状態にしてから投稿する。デモ動画
 ## 最初のコメント (投稿者自身がすぐ書く)
 
 ```markdown
-Hi HN! I built kilde, an open-source screen and audio recorder for macOS that
+Hi HN! I built kilde, a screen and audio recorder for macOS that
 can capture **system audio** — the sound your Mac plays, which QuickTime
 Player's screen recorder cannot record — together with your microphone,
 and transcribe it entirely on your Mac.

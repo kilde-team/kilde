@@ -16,14 +16,14 @@ r/macapps (https://www.reddit.com/r/macapps/) 向け。雰囲気は Show HN よ�
 
 ## タイトル候補
 
-1. `Kilde – free, open-source macOS recorder for meetings: system audio + your mic, transcribed on-device`
+1. `Kilde – free macOS recorder for meetings: system audio + your mic, transcribed on-device`
 2. `I built a menu bar app that records online meetings with the other people's audio (system audio) and transcribes it locally`
 
 ## 本文
 
 ```markdown
-Hey r/macapps! I built **kilde**, a free and open-source screen/audio
-recorder for macOS. It fixes the thing that always bugged me about recording
+Hey r/macapps! I built **kilde**, a free screen/audio recorder for macOS.
+It fixes the thing that always bugged me about recording
 online meetings: **the other participants' voices come through system audio,
 which QuickTime's screen recording doesn't capture** — so you end up with only
 your own side of the conversation.
@@ -51,7 +51,9 @@ vault.
 
 **Free** — Mac App Store: https://apps.apple.com/app/id6812783176
 Homebrew: `brew tap kilde-team/kilde && brew install kilde-team/kilde/kilde`
-GitHub (MIT, details + docs): https://github.com/kilde-team/kilde
+GitHub (MIT — the app, distribution, and docs; the recording engine and CLI
+source live in a separate private repo while we decide their long-term
+source policy): https://github.com/kilde-team/kilde
 
 Requirements: Apple Silicon Mac, macOS 14+ (transcription needs macOS 26+).
 CLI sends no analytics; the GUI sends aggregate usage stats only — no

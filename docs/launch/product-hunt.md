@@ -31,9 +31,9 @@
 kilde records your screen with system audio + mic in one track — the sound
 most recorders miss. On macOS 26+, meetings are transcribed on-device with
 speaker labels and summarized locally. No bots in your calls. No cloud.
-Free and open source.
+Free. App and docs are open source.
 ```
-(243 字)
+(257 字)
 
 ## ギャラリー (順番が重要 — 1 枚目で価値を伝える)
 
