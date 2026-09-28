@@ -30,7 +30,8 @@ enum UsageAnalytics {
     /// issue #159 の «録画完了 3 回以上のユーザー率» は 1 ユーザーあたりの回数が
     /// 無いと出せない — Firebase コンソールのイベント集計は «何回発火したか» だけで
     /// «何人のユーザーが 3 回以上録ったか» を返さない。キーは «利用統計の内部
-    /// カウンタ» であることが読み取れる名前にする (RecordingSetup の設定キーと混ぜない)
+    /// カウンタ» であることが読み取れる名前にする (RecordingSetup の設定キーと混ぜない)。
+    /// 旧バージョンからの引き継ぎは migrateRecordingCountIfNeeded が行う
     private static let recordingsCompletedKey = "usage_recordings_completed"
 
     /// 配布チャネル (issue #159 の «チャネル別 (MAS / Homebrew / 直接配布)»)。
@@ -55,10 +56,34 @@ enum UsageAnalytics {
     static func setUserProperties() {
         guard isEnabled else { return }
         Analytics.setUserProperty(distributionChannel, forName: "distribution_channel")
-        let count = UserDefaults.standard.integer(forKey: recordingsCompletedKey)
+        let defaults = UserDefaults.standard
+        migrateRecordingCountIfNeeded(defaults)
+        let count = defaults.integer(forKey: recordingsCompletedKey)
         if let bucket = recordingsBucket(count) {
             Analytics.setUserProperty(bucket, forName: "recordings_bucket")
         }
+    }
+
+    /// 旧カウンタ (issue #156 の評価依頼が数えた «15 秒以上の録画完了») からの移行。
+    /// **キーがまだ無い端末だけで 1 回** 行い、移行の有無はキーの存在で表す —
+    /// キーが無いと UserDefaults の読み取りは 0 になるので、移行しないと既存
+    /// ユーザーが «0 回» に戻り、生涯累計という KPI の定義が崩れる (CodeRabbit
+    /// レビュー指摘)。旧カウンタを書くのは **MAS ビルドだけ** (#156 は App Store の
+    /// 評価依頼で、直接配布版の ReviewPromptCoordinator はカウントもしない) ので、
+    /// 直接配布版は履歴源が無く 0 から始まる («履歴が無い» は真)。旧カウンタは
+    /// 15 秒未満の録画を数えていないため **下振れする** — 短い録画が «3_5» の
+    /// 境界を跨ぐ程度で、«定着している» 側に上振れする (0 に戻す) より安全。
+    /// 以後は bumpRecordingCount が進める
+    private static func migrateRecordingCountIfNeeded(_ defaults: UserDefaults) {
+        guard defaults.object(forKey: recordingsCompletedKey) == nil else { return }
+#if APPSTORE
+        let seeded = defaults.integer(
+            forKey: ReviewPromptCoordinator.Keys.successfulRecordings)
+#else
+        // 直接配布版に書いた旧カウンタは存在しない (上のコメント)
+        let seeded = 0
+#endif
+        defaults.set(seeded, forKey: recordingsCompletedKey)
     }
 
     /// 録画 1 件が完了した (issue #159)。«月間アクティブ (録画完了) ユーザー数» と
