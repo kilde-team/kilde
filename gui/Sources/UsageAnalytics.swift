@@ -87,10 +87,14 @@ enum UsageAnalytics {
     /// 累計録画完了回数の区分。**返す値はこの関数に閉じる** (recordingLengthBucket と
     /// 同じ規約)。«3 回以上» の判定に使うので 3 の境界をまたがない — 1・2 はそのまま、
     /// 3 以降は荒い区分にする (定着を見るのに «7 回» と «8 回» の違いは要らない)。
-    /// nil (0 回) は «まだ録っていない» なのでプロパティ自体を設定しない
+    /// **0 («まだ録っていない») も語彙に含める** — 0 を外すと録画したことのない
+    /// ユーザーが分布から消え、«3 回以上のユーザー率» の分母が «1 回以上録った
+    /// ユーザー» にすり替わる (CodeRabbit レビュー指摘)。分母は «起動したことが
+    /// あるユーザー全体» とするのがこの KPI の意図
     static func recordingsBucket(_ count: Int) -> String? {
-        guard count >= 1 else { return nil }
+        guard count >= 0 else { return nil }
         switch count {
+        case 0: return "0"
         case 1: return "1"
         case 2: return "2"
         case 3...5: return "3_5"

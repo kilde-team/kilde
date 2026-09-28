@@ -11,7 +11,7 @@ App Store Connect で、このファイルは定義・手順・月次台帳** (A
 | # | 指標 | 定義 | 見る場所 | 目標 |
 |---|---|---|---|---|
 | 1 | 月間録画完了ユーザー数 | 過去 30 日に `recording_complete` を 1 回以上送ったユーザー数 | Firebase コンソール → アナリティクス → イベント → `recording_complete` (ユーザー数) | **1,000** (#161 の出口条件) |
-| 2 | 定着率 (録画完了 3 回以上のユーザー率) | ユーザー プロパティ `recordings_bucket` が `3_5` / `6_9` / `10_plus` のユーザーの割合 | Firebase コンソール → ユーザー プロパティ → `recordings_bucket` の分布 | 未定 — ベースラインを 3 か月取ってから決める |
+| 2 | 定着率 (録画完了 3 回以上のユーザー率) | ユーザー プロパティ `recordings_bucket` が `3_5` / `6_9` / `10_plus` のユーザーの割合。**分母は `recordings_bucket` が設定されたユーザー全体** (アプリを起動したことがあるユーザー。0 回のユーザーは `0` に入る) | Firebase コンソール → ユーザー プロパティ → `recordings_bucket` の分布 | 未定 — ベースラインを 3 か月取ってから決める |
 | 3 | 文字起こし利用率 | 過去 30 日に `transcription_complete` を送ったユーザー数 ÷ 同じ窓で `recording_complete` を送ったユーザー数 | Firebase コンソール → イベントのユーザー数 (両イベント) | 未定 (同上) |
 | 4 | App Store の評価数 | MAS 版の評価 (レーティング) の累計件数 | App Store Connect → 分析 (概要の App Store 評価) と「評価とレビュー」(星別の件数) | **30** (#161 の出口条件) |
 | 5 | チャネル別の内訳 | `recording_complete` の `channel` パラメータとユーザー プロパティ `distribution_channel` (`mas` / `direct`) の分布 | Firebase コンソール (イベントのパラメータ / ユーザー プロパティ) | 目標なし (参考値) |
@@ -26,8 +26,9 @@ App Store Connect で、このファイルは定義・手順・月次台帳** (A
   `transcription_cancel` / `transcription_retry` (パラメータ: `recording_length`、
   `processing_time`、`error_kind`)
 - ユーザー プロパティ: `distribution_channel` (`mas` / `direct`)、
-  `recordings_bucket` (`1` / `2` / `3_5` / `6_9` / `10_plus` — 端末内で数えた
-  累計録画完了回数の区分)
+  `recordings_bucket` (`0` / `1` / `2` / `3_5` / `6_9` / `10_plus` — 端末内で数えた
+  累計録画完了回数の区分。`0` は «まだ録っていない» で、起動した全ユーザーが
+  分布に入る)
 
 プライバシーの制約 (PRIVACY.md «収集する情報»): 区分値のみで、録画の内容・
 ファイル名・保存先・生の秒数・生の回数は送らない。
@@ -49,8 +50,8 @@ App Store Connect で、このファイルは定義・手順・月次台帳** (A
 
 1. Firebase コンソール → イベント: 過去 30 日の `recording_complete` と
    `transcription_complete` のユーザー数を記録する (指標 1・3)
-2. ユーザー プロパティ: `recordings_bucket` の分布から `3_5` 以上の割合を
-   計算して記録する (指標 2)
+2. ユーザー プロパティ: `recordings_bucket` の分布から、**全値のユーザー数の合計を
+   分母に** `3_5` / `6_9` / `10_plus` の合計の割合を定着率として記録する (指標 2)
 3. ユーザー プロパティ: `distribution_channel` の分布を記録する (指標 5)
 4. App Store Connect: 評価の累計件数と平均を記録する (指標 4)
 5. [appstore/metadata/metrics.md](appstore/metadata/metrics.md) の
@@ -75,6 +76,9 @@ App Store Connect で、このファイルは定義・手順・月次台帳** (A
   録っていない人» も含まれる (インストール済みユーザーの深さの指標)。
   «今月 3 回以上録ったユーザー率» の厳密な値はユーザー単位の生データが必要で、
   BigQuery エクスポート (未設定) が要る。まずは近似として使う
+- 定着率 (指標 2) の分母は «起動したことがあるユーザー全体» なので、流入が
+  増える月は比率が下がる側に動く (新規はまず `0` に入るため)。伸びしろの
+  大きさとして読み、月初の施策判断はトレンドで行う
 - Firebase のレポートは日次で確定する。前日比のような短周期の変動で判断しない
 - **App Privacy ラベルは変更不要** — 追加したイベント・プロパティは区分値のみで、
   2026-09-23 に申告済みの «製品の操作» (analytics 目的・トラッキングなし) の
