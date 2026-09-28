@@ -107,6 +107,12 @@ Añade transcripción de grabaciones y resúmenes (en el dispositivo), soporte d
 Actualizamos la página del producto en el App Store. No hay cambios en las funciones de la aplicación.
 ```
 
+## Novedades (0.8.3)
+
+```text
+Mejoras internas de la aplicación. No hay cambios en las funciones de la aplicación.
+```
+
 ## Novedades (plantilla)
 
 ```text
