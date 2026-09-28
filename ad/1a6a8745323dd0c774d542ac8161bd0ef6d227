@@ -1,0 +1,20 @@
+docs/articles/README.md
+  s_3f07bb04ac0ce4::t_2329a22cb1ffe6 1,3,11-15
+  s_3f07bb04ac0ce4::t_3aeb2fe94970f1 16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ad1a6a8745323dd0c774d542ac8161bd0ef6d227",
+  "prompts": {},
+  "sessions": {
+    "s_3f07bb04ac0ce4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0e7c1-d468-7912-bb73-5794e549718b",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
