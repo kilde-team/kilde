@@ -74,9 +74,12 @@ reader はこの語順をそのまま通してしまうことがあります
 ## セグメントとタイムスタンプ
 
 `SpeechTranscriber` の結果は AsyncSequence で流れてきます。
-各セグメントは音声内の時刻範囲を持っているので、
-**セグメントの時刻 = 録音内の時刻**として SRT / WebVTT / Markdown に
-そのまま整形できます。
+各セグメントは音声内の時刻範囲を持っていますが、**時刻範囲は既定では付きません**。
+transcriber を作るときに `SpeechTranscriber.ResultAttributeOption.audioTimeRange`
+を指定する (または時刻付きの preset を選ぶ) 必要があります — 標準の
+`.transcription` preset では付かないので、SRT や WebVTT を作るなら必須の指定です。
+時刻範囲が得られれば、**セグメントの時刻 = 録音内の時刻**として
+SRT / WebVTT / Markdown にそのまま整形できます。
 
 会議の文字起こしで効くのが**話者の分離**です。SpeechAnalyzer 側に
 話者ダイアライゼーションはないので、録音側で分けておきます:

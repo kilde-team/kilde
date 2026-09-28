@@ -45,8 +45,8 @@ let config = SCStreamConfiguration()
 config.capturesAudio = true
 config.sampleRate = 48_000
 config.channelCount = 2
-config.queueDepth = 3            // ディスプレイと音声でバッファ深度を共有するので、
-                                 // 映像のフレームレート × 長さがここを溢れないように
+config.queueDepth = 3            // ストリームのキューに保持できる最大フレーム数。
+                                 // 処理が追いつかないとここを溢れてフレームが落ちる
 config.minimumFrameInterval = CMTime(value: 1, timescale: 30)  // 30 fps
 ```
 
@@ -72,20 +72,21 @@ config.minimumFrameInterval = CMTime(value: 1, timescale: 30)  // 30 fps
 
 ### 子ウィンドウを含まない
 
-ウィンドウ フィルタには 1 つ落とし穴があります。`SCContentFilter` は既定で
-**子ウィンドウも描画に含める**ことです。子ウィンドウが画面の外にあると、
+ウィンドウ収録には 1 つ落とし穴があります。ScreenCaptureKit は既定で
+**対象ウィンドウの子ウィンドウも描画に含める**ことです。子ウィンドウが画面の外にあると、
 出力フレームは「親 + 子」の外接矩形に合わせて拡張され、結果として
 録りたいウィンドウが縮んで写り、画面外の子ウィンドウが入り込んでしまいます。
 
 ```swift
-filter = SCContentFilter(desktopIndependentWindow: window)
-filter.includeChildWindows = false   // 補助ウィンドウを含めない。
-                                     // 既定のままだと外接矩形が広がって
-                                     // 目的のウィンドウが縮んで写る
+let config = SCStreamConfiguration()
+// ストリーム構成側で子ウィンドウを含めない (macOS 14.2 以降のプロパティ)。
+// 既定のままだと外接矩形が広がって目的のウィンドウが縮んで写る
+config.includeChildWindows = false
 ```
 
 「撮ったはずのウィンドウが妙に小さい」「変なパネルが写っている」ときは
-ここを疑うのが近道です。
+ここを疑うのが近道です。なお音声のスコープ (そのアプリの音だけ、という指定) は
+フィルタ側で決まり、この設定とは独立です。
 
 ## 音声と映像のタイムスタンプ: PTS アンカー
 
