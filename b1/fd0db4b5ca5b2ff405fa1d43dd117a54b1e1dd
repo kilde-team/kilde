@@ -1,0 +1,18 @@
+docs/RELEASE.md
+  h_864205080385bc 446-448
+docs/release-notes/README.md
+  h_864205080385bc 14-17
+scripts/release/render-release-notes.py
+  h_864205080385bc 43-47,52-77,79-106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b1fd0db4b5ca5b2ff405fa1d43dd117a54b1e1dd",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
