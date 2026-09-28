@@ -1,0 +1,18 @@
+docs/articles/1-zenn-screencapturekit-app-audio.md
+  h_864205080385bc 85-89,114-116,168-169
+docs/articles/2-zenn-speechanalyzer-transcribe.md
+  h_864205080385bc 20,27,133-134
+docs/articles/README.md
+  h_864205080385bc 11-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "758a8e83e8d2745b2f0202e2445072168a298e5c",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
