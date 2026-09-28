@@ -297,7 +297,17 @@ jobs:
           ARTIFACT="$(find dist -maxdepth 1 -type f -name '*.zip' 2>/dev/null | sort | head -1)"
           [ -n "$ARTIFACT" ] || { echo "dist/ に zip が無い — ビルド/署名 step を確認"; exit 1; }
           NOTES="$(mktemp)"
+          # リリースノートの正本は docs/release-notes/v<VERSION>.md (issue #283)。
+          # あれば本文の先頭に組み込み、無ければ定型のみ (これまで通り)。
+          # appcast の <description sparkle:format="html"> も sign.sh が同じファイルから生成するため、
+          # 変更履歴はこのファイル 1 つを編集すれば GUI の更新ダイアログと Release 本文の
+          # 両方に反映される (従来の「Release 作成後に本文へ手動追記」は不要になる)
+          CURATED_NOTES="docs/release-notes/v$VERSION.md"
           {
+            if [ -f "$CURATED_NOTES" ]; then
+              cat "$CURATED_NOTES"
+              printf '\n\n'
+            fi
             echo "## kilde $VERSION"
             echo
             echo "- ビルド: arm64 (Apple Silicon)。Intel / universal は今後のリリースで提供予定"
@@ -319,8 +329,12 @@ jobs:
           for extra in dist/KildeGUI-*.dmg dist/appcast.xml; do
             [ -e "$extra" ] && ARGS+=("$extra")
           done
-          # 同じタグで再実行した場合、既存 Release の資産を差し替える (作り直しはしない)
+          # 同じタグで再実行した場合、既存 Release の資産を差し替える (作り直しはしない)。
+          # 本文も $NOTES から差し替える — ノートの正本は docs/release-notes/ なので、
+          # 再実行時に資産だけ新しくなって本文が古いまま、を防ぐ (CodeRabbit 指摘)。
+          # 本文の手動編集はここで上書きされる — 正本は docs/release-notes/v<VERSION>.md
           if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --notes-file "$NOTES"
             gh release upload "$TAG" "${ARGS[@]}" --clobber
           else
             gh release create "$TAG" "${ARGS[@]}" \

@@ -130,7 +130,10 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-for tool in swift codesign security otool plutil xcodegen xcodebuild ditto hdiutil; do
+# python3 は appcast のリリースノート変換 (render-release-notes.py、issue #283) で使う。
+# macOS は Command Line Tools に /usr/bin/python3 を同梱しているため、
+# Xcode の入った環境と CI ランナーの両方で利用できる
+for tool in swift codesign security otool plutil xcodegen xcodebuild ditto hdiutil python3; do
     command -v "$tool" >/dev/null 2>&1 || die "必要なコマンドが見つかりません: $tool"
 done
 
@@ -307,6 +310,22 @@ DMG_LENGTH="$(stat -f %z "$GUI_DMG")"
 [[ "$DMG_LENGTH_REPORTED" == "$DMG_LENGTH" ]] \
     || die "sign_update が報告した length ($DMG_LENGTH_REPORTED) が実際の DMG サイズ ($DMG_LENGTH) と一致しません"
 
+# リリースノートは appcast の item <description> に直接埋め込む (issue #283)。
+# sparkle:releaseNotesLink で GitHub のリリースページを指すと、更新ダイアログの
+# Web ビューに GitHub UI 全体 (リポジトリ名・タブ・Sign in バナー) が読み込まれて
+# しまうため使わない。releaseNotesLink 無しの場合、Sparkle 2 は item の description
+# をリリースノートビューに表示する (SUUpdateAlert.m — format 属性の既定は html)。
+# 属性は sparkle:format (type は読まれない) — 明示して html であることを保証する。
+# 変更履歴の正本は docs/release-notes/v<VERSION>.md —
+# GitHub Release の本文も release.yml が同じファイルから組み立てる
+NOTES_FILE="$ROOT_DIR/docs/release-notes/v${VERSION}.md"
+# 変換結果は argv ではなく一時ファイルで渡す — ノートが長いと OS の引数上限
+# («Argument list too long») でリリースが落ちるため (cubic レビュー指摘)
+NOTES_DESC_FILE="$WORK_DIR/release-notes.html"
+python3 "$SCRIPT_DIR/render-release-notes.py" \
+    --fallback-message "このバージョンの変更履歴は https://github.com/kilde-team/kilde/releases/tag/v${VERSION} をご確認ください" \
+    "$NOTES_FILE" > "$NOTES_DESC_FILE"
+
 APPCAST="$OUTPUT_DIR/appcast.xml"
 # pubDate は RFC 822 (英語の曜日・月名) でなければならない。date の出力は LC_TIME に
 # 従うため、日本語ロケールの実行環境では «水, 16 9月 2026…» になり Sparkle が日付を
@@ -326,17 +345,46 @@ cat > "$APPCAST" <<XML
       <sparkle:version>${BUILD_NUMBER}</sparkle:version>
       <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-      <sparkle:releaseNotesLink>https://github.com/kilde-team/kilde/releases/tag/v${VERSION}</sparkle:releaseNotesLink>
+      <description sparkle:format="html">@@RELEASE_NOTES@@</description>
       <enclosure url="https://github.com/kilde-team/kilde/releases/download/v${VERSION}/KildeGUI-${VERSION}.dmg" sparkle:edSignature="${SIGNATURE}" length="${DMG_LENGTH}" type="application/octet-stream"/>
     </item>
   </channel>
 </rss>
 XML
 # item は常に 1 件 — SUFeedURL が latest 固定なので過去分の累積は不要。
-# 展開漏れのプレースホルダが残っていないか機械的に検査する (sed の失敗は黙って通るため)
+# 展開漏れのプレースホルダ (${VAR}) は **ノート挿入前のテンプレート** に対して
+# 検査する — 挿入後だと、ノート本文に «${HOME}» のようなリテラルがあるだけで
+# 誤検知してリリースが止まる (CodeRabbit 指摘)。
+# @@RELEASE_NOTES@@ をこの検査に入れないのは同じ理由 (本文にリテラルが
+# 入りうる)。置換漏れは下の python3 の置換 step がプレースホルダの欠落を
+# エラーにするため弾ける
 if grep -q '\${' "$APPCAST"; then
     die "appcast に未置換のプレースホルダが残っています: $APPCAST"
 fi
+# @@RELEASE_NOTES@@ はここで置換する。heredoc にノートを直接展開しない —
+# ノート本文に $ やバッククォートが入ると unquoted heredoc でシェル展開されてしまう。
+# NOTES_DESC は XML エスケープ済み (render-release-notes.py) なので置換後も整形式を保つ
+python3 - "$APPCAST" "$NOTES_DESC_FILE" <<'PY'
+import sys
+import xml.etree.ElementTree as ET
+
+path, desc_path = sys.argv[1], sys.argv[2]
+with open(path, encoding="utf-8") as f:
+    xml = f.read()
+with open(desc_path, encoding="utf-8") as f:
+    desc = f.read()
+if "@@RELEASE_NOTES@@" not in xml:
+    sys.exit("error: appcast に @@RELEASE_NOTES@@ プレースホルダが見つかりません")
+candidate = xml.replace("@@RELEASE_NOTES@@", desc)
+# 置換結果を常に XML としてパースしてから書き込む — xmllint の無い環境で
+# 不整形式のフィードがそのまま配布されるのを防ぐ (cubic レビュー指摘)
+try:
+    ET.fromstring(candidate)
+except ET.ParseError as exc:
+    sys.exit(f"error: 置換後の appcast が XML として不正です: {exc}")
+with open(path, "w", encoding="utf-8") as f:
+    f.write(candidate)
+PY
 if command -v xmllint >/dev/null 2>&1; then
     xmllint --noout "$APPCAST" || die "appcast.xml が整形式ではありません: $APPCAST"
 else
