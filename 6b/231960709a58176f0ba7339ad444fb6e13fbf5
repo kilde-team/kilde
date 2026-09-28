@@ -1,0 +1,24 @@
+docs/appstore/metadata/metadata-en.md
+  h_864205080385bc 95-104
+docs/appstore/metadata/metadata-es.md
+  h_864205080385bc 110-115
+docs/appstore/metadata/metadata-ja.md
+  h_864205080385bc 114-124
+docs/appstore/metadata/metadata-ko.md
+  h_864205080385bc 101-106
+docs/appstore/metadata/metadata-zh-Hans.md
+  h_864205080385bc 97-102
+docs/appstore/metadata/metrics.md
+  h_864205080385bc 62-64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6b231960709a58176f0ba7339ad444fb6e13fbf5",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
