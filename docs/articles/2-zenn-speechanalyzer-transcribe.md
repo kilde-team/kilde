@@ -64,6 +64,9 @@ reader.add(try AVAssetReaderAudioMixOutput(audioTracks: tracks,
 たとえば `say -o voice.m4a` が作る M4A は中身が 16-bit **big** endian の I16 で、
 reader はこの語順をそのまま通してしまうことがあります
 (要求した little endian の設定が適用されない別経路を通る)。
+通常の M4A は AAC などに圧縮されているのでここは該当しません。
+「コンテナに無圧縮 LPCM が入っている」この種の入力 (AIFF や `say` の出力など) で
+顕在化します。
 
 防御は簡単で、**最初のバッファで ASBD (AudioStreamBasicDescription) を検証し、
 想定と違ったら `AVAudioConverter` で揃え直してから analyzer に渡す**ことです。

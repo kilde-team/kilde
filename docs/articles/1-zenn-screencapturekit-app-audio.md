@@ -42,7 +42,8 @@ ScreenCaptureKit の登場人物は 3 つです。
 
 ```swift
 let config = SCStreamConfiguration()
-config.capturesAudio = true
+config.capturesAudio = true     // システム音声には「画面収録」の TCC 許可が必要
+                                // (マイク許可は不要)。許可なしだと開始が失敗する
 config.sampleRate = 48_000
 config.channelCount = 2
 config.queueDepth = 3            // ストリームのキューに保持できる最大フレーム数。
@@ -52,8 +53,9 @@ config.minimumFrameInterval = CMTime(value: 1, timescale: 30)  // 30 fps
 
 出力は `SCStreamOutput` の `stream(_:didOutputSampleBuffer:ofType:)` に
 `.screen` (映像) と `.audio` (音声) が混ざって流れてきます。
-`CMSampleBuffer` の音声は非圧縮 PCM (Float32 interleaved) なので、
-そのままエンコーダ (AVAssetWriter) に渡せます。
+`CMSampleBuffer` の音声は非圧縮 PCM ですが、Float32 の**ノンインターリーブ (平面)**
+で渡ってきます。`AVAudioConverter` などでインターリーブに変換してから
+エンコーダ (AVAssetWriter) に渡します。
 
 ## ウィンドウ単位に絞ると、音声もそのアプリに絞られる
 
@@ -128,17 +130,20 @@ H.264 / HEVC に渡すなら `kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange`
 
 **終了処理をシグナルでも通す。** CLI や長時間収録のツールでは、
 Ctrl+C で止められたときに `finishWriting` まで走らせないと
-書きかけの再生不能ファイルが残ります。SIGINT / SIGTERM を
+書きかけの再生不能ファイルが残ります。SIGINT / SIGTERM / SIGHUP を
 「正常な停止」として扱い、最後のサンプルまで書き切ってから
 `finishWriting(withCompletionHandler:)` に到達させる作りにしておくと、
-録画ツールとしての信頼性が一段上がります。
+録画ツールとしての信頼性が一段上がります (SIGHUP を忘れると、
+ターミナルを閉じた瞬間に書きかけのファイルが残ります)。
 
 ## マイクを混ぜるなら
 
 会議の録音では「相手の声 (システム音声) + 自分の声 (マイク)」が要ります。
 マイクは `AVCaptureSession` で別に開くことになりますが、**起動に数百ミリ秒**かかるので、
 ScreenCaptureKit のストリームより**先に**開始します。先に SCStream を上げると、
-最初の数秒の自分の声が録れていない、ということが起きます。
+最初の数秒の自分の声が録れていない、ということが起きます
+(マイク経路には Info.plist の `NSMicrophoneUsageDescription` と
+マイクの TCC 許可が別途要ります。システム音声だけなら不要です)。
 
 ミックスは自前で行います。両ソースの PTS を揃えた上で、
 サンプルレートを揃えて加算するだけですが、片方が遅れて到着した分を
