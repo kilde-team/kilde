@@ -30,20 +30,25 @@ Show HN / r/macapps / Product Hunt のコメント欄で想定される質問と
 ## 2. 何を収集しているのか (アナリティクス)
 
 > The CLI sends nothing — no analytics at all. The GUI apps (App Store and
-> direct download) send aggregate usage stats via Firebase Analytics:
-> launches, recording-completion counts, bucketed duration (never raw
-> seconds), which distribution channel you use, and crash reports
-> (stack traces) via Crashlytics. Never the recording content, filenames,
+> direct download) send two kinds of telemetry. Aggregate usage stats via
+> Firebase Analytics: launches and usage frequency, app and OS versions,
+> device type, coarse region (derived from IP), recording-completion counts,
+> bucketed duration (never raw seconds), which channel you use, and
+> transcription usage counts. Separately, crash reports (stack traces) via
+> Crashlytics, sent after a crash. Never the recording content, filenames,
 > paths, settings, or transcript text — recordings and transcripts never
 > leave your Mac. Full list: https://kilde.site/privacy/
 
 言われたときの追い質問 «Can I turn it off?»:
 
-> There's no opt-out switch in the app today — honest answer. Two things
-> leave the GUI: aggregate usage stats (never content, filenames, or paths)
-> and, when the app crashes, a crash report with a stack trace — both listed
-> in the privacy policy. The CLI, which sends nothing, covers scripted and
-> automation use. If enough people want a toggle we'll consider it.
+> There's no opt-out switch in the app today — honest answer. The GUI's
+> telemetry is two kinds: aggregate usage stats (never content, filenames,
+> or paths) and, when it crashes, a crash report with a stack trace. The
+> other outbound connections — the update check (direct download only) and
+> speech-model downloads from Apple — don't carry usage data; everything is
+> listed in the privacy policy. The CLI, which sends no telemetry, covers
+> scripted and automation use. If enough people want a toggle we'll
+> consider it.
 
 補足 (日本語注記): «オプトアウトは現状無し» が事実 (gui/Sources/UsageAnalytics.swift —
 isEnabled は Firebase の設定有無のみ)。«consider it» は約束しない言い方。

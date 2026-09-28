@@ -28,9 +28,9 @@ Player's screen recorder cannot record — together with your microphone,
 and transcribe it entirely on your Mac.
 
 The use case it started from: recording online meetings. The other
-participants' voices come through system audio, so most recorders only get
-your side of the conversation. kilde mixes both into one track (or keeps them
-separate for speaker-labeled transcripts).
+participants' voices come through system audio, so the recorder built into
+macOS only gets your side of the conversation. kilde mixes both into one
+track (or keeps them separate for speaker-labeled transcripts).
 
 It comes in two shapes:
 
@@ -43,7 +43,8 @@ It comes in two shapes:
 - A CLI (`kilde rec` / `kilde transcribe`) for scripts and automation.
   A few things we sweated: Ctrl+C always leaves a finalized, playable file;
   window capture can scope system audio to that app only; no virtual audio
-  driver needed (native ScreenCaptureKit capture)
+  driver needed (native ScreenCaptureKit capture — runtime-tested on
+  macOS 26)
 
 Everything runs locally — no meeting bot joins your call, recordings and
 transcripts never leave your Mac, and the CLI sends no analytics at all.

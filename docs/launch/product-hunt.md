@@ -31,11 +31,12 @@
 
 ```text
 kilde records your screen with system audio + mic in one track — the sound
-most recorders miss. On macOS 26+ (Apple Intelligence Macs), meetings are
-transcribed and summarized on-device. No bots in your calls. No cloud.
-Free. App and docs are open source.
+built-in recorders miss. On macOS 26+ (Apple Intelligence Macs), meetings
+are transcribed & summarized on-device. No bots. No cloud. Free. Menu bar
+app and docs are open source (MIT).
 ```
-(255 字 — 話者ラベルは分離トラック時の機能なので説明文には書かず、
+(258 字 — «built-in recorders» / «menu bar app and docs» と範囲を限定。
+話者ラベルは分離トラック時の機能なので説明文には書かず、
 メーカーコメントとギャラリーで条件付きに記載)
 
 ## ギャラリー (順番が重要 — 1 枚目で価値を伝える)
@@ -74,7 +75,10 @@ The CLI sends no analytics at all; the GUI sends aggregate usage stats
 crashes, a crash report with a stack trace.
 
 It's free: Mac App Store, Homebrew, or download from GitHub (MIT).
-Apple Silicon, macOS 14+ (transcription needs macOS 26+).
+Open-source note, so nobody's surprised: the menu bar app, distribution,
+and docs are MIT; the recording engine lives in a separate private repo
+while we decide its long-term source policy. Apple Silicon, macOS 14+
+(transcription needs macOS 26+, runtime-tested on macOS 26).
 
 Ask me anything — especially what you'd want in a meeting recorder. And
 when you record meetings, make sure everyone's informed and consenting 🙂

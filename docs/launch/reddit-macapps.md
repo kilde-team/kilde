@@ -40,6 +40,7 @@ to a notes folder like your Obsidian vault.
 
 - 🖥️ Record the screen, a single window, or audio only — native
   ScreenCaptureKit capture, **no BlackHole / virtual audio driver needed**
+  (runtime-tested on macOS 26)
 - 🎙️ Window capture can scope the audio to that app only, so notification
   pings don't end up in your recording
 - 🛡️ Stop it the normal ways — stop button, hotkey, app quit, or Ctrl+C —

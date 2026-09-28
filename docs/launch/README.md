@@ -54,7 +54,7 @@ Product Hunt のギャラリーは **縦横比 16:9 推奨 (最低 1270×760)**�
 
 - **投稿直後に基準値を取る**。GitHub の DL 数・スター数は**累積カウンタ**なので、
   ローンチ効果は «投稿時の基準値と 7 日後の値の差分» でしか読めない
-- **GitHub Releases**: `gh api repos/kilde-team/kilde/releases --jq '.[] | {tag: .tag_name, assets: [.assets[] | {name: .name, dl: .download_count}]}'` — アセット別の DL 数。**`kilde-<version>-macos.zip` の DL 数が (CLI を含む) 直接配布チャネルの代理指標** (docs/metrics.md «計測の限界» と同じ読み方)
+- **GitHub Releases**: `gh api repos/kilde-team/kilde/releases --jq '.[] | {tag: .tag_name, assets: [.assets[] | {name: .name, dl: .download_count}]}'` — アセット別の DL 数。台帳には **両方** 記入する: `kilde-<version>-macos.zip` («zip» 列 — CLI バイナリを含む直接配布の代理指標) と `KildeGUI-<version>.dmg` («DMG» 列 — GUI の直接配布)
 - **GitHub スター**: `gh api repos/kilde-team/kilde --jq '.stargazers_count'` — ローンチの反応の一次指標
 - **Mac App Store**: App Store Connect → 分析 → «App Store のダウンロード» (日次。1〜2 日遅れで確定) — **期間値**なので基準値は不要、投稿週の値をそのまま書く
 - **Homebrew**: tap に Homebrew 公式の公開アナリティクスは無い — 計測不能と考えてよい
