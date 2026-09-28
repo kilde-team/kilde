@@ -59,7 +59,7 @@ Hi PH! I'm the maker of kilde 🎙️
 Every meeting tool I tried either put a bot in the call, sent the audio to a
 cloud, or — worse for meetings — only recorded my microphone, missing
 everyone else. On a Mac, the other participants' voices are *system audio*,
-and that's exactly what most recorders can't capture.
+and that's exactly what the built-in screen recorder can't capture.
 
 kilde records system audio + your mic together (native ScreenCaptureKit —
 no virtual audio driver), from a menu bar app or a CLI. On macOS 26+, with
