@@ -109,7 +109,15 @@ def inline(text: str) -> str:
 
     s = re.sub(r"https?://[\x21-\x7e]+", autolink, s)
 
-    return _PLACEHOLDER.sub(lambda m: protected[int(m.group(1))], s)
+    # リンクラベルのコード span のように、退避したフラグメント自身が
+    # プレースホルダを含む (ネストした) ケースがある — re.sub は置換結果を
+    # 再走査しないため、プレースホルダが無くなるまで復元を繰り返す。
+    # インデックスは単調増加で循環しないためループは必ず終わる
+    # (cubic レビュー指摘。1 パスだと «[`code`](url)» に NUL が残り、
+    #  appcast が XML として不正になってリリースが止まる)
+    while _PLACEHOLDER.search(s):
+        s = _PLACEHOLDER.sub(lambda m: protected[int(m.group(1))], s)
+    return s
 
 
 def render_markdown(md_text: str) -> str:
