@@ -84,11 +84,16 @@ jobs:
           # v0.2.0: spec の keywords / subtitles 対応 (未満は未知のキーを黙って無視)。
           # v0.2.1: create-version の platform 列挙値修正 (OS_X → MAC_OS。v0.2.0 は
           # バージョン作成が HTTP 409 で失敗する — apply の初回実行 run 36252411489 で発見)
+          # v0.3.0: ワークフローのジャーナル記録 (各ステップの状況・ログを .asc-submit/runs に
+          # 記録。submit 確認の辞退はキャンセル扱い。run/serve/runs/logs の下位互換は維持)
+          # v0.4.0: run が spec を lint してから実行するようになった (プレースホルダー・
+          # キー打ち間違い・上限違反を API キー無しで事前検出)。生成済み spec 0.8.1 /
+          # 0.8.2 で validate を通して警告のみ・エラー 0 を実証済み。審査結果監視 wait・
+          # リリース制御 (phased-release / schedule-release)・メタデータ拡張も入ったが
+          # この workflow の経路は変えない
           # タグではなくコミット SHA に固定する (タグ移動で異なるコードが走るのを防ぐ —
-          # CodeRabbit セキュリティ指摘)。SHA は v0.3.0 を指す
-# v0.3.0: ワークフローのジャーナル記録 (各ステップの状況・ログを .asc-submit/runs に
-# 記録。submit 確認の辞退はキャンセル扱い。run/serve/runs/logs の下位互換は維持)
-          ref: c2b0150778c3894982163062d197fe5352c3f16a # v0.3.0
+          # CodeRabbit セキュリティ指摘)。SHA は v0.4.0 を指す
+          ref: 895c35629e9121042cb8fcbff93d8b61c9e38a38 # v0.4.0
           path: asc-submit
           persist-credentials: false
 
