@@ -1,0 +1,19 @@
+docs/articles/3-note-private-meeting-minutes.md
+  s_3f07bb04ac0ce4::t_599db8851dc350 69-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "79e3b15fc9a05b342ea8b383a15388d5a24a089a",
+  "prompts": {},
+  "sessions": {
+    "s_3f07bb04ac0ce4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0e7c1-d468-7912-bb73-5794e549718b",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
