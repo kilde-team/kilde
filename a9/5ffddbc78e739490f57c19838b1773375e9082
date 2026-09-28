@@ -1,0 +1,20 @@
+docs/articles/1-zenn-screencapturekit-app-audio.md
+  h_864205080385bc 1-161
+docs/articles/2-zenn-speechanalyzer-transcribe.md
+  h_864205080385bc 1-127
+docs/articles/3-note-private-meeting-minutes.md
+  h_864205080385bc 1-84
+docs/articles/README.md
+  h_864205080385bc 1-32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a95ffddbc78e739490f57c19838b1773375e9082",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
