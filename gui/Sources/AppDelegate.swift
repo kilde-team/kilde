@@ -133,6 +133,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // macOS には UIApplicationDelegate swizzling が無く app_open は自動送信
             // されないので、最初のイベントとして明示的に送る
             Analytics.logEvent("app_open", parameters: nil)
+            // ユーザー プロパティ (issue #159): 配布チャネルと累計録画完了回数の区分。
+            // 起動時に設定し直す理由は UsageAnalytics.setUserProperties のコメント
+            UsageAnalytics.setUserProperties()
             // クラッシュ解析 (issue #210)。FirebaseCrashlytics をリンクしていれば
             // configure() が自動で有効にし、次回起動時に前回のクラッシュを送る。
             // 明示的に取り出すのは «リンクされて初期化されている» ことをコードに残すため。

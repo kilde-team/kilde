@@ -191,6 +191,13 @@ final class RecordingController: ObservableObject {
                 max(0, (stoppedAt ?? Date()).timeIntervalSince(started) - summary.pausedDuration)
             } ?? 0
             lastRecordedDuration = recorded
+            // 録画完了の計測 (issue #159)。«月間アクティブ (録画完了)» «録画完了 3 回
+            // 以上のユーザー率» «チャネル別の内訳» の基礎。Firebase が無い構成
+            // (セルフテスト・Debug) では UsageAnalytics 内で跳ねるので、ここからは
+            // 送信条件を気にしない。文字起こしの transcription_complete (#153) と
+            // 同じく «完了» だけを送る — 失敗は #159 の指標に使わない (kilde 本体の
+            // 不具合調査なら通知と Crashlytics の方で分かる)
+            UsageAnalytics.recordingCompleted(recordingDuration: recorded)
             phase = .finished(summary.outputURL)
             // 通知は endSession の前に出す — endSession はハンドラ経由でアプリを
             // 終了させることがあり (applicationShouldTerminate の待ち)、

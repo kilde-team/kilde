@@ -3,9 +3,9 @@ import KildeCore
 import FirebaseAnalytics
 import FirebaseCore
 
-/// 文字起こしの利用状況イベント (issue #153)。録画後文字起こし (issue #146) が
-/// «どれだけ使われ、どこで失敗しているか» を Firebase Analytics (#136) で見るための窓口。
-/// AppDelegate の `app_open` と同じく、両ターゲット (直接配布 / MAS) で
+/// 利用状況イベントの窓口。文字起こし (#153) に加え、録画完了 (#159) も見る。
+/// «どれだけ使われ、どこで失敗しているか» を Firebase Analytics (#136) で見るための
+/// 窓口。AppDelegate の `app_open` と同じく、両ターゲット (直接配布 / MAS) で
 /// FirebaseAnalyticsCore をリンクしているため `#if APPSTORE` 分岐は不要
 /// (PRIVACY.md «直接配布版・Mac App Store 版の両方» どおり)。
 ///
@@ -24,6 +24,80 @@ enum UsageAnalytics {
     /// 未初期化のまま logEvent しても送信は起こらないが、明示しておくと
     /// «セルフテスト・Debug では何も送っていない» が読み取れる
     private static var isEnabled: Bool { FirebaseApp.app() != nil }
+
+    /// 完了した録画の生涯累計。**区分に変換した値だけを送る** ので生の回数が
+    /// Google へ出ることはないが、数え続ける台帳として端末の UserDefaults に置く。
+    /// issue #159 の «録画完了 3 回以上のユーザー率» は 1 ユーザーあたりの回数が
+    /// 無いと出せない — Firebase コンソールのイベント集計は «何回発火したか» だけで
+    /// «何人のユーザーが 3 回以上録ったか» を返さない。キーは «利用統計の内部
+    /// カウンタ» であることが読み取れる名前にする (RecordingSetup の設定キーと混ぜない)
+    private static let recordingsCompletedKey = "usage_recordings_completed"
+
+    /// 配布チャネル (issue #159 の «チャネル別 (MAS / Homebrew / 直接配布)»)。
+    /// **Homebrew は CLI 専用** (formula は `bin.install` のみ) で、CLI は計測しない
+    /// 方針 (PRIVACY.md «kilde コマンドラインは解析を行いません») なので、語彙は
+    /// 計測できる GUI の 2 チャネル。コンパイル条件で確定する — レシート検証など
+    /// 実行時の判別を持ち込むほど、この内訳に精度は要らない
+    static var distributionChannel: String {
+#if APPSTORE
+        return "mas"
+#else
+        return "direct"
+#endif
+    }
+
+    /// 起動時に 1 回、ユーザー プロパティを設定する (AppDelegate の app_open と並べる)。
+    /// ユーザー プロパティは **直近の値でユーザーを分類する** ので、起動ごとに
+    /// 設定し直して最新に保つ。recordings_bucket は端末の累計から復元する —
+    /// 録画のたびにしか更新しないと、前回録画時の値のまま取り込まれる恐れがある
+    /// (プロパティの反映はコンソールのレポートにまで時間がかかるため、起動時の
+    /// 復元で古い値のままでいる期間を減らす)
+    static func setUserProperties() {
+        guard isEnabled else { return }
+        Analytics.setUserProperty(distributionChannel, forName: "distribution_channel")
+        let count = UserDefaults.standard.integer(forKey: recordingsCompletedKey)
+        if let bucket = recordingsBucket(count) {
+            Analytics.setUserProperty(bucket, forName: "recordings_bucket")
+        }
+    }
+
+    /// 録画 1 件が完了した (issue #159)。«月間アクティブ (録画完了) ユーザー数» と
+    /// «録画完了 3 回以上のユーザー率» の基礎データ。チャネルはユーザー プロパティ
+    /// だけでなくイベントのパラメータにも載せる — «recording_complete の何%が
+    /// MAS か» をイベント側だけで読めるようにするため
+    static func recordingCompleted(recordingDuration: TimeInterval?) {
+        bumpRecordingCount()
+        log("recording_complete", recordingDuration: recordingDuration,
+            processingTime: nil, channel: distributionChannel)
+    }
+
+    /// 完了回数を進めて、区分をユーザー プロパティに反映する。
+    /// **isEnabled の下に置く** — セルフテストの録画経路でカウンタを進めない
+    /// (UserDefaults はセルフテストで触れたままにしたくないし、setUserProperty も
+    /// 届かない方が清潔)
+    private static func bumpRecordingCount() {
+        guard isEnabled else { return }
+        let count = UserDefaults.standard.integer(forKey: recordingsCompletedKey) + 1
+        UserDefaults.standard.set(count, forKey: recordingsCompletedKey)
+        if let bucket = recordingsBucket(count) {
+            Analytics.setUserProperty(bucket, forName: "recordings_bucket")
+        }
+    }
+
+    /// 累計録画完了回数の区分。**返す値はこの関数に閉じる** (recordingLengthBucket と
+    /// 同じ規約)。«3 回以上» の判定に使うので 3 の境界をまたがない — 1・2 はそのまま、
+    /// 3 以降は荒い区分にする (定着を見るのに «7 回» と «8 回» の違いは要らない)。
+    /// nil (0 回) は «まだ録っていない» なのでプロパティ自体を設定しない
+    static func recordingsBucket(_ count: Int) -> String? {
+        guard count >= 1 else { return nil }
+        switch count {
+        case 1: return "1"
+        case 2: return "2"
+        case 3...5: return "3_5"
+        case 6...9: return "6_9"
+        default: return "10_plus"
+        }
+    }
 
     /// 文字起こしの実行に取りかかった (待ち行列に積まれた時点ではなく、
     /// 実行が始まった時点)
@@ -66,10 +140,12 @@ enum UsageAnalytics {
     }
 
     private static func log(_ name: String, recordingDuration: TimeInterval?,
-                            processingTime: TimeInterval?, errorKind: String? = nil) {
+                            processingTime: TimeInterval?, errorKind: String? = nil,
+                            channel: String? = nil) {
         guard isEnabled else { return }
         var parameters: [String: String] = [:]
         if let errorKind { parameters["error_kind"] = errorKind }
+        if let channel { parameters["channel"] = channel }
         if let bucket = recordingLengthBucket(recordingDuration) {
             parameters["recording_length"] = bucket
         }

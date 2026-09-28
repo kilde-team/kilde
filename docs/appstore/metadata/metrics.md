@@ -3,6 +3,8 @@
 issue #160 の受け入れ条件「変更前後 4 週間のインプレッションと DL 数を記録した」の
 計測台帳。**数値は App Store Connect → 分析 (App Analytics) が正本**で、この
 ファイルはそこからエクスポートした値の記録。
+定着 KPI (Firebase 側) の定義と月次の振り返り手順は
+[../../metrics.md](../../metrics.md) — issue #159。
 
 ## 比較する変更
 
