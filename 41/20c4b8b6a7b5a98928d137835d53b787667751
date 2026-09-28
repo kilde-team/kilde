@@ -1,0 +1,20 @@
+docs/launch/faq.md
+  h_864205080385bc 42-46,74-78,103-105,119-120
+docs/launch/product-hunt.md
+  h_864205080385bc 10-12,28,34-35,38-39,47,64-68,72-74
+docs/launch/reddit-macapps.md
+  h_864205080385bc 32-37,45-49,61-63
+docs/launch/show-hn.md
+  h_864205080385bc 38-42,50-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "4120c4b8b6a7b5a98928d137835d53b787667751",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
