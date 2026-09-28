@@ -8,7 +8,7 @@ published: false
 
 *この記事は、macOS 用の録画・録音ツール [kilde](https://kilde.site/) に
 録画後の自動文字起こしを実装したときの知見を一般化したものです
-(前回: [ScreenCaptureKit で「アプリ単位のシステム音声」を録る](https://zenn.dev) — 公開後にリンクを張ります)。*
+(前回: [ScreenCaptureKit で「アプリ単位のシステム音声」を録る](https://zenn.dev/takezou621/articles/a7f3df15b3a9ff))。*
 
 ## SpeechAnalyzer とは
 
