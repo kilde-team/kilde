@@ -99,8 +99,10 @@ OAuth クライアントはこのスコープについて Google の審査を通
 
 - **CLI / Homebrew チャネルは計測されない** (PRIVACY.md «kilde コマンドラインは
   解析を行いません» — 方針として変えない)。指標 5 の内訳は GUI の 2 チャネルのみ。
-  CLI の規模は GitHub Release の `kilde-<version>-macos.zip` (CLI を同梱した
-  直接配布チャネルの成果物) のダウンロード数が代理指標になる
+  CLI の規模は GitHub Release の `kilde-<version>-macos.zip` (CLI を同梱。
+  Homebrew formula の `url` もこの zip を指すため、`brew install` /
+  `brew upgrade` のダウンロード数も含まれる — cubic レビュー指摘) の
+  ダウンロード数が代理指標になる
 - **`recordings_bucket` は生涯累計**の区分なので、«3 回以上» には «今月は
   録っていない人» も含まれる (インストール済みユーザーの深さの指標)。
   «今月 3 回以上録ったユーザー率» の厳密な値はユーザー単位の生データが必要で、
