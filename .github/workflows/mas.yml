@@ -56,7 +56,8 @@ env:
   # asc-submit v0.3.0 の run 実行ジャーナル (ステップ状況・ログ) の置き場。
   # ワークスペース内 (.asc-submit/runs) だと次ジョブの checkout クリーンで消えるため、
   # ランナーのホーム直下に永続化して失敗時の事後調査 (asc-submit logs <id>) に使う。
-  # serve (読み取り専用ダッシュボード) もこのディレクトリを --runs-dir で見る
+  # serve (読み取り専用ダッシュボード) もこのディレクトリを --runs-dir で見る。
+  # ピン更新時の serve 再配置を含む運用手順は docs/appstore/asc-submit-ops.md
   ASC_SUBMIT_RUNS_DIR: /Users/kawai/asc-submit-runs
 
 jobs:
