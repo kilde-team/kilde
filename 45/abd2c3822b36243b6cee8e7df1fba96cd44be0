@@ -1,0 +1,24 @@
+PRIVACY.md
+  h_864205080385bc 3,24-26,156-160
+docs/appstore/metadata/metrics.md
+  h_864205080385bc 6-7
+docs/metrics.md
+  h_864205080385bc 1-83
+gui/Sources/AppDelegate.swift
+  h_864205080385bc 136-138
+gui/Sources/RecordingController.swift
+  h_864205080385bc 194-200
+gui/Sources/UsageAnalytics.swift
+  h_864205080385bc 6-8,28-101,143-144,148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "45abd2c3822b36243b6cee8e7df1fba96cd44be0",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
