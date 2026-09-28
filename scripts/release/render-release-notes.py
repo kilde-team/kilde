@@ -74,8 +74,14 @@ def inline(text: str) -> str:
         s,
     )
 
-    # 3) 太字 (残りの素のテキストが対象)
-    s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
+    # 3) 太字 (残りの素のテキストが対象)。生成した <strong> タグも退避する —
+    #    タグの中の «/» «>» は URL の文字クラスに含まれるため、退避しないと
+    #    直後の URL 自動リンクが閉じタグを呑み込む («**詳細: https://…**»)
+    s = re.sub(
+        r"\*\*([^*]+)\*\*",
+        lambda m: stash("<strong>") + m.group(1) + stash("</strong>"),
+        s,
+    )
 
     # 4) ベア URL の自動リンク。この時点で生成済み HTML はプレースホルダに
     #    なっているため、href やリンクラベルを再走査しない。
@@ -192,6 +198,11 @@ def main() -> int:
         help="file が存在しないときに代わりに表示する文言 (URL は自動リンクになる)")
     args = parser.parse_args()
 
+    # XML 1.0 で要素内容に書けない制御文字 (タブ・改行・復帰以外) を拒否する —
+    # そのまま appcast に入ると整形式でない XML が生成され、Sparkle の
+    # 更新フィード全体が壊れる
+    FORBIDDEN_XML_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+
     if args.file is None:
         parser.print_usage(sys.stderr)
         return 64
@@ -210,6 +221,14 @@ def main() -> int:
 
     if not md_text.strip():
         print(f"error: リリースノートが空です: {args.file}", file=sys.stderr)
+        return 65
+
+    if (bad := FORBIDDEN_XML_CHARS.search(md_text)) is not None:
+        print(
+            f"error: リリースノートに XML で使えない制御文字 (0x{ord(bad.group(0)):02x}) が"
+            f"含まれています: {args.file} — 該当文字を削除してください",
+            file=sys.stderr,
+        )
         return 65
 
     print(xml_escape(render_markdown(md_text)))

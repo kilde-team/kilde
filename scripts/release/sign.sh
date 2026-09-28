@@ -319,9 +319,12 @@ DMG_LENGTH="$(stat -f %z "$GUI_DMG")"
 # 変更履歴の正本は docs/release-notes/v<VERSION>.md —
 # GitHub Release の本文も release.yml が同じファイルから組み立てる
 NOTES_FILE="$ROOT_DIR/docs/release-notes/v${VERSION}.md"
-NOTES_DESC="$(python3 "$SCRIPT_DIR/render-release-notes.py" \
+# 変換結果は argv ではなく一時ファイルで渡す — ノートが長いと OS の引数上限
+# («Argument list too long») でリリースが落ちるため (cubic レビュー指摘)
+NOTES_DESC_FILE="$WORK_DIR/release-notes.html"
+python3 "$SCRIPT_DIR/render-release-notes.py" \
     --fallback-message "このバージョンの変更履歴は https://github.com/kilde-team/kilde/releases/tag/v${VERSION} をご確認ください" \
-    "$NOTES_FILE")"
+    "$NOTES_FILE" > "$NOTES_DESC_FILE"
 
 APPCAST="$OUTPUT_DIR/appcast.xml"
 # pubDate は RFC 822 (英語の曜日・月名) でなければならない。date の出力は LC_TIME に
@@ -358,19 +361,29 @@ XML
 if grep -q '\${' "$APPCAST"; then
     die "appcast に未置換のプレースホルダが残っています: $APPCAST"
 fi
-# @@RELEASE_NOTES@@ はここで置換する。heredoc に $NOTES_DESC を直接展開しない —
+# @@RELEASE_NOTES@@ はここで置換する。heredoc にノートを直接展開しない —
 # ノート本文に $ やバッククォートが入ると unquoted heredoc でシェル展開されてしまう。
 # NOTES_DESC は XML エスケープ済み (render-release-notes.py) なので置換後も整形式を保つ
-python3 - "$APPCAST" "$NOTES_DESC" <<'PY'
+python3 - "$APPCAST" "$NOTES_DESC_FILE" <<'PY'
 import sys
+import xml.etree.ElementTree as ET
 
-path, desc = sys.argv[1], sys.argv[2]
+path, desc_path = sys.argv[1], sys.argv[2]
 with open(path, encoding="utf-8") as f:
     xml = f.read()
+with open(desc_path, encoding="utf-8") as f:
+    desc = f.read()
 if "@@RELEASE_NOTES@@" not in xml:
     sys.exit("error: appcast に @@RELEASE_NOTES@@ プレースホルダが見つかりません")
+candidate = xml.replace("@@RELEASE_NOTES@@", desc)
+# 置換結果を常に XML としてパースしてから書き込む — xmllint の無い環境で
+# 不整形式のフィードがそのまま配布されるのを防ぐ (cubic レビュー指摘)
+try:
+    ET.fromstring(candidate)
+except ET.ParseError as exc:
+    sys.exit(f"error: 置換後の appcast が XML として不正です: {exc}")
 with open(path, "w", encoding="utf-8") as f:
-    f.write(xml.replace("@@RELEASE_NOTES@@", desc))
+    f.write(candidate)
 PY
 if command -v xmllint >/dev/null 2>&1; then
     xmllint --noout "$APPCAST" || die "appcast.xml が整形式ではありません: $APPCAST"
