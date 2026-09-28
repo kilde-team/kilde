@@ -1,0 +1,16 @@
+scripts/release/render-release-notes.py
+  h_864205080385bc 77-84,201-205,226-233
+scripts/release/sign.sh
+  h_864205080385bc 322-325,327,364,367,369,371,374-375,378-384,386
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "93fbc90c71110720a25ddef3b0206d2477c66143",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
