@@ -1,0 +1,14 @@
+docs/metrics.md
+  h_864205080385bc 102-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "179b80e1201caf16f8ccce2f6e3eac2f5b547be1",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
