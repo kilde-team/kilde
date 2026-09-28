@@ -195,6 +195,13 @@ tar -xJf /tmp/Sparkle-2.10.0.tar.xz -C /tmp
 - `sparkle:version` (= GUI の `CFBundleVersion`) はリリースごとに**単調増加させる** —
   Sparkle はバージョン文字列ではなくこの値で更新を判定します。release workflow が
   `GITHUB_RUN_NUMBER` を差し込むため、タグを打つたびに自動的に増えます
+- **リリースノートは appcast の item `<description sparkle:format="html">` に埋め込む**
+  (issue #283): 変更履歴の正本は `docs/release-notes/v<VERSION>.md` で、
+  `sign.sh` が `render-release-notes.py` で HTML 変換して appcast に組み込みます。
+  かつて使っていた `sparkle:releaseNotesLink` で GitHub のリリースページを指す構成は
+  **使わないこと** — 更新ダイアログの Web ビューに GitHub UI 全体 (リポジトリ名・タブ・
+  Sign in バナー) が読み込まれ、変更履歴が読めなくなります (v0.8.1 までの実績)。
+  ノートの書き方は `docs/release-notes/README.md` を参照
 
 ## 6. リリース前の確認
 
@@ -429,6 +436,14 @@ git tag v0.2.0 && git push origin v0.2.0
 `KildeCommand.swift` の version に差し込み (ビルド限り、コミットはしない) →
 `swift build -c release --package-path kilde-cli-swift` → 埋め込み Info.plist の生存と
 バージョンを検証 → 署名 → Release を作成して zip (署名時は GUI の DMG も) を添付。
+
+**リリースノートの書き場所 (issue #283)**: 変更履歴はリリース PR で
+`docs/release-notes/v<VERSION>.md` に書く。`release.yml` がその内容を Release 本文の
+先頭に組み込み、`sign.sh` が同じ内容を appcast (`<description sparkle:format="html">`) に
+埋め込むため、**GUI の更新ダイアログと Release 本文はこのファイル 1 つで供給される**。
+ファイルが無い場合は定型本文のみで Release が作られ、更新ダイアログには
+GitHub Release への誘導文が表示される (書き忘れてもリリースは止まらないが、
+ダイアログに変更履歴が出なくなる)。書き方は `docs/release-notes/README.md` 参照。
 
 **署名は必須 (secrets 不足でジョブが失敗する)**:
 
