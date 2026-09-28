@@ -1,0 +1,18 @@
+docs/metrics.md
+  h_864205080385bc 14,29-31,53-54,79-81
+gui/Sources/AppDelegate.swift
+  h_864205080385bc 134-137,139
+gui/Sources/UsageAnalytics.swift
+  h_864205080385bc 90-93,95,97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "02e0ed181448a4b61aac91d3c268349909a83843",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
