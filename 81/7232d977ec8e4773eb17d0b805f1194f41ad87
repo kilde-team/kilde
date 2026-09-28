@@ -1,0 +1,16 @@
+docs/launch/README.md
+  h_864205080385bc 57
+docs/launch/metrics.md
+  h_864205080385bc 34-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "817232d977ec8e4773eb17d0b805f1194f41ad87",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
