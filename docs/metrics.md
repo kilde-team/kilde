@@ -2,9 +2,9 @@
 
 フェーズ 2 (#161) の出口条件 «月間アクティブ (録画完了) 1,000 人・App Store の
 評価 30 件» を測るための定義と手順。**数値の正本は Firebase コンソールと
-App Store Connect で、このファイルは定義・手順・月次台帳** (ASC のメタデータ
-変更前後の計測台帳は別文件
-[appstore/metadata/metrics.md](appstore/metadata/metrics.md) — issue #160)。
+App Store Connect で、このファイルは定義・手順・月次台帳**。ASC のメタデータ
+変更前後の計測台帳は別ファイルの
+[appstore/metadata/metrics.md](appstore/metadata/metrics.md) (issue #160)。
 
 ## KPI の定義
 
