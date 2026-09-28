@@ -1,0 +1,24 @@
+docs/launch/README.md
+  h_864205080385bc 55-57,59,61,63
+docs/launch/faq.md
+  h_864205080385bc 78-79
+docs/launch/metrics.md
+  h_864205080385bc 11-15,17-23,30-31
+docs/launch/product-hunt.md
+  h_864205080385bc 34,36
+docs/launch/reddit-macapps.md
+  h_864205080385bc 19,25-26,54-56
+docs/launch/show-hn.md
+  h_864205080385bc 14,25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c647287629d242b653781f9e4fa3422c7112c957",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
