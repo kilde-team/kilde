@@ -1,0 +1,19 @@
+docs/launch/show-hn.md
+  s_3d3afa78c9f42a::t_8a2903714f6ca5 1-70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9d6c0de88b05942e57b3baddcf8bb0d05bf42fd9",
+  "prompts": {},
+  "sessions": {
+    "s_3d3afa78c9f42a": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0666afd3-f0d5-40e4-84cf-01719f0ecb6b",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
