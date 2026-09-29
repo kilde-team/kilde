@@ -284,7 +284,7 @@ REQUIRED_APP_GROUP='4B873Q67MK.kilde'
 # エンタイトルメントを確認する。欠けてもビルドは通り、壊れ方は実行時だけ (無音
 # トラック・コンテナ内保存・モデル取得失敗) のため、値を見ないと黙って壊れた配布物になる
 verify_required_entitlements() {
-    local app="$1" target="$2" plist="$3" key escaped groups
+    local app="$1" target="$2" plist="$3" key escaped groups idx element matched
     codesign -d --entitlements :- "$app" > "$plist" 2>/dev/null \
         || die "$target のエンタイトルメントを取得できません"
     [ "$(plutil -extract 'com\.apple\.security\.app-sandbox' raw -expect bool -o - "$plist" 2>/dev/null)" = "true" ] \
@@ -295,15 +295,26 @@ verify_required_entitlements() {
         [ "$(plutil -extract "$escaped" raw -expect bool -o - "$plist" 2>/dev/null)" = "true" ] \
             || die "$target のエンタイトルメントに $key=true がありません (KildeGUI-AppStore.entitlements を確認してください)"
     done
-    # App Group は配列なので json で取り出し、契約の値が含まれるかまで見る
-    # (kilde-cli-swift の SCKStartupLock.appGroupIdentifier と完全一致させる契約 — issue #288)。
-    # 最終セグメントはハイフン入りの application-groups (最後の . は区切りではない点に注意)
+    # App Group は配列なので json で存在を確かめてから、**要素単位で完全一致**を見る。
+    # substring マッチにすると、要素内に引用符付きで埋め込まれた値
+    # (例: x"4B873Q67MK.kilde") が誤って通る (CodeRabbit レビュー指摘)。
+    # plutil の keypath は配列インデックスも取れる — インデックスの前のドットは
+    # エスケープしない (エスケープするとセグメント名の一部になるため keypath 不正になる)
     groups="$(plutil -extract 'com\.apple\.security\.application-groups' json -o - "$plist" 2>/dev/null)" \
         || die "$target のエンタイトルメントに com.apple.security.application-groups がありません (KildeGUI-AppStore.entitlements を確認してください)"
-    case "$groups" in
-        *"\"$REQUIRED_APP_GROUP\""*) : ;;
-        *) die "$target の App Group が $REQUIRED_APP_GROUP ではありません: $groups (SCKStartupLock.appGroupIdentifier と一致させてください — issue #288)" ;;
-    esac
+    idx=0
+    matched=false
+    while element="$(plutil -extract "com\\.apple\\.security\\.application-groups.$idx" raw -o - "$plist" 2>/dev/null)"; do
+        if [ "$element" = "$REQUIRED_APP_GROUP" ]; then
+            matched=true
+            break
+        fi
+        idx=$((idx + 1))
+        # 異常に長い配列で回り続けないための保険 (App Group が 64 個になることはない)
+        [ "$idx" -ge 64 ] && break
+    done
+    [ "$matched" = "true" ] \
+        || die "$target の App Group が $REQUIRED_APP_GROUP ではありません: $groups (SCKStartupLock.appGroupIdentifier と一致させてください — issue #288)"
 }
 
 ENTITLEMENTS_PLIST="$OUTPUT_DIR/archive-entitlements.plist"
