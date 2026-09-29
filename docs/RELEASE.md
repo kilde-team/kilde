@@ -261,7 +261,8 @@ scripts/release/appstore-archive.sh --version 0.4.0 --build 42          # .pkg �
 scripts/release/appstore-archive.sh --version 0.4.0 --build 42 --upload # ASC へアップロードまで
 
 # ASC API キーを使う場合 (CI など Apple ID でログインできない環境)。
-# キーの作り方は §2 と同じ。**キーにはクラウド署名の権限 (App Manager 以上) が必要**
+# キーの作り方は §2 と同じ。**キーにはクラウド署名の権限が必要** (この環境の実測では
+# Admin ロールが要る — App Manager だとエクスポートが失敗。0.8.1 で実測)
 export KILDE_ASC_API_KEY="$HOME/private/AuthKey_ABC123.p8"
 export KILDE_ASC_API_KEY_ID=ABC123
 export KILDE_ASC_API_ISSUER=00000000-0000-0000-0000-000000000000
@@ -317,10 +318,11 @@ scripts/release/appstore-archive.sh --version 0.4.0 --build 42
 できないのは次の 2 つだけで、いずれも済んでいる (再発時のみ):
 
 1. **アプリレコードの作成** — App Store Connect で「新規 App」を作成
-   (バンドル ID `com.takezou621.KildeGUI`、SKU など)。2026-09-23 に作成済み
+   (バンドル ID `com.takezou621.KildeGUI`、SKU など)。初回の提出
+   (0.3.0、2026-09-16) の前に作成済み
 2. **プライバシーラベル (App Privacy) の入力** — Firebase Analytics (#136) に合わせて
    「おおよその場所・デバイス ID・製品の操作」(いずれもアナリティクス目的、ユーザに関連付けない、
-   トラッキングなし) を申告済み (収集するデータを変えたら更新する)。
+   トラッキングなし) を初回提出時に申告済み (収集するデータを変えたら更新する)。
    Crashlytics (issue #210) 向けの「診断 > クラッシュデータ」も追加済み
    (docs/appstore/README.md §4)。画面収録・マイクの用途説明も申告済み
 
@@ -355,8 +357,8 @@ spec の該当フィールドが黙って無視されるため、実行前に最
   - `upload` — MAS ビルドのアーカイブ + ASC へアップロード (m1 の Xcode の
     Apple ID セッションでクラウド署名。`KILDE_ASC_API_KEY*` は使わない)
 - 必要な secrets: `ASC_CI_KEY_B64` / `ASC_CI_KEY_ID` / `ASC_CI_ISSUER`
-  (**CI 専用に新規発行した App Manager キー**。開発用キー (Z5TTR4P3DD) は
-  流用しない — 失効を独立にできないため)。`upload` は既存の
+  (**CI 専用に新規発行した Admin ロールのキー**。開発用キー (Z5TTR4P3DD) は
+  流用しない — 失効を独立にできないため。クラウド署名は Admin 限定の実測 — 0.8.1)。`upload` は既存の
   `KILDE_CLI_SWIFT_TOKEN` も使う
 - ランナーは kilde リポジトリスコープの `m1-kilde` (ラベル
   `[self-hosted, macOS, ARM64, kilde-ci]`、ユーザー LaunchAgent
@@ -386,8 +388,9 @@ spec の該当フィールドが黙って無視されるため、実行前に最
 #      (doctor がメタデータ書き込みを 403 で判定)
 #    - ~/.klide-asc/AuthKey_Z5TTR4P3DD.p8 — 失効済み (HTTP 401)
 #    ロールは発行後に変更できないため、足りなければ新規発行する。
-#    クラウド署名 (配布証明書の作成) は Admin 限定 (App Manager はメタデータ書き込みは
-#    できるがエクスポートが "Cloud signing permission error" — 0.8.1 で実測)。
+#    クラウド署名 (配布証明書の作成) は、この経路 (Xcode 26 + API キー) の実測では
+#    **Admin が必要** (App Manager はメタデータ書き込みのみで、エクスポートが
+#    "Cloud signing permission error" — 0.8.1 で実測。Apple 全般の要件とは断定しない)。
 #    **ただしアーカイブは KILDE_ASC_API_KEY* を渡さなければ、この Mac の Xcode に
 #    ログイン済みの Apple ID セッションで署名できる (0.8.3 build 11 で実測 — キー不要)**
 export ASC_KEY_PATH=~/Downloads/AuthKey_2DB7ZRS4N4.p8
@@ -411,10 +414,10 @@ asc-submit run 6812783176 --spec dist/appstore/release-<X.Y.Z>.json --submit
 提出を取り下げてから新しい build で差し替える (2026-09-29 の 0.8.3 で実測):
 
 ```sh
-asc-submit cancel-submission 6812783176 --version 0.8.3
-scripts/release/appstore-archive.sh --version 0.8.3 --build <より大きい番号> --upload
-asc-submit attach-build 6812783176 --version 0.8.3 --build <番号> --wait
-asc-submit submit 6812783176 --version 0.8.3 --yes
+asc-submit cancel-submission 6812783176 --version <X.Y.Z>
+scripts/release/appstore-archive.sh --version <X.Y.Z> --build <現在より大きい番号> --upload
+asc-submit attach-build 6812783176 --version <X.Y.Z> --build <番号> --wait
+asc-submit submit 6812783176 --version <X.Y.Z> --yes
 ```
 
 取り下げの直後は ASC の状態表示が暫く WAITING_FOR_REVIEW のままで、数分で
