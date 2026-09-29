@@ -43,26 +43,35 @@ App Store Connect で、このファイルは定義・手順・月次台帳**。
 3. カスタム ディメンション (イベント スコープ) として `channel`、`recording_length`、
    `processing_time`、`error_kind` を登録
 
-### 実施記録 (2026-09-28)
+### 実施記録 (2026-09-28 〜 09-29。09-29 に 6/6 完了)
 
-GA4 プロパティ `555463514` に 4 件を登録済み (Firebase コンソール → 分析 →
-Custom Definitions の埋め込み画面から):
+GA4 プロパティ `555463514` に **6 件すべて登録済み**:
 
-| 表示名 | スコープ | 対象 |
-|---|---|---|
-| Distribution channel | ユーザー | `distribution_channel` |
-| Recordings bucket | ユーザー | `recordings_bucket` |
-| Recording length | イベント | `recording_length` |
-| Processing time | イベント | `processing_time` |
+| 表示名 | スコープ | 対象 | 登録日 |
+|---|---|---|---|
+| Distribution channel | ユーザー | `distribution_channel` | 2026-09-28 |
+| Recordings bucket | ユーザー | `recordings_bucket` | 2026-09-28 |
+| Recording length | イベント | `recording_length` | 2026-09-28 |
+| Processing time | イベント | `processing_time` | 2026-09-28 |
+| Channel | イベント | `channel` | 2026-09-29 |
+| Error kind | イベント | `error_kind` | 2026-09-29 |
 
-**未登録の残り 2 件**: `channel` と `error_kind` (イベント スコープ)。GA4 の UI は
-**端末から受信済みのパラメータしか選べない** ためで、両パラメータは 0.8.2 以降の
-配布ビルドが送る。検知されたら上の手順で登録する。検知を早めるため
-Measurement Protocol で検知用イベントを 1 件送ってある (API secret
-`issue159-setup`。イベント名 `custom_definition_setup`、`channel` / `error_kind` を
-含む 1 ユーザー 1 イベント — 月次の数値には影響しない規模だが、厳密には
-合成データが 1 件混まる)。**2 件の登録が確認できたら、secret は
-Measurement Protocol の画面から削除してよい**。
+**検知用イベントの経緯** (同じ作業をするときの注意): `channel` と `error_kind` は
+0.8.2 以降の配布ビルドが初送信のため、GA4 の UI は **端末から受信済みの
+パラメータしか選べない**。そこで Measurement Protocol で検知用イベント
+(`custom_definition_setup`、両パラメータを含む) を送ったが、**2026-09-28 午前の
+初回送信は GA4 に届いていなかった** — Firebase MP は未知の `app_instance_id` に
+対して 2xx を返した上で黙って破棄する (イベント一覧に現れないことで判明)。
+同日夜、インストール済み MAS 版アプリのコンテナから実在の `app_instance_id`
+を取得して再送し、リアルタイム レポートで到達を確認。**パラメータがカスタム
+定義の選択肢に現れたのは到達から約 19 時間後 (2026-09-29 15 時頃)**。実在の
+インスタンス ID を使うため合成データ 1 件は開発者の端末に帰属するが、月次の
+数値に影響しない規模。`app_instance_id` はアプリコンテナの
+`Application Support/Google/Measurement/com.google.gmp.measurement.plist` の
+`/google/measurement/app_instance_id` から取得する (**32 桁 16 進・ハイフン無し**。
+`/debug/mp/collect` で形式を検証してから `/mp/collect` へ送ること)。
+
+**API secret `issue159-setup` は 2026-09-29 に削除済み** (2 件の登録確認後)。
 
 Admin API での事前登録は試みたが不可だった — カスタム定義の作成に必要な
 OAuth スコープは `analytics.edit` だが、gcloud / OAuth Playground が使う共有
