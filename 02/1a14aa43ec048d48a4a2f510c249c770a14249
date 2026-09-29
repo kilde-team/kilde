@@ -1,0 +1,18 @@
+AGENTS.md
+  h_864205080385bc 172-175
+CLAUDE.md
+  h_864205080385bc 74-76
+docs/RELEASE.md
+  h_864205080385bc 308-311,313,315-320,323-329,383-394,396-397,400,404,407,410-426
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "021a14aa43ec048d48a4a2f510c249c770a14249",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
