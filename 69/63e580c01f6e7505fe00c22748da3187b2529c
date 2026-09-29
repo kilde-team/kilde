@@ -1,0 +1,16 @@
+docs/RELEASE.md
+  h_864205080385bc 237-244
+gui/Resources/KildeGUI-AppStore.entitlements
+  h_864205080385bc 9-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6963e580c01f6e7505fe00c22748da3187b2529c",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
