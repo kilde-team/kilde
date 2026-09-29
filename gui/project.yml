@@ -43,7 +43,10 @@ packages:
     # 消費側の注意: exact には **v 接頭辞なし**の "0.8.0" を指定する
     # (SwiftPM のセマンバージョン解釈。接頭辞付きタグは自動で解決される)。
     # エンジンの更新手順: kilde-cli-swift でタグを打設 → この exactVersion を上げる
-    exactVersion: 0.8.0
+    # v0.8.1: SCKStartupLock が App Group コンテナを採用する前に書き込み可能性を確認し、
+    # 書けなければ confstr 一時ディレクトリへフォールバックする修正 (kilde-cli-swift#69)。
+    # entitlement (issue #288) と合わせて二段構え — 片方が欠けても録画が errno=1 で落ちない
+    exactVersion: 0.8.1
   # GUI の自動更新 (issue #122)。Sparkle 2 のバイナリターゲット (macOS 12+) で、
   # リンクすると Sparkle.framework が Contents/Frameworks に埋め込まれる。
   # バージョンを固定する理由は kilde-cli-swift と同じ: 浮動参照だと上流の push が
