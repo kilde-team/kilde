@@ -71,7 +71,9 @@ gui/                           メニューバー GUI (XcodeGen: project.yml が
 scripts/release/sign.sh        Developer ID 署名 + notarization + zip/DMG 作成
                                (CLI は kilde-cli-swift の checkout をビルド — CLI_DIR)
 scripts/release/appstore-archive.sh  App Store 配布ビルド (KildeGUI-AppStore) の
-                               アーカイブ + 検証 + ASC へのアップロード (issue #126)
+                               アーカイブ + 検証 + ASC へのアップロード (issue #126)。
+                               **審査への提出まで自動化済み** — asc-submit で実行者が
+                               行う (依頼者に依頼しない。docs/RELEASE.md §7)
 scripts/release/entitlements.plist  audio-input (署名用)
 .github/workflows/release.yml  v* タグで kilde-cli-swift (pin 固定 + PAT) を checkout し
                                CLI をビルド、sign.sh で署名して Release を作成

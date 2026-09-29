@@ -169,5 +169,9 @@ if command -v actionlint >/dev/null; then actionlint .github/workflows/release.y
   パッケージ解決には kilde-team メンバーの git 認証が必要
 - `gh` は takezou621 アカウントで認証済み (リポジトリの所有は kilde-team 組織)。
   cubic のレビューは kilde-team 組織で実行される (a23s-inc 組織は使わない)
+- **App Store への提出はエージェントの仕事** — アーカイブ (`appstore-archive.sh`) から
+  審査への提出 (`asc-submit`、0.7.0 から自動化) まで実行者自身が行い、**依頼者に
+  依頼しない**。「ASC の画面で提出する」といった旧記述に釣られて依頼者へ回さないこと。
+  キーの現況・実行手順・審査中ビルドの差し替え手順は docs/RELEASE.md §7
 - 検証に使う音声・録画ファイルはリポジトリにコミットしない
   (セルフテストは `KILDE_GUI_SELFTEST_OUTPUT` で一時ディレクトリへ出せる)

@@ -305,23 +305,28 @@ scripts/release/appstore-archive.sh --version 0.4.0 --build 42
   止まり、ASC での申告を毎回求められる)。暗号化 API や独自の通信を足したら後者を見直す
 - アイコンは KildeGUI と同じ `Resources/Assets.xcassets` を App Store ターゲットの
   `sources` にも入れて結線する (`ASSETCATALOG_COMPILER_APPICON_NAME` も両ターゲットに必要)
-- `--upload` しても**審査は始まらない**。アップロード後、App Store Connect の
-  TestFlight / App Store 提出画面で提出する
+- `--upload` しても**審査は始まらない**。提出も自動化されている — 続けて `asc-submit`
+  (`run --submit` か、アップロード済み build への `attach-build` + `submit`。下の
+  「提出の自動化」) を実行する。**アーカイブから提出までは実行者 (エージェントを含む)
+  自身が行い、依頼者へ依頼しない**
 
-### スクリプトで自動化できない手作業 ( ASC の画面または ASC API)
+### ASC の画面でしかできないこと (初回のみ・いずれも実施済み)
 
-1. **アプリレコードの作成** (初回のみ) — App Store Connect で「新規 App」を作成
-   (バンドル ID `com.takezou621.KildeGUI`、SKU など)
+アーカイブ、アップロード、メタデータ反映、**審査への提出**はすべて自動化済み
+(`appstore-archive.sh` + `asc-submit`、下の「提出の自動化」)。ASC の画面でしか
+できないのは次の 2 つだけで、いずれも済んでいる (再発時のみ):
+
+1. **アプリレコードの作成** — App Store Connect で「新規 App」を作成
+   (バンドル ID `com.takezou621.KildeGUI`、SKU など)。2026-09-23 に作成済み
 2. **プライバシーラベル (App Privacy) の入力** — Firebase Analytics (#136) に合わせて
    「おおよその場所・デバイス ID・製品の操作」(いずれもアナリティクス目的、ユーザに関連付けない、
-   トラッキングなし) を申告する (2026-09-23 に公開済み。収集するデータを変えたら更新する)。
-   **Crashlytics (issue #210) を含む最初の提出の前に「診断 > クラッシュデータ」を追加する**
-   (docs/appstore/README.md §4)
-   あわせて画面収録・マイクの用途説明
-3. **審査への提出** — **0.7.0 から `asc-submit` で自動化済み** (下の「提出の自動化」)。
-   何らかの理由で CLI が使えないときは、ASC の画面でバージョン作成 →
-   What's New 5 言語転記 → スクリーンショット → レビューノート →
-   build 選択 → 提出 (正本は docs/appstore/ の各ファイル)
+   トラッキングなし) を申告済み (収集するデータを変えたら更新する)。
+   Crashlytics (issue #210) 向けの「診断 > クラッシュデータ」も追加済み
+   (docs/appstore/README.md §4)。画面収録・マイクの用途説明も申告済み
+
+CLI が使えないときの代替は、ASC の画面でバージョン作成 →
+What's New 5 言語転記 → スクリーンショット → レビューノート →
+build 選択 → 提出 (正本は docs/appstore/ の各ファイル)
 
 アップロードの方法が `--upload` (xcodebuild が直接アップロード) で失敗する環境
 (ネットワーク制限など) では、`--upload` 無しで書き出した `.pkg` を Transporter app
@@ -375,25 +380,49 @@ spec の該当フィールドが黙って無視されるため、実行前に最
 手元の Mac で実行する場合 (フォールバック):
 
 ```sh
-# 0. 初回のみ: **Admin ロール**の API キーを発行して環境変数へ
-#    (Developer ロールのキーは読み取り専用。App Manager はメタデータ書き込みは
-#     できるが、**クラウド署名 (配布証明書の作成) は Admin 限定** — 0.8.1 で実測。
-#     詳細は上の mas.yml の secrets 欄とワークフローコメント参照)
-export ASC_KEY_PATH=~/.klide-asc/AuthKey_<KEYID>.p8
-export ASC_KEY_ID=<KEYID>
+# 0. API キーを環境変数へ。**この Mac のキーの現況 (2026-09-29 実測)**:
+#    - ~/Downloads/AuthKey_2DB7ZRS4N4.p8 — **書き込み可。提出まで実行できる現役キー (これを使う)**
+#    - ~/.klide-asc/AuthKey_G9C3BAFJDQ.p8 — Developer ロールで読み取り専用
+#      (doctor がメタデータ書き込みを 403 で判定)
+#    - ~/.klide-asc/AuthKey_Z5TTR4P3DD.p8 — 失効済み (HTTP 401)
+#    ロールは発行後に変更できないため、足りなければ新規発行する。
+#    クラウド署名 (配布証明書の作成) は Admin 限定 (App Manager はメタデータ書き込みは
+#    できるがエクスポートが "Cloud signing permission error" — 0.8.1 で実測)。
+#    **ただしアーカイブは KILDE_ASC_API_KEY* を渡さなければ、この Mac の Xcode に
+#    ログイン済みの Apple ID セッションで署名できる (0.8.3 build 11 で実測 — キー不要)**
+export ASC_KEY_PATH=~/Downloads/AuthKey_2DB7ZRS4N4.p8
+export ASC_KEY_ID=2DB7ZRS4N4
 export ASC_ISSUER=69a6de6f-7282-47e3-e053-5b8c7c11a4d1
-asc-submit doctor 6812783176   # exit 0 なら提出可能
+asc-submit doctor 6812783176
+# → «this key can create versions, edit metadata and submit for review» なら提出可能
 
 # 1. アーカイブとアップロード (上の「ビルドとアップロード」)
-scripts/release/appstore-archive.sh --version 0.7.0 --build <N> --upload
+scripts/release/appstore-archive.sh --version <X.Y.Z> --build <N> --upload
 
 # 2. metadata から spec を生成 (What's New (<version>) セクションが無いと
 #    ここでエラーになる — 文面はリリース前に metadata/*.md へ書いておく)
-python3 scripts/release/appstore-spec.py --version 0.7.0 --build <N>
+python3 scripts/release/appstore-spec.py --version <X.Y.Z> --build <N>
 
 # 3. 提出まで一括 (--submit を外すと提出の手前で止まる)
-asc-submit run 6812783176 --spec dist/appstore/release-0.7.0.json --submit
+asc-submit run 6812783176 --spec dist/appstore/release-<X.Y.Z>.json --submit
 ```
+
+**審査中のビルドを差し替えるとき** (提出後に不具合修正をマージした等) は、
+提出を取り下げてから新しい build で差し替える (2026-09-29 の 0.8.3 で実測):
+
+```sh
+asc-submit cancel-submission 6812783176 --version 0.8.3
+scripts/release/appstore-archive.sh --version 0.8.3 --build <より大きい番号> --upload
+asc-submit attach-build 6812783176 --version 0.8.3 --build <番号> --wait
+asc-submit submit 6812783176 --version 0.8.3 --yes
+```
+
+取り下げの直後は ASC の状態表示が暫く WAITING_FOR_REVIEW のままで、数分で
+DEVELOPER_REJECTED に変わる (反映待ち。取り下げは即時受け付けられる)。
+**提出済み build がどのコミットでビルドされたかは ASC からは分からない**ため、
+build のアップロード時刻と修正のマージ時刻を必ず突き合わせる — 0.8.3 build 10 は
+entitlement 修正のマージ前のアップロードで、突き合わせしないと録画不能版が
+審査を通るところだった (2026-09-29 の実録)。
 
 asc-submit の前提: Python 3.9+ / openssl / curl。`asc_submit` パッケージは
 takezou621/asc-submit の checkout で `pip install .` する (依存は PyPI から
