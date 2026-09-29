@@ -234,6 +234,14 @@ GUI は **直接配布 (Sparkle 自動更新) と Mac App Store の 2 チャネ�
 
 - **App Sandbox が必須** — `gui/Resources/KildeGUI-AppStore.entitlements`
   (app-sandbox + マイク + `~/Movies` + ユーザー選択ファイル + app-scope bookmark)
+- **App Group (`4B873Q67MK.kilde`) が必須** — 録画の排他ロック (`SCKStartupLock`、
+  kilde-cli-swift#31) は App Group コンテナに置かれるため。kilde-cli-swift の
+  `SCKStartupLock.appGroupIdentifier` と**完全一致させる契約**
+  (kilde-cli-swift の docs/SPIKE-NOTES.md F-N)。これが無くても `containerURL` は
+  共有パスを返すため黙っては検出できず、書き込みだけサンドボックスに拒否されて
+  録画開始が「録画の排他ロックを作成できません (errno=1)」で落ちる
+  (macOS 27 実測。0.8.3 候補の検証で発覚、issue #288)。直接配布版は
+  非サンドボックスなので App Group は不要
 - **Sparkle を含めない** — ストア外自己更新の仕組みのため審査で拒否される。
   `UpdaterCoordinator.swift` 全体が `#if !APPSTORE` で、MAS ビルドでは
   `UpdaterCoordinatorAppStore.swift` のスタブに差し替わる。UI の「アップデート」
