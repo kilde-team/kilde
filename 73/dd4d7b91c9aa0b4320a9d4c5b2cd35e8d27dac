@@ -1,0 +1,14 @@
+.github/workflows/release.yml
+  h_864205080385bc 54-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "73dd4d7b91c9aa0b4320a9d4c5b2cd35e8d27dac",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
