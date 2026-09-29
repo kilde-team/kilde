@@ -1,0 +1,14 @@
+scripts/release/appstore-archive.sh
+  h_864205080385bc 287,298-302,305-317
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d47a113b837a5cbe941c1aec858582c3b8d08ef4",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
