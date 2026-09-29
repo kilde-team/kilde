@@ -1,0 +1,19 @@
+gui/project.yml
+  s_8a63ba1f402877::t_e89b805991f0a9 46-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ce859ce19244c0478fbff1cfc039c4373a76cdad",
+  "prompts": {},
+  "sessions": {
+    "s_8a63ba1f402877": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "84874eda-bbe9-4729-becf-c38f2f8d1e8b",
+        "model": "auto"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
