@@ -51,7 +51,8 @@ Options:
 Environment:
   KILDE_ASC_API_KEY       App Store Connect API キー (.p8) のパス (**任意** —
                           未指定なら Xcode の Apple ID セッションでプロビジョニングする。
-                          キーを使うにはクラウド署名の権限 (App Manager 以上) が必要)
+                          キーを使うにはクラウド署名の権限が必要 — この環境の実測では
+                          Admin ロールが要る (App Manager だとエクスポートが失敗))
   KILDE_ASC_API_KEY_ID    キー ID (KILDE_ASC_API_KEY とセットで指定)
   KILDE_ASC_API_ISSUER    issuer ID (KILDE_ASC_API_KEY とセットで指定)
   ※ sign.sh (notarization) 用の AC_API_KEY / AC_API_KEY_ID / AC_API_ISSUER は
@@ -77,8 +78,8 @@ die() { echo "appstore: エラー: $*" >&2; exit 1; }
 export_failed() {
     if [ -n "$KEY_PATH" ]; then
         die "エクスポートに失敗しました。\"Cloud signing permission error\" なら、" \
-            "KILDE_ASC_API_KEY のキーにクラウド署名の権限 (App Manager 以上) がありません。" \
-            "発行済みキーの権限は後から変更できないため、App Manager 以上の新しいチーム API キーを作って" \
+            "KILDE_ASC_API_KEY のキーにクラウド署名の権限がありません (この環境の実測では Admin が必要)。" \
+            "発行済みキーの権限は後から変更できないため、Admin ロールの新しいチーム API キーを作って" \
             "KILDE_ASC_API_KEY* を差し替えるか、KILDE_ASC_API_KEY* を外して Xcode の Apple ID セッションで実行してください"
     fi
     die "エクスポートに失敗しました。\"Cloud signing permission error\" / \"No signing certificate\" なら、" \

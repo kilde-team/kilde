@@ -147,8 +147,9 @@ jobs:
           [ -n "$ASC_CI_ISSUER" ] && SET_COUNT=$((SET_COUNT+1))
           if [ "$SET_COUNT" -ne 3 ]; then
             echo "ASC_CI_KEY_B64 / ASC_CI_KEY_ID / ASC_CI_ISSUER の 3 つすべてが必要です"
-            echo "(CI 専用の App Manager キーを ASC の Users and Access → Integrations で発行し、"
-            echo " .p8 を base64 して ASC_CI_KEY_B64 に登録してください — 開発用キーの流用はしない)"
+            echo "(CI 専用の Admin ロールのキーを ASC の Users and Access → Integrations で発行し、"
+            echo " .p8 を base64 して ASC_CI_KEY_B64 に登録してください — 開発用キーの流用はしない。"
+            echo " ロールは発行後に変更できない。クラウド署名は Admin 限定の実測 — 0.8.1)"
             exit 1
           fi
           umask 077
