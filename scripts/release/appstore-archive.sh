@@ -272,13 +272,19 @@ REQUIRED_ENTITLEMENTS=(
     'com.apple.security.files.bookmarks.app-scope'
     'com.apple.security.network.client'
 )
+# App Group は bool ではなく配列のため、上のループ (key=true の確認) には乗らない。
+# **値まで一致させる契約** — kilde-cli-swift の SCKStartupLock.appGroupIdentifier と
+# 完全一致しないと、無い場合は録画開始が「録画の排他ロックを作成できません (errno=1)」で
+# 落ち、違う値では GUI と CLI が別のロックを見て排他が黙って無効になる
+# (issue #288、macOS 27 実測。どちらもビルドは通るためリリース時に機械的に止める)
+REQUIRED_APP_GROUP='4B873Q67MK.kilde'
 
 # $1: 検査する .app、$2: メッセージに使う対象の呼び名、$3: 抽出結果の書き出し先。
 # App Sandbox と、MAS 版が録画と文字起こし (issue #148) を成立させるのに必須の
 # エンタイトルメントを確認する。欠けてもビルドは通り、壊れ方は実行時だけ (無音
 # トラック・コンテナ内保存・モデル取得失敗) のため、値を見ないと黙って壊れた配布物になる
 verify_required_entitlements() {
-    local app="$1" target="$2" plist="$3" key escaped
+    local app="$1" target="$2" plist="$3" key escaped groups idx element matched
     codesign -d --entitlements :- "$app" > "$plist" 2>/dev/null \
         || die "$target のエンタイトルメントを取得できません"
     [ "$(plutil -extract 'com\.apple\.security\.app-sandbox' raw -expect bool -o - "$plist" 2>/dev/null)" = "true" ] \
@@ -289,11 +295,31 @@ verify_required_entitlements() {
         [ "$(plutil -extract "$escaped" raw -expect bool -o - "$plist" 2>/dev/null)" = "true" ] \
             || die "$target のエンタイトルメントに $key=true がありません (KildeGUI-AppStore.entitlements を確認してください)"
     done
+    # App Group は配列なので json で存在を確かめてから、**要素単位で完全一致**を見る。
+    # substring マッチにすると、要素内に引用符付きで埋め込まれた値
+    # (例: x"4B873Q67MK.kilde") が誤って通る (CodeRabbit レビュー指摘)。
+    # plutil の keypath は配列インデックスも取れる — インデックスの前のドットは
+    # エスケープしない (エスケープするとセグメント名の一部になるため keypath 不正になる)
+    groups="$(plutil -extract 'com\.apple\.security\.application-groups' json -o - "$plist" 2>/dev/null)" \
+        || die "$target のエンタイトルメントに com.apple.security.application-groups がありません (KildeGUI-AppStore.entitlements を確認してください)"
+    idx=0
+    matched=false
+    while element="$(plutil -extract "com\\.apple\\.security\\.application-groups.$idx" raw -o - "$plist" 2>/dev/null)"; do
+        if [ "$element" = "$REQUIRED_APP_GROUP" ]; then
+            matched=true
+            break
+        fi
+        idx=$((idx + 1))
+        # 異常に長い配列で回り続けないための保険 (App Group が 64 個になることはない)
+        [ "$idx" -ge 64 ] && break
+    done
+    [ "$matched" = "true" ] \
+        || die "$target の App Group が $REQUIRED_APP_GROUP ではありません: $groups (SCKStartupLock.appGroupIdentifier と一致させてください — issue #288)"
 }
 
 ENTITLEMENTS_PLIST="$OUTPUT_DIR/archive-entitlements.plist"
 verify_required_entitlements "$APP_IN_ARCHIVE" "アーカイブ" "$ENTITLEMENTS_PLIST"
-log "検証 OK: Sparkle 無し・App Sandbox 有効・録画/文字起こし用エンタイトルメント 5 キー有効"
+log "検証 OK: Sparkle 無し・App Sandbox 有効・録画/文字起こし用エンタイトルメント 5 キー + App Group 有効"
 
 # SPM のリソースバンドル (Firebase / GoogleUtilities / Promises / nanopb の *.bundle) は
 # コードを持たない (Contents/MacOS が無い) が、アーカイブ時に Apple Development で署名される。
@@ -412,7 +438,7 @@ codesign --verify --deep --strict "$APP_IN_PKG" || die ".pkg の中の KildeGUI.
 # 再署名後のエンタイトルメントも同じ基準で確認する (Codex レビュー指摘)。
 # 書き出し先は cleanup (EXIT trap) が掃除する VERIFY_DIR の下
 verify_required_entitlements "$APP_IN_PKG" ".pkg 内の KildeGUI.app" "$VERIFY_DIR/pkg-entitlements.plist"
-log "検証 OK: .pkg 内の KildeGUI.app のエンタイトルメント (App Sandbox + 5 キー) も有効"
+log "検証 OK: .pkg 内の KildeGUI.app のエンタイトルメント (App Sandbox + 5 キー + App Group) も有効"
 # codesign の出力は変数に受けてから判定する。`codesign … | grep -q` は、grep が一致した
 # 時点で閉じたパイプに codesign が書いて SIGPIPE で落ち、`set -o pipefail` のもとでは
 # 一致していても失敗扱いになる (2026-09-23 実測: 正しく Apple Distribution で署名された

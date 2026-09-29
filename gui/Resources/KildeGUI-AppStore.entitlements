@@ -6,6 +6,17 @@
 	     KildeGUI.entitlements には無い — MAS ターゲット専用 -->
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
+	<!-- App Group: 録画の排他ロック (KildeCore の SCKStartupLock、kilde-cli-swift#31) が
+	     App Group コンテナに置かれるため必須。kilde-cli-swift 側の
+	     SCKStartupLock.appGroupIdentifier と完全一致させる契約
+	     (kilde-cli-swift の docs/SPIKE-NOTES.md F-N)。これが無くても containerURL は
+	     共有パスを返すため黙っては検出できず、書き込みだけサンドボックスに拒否されて
+	     録画開始が「録画の排他ロックを作成できません (errno=1)」で落ちる
+	     (macOS 27 実測、issue #288)。直接配布版は非サンドボックスなので不要 -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>4B873Q67MK.kilde</string>
+	</array>
 	<!-- マイク。Hardened Runtime 下で MicStream を使うには必須 (issue #18 と同じ理由)。
 	     欠けるとエラーもクラッシュもなく無音のトラックになる -->
 	<key>com.apple.security.device.audio-input</key>
