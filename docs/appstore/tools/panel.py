@@ -104,10 +104,13 @@ def panel_recording():
 def panel_done():
     """保存完了 + ホットキー + 最近の録画。"""
     body = header()
+    # «フォルダを開く» と行右端のフォルダアイコンは resultView / recentRecordings
+    # (gui/Sources/ContentView.swift) の issue #296 での追加を再現する
     body += f'''
       <div class="result">
         <div class="ok">{sym("check","#30D158",14)}<span>保存しました</span></div>
         <div class="dim sm path">~/Movies/kilde-20260916-142201.mp4</div>
+        <div class="link">フォルダを開く</div>
       </div>'''
     body += section("グローバルホットキー", f'''
       <div class="line">{sym("keyboard","#C9CED6")}
@@ -115,9 +118,9 @@ def panel_done():
       <div class="dim sm wrap">他のアプリを使っている間でも、このキーで録画を開始・停止できます</div>''')
     body += section("最近の録画", f'''
       <div class="list plain">
-        <div class="rr">{sym("film","#8A8F98")}<span>kilde-20260916-142201.mp4</span></div>
-        <div class="rr">{sym("film","#8A8F98")}<span>kilde-20260915-101744.mp4</span></div>
-        <div class="rr">{sym("film","#8A8F98")}<span>kilde-20260914-193012.m4a</span></div>
+        <div class="rr">{sym("film","#8A8F98")}<span>kilde-20260916-142201.mp4</span><span class="spacer"></span>{sym("folder","#8A8F98",12)}</div>
+        <div class="rr">{sym("film","#8A8F98")}<span>kilde-20260915-101744.mp4</span><span class="spacer"></span>{sym("folder","#8A8F98",12)}</div>
+        <div class="rr">{sym("film","#8A8F98")}<span>kilde-20260914-193012.m4a</span><span class="spacer"></span>{sym("folder","#8A8F98",12)}</div>
       </div>''')
     # 「アップデート」セクションは描かない — ここは MAS 版スクリーンショットのモックで、
     # 実機 (KildeGUI-AppStore) は更新 UI を持たない (ContentView.swift の #if !APPSTORE。
@@ -157,6 +160,7 @@ def panel_transcribe():
       <div class="result">
         <div class="ok">{sym("check","#30D158",14)}<span>保存しました</span></div>
         <div class="dim sm path">~/Movies/kilde-20260925-142201.mp4</div>
+        <div class="link">フォルダを開く</div>
       </div>'''
     # transcriptionStatusView の lastCompletion。録画ファイルの隣に .md が同步する
     body += f'''
