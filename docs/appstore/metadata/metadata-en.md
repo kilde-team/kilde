@@ -105,6 +105,19 @@ and short.
 Internal improvements to the app. No changes to the app's features.
 ```
 
+## What's New (0.8.4)
+
+First user-visible changes since 0.8.2: Open Folder buttons on the completion
+screen and the recent-recordings rows (issue #296 / PR #297), and detection of
+capture interruptions — when ScreenCaptureKit stops the stream on its own
+(e.g. after a display change on macOS 26), the recording is finalized up to
+that point and the app notifies (issue #298 / PR #299, engine v0.8.2). UI
+terms match Localizable.xcstrings (en).
+
+```text
+Adds Open Folder buttons to the recording completion screen and the recent recordings list. Also includes a stability improvement: if the capture is interrupted, kilde now detects it, saves the recording up to that point, and notifies you.
+```
+
 ## What's New (template)
 
 ```text
