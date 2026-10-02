@@ -1,0 +1,22 @@
+CLAUDE.md
+  h_864205080385bc 91-93
+docs/RELEASE.md
+  h_864205080385bc 514-516,518-520
+gui/Resources/Localizable.xcstrings
+  h_864205080385bc 4208-4265
+gui/Sources/RecordingController.swift
+  h_864205080385bc 205-211,222
+gui/Sources/RecordingNotifier.swift
+  h_864205080385bc 113-116,118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "efc43bed174d38d0841cc7ba752b0ffd69f63646",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
