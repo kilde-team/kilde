@@ -46,7 +46,12 @@ packages:
     # v0.8.1: SCKStartupLock が App Group コンテナを採用する前に書き込み可能性を確認し、
     # 書けなければ confstr 一時ディレクトリへフォールバックする修正 (kilde-cli-swift#69)。
     # entitlement (issue #288) と合わせて二段構え — 片方が欠けても録画が errno=1 で落ちない
-    exactVersion: 0.8.1
+    # v0.8.2: SCK ストリームの外部要因による中断 (ディスプレイ再構成・収録ウィンドウの
+    # 消失) を didStopWithError で検知して早期ファイナライズする修正 (kilde-cli-swift#71)。
+    # 検知できなかった頃は、映像が止まったまま «録画中» のセッションが生き続け、
+    # 停止時に初めて実際の尺の短さに気づく (issue #298)。GUI は Summary.captureInterrupted
+    # を受けて «録画が途中で中断されました» の通知を出す
+    exactVersion: 0.8.2
   # GUI の自動更新 (issue #122)。Sparkle 2 のバイナリターゲット (macOS 12+) で、
   # リンクすると Sparkle.framework が Contents/Frameworks に埋め込まれる。
   # バージョンを固定する理由は kilde-cli-swift と同じ: 浮動参照だと上流の push が

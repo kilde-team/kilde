@@ -198,6 +198,18 @@ final class RecordingController: ObservableObject {
             // 同じく «完了» だけを送る — 失敗は #159 の指標に使わない (kilde 本体の
             // 不具合調査なら通知と Crashlytics の方で分かる)
             UsageAnalytics.recordingCompleted(recordingDuration: recorded)
+            // **キャプチャの中断 (issue #298)。** エンジンが SCK ストリームの自停止を
+            // 検知して早期ファイナライズした完了。ファイルは成立しているが
+            // «利用者が意図した長さ» ではないため、通知の文面を替え、
+            // エンジンの詳細文 (OS のエラーを含む) をポップオーバーの warnings にも
+            // 残して何が起きたか後から分かるようにする。
+            // 判定は DESIGN.md で定義された Summary.captureInterrupted に寄せる —
+            // interruptionReason は必ず組で設定されるが (Recorder が同じ値から
+            // 構築する)、GUI が見るフィールドを文書と揃えておく
+            let interruptedReason = summary.captureInterrupted ? summary.interruptionReason : nil
+            if let interruptedReason {
+                warnings.append(interruptedReason)
+            }
             phase = .finished(summary.outputURL)
             // 通知は endSession の前に出す — endSession はハンドラ経由でアプリを
             // 終了させることがあり (applicationShouldTerminate の待ち)、
@@ -206,7 +218,9 @@ final class RecordingController: ObservableObject {
             // 収録時間 0 として扱う (準備中に止めた場合など)
             notifyThenEndSession { [weak self] done in
                 self?.notifier?.notifyCompleted(url: summary.outputURL, elapsed: recorded,
-                                                bytes: self?.outputBytes ?? 0, completion: done)
+                                                bytes: self?.outputBytes ?? 0,
+                                                interruptionReason: interruptedReason,
+                                                completion: done)
             }
         case .failed(let error, let partialFileExists):
             var message = "\(error)"

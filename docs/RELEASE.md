@@ -511,10 +511,13 @@ Release の作成は `v*` タグの push に限定しています。
 ### CLI ソースの pin の更新
 
 workflow は kilde-cli-swift を **revision 固定**で checkout します
-(`release.yml` の `ref:`。現在は GUI (`gui/project.yml` の pin) と同じ
-`4d2f251535ed6e907fea185e116ed9b9eb1392b3`)。pin は「リリース成果物がどのコミットで
+(`release.yml` の `ref:`。現在は GUI (`gui/project.yml` の `exactVersion`) と同じ
+エンジンのタグ **`v0.8.2`** を指します — issue #298 で exactVersion / タグ参照に
+更新済み)。pin は「リリース成果物がどのコミットで
 ビルドされたか」を追跡可能にするための固定で、GUI と release が同じエンジンを参照する
-契約です。**更新するときは `gui/project.yml` と `release.yml` の `ref:` を同じ PR で
+契約です。更新手順: kilde-cli-swift で新しいタグを打設 → `gui/project.yml` の
+`exactVersion` と `release.yml` の `ref:` を上げる (変更履歴は `gui/project.yml` の
+コメントに積む)**更新するときは `gui/project.yml` と `release.yml` の `ref:` を同じ PR で
 必ず揃えてください** (片方だけ更新すると、GUI と CLI が別のエンジン revision で
 ビルドされます)。
 
