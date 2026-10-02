@@ -1,0 +1,22 @@
+.github/workflows/release.yml
+  h_864205080385bc 54-59
+docs/DESIGN.md
+  h_864205080385bc 693-699
+gui/Sources/RecordingController.swift
+  h_864205080385bc 201-208,217-219
+gui/Sources/RecordingNotifier.swift
+  h_864205080385bc 70-74,94,98-103,112-117
+gui/project.yml
+  h_864205080385bc 49-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "8b9e29e7816827e1c375b556806713d62d96bca2",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
