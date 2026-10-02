@@ -1,0 +1,14 @@
+gui/Sources/ContentView.swift
+  h_864205080385bc 937-939
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b9c7442746ef66bdb40a85c71df54269c539fb3d",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
