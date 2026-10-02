@@ -934,6 +934,9 @@ struct ContentView: View {
                         }
                         .buttonStyle(.plain)
                         .help("フォルダを開く")
+                        // アイコンのみのボタンなので VoiceOver 用のラベルが要る
+                        // (.help はツールチップであってアクセシビリティラベルではない)
+                        .accessibilityLabel("フォルダを開く")
                         recentTranscriptAction(item)
                     }
                 }
