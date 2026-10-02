@@ -110,10 +110,12 @@ final class RecordingNotifier: NSObject {
             : ""
         content.body = "\(url.lastPathComponent)\n\(Self.formatDuration(elapsed))\(size)"
         // 中断の理由 (OS のエラー文を含むエンジンの詳細文) は長いので通知には載せず、
-        // «なぜ短くなったか» の一言だけ添える。詳細はポップオーバーの warnings に
-        // RecordingController が載せている
+        // «途中までで保存された» ことだけを添える。原因の名指しはしない —
+        // 中断の要因はディスプレイ再構成のほか収録ウィンドウの消失など複数あり、
+        // 固定文で特定の原因を書くと実際と違う案内になる (cubic の指摘)。
+        // 詳細はポップオーバーの warnings に RecordingController が載せている
         if interruptionReason != nil {
-            content.body += "\n" + String(localized: "画面構成の変更などで中断されたため、ここまでの内容で保存しました")
+            content.body += "\n" + String(localized: "録画が中断されたため、ここまでの内容で保存しました")
         }
         content.sound = .default
         // 通知は macOS 側に残るので、**アプリを終了して起動し直した後にクリックされうる**。
