@@ -1,0 +1,18 @@
+docs/appstore/tools/panel.py
+  h_864205080385bc 107-108,113,121-123,163
+gui/Resources/Localizable.xcstrings
+  h_864205080385bc 1193-1221
+gui/Sources/ContentView.swift
+  h_864205080385bc 858-867,900-901,926-936
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d569934b541a1d014e64a6e855ee82c857fbfcdf",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
