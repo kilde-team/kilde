@@ -855,6 +855,16 @@ struct ContentView: View {
                     .textSelection(.enabled)
                     .lineLimit(2)
                     .truncationMode(.middle)
+                // 保存フォルダを開く導線 (issue #296)。録画が終わったら«すぐに再生»へ
+                // 至れるようにする。開き先は «最近の録画»・通知クリックと同じ
+                // revealInFinder — フォルダ内でファイルを選択した状態で開くので、
+                // ダブルクリックでそのまま再生できる。ファイルが消えていたら親
+                // ディレクトリを開くフォールバックも共通
+                Button("フォルダを開く") {
+                    RecordingNotifier.revealInFinder(url)
+                }
+                .buttonStyle(.link)
+                .font(.caption)
                 ForEach(recording.warnings, id: \.self) { warning in
                     Label(warning, systemImage: "exclamationmark.triangle")
                         .font(.caption)
@@ -887,8 +897,8 @@ struct ContentView: View {
 
     /// 直近の録画 (issue #20)。クリックで Finder に表示する。
     /// 保存先を走査して作るので、CLI で録ったファイルもここに出る。
-    /// 行の右端には文字起こしのアクション (issue #147) を置く:
-    /// サイドカーが有れば «開く»、無ければ «文字起こしする»
+    /// 行の右端にはフォルダを開くボタン (issue #296) と文字起こしのアクション
+    /// (issue #147) を置く: サイドカーが有れば «開く»、無ければ «文字起こしする»
     @ViewBuilder
     private var recentRecordings: some View {
         if !setup.recentRecordings.isEmpty {
@@ -913,6 +923,20 @@ struct ContentView: View {
                         }
                         .buttonStyle(.plain)
                         .help("Finder で表示: \(item.url.path)")
+                        // 保存フォルダを開くボタン (issue #296)。行本体のクリックが
+                        // Finder 表示だと気づきにくいので、«押せる導線» として見える
+                        // 形にする。開き先は行クリックと同じ revealInFinder
+                        Button {
+                            RecordingNotifier.revealInFinder(item.url)
+                        } label: {
+                            Image(systemName: "folder")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("フォルダを開く")
+                        // アイコンのみのボタンなので VoiceOver 用のラベルが要る
+                        // (.help はツールチップであってアクセシビリティラベルではない)
+                        .accessibilityLabel("フォルダを開く")
                         recentTranscriptAction(item)
                     }
                 }
