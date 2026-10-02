@@ -51,12 +51,12 @@ jobs:
           repository: kilde-team/kilde-cli-swift
           # GUI (gui/project.yml) と同じ pin。リリース成果物が「どのコミットで
           # ビルドされたか」を追跡可能にするため。更新時は GUI 側と揃える。
-          # GUI は exactVersion 0.8.1 (issue #291) なので CLI も同じ v0.8.1 タグ —
-          # v0.8.1 は SCKStartupLock の App Group コンテナ採用前の書き込み確認と
-          # confstr 一時ディレクトリへのフォールバック (kilde-cli-swift#69) を含む。
-          # entitlement 無しサンドボックスや FDA 無し起動経路で録画開始が errno=1 で
-          # 落ちないようにする修正 (issue #288 関連)
-          ref: v0.8.1
+          # GUI は exactVersion 0.8.2 (issue #298) なので CLI も同じ v0.8.2 タグ —
+          # v0.8.2 は SCK ストリームの外部要因による中断 (ディスプレイ再構成・
+          # 収録ウィンドウの消失) を didStopWithError で検知して早期ファイナライズする
+          # 修正 (kilde-cli-swift#71) を含む。GUI は Summary.captureInterrupted を
+          # 受けて «録画が途中で中断されました» の通知を出す
+          ref: v0.8.2
           # private リポジトリ: GITHUB_TOKEN は他リポジトリを読めないため
           # fine-grained PAT (contents:read) を使う
           token: ${{ secrets.KILDE_CLI_SWIFT_TOKEN }}
