@@ -113,6 +113,15 @@ Actualizamos la página del producto en el App Store. No hay cambios en las func
 Mejoras internas de la aplicación. No hay cambios en las funciones de la aplicación.
 ```
 
+## Novedades (0.8.4)
+
+Los términos de la interfaz coinciden con Localizable.xcstrings (es):
+«Abrir carpeta», «Grabaciones recientes».
+
+```text
+Añade botones «Abrir carpeta» en la pantalla de finalización de la grabación y en la lista de grabaciones recientes. Incluye también una mejora de estabilidad: al detectar una interrupción de la captura, kilde guarda la grabación hasta ese momento y te avisa.
+```
+
 ## Novedades (plantilla)
 
 ```text
