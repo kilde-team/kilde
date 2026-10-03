@@ -123,3 +123,17 @@ Adds Open Folder buttons to the recording completion screen and the recent recor
 ```text
 Summarize this version's changes in 1–3 lines (fixes and new features).
 ```
+
+## What's New (0.8.5)
+
+One user-visible change since 0.8.4: the recording engine is updated to
+kilde-cli-swift **v0.9.0**, which adds an **automatic restart** after capture
+interruptions (kilde-cli-swift#73 / issue #304). When ScreenCaptureKit stops the
+stream on its own (e.g. after a display reconfiguration), v0.8.2 finalized the
+recording right there; the engine now resumes into the same file up to 3 times.
+The GUI switches the notification to a "resumed automatically" wording via
+`Summary.captureRestartCount`.
+
+```text
+Screen recording now resumes automatically after interruptions such as display connection or resolution changes, continuing into the same file. If the capture cannot be resumed, kilde still saves the recording up to that point and notifies you.
+```

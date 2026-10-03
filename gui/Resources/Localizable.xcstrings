@@ -4263,6 +4263,35 @@
           }
         }
       }
+    },
+    "キャプチャの中断から自動で再開し、最後まで録画しました": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resumed automatically after the capture was interrupted and recorded to the end"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se reanudó automáticamente después de la interrupción de la captura y grabó hasta el final"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "캡처가 중단된 후 자동으로 재개되어 끝까지 녹화했습니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "捕获中断后已自动恢复并录制到最后"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
