@@ -1,0 +1,34 @@
+.github/workflows/release.yml
+  h_864205080385bc 54-56
+docs/appstore/metadata/metadata-en.md
+  h_864205080385bc 126-139
+docs/appstore/metadata/metadata-es.md
+  h_864205080385bc 130-144
+docs/appstore/metadata/metadata-ja.md
+  h_864205080385bc 143-155
+docs/appstore/metadata/metadata-ko.md
+  h_864205080385bc 120-132
+docs/appstore/metadata/metadata-zh-Hans.md
+  h_864205080385bc 116-127
+docs/appstore/metadata/metrics.md
+  h_864205080385bc 34-36,81
+gui/Resources/Localizable.xcstrings
+  h_864205080385bc 4266-4323
+gui/Sources/RecordingController.swift
+  h_864205080385bc 202-204,207-214,228
+gui/Sources/RecordingNotifier.swift
+  h_864205080385bc 95,101-104,107-109,119,124-126
+gui/project.yml
+  h_864205080385bc 54-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "68873ee46983a80a7d27d799ad67a9d15a0a37a1",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
