@@ -4264,35 +4264,6 @@
         }
       }
     },
-    "録画を自動で再開して保存しました": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recording resumed automatically and saved"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Grabación reanudada automáticamente y guardada"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "녹화가 자동으로 다시 시작되어 저장되었습니다"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "录制已自动恢复并保存"
-          }
-        }
-      }
-    },
     "キャプチャの中断から自動で再開し、最後まで録画しました": {
       "extractionState": "manual",
       "localizations": {

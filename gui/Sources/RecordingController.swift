@@ -206,12 +206,19 @@ final class RecordingController: ObservableObject {
             // interruptionReason は必ず組で設定されるが (Recorder が同じ値から
             // 構築する)、GUI が見るフィールドを文書と揃えておく。
             // **エンジン v0.9.0 (kilde-cli-swift#73) からは中断後に自動リスタートし、
-            // 同一ファイルへの録画を継続する** — captureRestartCount > 0 なら
-            // «中断された» ではなく «自動で再開した» を主メッセージにする (issue #304)。
-            // 再開に失敗して早期ファイナライズした場合は従来どおり «中断» 文面
+            // 同一ファイルへの録画を継続する**。通知の文面は次の 3 状態で分ける:
+            //   - captureInterrupted == false → 通常の «保存しました»。ただし中断から
+            //     自動で再開した実績があれば (captureRestartCount > 0) «自動で再開» の
+            //     ひとことを添える — このとき未回収の中断は無いので «最後まで» が成立する
+            //   - captureInterrupted == true && restartCount == 0 → 1 回も再開できず
+            //     早期ファイナライズ。従来どおり «中断された» 文面
+            //   - captureInterrupted == true && restartCount > 0 → 途中の再開には
+            //     成功したが**最後の中断で使い切って**早期ファイナライズ。ファイルは
+            //     途中までなので «中断された» 文面を使う (cubic の指摘 — restartCount > 0
+            //     だけだと部分ファイルに «最後まで録画した» と誤表示する)
             let interrupted = summary.captureInterrupted
             let interruptedReason = interrupted ? summary.interruptionReason : nil
-            let restartCount = summary.captureRestartCount
+            let recoveredRestarts = interrupted ? 0 : summary.captureRestartCount
             if let interruptedReason {
                 warnings.append(interruptedReason)
             }
@@ -225,7 +232,7 @@ final class RecordingController: ObservableObject {
                 self?.notifier?.notifyCompleted(url: summary.outputURL, elapsed: recorded,
                                                 bytes: self?.outputBytes ?? 0,
                                                 interruptionReason: interruptedReason,
-                                                restartCount: restartCount,
+                                                recoveredRestarts: recoveredRestarts,
                                                 completion: done)
             }
         case .failed(let error, let partialFileExists):
