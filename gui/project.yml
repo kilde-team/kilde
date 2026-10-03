@@ -51,7 +51,12 @@ packages:
     # 検知できなかった頃は、映像が止まったまま «録画中» のセッションが生き続け、
     # 停止時に初めて実際の尺の短さに気づく (issue #298)。GUI は Summary.captureInterrupted
     # を受けて «録画が途中で中断されました» の通知を出す
-    exactVersion: 0.8.2
+    # v0.9.0: 中断からの自動リスタート (kilde-cli-swift#73)。ディスプレイ再構成などの
+    # 自停止でも上限付き (3 回) のリスタートで同一ファイルへの録画を継続し、
+    # 従来 «途中までで保存» になっていた場面を大幅に減らす。Summary.captureRestartCount
+    # を受けて GUI の通知を «自動で再開» 文面に出し分ける (kilde#304)。
+    # 内蔵 Monitor の残骸解体 (kilde-cli-swift#75) も含む
+    exactVersion: 0.9.0
   # GUI の自動更新 (issue #122)。Sparkle 2 のバイナリターゲット (macOS 12+) で、
   # リンクすると Sparkle.framework が Contents/Frameworks に埋め込まれる。
   # バージョンを固定する理由は kilde-cli-swift と同じ: 浮動参照だと上流の push が

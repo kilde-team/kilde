@@ -92,15 +92,21 @@ final class RecordingNotifier: NSObject {
     /// 短い録画でサイズが 0 になるが、通知が届かないことに比べれば軽い
     func notifyCompleted(url: URL, elapsed: TimeInterval, bytes: Int64,
                          interruptionReason: String? = nil,
+                         restartCount: Int = 0,
                          completion: @escaping () -> Void = {}) {
         let identifier = UUID().uuidString
         let content = UNMutableNotificationContent()
         // 中断 (issue #298) のときは «保存しました» ではなく «中断された» を先に言う —
         // 利用者は「最後まで録れている」前提でいるので、通常の完了通知の文面だと
-        // «保存されたけど何かが違う» にしか見えない
+        // «保存されたけど何かが違う» にしか見えない。
+        // **エンジン v0.9.0 (kilde-cli-swift#73) からは中断後に自動リスタートして
+        // 録画を続ける** ので、再開に成功した (restartCount > 0) ときは
+        // «自動で再開して保存した» を先に言う (issue #304)。中断の事実は本文に添える
         content.title = interruptionReason == nil
             ? String(localized: "録画を保存しました")
-            : String(localized: "録画が途中で中断されました")
+            : (restartCount > 0
+               ? String(localized: "録画を自動で再開して保存しました")
+               : String(localized: "録画が途中で中断されました"))
         // 本文はファイル名 + 長さ + サイズ。パス全体は長すぎて通知に収まらないので
         // ファイル名だけにし、場所は Finder 表示で見せる。
         // サイズが分からない (進捗が 1 度も来ない短い録画) ときは、`0 bytes` と
@@ -110,12 +116,14 @@ final class RecordingNotifier: NSObject {
             : ""
         content.body = "\(url.lastPathComponent)\n\(Self.formatDuration(elapsed))\(size)"
         // 中断の理由 (OS のエラー文を含むエンジンの詳細文) は長いので通知には載せず、
-        // «途中までで保存された» ことだけを添える。原因の名指しはしない —
+        // «中断からどう復帰したか» だけを添える。原因の名指しはしない —
         // 中断の要因はディスプレイ再構成のほか収録ウィンドウの消失など複数あり、
         // 固定文で特定の原因を書くと実際と違う案内になる (cubic の指摘)。
         // 詳細はポップオーバーの warnings に RecordingController が載せている
         if interruptionReason != nil {
-            content.body += "\n" + String(localized: "録画が中断されたため、ここまでの内容で保存しました")
+            content.body += "\n" + (restartCount > 0
+                ? String(localized: "キャプチャの中断から自動で再開し、最後まで録画しました")
+                : String(localized: "録画が中断されたため、ここまでの内容で保存しました"))
         }
         content.sound = .default
         // 通知は macOS 側に残るので、**アプリを終了して起動し直した後にクリックされうる**。

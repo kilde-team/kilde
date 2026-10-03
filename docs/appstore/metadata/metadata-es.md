@@ -127,3 +127,18 @@ Añade botones «Abrir carpeta» en la pantalla de finalización de la grabació
 ```text
 Resume los cambios de esta versión en 1–3 líneas (correcciones y novedades).
 ```
+
+## Novedades (0.8.5)
+
+Un cambio visible desde 0.8.4: el motor de grabación se actualiza a
+kilde-cli-swift **v0.9.0**, que añade un **reinicio automático** tras las
+interrupciones de captura (kilde-cli-swift#73 / issue #304). Cuando
+ScreenCaptureKit detiene la transmisión por su cuenta (p. ej. tras una
+reconfiguración de pantallas), la versión 0.8.2 finalizaba la grabación en ese
+punto; ahora el motor reanuda la grabación en el mismo archivo hasta 3 veces.
+La GUI cambia la notificación a «se reanudó automáticamente» mediante
+`Summary.captureRestartCount`.
+
+```text
+La grabación en pantalla ahora se reanuda automáticamente tras interrupciones como cambios de conexión o resolución de pantallas, y continúa en el mismo archivo. Si no se puede reanudar la captura, kilde guarda la grabación hasta ese punto y te avisa.
+```

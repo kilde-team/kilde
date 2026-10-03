@@ -199,14 +199,19 @@ final class RecordingController: ObservableObject {
             // 不具合調査なら通知と Crashlytics の方で分かる)
             UsageAnalytics.recordingCompleted(recordingDuration: recorded)
             // **キャプチャの中断 (issue #298)。** エンジンが SCK ストリームの自停止を
-            // 検知して早期ファイナライズした完了。ファイルは成立しているが
-            // «利用者が意図した長さ» ではないため、通知の文面を替え、
-            // エンジンの詳細文 (OS のエラーを含む) をポップオーバーの warnings にも
-            // 残して何が起きたか後から分かるようにする。
+            // 検知した完了。ファイルは成立しているが «利用者が意図した長さ» ではないため、
+            // 通知の文面を替え、エンジンの詳細文 (OS のエラーを含む) をポップオーバーの
+            // warnings にも残して何が起きたか後から分かるようにする。
             // 判定は DESIGN.md で定義された Summary.captureInterrupted に寄せる —
             // interruptionReason は必ず組で設定されるが (Recorder が同じ値から
-            // 構築する)、GUI が見るフィールドを文書と揃えておく
-            let interruptedReason = summary.captureInterrupted ? summary.interruptionReason : nil
+            // 構築する)、GUI が見るフィールドを文書と揃えておく。
+            // **エンジン v0.9.0 (kilde-cli-swift#73) からは中断後に自動リスタートし、
+            // 同一ファイルへの録画を継続する** — captureRestartCount > 0 なら
+            // «中断された» ではなく «自動で再開した» を主メッセージにする (issue #304)。
+            // 再開に失敗して早期ファイナライズした場合は従来どおり «中断» 文面
+            let interrupted = summary.captureInterrupted
+            let interruptedReason = interrupted ? summary.interruptionReason : nil
+            let restartCount = summary.captureRestartCount
             if let interruptedReason {
                 warnings.append(interruptedReason)
             }
@@ -220,6 +225,7 @@ final class RecordingController: ObservableObject {
                 self?.notifier?.notifyCompleted(url: summary.outputURL, elapsed: recorded,
                                                 bytes: self?.outputBytes ?? 0,
                                                 interruptionReason: interruptedReason,
+                                                restartCount: restartCount,
                                                 completion: done)
             }
         case .failed(let error, let partialFileExists):
