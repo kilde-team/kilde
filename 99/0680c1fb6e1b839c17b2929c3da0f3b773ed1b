@@ -1,0 +1,20 @@
+docs/appstore/metadata/metadata-es.md
+  h_864205080385bc 137
+docs/appstore/metadata/metrics.md
+  h_864205080385bc 81
+gui/Sources/RecordingController.swift
+  h_864205080385bc 209-218,221,235
+gui/Sources/RecordingNotifier.swift
+  h_864205080385bc 95,103-110,113,128-130
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "990680c1fb6e1b839c17b2929c3da0f3b773ed1b",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
