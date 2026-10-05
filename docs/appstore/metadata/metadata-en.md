@@ -137,3 +137,15 @@ The GUI switches the notification to a "resumed automatically" wording via
 ```text
 Screen recording now resumes automatically after interruptions such as display connection or resolution changes, continuing into the same file. If the capture cannot be resumed, kilde still saves the recording up to that point and notifies you.
 ```
+
+## What's New (0.9.0)
+
+No functional change since 0.8.5: this submission aligns the App Store version
+number with the direct-distribution release v0.9.0 (issue #307 / issue #310).
+The automatic restart after capture interruptions (0.8.5) and the "Open Folder"
+button (0.8.4) have already reached App Store users, so the What's New copy
+simply states this is a maintenance release.
+
+```text
+This is a maintenance release. The version number is aligned with the direct-distribution build. There are no changes to the recording features.
+```

@@ -142,3 +142,15 @@ La GUI cambia la notificación a «se reanudó automáticamente» mediante
 ```text
 La grabación en pantalla ahora se reanuda automáticamente tras interrupciones como cambios de conexión o resolución de pantallas, y continúa en el mismo archivo. Si no se puede reanudar la captura, kilde guarda la grabación hasta ese punto y te avisa.
 ```
+
+## Novedades (0.9.0)
+
+Sin cambios funcionales desde 0.8.5: esta presentación alinea el número de
+versión de App Store con la distribución directa v0.9.0 (issue #307 / issue #310).
+El reinicio automático tras interrupciones de captura (0.8.5) y el botón
+«Abrir carpeta» (0.8.4) ya llegaron a los usuarios de App Store, así que el
+texto solo indica que es una versión de mantenimiento.
+
+```text
+Esta es una versión de mantenimiento. El número de versión se alinea con la distribución directa. No hay cambios en las funciones de grabación.
+```
