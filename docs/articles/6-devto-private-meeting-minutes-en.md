@@ -94,7 +94,10 @@ Since that's the whole point, here's the honest answer.
   next launch: the stack trace (where it crashed), app and OS versions, device
   type and state (free memory and disk space), the time of the crash, and a
   random per-install ID. Crash reports are kept separate from the usage
-  statistics above and do not include recording content, filenames, or settings
+  statistics above and do not include recording content, filenames, or
+  settings. These two — the Firebase Analytics statistics and the Crashlytics
+  reports — are the GUI's only telemetry; the update check and speech-model
+  downloads below carry no usage data
 - The direct-download build checks for updates through Sparkle, which fetches
   update information from GitHub; that request exposes your IP address and app
   version to GitHub. The Mac App Store build updates through the App Store
