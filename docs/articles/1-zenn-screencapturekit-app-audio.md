@@ -76,7 +76,8 @@ config.minimumFrameInterval = CMTime(value: 1, timescale: 30)  // 30 fps
 
 ウィンドウ収録には 1 つ落とし穴があります。macOS 14.2 以降、ScreenCaptureKit は
 **対象ウィンドウの子ウィンドウも既定で描画に含める**ようになっています
-(実測に基づく挙動で、ドキュメントには既定値の記載がありません)。
+(これは 14.2 で追加された `includeChildWindows` プロパティの既定値で、
+SDK ヘッダーにも «Child windows are included by default» と明記されています)。
 子ウィンドウが画面の外にあると、
 出力フレームは「親 + 子」の外接矩形に合わせて拡張され、結果として
 録りたいウィンドウが縮んで写り、画面外の子ウィンドウが入り込んでしまいます。
