@@ -1,0 +1,14 @@
+docs/articles/README.md
+  h_864205080385bc 3-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "99a1a81db05f06bfc5436e8f343f560b88f305fa",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
