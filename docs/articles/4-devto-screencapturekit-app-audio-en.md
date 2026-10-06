@@ -3,7 +3,7 @@ title: "Capturing per-app system audio on macOS with ScreenCaptureKit — the pa
 published: false
 description: "How to record the audio your Mac plays — scoped to a single app — with ScreenCaptureKit: audio scoping, child windows, PTS anchoring, and AVAssetWriter pitfalls."
 tags: macos, swift, screencapturekit, avfoundation
-canonical_url = "https://zenn.dev/takezou621/articles/a7f3df15b3a9ff"
+canonical_url: https://zenn.dev/takezou621/articles/a7f3df15b3a9ff
 ---
 
 **この原稿について** (リポジトリ内の注記です。dev.to に転載するときは削除してください):
@@ -94,8 +94,9 @@ the capture*, not by mut etiquette.
 
 ### Child windows are included by default
 
-Window capture has one trap: ScreenCaptureKit **includes the target window's
-child windows in the rendered output by default**. If a child window sits
+Window capture has one trap: since macOS 14.2, ScreenCaptureKit **includes the
+target window's child windows in the rendered output by default** (observed
+behavior — Apple's docs don't document this default). If a child window sits
 outside the screen, the output frame is expanded to the bounding box of
 "parent + child", so the window you wanted ends up shrunk in the frame, with an
 off-screen child window sneaking in.

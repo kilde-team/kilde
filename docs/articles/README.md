@@ -32,9 +32,9 @@ issue #158 で公開した記事 3 本と、issue #312 で追加した公開前�
   `published: false` はこのリポジトリからの意図しない再公開を防ぐため維持する。
   公開版は上記 URL の Zenn エディタで管理する
 - 英語版 3 本 (4〜6) も同様に `published: false` で保存する原稿
-  (4・5 は dev.to 形式の TOML front matter、6 は dev.to を第一候補とした共通
+  (4・5 は dev.to 形式の YAML front matter、6 は dev.to を第一候補とした共通
   Markdown)。各ファイル先頭の «この原稿について» ブロックは内部注記なので、
-  公開時に削除する
+  公開時に削除する (dev.to の front matter は YAML 形式 — `key: value` — で書く)
 - 記事 4・5 は front matter の `canonical_url` に Zenn 版を設定してある
   (重複コンテンツ扱いを避けるため)。kilde.site blog に原典として載せる
   場合は canonical を外す

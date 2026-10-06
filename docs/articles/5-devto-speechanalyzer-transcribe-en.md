@@ -2,8 +2,8 @@
 title: "Transcribing meeting recordings with SpeechAnalyzer on macOS 26 — feeding PCM from a file"
 published: false
 description: "SpeechAnalyzer is the on-device transcription API in macOS 26. Notes on the file path: AVAssetReader → PCM, the big-endian trap, speaker separation, and cancellation."
-tags: macos, swift, speechframework, speechrecognition, avfoundation
-canonical_url = "https://zenn.dev/takezou621/articles/7a8de3ca6ccb59"
+tags: macos, swift, speechframework, avfoundation
+canonical_url: https://zenn.dev/takezou621/articles/7a8de3ca6ccb59
 ---
 
 **この原稿について** (リポジトリ内の注記です。dev.to に転載するときは削除してください):

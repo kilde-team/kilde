@@ -37,7 +37,7 @@ This is why I built [kilde](https://kilde.site/): a free macOS tool that
 records your screen and audio, where **the recording, and — if you turn them
 on — the transcription and summary all complete on your Mac** (transcription
 needs macOS 26 or later; summaries need an Apple Intelligence-capable Mac).
-No bot joins the call, and nothing gets uploaded anywhere.
+No bot joins the call, and recordings and transcripts never leave your Mac.
 
 Using it changes nothing about how you run the meeting. One thing first,
 though, and it matters: **before recording, tell participants and get their
@@ -84,10 +84,10 @@ Since that's the whole point, here's the honest answer.
 - Recordings, transcripts, and summaries are written to your local disk.
   There is no kilde server
 - The menu bar app sends aggregate usage statistics to Firebase Analytics to
-  improve the app: launch counts, OS versions, bucketed recording durations
-  («under 1 min / 1–5 min / 5–15 min / …»). The developer sees aggregated
-  numbers only — never recording content, filenames, or settings like your
-  save destination
+  improve the app — things like launch counts, OS versions, and bucketed
+  recording durations («under 1 min / 1–5 min / 5–15 min / …»). The developer
+  sees aggregated numbers only — never recording content, filenames, or
+  settings like your save destination
 - If the app crashes, Firebase Crashlytics sends an individual crash report on
   next launch (the failing code path, device state, and so on). Crash reports
   are kept separate from the usage statistics above and do not include
