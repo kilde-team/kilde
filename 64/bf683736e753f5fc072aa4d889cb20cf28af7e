@@ -1,0 +1,22 @@
+docs/articles/4-devto-screencapturekit-app-audio-en.md
+  h_864205080385bc 6,97-99
+docs/articles/5-devto-speechanalyzer-transcribe-en.md
+  h_864205080385bc 5-6
+docs/articles/6-devto-private-meeting-minutes-en.md
+  h_864205080385bc 40,87-90
+docs/articles/7-qiita-screencapturekit-app-audio.md
+  h_864205080385bc 8-10,83-86
+docs/articles/README.md
+  h_864205080385bc 35,37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "64bf683736e753f5fc072aa4d889cb20cf28af7e",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
