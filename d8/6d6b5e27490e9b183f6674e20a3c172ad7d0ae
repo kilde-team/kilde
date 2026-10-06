@@ -1,0 +1,26 @@
+docs/articles/4-devto-screencapturekit-app-audio-en.md
+  h_864205080385bc 1-196
+docs/articles/5-devto-speechanalyzer-transcribe-en.md
+  h_864205080385bc 1-155
+docs/articles/6-devto-private-meeting-minutes-en.md
+  h_864205080385bc 1-126
+docs/articles/7-qiita-screencapturekit-app-audio.md
+  h_864205080385bc 1-175
+docs/articles/8-qiita-speechanalyzer-transcribe.md
+  h_864205080385bc 1-138
+docs/articles/9-note-mac-meeting-recording-howto.md
+  h_864205080385bc 1-112
+docs/articles/README.md
+  h_864205080385bc 3,5-18,34-47,51-59,62-64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d86d6b5e27490e9b183f6674e20a3c172ad7d0ae",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
