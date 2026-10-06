@@ -1,0 +1,16 @@
+docs/articles/4-devto-screencapturekit-app-audio-en.md
+  h_864205080385bc 99-101
+docs/articles/7-qiita-screencapturekit-app-audio.md
+  h_864205080385bc 86-87
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6ee92121ed9fba63b4b6d7985474c9ca34aedf39",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
