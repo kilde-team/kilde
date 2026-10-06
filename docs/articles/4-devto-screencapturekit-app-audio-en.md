@@ -3,19 +3,20 @@ title: "Capturing per-app system audio on macOS with ScreenCaptureKit — the pa
 published: false
 description: "How to record the audio your Mac plays — scoped to a single app — with ScreenCaptureKit: audio scoping, child windows, PTS anchoring, and AVAssetWriter pitfalls."
 tags: macos, swift, screencapturekit, avfoundation
-canonical_url: https://zenn.dev/takezou621/articles/a7f3df15b3a9ff
 ---
 
 **この原稿について** (リポジトリ内の注記です。dev.to に転載するときは削除してください):
-issue #312 で追加した Zenn 公開済み記事 1 の英語版です。front matter の
-`canonical_url` に Zenn 版を設定してあるので、dev.to に載せるときはこのまま使えます
-(kilde.site blog に原典として載せるときは canonical を外す)。英語版記事 2 と
-シリーズにするため、公開時に前後編のリンクを張ってください。
+issue #312 で追加した Zenn 公開済み記事 1 の英語版です。翻訳版には
+canonical を設定していません (言語違いの canonical 指定は英語ページが
+検索結果から外れるおそれがあるため。出自は本文冒頭の «English version of
+my Zenn article» 注記で示す)。英語版記事 2 とシリーズにするため、
+公開時に前後編のリンクを張ってください。
 原文: `1-zenn-screencapturekit-app-audio.md`。
 
 ---
 
-*This post generalizes what we learned building [kilde](https://kilde.site/), a
+*This is the English version of [my Zenn article](https://zenn.dev/takezou621/articles/a7f3df15b3a9ff);
+it generalizes what we learned building [kilde](https://kilde.site/), a
 screen and audio recorder for macOS, into notes that apply to macOS app
 development in general.*
 
@@ -90,7 +91,7 @@ measurements the audio is scoped to that window's app as well**. Record a
 meeting app's window and you get the meeting audio, without notification
 sounds or music from other apps. The appeal here is that the "notification
 sounds leak into my meeting recording" problem is answered by the *structure of
-the capture*, not by mut etiquette.
+the capture*, not by mute etiquette.
 
 ### Child windows are included by default
 
@@ -134,6 +135,9 @@ anchor = sampleBuffer.presentationTimeStamp
 // (trim the leading buffer so it starts at the anchor)
 ```
 
+Audio can arrive before the first video sample does. Hold those buffers
+rather than dropping them, and trim them at the anchor once it's set —
+dropping them outright would lose the opening seconds of the recording.
 From then on, map "PTS − anchor" to second 0 of the output. This **prevents
 accumulated drift caused by dropped samples** (a scheme that accumulates by
 sample count keeps drifting once a drop happens, so keeping the reference on
@@ -159,10 +163,10 @@ Conversely, ProRes 422 is 4:2:2, so keep `kCVPixelFormatType_32BGRA`
 **Make termination reach `finishWriting` even on a signal.** For a CLI or any
 long-recording tool, if Ctrl+C doesn't run `finishWriting`, you are left with
 a half-written, unplayable file. Treat SIGINT / SIGTERM / SIGHUP as *normal
-stops* and structure the code so it writes out to the last sample before
-reaching `finishWriting(withCompletionHandler:)` — this is a real reliability
-step up for a recording tool (forget SIGHUP and closing the terminal leaves a
-broken file behind).
+stops* and structure the code so it writes out to the last sample, calls
+`finishWriting(withCompletionHandler:)`, and **waits for the completion
+handler before exiting** — this is a real reliability step up for a recording
+tool (forget SIGHUP and closing the terminal leaves a broken file behind).
 
 ## If you also want the microphone
 

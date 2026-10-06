@@ -3,19 +3,20 @@ title: "Transcribing meeting recordings with SpeechAnalyzer on macOS 26 — feed
 published: false
 description: "SpeechAnalyzer is the on-device transcription API in macOS 26. Notes on the file path: AVAssetReader → PCM, the big-endian trap, speaker separation, and cancellation."
 tags: macos, swift, speechframework, avfoundation
-canonical_url: https://zenn.dev/takezou621/articles/7a8de3ca6ccb59
 ---
 
 **この原稿について** (リポジトリ内の注記です。dev.to に転載するときは削除してください):
-issue #312 で追加した Zenn 公開済み記事 2 の英語版です。front matter の
-`canonical_url` に Zenn 版を設定してあるので、dev.to に載せるときはこのまま使えます
-(kilde.site blog に原典として載せるときは canonical を外す)。公開時に
-英語版記事 1 (前編) へのリンクを «前回» の位置に張ってください。
+issue #312 で追加した Zenn 公開済み記事 2 の英語版です。翻訳版には
+canonical を設定していません (言語違いの canonical 指定は英語ページが
+検索結果から外れるおそれがあるため。出自は本文冒頭の «English version of
+my Zenn article» 注記で示す)。公開時に英語版記事 1 (前編) へのリンクを
+«前回» の位置に張ってください。
 原文: `2-zenn-speechanalyzer-transcribe.md`。
 
 ---
 
-*This post generalizes what we learned adding post-recording transcription to
+*This is the English version of [my Zenn article](https://zenn.dev/takezou621/articles/7a8de3ca6ccb59);
+it generalizes what we learned adding post-recording transcription to
 [kilde](https://kilde.site/), a screen and audio recorder for macOS.*
 
 ## What SpeechAnalyzer is

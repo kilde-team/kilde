@@ -35,9 +35,9 @@ issue #158 で公開した記事 3 本と、issue #312 で追加した公開前�
   (4・5 は dev.to 形式の YAML front matter、6 は dev.to を第一候補とした共通
   Markdown)。各ファイル先頭の «この原稿について» ブロックは内部注記なので、
   公開時に削除する (dev.to の front matter は YAML 形式 — `key: value` — で書く)
-- 記事 4・5 は front matter の `canonical_url` に Zenn 版を設定してある
-  (重複コンテンツ扱いを避けるため)。kilde.site blog に原典として載せる
-  場合は canonical を外す
+- 記事 4・5 は翻訳版として canonical を付けていない (言語違いの canonical
+  指定は英語ページが検索結果から外れるおそれがあるため)。
+  翻訳の出自は本文冒頭の «English version of my Zenn article» 注記で示す
 - 記事 6 は note 版の実質的な改稿 (翻訳) なので canonical を付けていない。
   公開先を最終決定するときに要否を判断する
 - 記事 7・8 (Qiita クロスポスト) は Zenn 版と同一本文。公開するときは

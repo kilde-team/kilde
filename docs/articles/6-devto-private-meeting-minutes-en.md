@@ -1,7 +1,7 @@
 ---
 title: "Meeting minutes without the cloud: how I stopped dreading “can you take the minutes?”"
 published: false
-description: "AI minutes services usually mean a bot joining your call or your audio leaving for the cloud. Here's the local-only alternative I ended up building and using on macOS."
+description: "The AI minutes services I looked at all meant a bot joining the call or audio leaving for the cloud. Here's the local-only alternative I ended up building and using on macOS."
 tags: privacy, productivity, macos, meetings
 ---
 
@@ -18,8 +18,8 @@ canonical 無しで出すかを公開時に判断)。誇張表現は #157 の英
 "Can you take the minutes today?" — I was genuinely bad at this.
 
 There are plenty of AI services that write meeting minutes for you now. But
-most of them assume that **a bot joins the meeting**, or that **your audio gets
-uploaded to the cloud**. Convenient on your own, sure, but they made me
+the ones I looked at all came with one of two assumptions: **a bot joins the
+meeting**, or **your audio gets uploaded to the cloud**. They made me
 hesitate in exactly the meetings that matter:
 
 - A call where a client's personal data or unpublished numbers will come up —
@@ -83,15 +83,18 @@ Since that's the whole point, here's the honest answer.
 
 - Recordings, transcripts, and summaries are written to your local disk.
   There is no kilde server
-- The menu bar app sends aggregate usage statistics to Firebase Analytics to
-  improve the app — things like launch counts, OS versions, and bucketed
-  recording durations («under 1 min / 1–5 min / 5–15 min / …»). The developer
-  sees aggregated numbers only — never recording content, filenames, or
-  settings like your save destination
+- The menu bar app sends aggregate usage statistics via Firebase Analytics to
+  improve the app: launches and usage frequency, app and OS versions, device
+  type, coarse region derived from your IP address, recording-completion
+  counts, bucketed durations («under 1 min / 1–5 min / …», never raw seconds),
+  which distribution channel you use, and transcription usage counts. The
+  developer sees aggregated numbers only — never recording content,
+  filenames, or settings like your save destination
 - If the app crashes, Firebase Crashlytics sends an individual crash report on
-  next launch (the failing code path, device state, and so on). Crash reports
-  are kept separate from the usage statistics above and do not include
-  recording content, filenames, or settings
+  next launch: the stack trace (where it crashed), app and OS versions, device
+  type and state (free memory and disk space), the time of the crash, and a
+  random per-install ID. Crash reports are kept separate from the usage
+  statistics above and do not include recording content, filenames, or settings
 - The direct-download build checks for updates through Sparkle, which fetches
   update information from GitHub; that request exposes your IP address and app
   version to GitHub. The Mac App Store build updates through the App Store
