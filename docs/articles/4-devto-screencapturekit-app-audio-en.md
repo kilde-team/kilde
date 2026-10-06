@@ -96,8 +96,9 @@ the capture*, not by mute etiquette.
 ### Child windows are included by default
 
 Window capture has one trap: since macOS 14.2, ScreenCaptureKit **includes the
-target window's child windows in the rendered output by default** (observed
-behavior — Apple's docs don't document this default). If a child window sits
+target window's child windows in the rendered output by default** — the default
+of the `includeChildWindows` property added in that release, as stated in the
+SDK header («Child windows are included by default»). If a child window sits
 outside the screen, the output frame is expanded to the bounding box of
 "parent + child", so the window you wanted ends up shrunk in the frame, with an
 off-screen child window sneaking in.
