@@ -56,7 +56,11 @@ packages:
     # 従来 «途中までで保存» になっていた場面を大幅に減らす。Summary.captureRestartCount
     # を受けて GUI の通知を «自動で再開» 文面に出し分ける (kilde#304)。
     # 内蔵 Monitor の残骸解体 (kilde-cli-swift#75) も含む
-    exactVersion: 0.9.0
+    # v0.10.0: 既定ビットレートの再調整 (kilde-cli-swift#86)。既定の mp4 録画が
+    # 1 時間あたり約 200MB に収まる (h264 350kbps + AAC 96kbps + GOP 2 秒固定)。
+    # 従来既定 (h264 12Mbps) では内容により 1GB 超えだった。画質優先は
+    # 設定 videoBitrate / audioBitrate で復元できる
+    exactVersion: 0.10.0
   # GUI の自動更新 (issue #122)。Sparkle 2 のバイナリターゲット (macOS 12+) で、
   # リンクすると Sparkle.framework が Contents/Frameworks に埋め込まれる。
   # バージョンを固定する理由は kilde-cli-swift と同じ: 浮動参照だと上流の push が

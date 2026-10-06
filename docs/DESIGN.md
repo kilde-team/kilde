@@ -281,7 +281,7 @@ kilde config [show|set|unset|path]        設定ファイル ~/.kilde/config.jso
 | `--codec <c>` | `h264` (設定 `codec`) | `h264` / `hevc` / `prores` |
 | `--hdr` | off | HDR で収録する (M2 — #16)。`SCStreamConfiguration` の HDR プリセットを OS で選ぶ (macOS 26 は HDR10 メタデータ付きの `captureHDRRecordingPreservedSDRHDR10`、15 は `captureHDRStreamLocalDisplay`)。HEVC **Main10** + PQ で書き出し、色域はプリセットのバッファに従う (26 は BT.2020、15 は Display P3。マトリクスは色域が P3 でも BT.2020 — SPIKE-NOTES F-H)。`--codec hevc` 以外との併用と `--no-video` との併用は終了コード 64。**macOS 14 以前、または HDR 非対応ディスプレイでは SDR にフォールバックし、理由を結果表示に出す** (黙って SDR にすると「HDR で録れたつもりのファイル」ができるため)。この通知は stdout の `⚠ HDR: …` 行で、**`cleanupWarnings` (stderr の `WARNING:` 行 + 終了コード 1) とは別扱い** — 録画自体は成功しているので**終了コードは 0 のまま**。**macOS 26 では HDR10 メタデータ付きの録画プリセット (`captureHDRRecordingPreservedSDRHDR10`) を使う** — SDR 範囲の見え方を保ち、HDR10 メタデータが付く (issue #76)。どちらの方式で録れたかは結果表示の `HDR: …` 行に出る。CI の SDK の壁はランナーを macos-26 に上げて解消 (PR #81) |
 | `--format <mov\|mp4>` | `mp4` (kilde-cli-swift#24。設定 `format` で変更可) | 映像ありのときの出力コンテナ。**出力パスの拡張子 (`.mov` / `.mp4`) でも指定でき、設定 `format` より強い** (明示した `--format` が最も強い)。ProRes は MP4 に入れられないため、`--codec prores` を単独で選んだときは既定コンテナを `mov` に退避する (`--format mp4` 等と明示併用したときは終了コード 64。設定ファイル由来の codec との組合せは 1)。`--no-video` とは併用不可 (音声のみは M4A 固定)。既定の出力名の拡張子もコンテナに従う |
-| `--fps <n>` | 指定なし (SCK 既定。設定 `fps`) | 上限フレームレート。1 以上 (0 以下は終了コード 64 — 以前は黙って無視していた) |
+| `--fps <n>` | 指定なし (SCK 既定。設定 `fps`) | 上限フレームレート。**1〜240** (範囲外は CLI では終了コード 64、設定ファイル由来では 1。以前は 0 以下を黙って無視していた)。上限 240 はエンジンの GOP 計算 (fps×2 フレーム) の乗算オーバーフロー防止も兼ねる (エンジン v0.10.0) |
 | `--cursor` / `--no-cursor` | 写り込む (設定 `showsCursor`) | カーソルを写し込むか。`--cursor` は設定 `showsCursor: false` をその回だけ打ち消す用 (M1 の `--no-cursor` はそのまま使える) |
 | `--countdown <sec>` | `0` | 開始前カウントダウン。hotkey (CLI 引数) との併用は引数検証エラー (終了コード 64)、設定 `hotkey` との組合せは終了コード 1 で拒否 — 待機モードではカウントダウンが待機開始前に消費され、録画の開始を守れなくなるため |
 | `--preset meeting` | なし | `--audio system --audio mic` + mixed。`--window` 未指定なら on-screen ウィンドウを面積順に列挙して対話選択 (空欄 Enter = ディスプレイ全体)。EOF (非対話実行) と 3 回連続の無効入力は終了コード 1 で中止。明示した `--audio` / `--audio-tracks` はプリセットより優先。プリセットは設定ファイルより優先。`--region` とは併用不可 |
@@ -458,9 +458,9 @@ cubic レビュー指摘)。値は CLI 引数と同じ文字列表現。
 | `audioTracks` | `mixed` / `separate` | `--audio-tracks` |
 | `codec` | `h264` / `hevc` / `prores` | `--codec` |
 | `format` | `mov` / `mp4` | `--format` (設定は出力パスの拡張子より弱い)。音声のみには効かない (M4A 固定)。未設定のときはエンジン既定 mp4 (kilde-cli-swift#24) |
-| `videoBitrate` | `8m` / `2500k` / `8000000` 形式 | `--video-bitrate`。`codec: prores` との組合せは録画開始前に終了コード 1 (kilde-cli-swift#21) |
-| `audioBitrate` | `192k` / `128000` 形式 | `--audio-bitrate` (kilde-cli-swift#21) |
-| `fps` | 1 以上の整数 | `--fps` |
+| `videoBitrate` | `8m` / `2500k` / `8000000` 形式 | `--video-bitrate`。`codec: prores` との組合せは録画開始前に終了コード 1 (kilde-cli-swift#21)。未指定の既定は h264 **350 kbps** (音声既定 96 kbps と合わせて 1 時間あたり約 200MB — エンジン v0.10.0。HEVC は 10 Mbps / HDR は 20 Mbps のまま)。h264 のキーフレーム間隔 (GOP) は 2 秒に固定 |
+| `audioBitrate` | `192k` / `128000` 形式 | `--audio-bitrate` (kilde-cli-swift#21)。未指定の既定は **96 kbps** (エンジン v0.10.0 — それ以前はエンコーダ既定の高音質で実測 ~93 kbps・内容次第で変動) |
+| `fps` | 1〜240 の整数 (エンジン v0.10.0) | `--fps` |
 | `showsCursor` | 真偽値 | `--cursor` / `--no-cursor` |
 | `hotkey` | `cmd+shift+r` 形式の文字列 | `--hotkey`。cmd / shift / opt / ctrl と英数字、F1〜F12、主要キーに対応 (fn はハードウェアにインターセプトされるため不可) |
 | `transcribe` | 真偽値 | `--transcribe` / `--no-transcribe` (kilde-cli-swift#38)。**GUI (kilde#145) も同じキーを使う** — キー名は kilde-cli-swift#38 が定義する |

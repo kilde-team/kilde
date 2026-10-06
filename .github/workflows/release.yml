@@ -51,9 +51,10 @@ jobs:
           repository: kilde-team/kilde-cli-swift
           # GUI (gui/project.yml) と同じ pin。リリース成果物が「どのコミットで
           # ビルドされたか」を追跡可能にするため。更新時は GUI 側と揃える。
-          # GUI (gui/project.yml) と同じ pin。v0.9.0 は中断からの自動リスタート
-          # (kilde-cli-swift#73) と Summary.captureRestartCount を含む (kilde#304)。
-          ref: v0.9.0
+          # GUI (gui/project.yml) と同じ pin。v0.10.0 は既定ビットレートの再調整
+          # (kilde-cli-swift#86) を含む — 既定の mp4 録画が 1 時間あたり約 200MB に
+          # 収まる (h264 350kbps + AAC 96kbps + GOP 2 秒固定)。
+          ref: v0.10.0
           # private リポジトリ: GITHUB_TOKEN は他リポジトリを読めないため
           # fine-grained PAT (contents:read) を使う
           token: ${{ secrets.KILDE_CLI_SWIFT_TOKEN }}
