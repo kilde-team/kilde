@@ -1,14 +1,17 @@
 **この原稿について** (リポジトリ内の注記です。Qiita に転載するときは削除してください):
-issue #312 で追加した、Zenn 公開済み記事 2 の Qiita クロスポスト原稿です。
+issue #312 で追加した、Zenn 公開済み記事 2 の Qiita クロスポストです。
+**2026-10-07 に公開済み**: https://qiita.com/TakeshiKawai/items/c8ba93f6966f9bcbe31b
 
-- 公開手順: 下の本文を Qiita の新規記事にそのまま貼り付け、記事設定の
-  **«canonical URL» に Zenn 版 (https://zenn.dev/takezou621/articles/7a8de3ca6ccb59)
-  を設定して**公開する (重複コンテンツ扱いを避けるため)
-- タグ案: `macOS` `Swift` `SpeechFramework` `AVFoundation`
-- 本文は Zenn 版と同一です (冒頭の «前回» リンクは公開済み Zenn 記事 1 を指す)
-- Zenn 版を修正したときは、このファイルも見直す
+- Qiita には canonical URL の設定機能が無いため、本文冒頭に «Zenn のクロスポスト»
+  注記を入れるのが実質的な canonical 対応 (公開版ではこの注記を入れてある)。
+  下の本文にはその注記も含めてあるので、再掲時はそのまま使える
+- タグ: `macOS` `Swift` `SpeechFramework` `avfoundation` (公開済みのもの)
+- 本文は Zenn 版と同一 + 冒頭のクロスポスト注記 («前回» リンクは公開済み Zenn 記事 1 を指す)
+- Zenn 版を修正したときは、このファイルと Qiita 公開版の両方を見直す
 
 ---
+
+※ この記事は、[Zenn で公開した同じ内容の記事](https://zenn.dev/takezou621/articles/7a8de3ca6ccb59) のクロスポストです。
 
 *この記事は、macOS 用の録画・録音ツール [kilde](https://kilde.site/) に
 録画後の自動文字起こしを実装したときの知見を一般化したものです

@@ -1,17 +1,20 @@
 **この原稿について** (リポジトリ内の注記です。Qiita に転載するときは削除してください):
-issue #312 で追加した、Zenn 公開済み記事 1 の Qiita クロスポスト原稿です。
+issue #312 で追加した、Zenn 公開済み記事 1 の Qiita クロスポストです。
+**2026-10-07 に公開済み**: https://qiita.com/TakeshiKawai/items/5d5fcb08e7a46608f4fa
 
-- 公開手順: 下の本文を Qiita の新規記事にそのまま貼り付け、記事設定の
-  **«canonical URL» に Zenn 版 (https://zenn.dev/takezou621/articles/a7f3df15b3a9ff)
-  を設定して**公開する (重複コンテンツ扱いを避けるため)
-- タグ案: `macOS` `Swift` `ScreenCaptureKit` `AVFoundation`
-- 本文は Zenn 版とほぼ同一ですが、末尾の «次の記事» に公開済み Zenn 記事 2 への
-  リンクを追加した点と、レビューで指摘のあった 3 か所の文言調整
+- Qiita には canonical URL の設定機能が無いため、本文冒頭に «Zenn のクロスポスト»
+  注記を入れるのが実質的な canonical 対応 (公開版ではこの注記を入れてある)。
+  下の本文にはその注記も含めてあるので、再掲時はそのまま使える
+- タグ: `macOS` `Swift` `screencapturekit` `avfoundation` (公開済みのもの)
+- 本文は Zenn 版とほぼ同一ですが、冒頭のクロスポスト注記、末尾の «次の記事» に
+  公開済み Zenn 記事 2 へのリンク、レビューで指摘のあった 3 か所の文言調整
   (子ウィンドウの既定値の由来を明記 / `finishWriting` の完了待ちを明記 /
   PTS アンカー前の音声バッファは保持する旨を明記) が異なります
-- Zenn 版を修正したときは、このファイルも見直す
+- Zenn 版を修正したときは、このファイルと Qiita 公開版の両方を見直す
 
 ---
+
+※ この記事は、[Zenn で公開した同じ内容の記事](https://zenn.dev/takezou621/articles/a7f3df15b3a9ff) のクロスポストです。
 
 *この記事は、macOS 用の画面・音声録音ツール [kilde](https://kilde.site/) の実装で得た知見を、
 一般の macOS アプリ開発に役立つ形に一般化したものです。*
