@@ -1,0 +1,18 @@
+docs/articles/7-qiita-screencapturekit-app-audio.md
+  h_864205080385bc 2-3,5-10,13,17-18
+docs/articles/8-qiita-speechanalyzer-transcribe.md
+  h_864205080385bc 2-3,5-10,14-15
+docs/articles/README.md
+  h_864205080385bc 13-15,25-27,31-33,49-52,61-62,66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "947c5107bb7f4e064e4c4524de984ae4c00514ae",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
