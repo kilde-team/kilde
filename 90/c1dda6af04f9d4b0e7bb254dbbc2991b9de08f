@@ -1,0 +1,16 @@
+docs/articles/6-devto-private-meeting-minutes-en.md
+  h_864205080385bc 97-100
+docs/articles/9-note-mac-meeting-recording-howto.md
+  h_864205080385bc 96-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "90c1dda6af04f9d4b0e7bb254dbbc2991b9de08f",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
