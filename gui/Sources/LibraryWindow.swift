@@ -440,11 +440,10 @@ private struct LibraryDetailView: View {
         }
         // coordinator の失敗スロット (lastFailure) は «最新の 1 件» — 別の録画が
         // 失敗すると押し出されるため、この録画の «再試行» を出し続けるには
-        // 表示に覚えておく必要がある (cubic 指摘)。id を監視するのは Failure が
-        // Equatable でないため。成功 (この録画の完了) で役目を終える
-        .onChange(of: transcription.lastFailure?.id) { _, _ in
-            if let failure = transcription.lastFailure,
-               failure.job.recordingURL == entry.recordingURL {
+        // 表示に覚えておく必要がある (cubic 指摘)。この録画の失敗が届いたら
+        // 表示に覚え、成功 (この録画の完了) で役目を終える
+        .onChange(of: transcription.lastFailure) { _, failure in
+            if let failure, failure.job.recordingURL == entry.recordingURL {
                 shownFailure = failure
             }
         }
