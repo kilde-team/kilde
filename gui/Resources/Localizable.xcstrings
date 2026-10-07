@@ -4322,35 +4322,6 @@
         }
       }
     },
-    "この録画には文字起こしサイドカーがありません。作成すると再生と検索の対象になります": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "This recording has no transcript sidecar. Create one to make it searchable and playable here"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Esta grabación no tiene transcripción. Créala para buscarla y reproducirla aquí"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "이 녹화에는 텍스트 변환 파일이 없습니다. 만들면 여기서 검색하고 재생할 수 있습니다"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "此录像没有转写文件。创建后即可在此搜索和播放"
-          }
-        }
-      }
-    },
     "文字起こしを作成": {
       "extractionState": "manual",
       "localizations": {
@@ -4492,6 +4463,93 @@
           "stringUnit": {
             "state": "translated",
             "value": "摘要需要 Apple Intelligence：%@"
+          }
+        }
+      }
+    },
+    "この録画には文字起こしサイドカーがありません。作成すると検索の対象になります": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This recording has no transcript sidecar. Create one to make it searchable"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta grabación no tiene transcripción. Créala para poder buscarla"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 녹화에는 텍스트 변환 파일이 없습니다. 만들면 검색할 수 있습니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此录像没有转写文件。创建后即可搜索"
+          }
+        }
+      }
+    },
+    "要約を生成中… %lld%%": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Generating summary… %lld%%"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Generando el resumen… %lld%%"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "요약을 생성하는 중… %lld%%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在生成摘要… %lld%%"
+          }
+        }
+      }
+    },
+    "文字起こしなし": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not transcribed"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin transcribir"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "텍스트 변환 없음"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未转写"
           }
         }
       }

@@ -393,6 +393,11 @@ private struct LibraryDetailView: View {
     @ObservedObject var playback: LibraryPlayerController
     @ObservedObject var transcription: TranscriptionCoordinator
     let settings: () -> LibraryTranscriptionSettings
+    /// この録画の «再試行» の対象に表示する失敗。coordinator の lastFailure は
+    /// «最新の 1 件» スロットで別の録画の失敗に押し出されるため (cubic 指摘)、
+    /// この録画の失敗は表示側で覚える — 消えるのはこの録画の文字起こしの成功時
+    /// か選択の切替時。観測の詳細は body の onChange と seedShownFailure()
+    @State private var shownFailure: TranscriptionCoordinator.Failure?
 
     /// 表示するセグメント (検索中はヒット順)。行ビューに渡す最小限の形にする
     private struct Row: Identifiable {
@@ -423,10 +428,42 @@ private struct LibraryDetailView: View {
                 segmentList
             }
         }
-        .onAppear { playback.prepare(url: entry.recordingURL) }
+        .onAppear {
+            playback.prepare(url: entry.recordingURL)
+            seedShownFailure()
+        }
         .onChange(of: entry.id) { _, newURL in
-            // 録画が切り替わったらプレイヤーを差し替える (prepare は同じ URL では何もしない)
+            // 録画が切り替わったらプレイヤーを差し替える (prepare は同じ URL では何もしない)。
+            // 失敗表示も新しい録画のものに引き継ぎ直す (shownFailure の契約は «この録画の» 失敗)
             playback.prepare(url: newURL)
+            seedShownFailure()
+        }
+        // coordinator の失敗スロット (lastFailure) は «最新の 1 件» — 別の録画が
+        // 失敗すると押し出されるため、この録画の «再試行» を出し続けるには
+        // 表示に覚えておく必要がある (cubic 指摘)。id を監視するのは Failure が
+        // Equatable でないため。成功 (この録画の完了) で役目を終える
+        .onChange(of: transcription.lastFailure?.id) { _, _ in
+            if let failure = transcription.lastFailure,
+               failure.job.recordingURL == entry.recordingURL {
+                shownFailure = failure
+            }
+        }
+        .onChange(of: transcription.lastCompletion) { _, completion in
+            if let completion, completion.job.recordingURL == entry.recordingURL {
+                shownFailure = nil
+            }
+        }
+    }
+
+    /// 失敗表示の種。«最新の失敗» がこの録画のものなら表示に引き継ぎ、
+    /// そうでなければ消す — 選択の切替やウィンドウを開き直した直後は、
+    /// パネルと同じ «最新 1 件» の状態から始める
+    private func seedShownFailure() {
+        if let failure = transcription.lastFailure,
+           failure.job.recordingURL == entry.recordingURL {
+            shownFailure = failure
+        } else {
+            shownFailure = nil
         }
     }
 
@@ -443,7 +480,7 @@ private struct LibraryDetailView: View {
             Text(String(localized: "文字起こしがありません"))
                 .font(.headline)
                 .foregroundStyle(.secondary)
-            Text(String(localized: "この録画には文字起こしサイドカーがありません。作成すると再生と検索の対象になります"))
+            Text(String(localized: "この録画には文字起こしサイドカーがありません。作成すると検索の対象になります"))
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
@@ -452,10 +489,12 @@ private struct LibraryDetailView: View {
                 transcriptionProgress
             } else {
                 actionButtons
-                // この録画の直近の失敗だけを出す (他の録画の失敗はパネルが担う)。
-                // «押したのに消えた» よけいに、失敗の理由と再試行を同じ場所に置く
-                if let failure = transcription.lastFailure,
-                   failure.job.recordingURL == entry.recordingURL {
+                // この録画の失敗を出す («押したのに消えた» よけいに、失敗の理由と
+                // 再試行を同じ場所に置く)。shownFailure は «この録画の最後の失敗» を
+                // 覚えている — coordinator の lastFailure は «最新の 1 件» スロットで
+                // 別の録画の失敗に押し出されるため、そのまま参照すると他の録画の
+                // 失敗と入れ替わってしまう (cubic 指摘)
+                if let failure = shownFailure {
                     failureNotice(failure)
                 }
             }
