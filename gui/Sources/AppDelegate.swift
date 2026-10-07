@@ -45,8 +45,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private lazy var meetingAutoRecorder = MeetingAutoRecorder(
         setup: setup, recording: recording, permissions: permissions, notifier: notifier)
     /// 録画ライブラリのウィンドウ (issue #165)。録画と同じく AppDelegate が持つ —
-    /// パネルを閉じてもウィンドウを生かすため
-    private lazy var libraryController = LibraryWindowController(store: LibraryStore())
+    /// パネルを閉じてもウィンドウを生かすため。
+    /// «後から文字起こし» の投入にパネルと同じ TranscriptionCoordinator を渡し (issue #321)、
+    /// «議事録を作成» の設定はクロージャで **押された時点の** setup から読ませる。
+    /// クロージャには setup を先に取り出して渡す — settings が AppDelegate を
+    /// 捕まえると (ライブラリウィンドウの寿命はアプリと同じとはいえ) 循環参照になるため
+    private lazy var libraryController: LibraryWindowController = {
+        let setup = self.setup
+        return LibraryWindowController(
+            store: LibraryStore(),
+            transcription: transcription,
+            settings: {
+                LibraryTranscriptionSettings(
+                    format: setup.transcriptFormat,
+                    localeID: setup.transcriptLocale,
+                    summaryTemplate: setup.summaryTemplate,
+                    summaryUnsupportedReason: setup.summaryUnsupportedReason)
+            })
+    }()
     /// 自動更新 (issue #122)。Sparkle の起動は環境変数で制御する — 録画系の
     /// セルフテストではネットワークアクセスと更新ダイアログを避けるため
     /// (updaterStartsAtLaunch 参照)

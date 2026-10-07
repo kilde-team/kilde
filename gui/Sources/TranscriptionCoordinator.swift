@@ -233,8 +233,28 @@ final class TranscriptionCoordinator: ObservableObject {
     /// 実行中に押されても待ち行列に入るだけで壊れない (insert 後の pump は
     /// running == nil でなければ何もしない)
     func retryLastFailure() {
-        guard let job = lastFailure?.job else { return }
-        lastFailure = nil
+        guard let failure = lastFailure else { return }
+        retry(failure)
+    }
+
+    /// 指定の失敗ジョブを先頭に戻して再実行する (issue #321)。
+    /// ライブラリの «再試行» は **画面に出ている失敗** を対象にする —
+    /// «その時点の lastFailure» では、表示と押下の間に別の録画が失敗したとき
+    /// 違うジョブを再実行しうる (CodeRabbit 指摘)。
+    ///
+    /// **実行中・待機中の録画は投入しない** (enqueue と同じ «同じ録画のジョブは
+    /// 最大 1 件» の契約)。«再試行» を押す前に «後から文字起こし» で同じ録画が
+    /// 既に積まれていたとき、二重に積むと TranscriptWriter の連番退避
+    /// (`kilde-….md` と `kilde-…-2.md` の並び) が起こるため。対象が現在の
+    /// lastFailure と同じときだけ表示を消す — 別の失敗の «再試行» で
+    /// パネルの失敗表示まで消さない
+    func retry(_ failure: Failure) {
+        let job = failure.job
+        guard running?.recordingURL != job.recordingURL,
+              !queue.contains(where: { $0.recordingURL == job.recordingURL }) else { return }
+        if lastFailure?.id == failure.id {
+            lastFailure = nil
+        }
         queue.insert(job, at: 0)
         pump()
     }
