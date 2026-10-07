@@ -4292,6 +4292,209 @@
           }
         }
       }
+    },
+    "文字起こしがありません": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No transcript"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sin transcripción"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "텍스트 변환이 없습니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有转写文本"
+          }
+        }
+      }
+    },
+    "この録画には文字起こしサイドカーがありません。作成すると再生と検索の対象になります": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This recording has no transcript sidecar. Create one to make it searchable and playable here"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta grabación no tiene transcripción. Créala para buscarla y reproducirla aquí"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 녹화에는 텍스트 변환 파일이 없습니다. 만들면 여기서 검색하고 재생할 수 있습니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此录像没有转写文件。创建后即可在此搜索和播放"
+          }
+        }
+      }
+    },
+    "文字起こしを作成": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create transcript"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crear transcripción"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "텍스트 변환 만들기"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建转写"
+          }
+        }
+      }
+    },
+    "議事録を作成": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Create minutes"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Crear acta"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "회의록 만들기"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建会议纪要"
+          }
+        }
+      }
+    },
+    "文字起こしの後に要約を生成して Markdown (.md) に載せます (テンプレートは設定パネルの選択を使います)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Generates a summary after transcription and puts it at the top of the Markdown (.md) file (uses the template selected in the settings panel)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Genera un resumen después de la transcripción y lo incluye al principio del archivo Markdown (.md) (usa la plantilla elegida en el panel de ajustes)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "텍스트 변환 후 요약을 생성하여 Markdown (.md) 파일 앞부분에 넣습니다 (템플릿은 설정 패널에서 선택한 것을 사용합니다)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "转写后生成摘要并放在 Markdown (.md) 文件的开头（使用设置面板中选择的模板）"
+          }
+        }
+      }
+    },
+    "文字起こしの順番を待っています… (進捗は設定パネルにも出ます)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting its turn to be transcribed… (progress also appears in the settings panel)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esperando su turno para la transcripción… (el progreso también aparece en el panel de ajustes)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "텍스트 변환 순서를 기다리는 중… (진행 상황은 설정 패널에도 표시됩니다)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在等待转写…（进度也会显示在设置面板中）"
+          }
+        }
+      }
+    },
+    "要約には Apple Intelligence が必要です: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summary requires Apple Intelligence: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El resumen requiere Apple Intelligence: %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "요약에는 Apple Intelligence가 필요합니다: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "摘要需要 Apple Intelligence：%@"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
