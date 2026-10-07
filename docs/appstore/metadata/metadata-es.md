@@ -154,3 +154,18 @@ texto solo indica que es una versión de mantenimiento.
 ```text
 Esta es una versión de mantenimiento. El número de versión se alinea con la distribución directa. No hay cambios en las funciones de grabación.
 ```
+
+## Novedades (0.10.0)
+
+Dos cambios visibles desde 0.9.0. Ahora se puede transcribir después de
+grabar —con actas (resumen) opcionales— desde la ventana de la biblioteca,
+incluso para grabaciones hechas con la transcripción desactivada (issue #321).
+El motor se actualiza a kilde-cli-swift **v0.10.0** (issue #316) con
+bitrates predeterminados reajustados (kilde-cli-swift#86): la grabación mp4
+predeterminada baja a unos 200 MB por hora. La alternativa de «subir el
+bitrate en config.json» no aplica a la compilación de App Store (sandbox),
+así que no se menciona en el texto.
+
+```text
+Ya puedes crear una transcripción —o un acta con resumen— después de grabar, desde la biblioteca de grabaciones, incluso para grabaciones hechas con la transcripción desactivada. Además, los archivos de grabación son ahora mucho más pequeños por defecto (unos 200 MB por hora).
+```
