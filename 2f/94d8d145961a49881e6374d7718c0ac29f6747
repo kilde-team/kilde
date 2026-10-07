@@ -1,0 +1,16 @@
+gui/Sources/LibraryWindow.swift
+  h_864205080385bc 468-472,479,485,558-560,574
+gui/Sources/TranscriptionCoordinator.swift
+  h_864205080385bc 236-257
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2f94d8d145961a49881e6374d7718c0ac29f6747",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
