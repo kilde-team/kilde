@@ -465,21 +465,24 @@ private struct LibraryDetailView: View {
         .padding()
     }
 
-    /// «文字起こしを作成» と «議事録を作成»。設定 (形式・言語・テンプレート) は
-    /// 押された時点のパネル設定を使う (issue #147 と同じ «現在の設定» の規約)。
+    /// «文字起こしを作成» と «議事録を作成»。«押された時点の» パネル設定を使う
+    /// (issue #147 と同じ «現在の設定» の規約) — ライブラリは RecordingSetup を
+    /// 購読しないため、disabled / ツールチップの見た目は本文評価時のスナップショット
+    /// (`let snapshot`) だが、**実行はアクションの中で設定を読み直す**
+    /// (CodeRabbit 指摘 — ライブラリを開いたまま設定パネルで変えた設定を反映させる)。
     /// «議事録» は文字起こし + 要約で、Apple Intelligence が使えない環境では
     /// 押せず、理由をツールチップに出す (設定パネルの案内と同じ文言)
     private var actionButtons: some View {
         let snapshot = settings()
         return HStack(spacing: 12) {
             Button {
-                enqueue(withSummary: false, snapshot: snapshot)
+                enqueue(withSummary: false, snapshot: settings())
             } label: {
                 Label(String(localized: "文字起こしを作成"), systemImage: "waveform")
             }
             .buttonStyle(.bordered)
             Button {
-                enqueue(withSummary: true, snapshot: snapshot)
+                enqueue(withSummary: true, snapshot: settings())
             } label: {
                 Label(String(localized: "議事録を作成"), systemImage: "waveform.badge.waveform")
             }
@@ -552,7 +555,9 @@ private struct LibraryDetailView: View {
     }
 
     /// この録画の文字起こしの失敗。パネルの transcriptionStatusView と同じ体裁で、
-    /// «再試行» は coordinator の再実行 (失敗ジョブをキューの先頭へ) をそのまま使う
+    /// «再試行» は **表示中のこの失敗** を対象にする (`retry(_:)`) —
+    /// «その時点の最終失敗» (retryLastFailure) では、表示と押下の間に別の録画が
+    /// 失敗したとき違うジョブを再実行しうる (CodeRabbit 指摘)
     private func failureNotice(_ failure: TranscriptionCoordinator.Failure) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Label(failure.message, systemImage: "exclamationmark.triangle")
@@ -566,7 +571,7 @@ private struct LibraryDetailView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
             }
-            Button(String(localized: "再試行")) { transcription.retryLastFailure() }
+            Button(String(localized: "再試行")) { transcription.retry(failure) }
                 .buttonStyle(.link)
                 .font(.caption)
         }
