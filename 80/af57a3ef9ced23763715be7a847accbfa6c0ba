@@ -1,0 +1,20 @@
+docs/DEVELOPMENT.md
+  h_864205080385bc 408-418
+gui/Resources/Localizable.xcstrings
+  h_864205080385bc 4295-4497
+gui/Sources/AppDelegate.swift
+  h_864205080385bc 48-65
+gui/Sources/LibraryWindow.swift
+  h_864205080385bc 5,14-29,38-45,48-50,52-53,75,148-149,152-156,187-207,248-250,265-266,313-316,352-363,386-388,394-395,421,433-589
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "80af57a3ef9ced23763715be7a847accbfa6c0ba",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
