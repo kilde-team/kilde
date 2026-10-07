@@ -167,5 +167,5 @@ bitrate en config.json» no aplica a la compilación de App Store (sandbox),
 así que no se menciona en el texto.
 
 ```text
-Ya puedes crear una transcripción —o un acta con resumen— después de grabar, desde la biblioteca de grabaciones, incluso para grabaciones hechas con la transcripción desactivada. Además, los archivos de grabación son ahora mucho más pequeños por defecto (unos 200 MB por hora).
+Ya puedes crear una transcripción —o un acta con resumen— después de grabar, desde la biblioteca de grabaciones, incluso para grabaciones hechas con la transcripción desactivada (la transcripción requiere macOS 26 o posterior; los resúmenes necesitan Apple Intelligence). Las grabaciones MP4 en H.264 con la configuración predeterminada también son mucho más pequeñas (unos 200 MB por hora).
 ```

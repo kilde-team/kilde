@@ -162,5 +162,5 @@ release notes does not apply to the sandboxed App Store build, so it is left
 out of the copy.
 
 ```text
-You can now create a transcript — or meeting minutes with a summary — after the fact, right from the recording library, even for recordings made with transcription off. Recording files are also much smaller by default now (about 200MB per hour).
+You can now create a transcript — or meeting minutes with a summary — after the fact, right from the recording library, even for recordings made with transcription off (transcription requires macOS 26 or later; summaries need Apple Intelligence). Default H.264 MP4 recordings are also much smaller now (about 200MB per hour).
 ```
