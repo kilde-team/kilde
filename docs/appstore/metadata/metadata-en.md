@@ -149,3 +149,18 @@ simply states this is a maintenance release.
 ```text
 This is a maintenance release. The version number is aligned with the direct-distribution build. There are no changes to the recording features.
 ```
+
+## What's New (0.10.0)
+
+Two user-visible changes since 0.9.0. Recordings made with transcription
+disabled can now be transcribed — with optional meeting minutes (summary) —
+right from the library window (issue #321). The engine is updated to
+kilde-cli-swift **v0.10.0** (issue #316) with retuned default bitrates
+(kilde-cli-swift#86), bringing the default mp4 recording down to roughly
+200MB per hour. The "raise the bitrate in config.json" workaround from the
+release notes does not apply to the sandboxed App Store build, so it is left
+out of the copy.
+
+```text
+You can now create a transcript — or meeting minutes with a summary — after the fact, right from the recording library, even for recordings made with transcription off (transcription requires macOS 26 or later; summaries need Apple Intelligence). Default H.264 MP4 recordings are also much smaller now (about 200MB per hour).
+```
