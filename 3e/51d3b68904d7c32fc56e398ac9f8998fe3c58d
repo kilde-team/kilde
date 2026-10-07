@@ -1,0 +1,19 @@
+gui/Resources/Localizable.xcstrings
+  s_0be6fe49be685e::t_b2d56a6c724e4f 4469-4555
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3e51d3b68904d7c32fc56e398ac9f8998fe3c58d",
+  "prompts": {},
+  "sessions": {
+    "s_0be6fe49be685e": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "87bded39-a8c0-4fbe-8829-c986b321df86",
+        "model": "auto"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
