@@ -293,6 +293,13 @@ jobs:
           # 直下だけを見て、名前順の先頭を採る (find は列挙順が不定なので sort する)
           ARTIFACT="$(find dist -maxdepth 1 -type f -name '*.zip' 2>/dev/null | sort | head -1)"
           [ -n "$ARTIFACT" ] || { echo "dist/ に zip が無い — ビルド/署名 step を確認"; exit 1; }
+          # 本文のインストール手順は zip 内の配置 (release/kilde) を前提にするが、
+          # その唯一の真実の源は sign.sh の ditto --keepParent の引数。3 箇所
+          # (sign.sh / Homebrew formula / この本文) が同じ契約を暗黙に共有しているため、
+          # 実 zip を検証してずれがあればリリースを失敗させる (#309 と同種の回帰防止 —
+          # cubic レビュー指摘)
+          unzip -Z1 "$ARTIFACT" | grep -qx 'release/kilde' \
+            || { echo "zip 内に release/kilde がありません — sign.sh の ditto 引数と配置が不一致"; exit 1; }
           echo "ARTIFACT_PATH=$ARTIFACT" >> "$GITHUB_ENV"
           NOTES="$RUNNER_TEMP/release-notes.md"
           # リリースノートの正本は docs/release-notes/v<VERSION>.md (issue #283)。
