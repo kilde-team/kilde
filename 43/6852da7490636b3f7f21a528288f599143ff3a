@@ -1,0 +1,19 @@
+.github/workflows/release.yml
+  s_14a03aa6b3ce6f::t_ea2412a070d331 319-322
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "436852da7490636b3f7f21a528288f599143ff3a",
+  "prompts": {},
+  "sessions": {
+    "s_14a03aa6b3ce6f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "359cc463-594a-407c-9485-710008ce3f90",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
