@@ -504,9 +504,10 @@ Application」の .p12 を `base64 -i cert.p12 | pbcopy` でエンコードし�
 この secret が無いとジョブは appcast 生成の前で失敗します。
 
 **手動検証** (タグを打たずにビルドだけ確認): Actions タブから `Release` ワークフローを
-`workflow_dispatch` で実行。**手動実行は常に dry-run** (ビルドと署名分岐までを検証、
-Release は作成しない) — タグが無いと Info.plist 由来の現在値でリリースを作りかねないため、
-Release の作成は `v*` タグの push に限定しています。
+`workflow_dispatch` で実行。**手動実行は常に dry-run** (ビルド・署名分岐・Release 本文の
+生成までを検証し、生成された本文はジョブログにプレビューされる (issue #309)。
+Release の作成はしない) — タグが無いと Info.plist 由来の現在値でリリースを作りかねない
+ため、Release の作成は `v*` タグの push に限定しています。
 
 ### CLI ソースの pin の更新
 
