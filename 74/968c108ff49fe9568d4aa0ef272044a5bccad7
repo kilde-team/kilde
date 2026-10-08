@@ -1,0 +1,21 @@
+.github/workflows/release.yml
+  s_14a03aa6b3ce6f::t_7e8931c1799555 327-347
+  s_14a03aa6b3ce6f::t_33f993ae8c0f4e 281-284,296-297
+  s_14a03aa6b3ce6f::t_2ac6b4d3723b34 285,288
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "74968c108ff49fe9568d4aa0ef272044a5bccad7",
+  "prompts": {},
+  "sessions": {
+    "s_14a03aa6b3ce6f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "359cc463-594a-407c-9485-710008ce3f90",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
