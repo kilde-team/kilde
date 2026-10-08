@@ -1,0 +1,19 @@
+docs/appstore/metadata/metrics.md
+  s_14a03aa6b3ce6f::t_a85456ed9b858b 86
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e9d4185d31827301ad1fee0cdd9f5680f3d2b62d",
+  "prompts": {},
+  "sessions": {
+    "s_14a03aa6b3ce6f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "359cc463-594a-407c-9485-710008ce3f90",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
