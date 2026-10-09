@@ -632,13 +632,27 @@ private struct LibraryDetailView: View {
 
     private var segmentList: some View {
         VStack(alignment: .leading, spacing: 0) {
-            if !query.isEmpty {
-                Text(String(localized: "ヒット \(rows.count) 件 / 全 \(entry.segments?.count ?? 0) セグメント"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
+            // ヘッダー行。検索中はヒット数、常に右端に «テキストに書き出す» (issue #329)。
+            // 書き出しは検索の絞り込みに関わらず **録画全体の文字起こし** を対象にする —
+            // «持ち出したいのは表示中の録画の全文» で、ヒット行だけの需要はコピーで足りる
+            HStack(spacing: 8) {
+                if !query.isEmpty {
+                    Text(String(localized: "ヒット \(rows.count) 件 / 全 \(entry.segments?.count ?? 0) セグメント"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button {
+                    LibraryTranscriptExport.exportTranscript(of: entry)
+                } label: {
+                    Label(String(localized: "テキストに書き出す"), systemImage: "square.and.arrow.down")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("文字起こし全体をテキストファイル (.txt) に保存します")
             }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
             ScrollViewReader { proxy in
                 List(rows) { row in
                     LibrarySegmentRow(text: row.text, query: query, start: row.start) {

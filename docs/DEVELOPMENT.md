@@ -416,6 +416,31 @@ KILDE_GUI_SELFTEST_LIBRARY_SEARCH=1 "$APP/Contents/MacOS/KildeGUI"
 «後から文字起こし» (issue #147) と同じ経路で、`KILDE_GUI_SELFTEST_TRANSCRIBE`
 (§「録画 → 文字起こし → 保存を確かめる」) がカバーします。
 
+### ライブラリの «テキストに書き出す» を確かめる (issue #329)
+
+`KILDE_GUI_SELFTEST_LIBRARY_EXPORT=1` は録画せず、**ライブラリの文字起こしの
+テキスト書き出し**を一時ディレクトリに合成した 5 形式のサイドカー
+(md (要約付き) / json / srt / vtt / txt) で検証し、終わります。
+**実録画を伴わない**ため、録画のスロット (権限・スピーカー) を占有しません:
+
+```sh
+KILDE_GUI_SELFTEST_LIBRARY_EXPORT=1 "$APP/Contents/MacOS/KildeGUI"
+# → selftest: library-export OK: md から txt 形式を生成できる
+#   selftest: library-export OK: json の既定のファイル名 (kilde-….txt)
+#   …
+#   selftest: library-export failures=0 (exit 0)
+```
+
+検証しているのは、どの形式のサイドカーからも同じ txt 形式
+(`[HH:MM:SS] 本文` の 1 行 = 1 セグメント、議事録の要約は混ざらない) で
+書き出せること、既定のファイル名が録画のベース名 + `.txt` であること、
+ファイルへの原子的な書き込みです。**保存パネルの経路は実機で確認します**
+(セルフテストは UI を出す `NSSavePanel` を回せないため):
+ライブラリで録画を選び、«テキストに書き出す» を押して **`.txt` が選んだ場所に
+書かれ、中身がライブラリ表示と同じ文字起こしであること** を確かめてください。
+あわせて **検索語を入れて絞り込んだ状態で書き出し、ヒットしていない行も含めて
+録画全体が書かれること** (書き出しは検索の影響を受けない) も確かめてください。
+
 ### 検証時の環境の注意
 
 > 画面がロックされている、または**ディスプレイが消灯している**間は
