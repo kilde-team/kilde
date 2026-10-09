@@ -33,11 +33,13 @@ enum SelfTestLibraryExport {
     static func run() {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("kilde-selftest-library-export-\(UUID().uuidString)")
-        defer { try? FileManager.default.removeItem(at: directory) }
+        // defer で消さない — run() は必ず exit() で終わるため defer は一度も走らず、
+        // 一時ディレクトリが残る (cubic 指摘)。exit の前に明示的に消す
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         } catch {
             print("selftest: library-export failed to create temp dir: \(error)")
+            try? FileManager.default.removeItem(at: directory)
             exit(1)
         }
 
@@ -62,8 +64,8 @@ enum SelfTestLibraryExport {
         }
 
         // パネルで保存先が確定した後の書き込み。原子的に書け、内容が生成テキストと一致する。
-        // 一時ディレクトリは security scope の対象でないため、start の false 戻り (非スコープ)
-        // の経路もここで通る
+        // 保存パネルの URL は powerbox が既にアクセスを許しているため、
+        // 一時ディレクトリ (スコープ外) も同じ write の経路で書ける
         do {
             let destination = directory.appendingPathComponent("exported.txt")
             try LibraryTranscriptExport.write(text: expectedExport, to: destination)
@@ -73,6 +75,7 @@ enum SelfTestLibraryExport {
             check(false, "ファイルへの書き込み (\(error))")
         }
 
+        try? FileManager.default.removeItem(at: directory)
         print("selftest: library-export failures=\(failures)")
         exit(failures == 0 ? 0 : 1)
     }
@@ -95,6 +98,7 @@ enum SelfTestLibraryExport {
                     summary: format == .markdown ? summary : nil)
             } catch {
                 print("selftest: library-export failed to write sidecar \(format): \(error)")
+                try? FileManager.default.removeItem(at: directory)
                 exit(1)
             }
         }

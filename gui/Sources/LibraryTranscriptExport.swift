@@ -52,12 +52,12 @@ enum LibraryTranscriptExport {
 
     /// 指定 URL へ原子的に書く («壊れたファイルを残さない» の規約 — 一時ファイル +
     /// rename)。既存ファイルの置き換えは保存パネルの «置き換える» 確認で承認済み。
-    /// MAS (App Sandbox) では保存パネルが返した URL への書き込みに
-    /// security-scoped アクセスが要るため、開始してから書く (非サンドボックスでは
-    /// start が false を返すだけなので分岐は不要)
+    /// **保存パネルが返した URL に security-scoped API は不要** — ユーザーの選択で
+    /// powerbox が既にアクセスを許可しており、App Sandbox でもそのまま書ける
+    /// (cubic 指摘 — 呼ぶ必要が無いだけでなく、呼ぶと不要な extension を取る)。
+    /// 保存パネル以外の入手経路 (bookmark 復元など) を書くことになったら
+    /// start/stop を戻す
     static func write(text: String, to destination: URL) throws {
-        let scoped = destination.startAccessingSecurityScopedResource()
-        defer { if scoped { destination.stopAccessingSecurityScopedResource() } }
         try text.write(to: destination, atomically: true, encoding: .utf8)
     }
 
