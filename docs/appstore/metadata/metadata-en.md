@@ -164,3 +164,16 @@ out of the copy.
 ```text
 You can now create a transcript — or meeting minutes with a summary — after the fact, right from the recording library, even for recordings made with transcription off (transcription requires macOS 26 or later; summaries need Apple Intelligence). Default H.264 MP4 recordings are also much smaller now (about 200MB per hour).
 ```
+
+## What's New (0.11.0)
+
+One user-visible change since MAS 0.10.0: transcripts can now be exported as
+a plain text file from the recording library (issue #329). The export always
+renders the whole transcript in the same readable `[HH:MM:SS] text` format
+whatever the sidecar format is, and saving goes through NSSavePanel, which
+works unchanged under App Sandbox. No engine update (the pin stays at
+kilde-cli-swift v0.10.0) and no new requirements.
+
+```text
+You can now export a recording's transcript as a plain text (.txt) file right from the recording library — handy for carrying meeting text into your notes or other tools.
+```

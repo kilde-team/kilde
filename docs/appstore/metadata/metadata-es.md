@@ -169,3 +169,17 @@ así que no se menciona en el texto.
 ```text
 Ya puedes crear una transcripción —o un acta con resumen— después de grabar, desde la biblioteca de grabaciones, incluso para grabaciones hechas con la transcripción desactivada (la transcripción requiere macOS 26 o posterior; los resúmenes necesitan Apple Intelligence). Las grabaciones MP4 en H.264 con la configuración predeterminada también son mucho más pequeñas (unos 200 MB por hora).
 ```
+
+## Novedades (0.11.0)
+
+Un cambio visible desde MAS 0.10.0: ahora las transcripciones se pueden
+exportar como archivo de texto desde la biblioteca de grabaciones
+(issue #329). La exportación siempre genera todo el texto en el mismo
+formato legible «[HH:MM:SS] texto» sea cual sea el formato del archivo
+lateral, y el guardado usa NSSavePanel, que funciona igual bajo el sandbox
+de App Store. Sin actualización de motor (el pin sigue en kilde-cli-swift
+v0.10.0) y sin requisitos nuevos.
+
+```text
+Ya puedes exportar la transcripción de una grabación como archivo de texto (.txt) desde la biblioteca de grabaciones: útil para llevar el texto de tus reuniones a tus notas u otras herramientas.
+```
