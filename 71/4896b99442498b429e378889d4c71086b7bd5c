@@ -1,0 +1,18 @@
+docs/DEVELOPMENT.md
+  h_864205080385bc 437-442
+gui/Sources/LibraryTranscriptExport.swift
+  h_864205080385bc 55-59
+gui/Sources/SelfTestLibraryExport.swift
+  h_864205080385bc 36-37,42,67-68,78,101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "714896b99442498b429e378889d4c71086b7bd5c",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
