@@ -24,11 +24,14 @@ enum SelfTestLibrarySearch {
     static func run() {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("kilde-selftest-library-\(UUID().uuidString)")
-        defer { try? FileManager.default.removeItem(at: directory) }
+        // defer で消さない — run() は必ず exit() で終わるため defer は一度も走らず、
+        // 一時ディレクトリが残る (issue #331、SelfTestLibraryExport と同じ流儀)。
+        // exit の前に明示的に消す
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         } catch {
             print("selftest: library failed to create temp dir: \(error)")
+            try? FileManager.default.removeItem(at: directory)
             exit(1)
         }
         writeSyntheticSidecars(into: directory)
@@ -131,6 +134,7 @@ enum SelfTestLibrarySearch {
         check(index.search("   ").isEmpty, "空白のみは 0 件")
         check(index.search("存在しないキーワード").isEmpty, "無関係語は 0 件")
 
+        try? FileManager.default.removeItem(at: directory)
         print("selftest: library failures=\(failures)")
         exit(failures == 0 ? 0 : 1)
     }
