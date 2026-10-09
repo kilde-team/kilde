@@ -1,0 +1,14 @@
+gui/Sources/SelfTestLibrarySearch.swift
+  h_864205080385bc 27-29,34,137
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3881874e08ac3575ba44aa4cd14024f9ffc5e7f0",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
