@@ -379,7 +379,7 @@ initial values, hotkey, and other settings are not shared with `kilde rec`.
   (the engine and CLI source now live in
   [kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift),
   issue #115)
-- **M2** Global hotkey ✅; region capture ✅; pause/resume
+- **M2** Global hotkey ✅; region capture ✅; pause/resume ✅
 - **M3** Menu bar GUI app: skeleton ✅ / recording UI ✅ / permission
   onboarding ✅ / completion notifications, recent recordings, global hotkey,
   and launch at login ✅

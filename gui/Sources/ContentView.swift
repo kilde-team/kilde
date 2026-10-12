@@ -994,10 +994,14 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
                 switch recording.phase {
-                case .recording:
+                case .recording, .paused:
                     Circle()
-                        .fill(.red)
+                        .fill(recording.isPaused ? .orange : .red)
                         .frame(width: 10, height: 10)
+                    if recording.isPaused {
+                        Text("一時停止中")
+                            .foregroundStyle(.orange)
+                    }
                     Text(RecordingController.formatElapsed(recording.elapsed))
                         .font(.system(size: 28, weight: .medium, design: .monospaced))
                     Spacer()
@@ -1045,6 +1049,15 @@ struct ContentView: View {
                     }
                 }
             }
+            Button {
+                recording.togglePause()
+            } label: {
+                Label(recording.isPaused ? "再開" : "一時停止",
+                      systemImage: recording.isPaused ? "play.fill" : "pause.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .controlSize(.large)
+            .disabled(recording.phase != .recording && recording.phase != .paused)
             Button {
                 recording.stop()
             } label: {

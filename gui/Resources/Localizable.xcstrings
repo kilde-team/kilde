@@ -1,6 +1,122 @@
 {
   "sourceLanguage": "ja",
   "strings": {
+      "PAUSED": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "PAUSED"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "PAUSED"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "PAUSED"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "PAUSED"
+            }
+          }
+        }
+      },
+      "一時停止": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Pause"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Pausar"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "일시 정지"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "暂停"
+            }
+          }
+        }
+      },
+      "一時停止中": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Paused"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "En pausa"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "일시 정지 중"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "已暂停"
+            }
+          }
+        }
+      },
+      "再開": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Resume"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Reanudar"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "재개"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "继续"
+            }
+          }
+        }
+      },
     "%@ (build %@)": {
       "extractionState": "manual",
       "localizations": {

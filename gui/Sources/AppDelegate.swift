@@ -596,7 +596,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 駆動されず、«文字起こし中» が永続的に欠落する
         let recordingActive: Bool
         switch phase {
-        case .starting, .recording, .finalizing: recordingActive = true
+        case .starting, .recording, .paused, .finalizing: recordingActive = true
         case .idle, .finished, .failed: recordingActive = false
         }
         if !recordingActive, transcription.isBusy {
@@ -609,6 +609,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 symbol = "record.circle.fill"
                 tint = .systemRed
                 title = RecordingController.formatElapsed(elapsed)
+            case .paused:
+                symbol = "pause.circle.fill"
+                tint = .systemOrange
+                title = String(localized: "PAUSED") + " " + RecordingController.formatElapsed(elapsed)
             case .starting:
                 symbol = "record.circle"
                 tint = .systemOrange
