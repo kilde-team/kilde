@@ -567,6 +567,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 再読み込みして表示を実体へ追従させる (reloadTranscriptionSettings のコメント参照)
         setup.reloadTranscriptionSettings()
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        // キャプチャ パネルを開いた (issue #343)。Firebase が無い構成
+        // (セルフテスト・Debug) では UsageAnalytics 内で跳ねる
+        UsageAnalytics.screenView(.capturePanel)
         // NSPopover の内容は key window にならないため didBecomeKey では拾えない。
         // 開くたびに通知して一覧を更新させる (閉じている間のウィンドウ・デバイスの増減を拾う)
         NotificationCenter.default.post(

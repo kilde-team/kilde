@@ -178,7 +178,13 @@ final class RecordingController: ObservableObject {
                 phase = .starting
             case .recording, .paused:
                 // 収録が実際に始まった瞬間。準備フェーズを長さに含めない
-                if recordingStartedAt == nil { recordingStartedAt = Date() }
+                if recordingStartedAt == nil {
+                    recordingStartedAt = Date()
+                    // 録画開始の計測 (issue #343)。«試行 → 完了» のファネルの始点。
+                    // Firebase が無い構成 (セルフテスト・Debug) では
+                    // UsageAnalytics 内で跳ねるので、ここからは送信条件を気にしない
+                    UsageAnalytics.recordingStarted()
+                }
                 isPaused = state == .paused
                 phase = isPaused ? .paused : .recording
             case .finalizing:
