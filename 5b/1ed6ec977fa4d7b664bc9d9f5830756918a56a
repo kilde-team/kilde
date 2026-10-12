@@ -1,0 +1,27 @@
+README.es.md
+  s_ebe85be52a68bc::t_4849c171c51ee3 399
+README.zh-CN.md
+  s_ebe85be52a68bc::t_4849c171c51ee3 346
+docs/DEVELOPMENT.md
+  s_ebe85be52a68bc::t_ae19d56f1e0da6 168
+README.ko.md
+  s_ebe85be52a68bc::t_4849c171c51ee3 363
+gui/Sources/SelfTest.swift
+  s_ebe85be52a68bc::t_4849c171c51ee3 191-193,315-320
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5b1ed6ec977fa4d7b664bc9d9f5830756918a56a",
+  "prompts": {},
+  "sessions": {
+    "s_ebe85be52a68bc": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12da3-a0d8-7d10-bb85-daacded75c7c",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
