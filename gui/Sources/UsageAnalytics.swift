@@ -56,6 +56,26 @@ enum UsageAnalytics {
     static func setUserProperties() {
         guard isEnabled else { return }
         Analytics.setUserProperty(distributionChannel, forName: "distribution_channel")
+        // このアプリは 2 ターゲットとも **ネイティブ macOS** (project.yml の
+        // platform: macOS) だが、Firebase には **iOS アプリとして** 登録されている
+        // («Kilde iOS» ストリーム) ため、GA4 のプラットフォーム / デバイス カテゴリは
+        // «iOS» と表示される (GA4 分析 2026-10-12)。«実プラットフォームの真実» を
+        // ユーザー プロパティに持たせ、集計はそちらで揃える。将来ビルド構成を足して
+        // も語彙が破綻しないよう 3 経路で確定する — コンパイル条件で決まる
+        // (distributionChannel と同じく実行時の判別を持ち込まない)。GA4 側の
+        // カスタム ディメンション «app_platform» は、この値が届いた後で作る
+        // (実在するユーザー プロパティしか選べないため)
+        #if os(iOS)
+            #if targetEnvironment(macCatalyst)
+            // Catalyst は Mac 上で動くので «macos»
+            Analytics.setUserProperty("macos", forName: "app_platform")
+            #else
+            Analytics.setUserProperty("ios", forName: "app_platform")
+            #endif
+        #else
+            // ネイティブ macOS (現在の 2 ターゲットはすべてここ)
+            Analytics.setUserProperty("macos", forName: "app_platform")
+        #endif
         let defaults = UserDefaults.standard
         migrateRecordingCountIfNeeded(defaults)
         let count = defaults.integer(forKey: recordingsCompletedKey)
@@ -84,6 +104,18 @@ enum UsageAnalytics {
         let seeded = 0
 #endif
         defaults.set(seeded, forKey: recordingsCompletedKey)
+    }
+
+    /// 録画を始めた (issue #343)。«試行 → 完了» のファネルの始点 —
+    /// recording_complete (#159) だけだと «何件完了したか» しか分からず、
+    /// 成功率 (どこで諦められているか) が出ない。文字起こしの
+    /// transcription_start (#153) と同じ位置づけで、**収録が実際に始まった
+    /// 瞬間** に送る (準備中のキャンセルは数えない — 呼び出し側 RecordingController
+    /// の recordingStartedAt の初回セットと同じ条件)。チャネルは
+    /// recording_complete と同じくイベント パラメータにも載せる
+    static func recordingStarted() {
+        log("recording_start", recordingDuration: nil,
+            processingTime: nil, channel: distributionChannel)
     }
 
     /// 録画 1 件が完了した (issue #159)。«月間アクティブ (録画完了) ユーザー数» と
@@ -166,6 +198,27 @@ enum UsageAnalytics {
     static func transcriptionRetry(recordingDuration: TimeInterval?) {
         log("transcription_retry",
             recordingDuration: recordingDuration, processingTime: nil)
+    }
+
+    /// screen_view の画面名。**この列挙に閉じる** (errorKind と同じ規約) —
+    /// 呼び出し側の文字列をそのまま送らない。メニューバー アプリに画面遷移は
+    /// 無いので、«開かれた UI» 単位で語彙を増やす
+    enum ScreenName: String {
+        /// メニューバーのキャプチャ パネル (NSPopover)
+        case capturePanel = "capture_panel"
+        /// 録画ライブラリのウィンドウ
+        case library = "library"
+    }
+
+    /// 画面を表示した (issue #343)。`screen_view` が無いと GA4 の «ページと
+    /// スクリーン» «ランディング ページ» が `(not set)` のみになり、«表示回数» が
+    /// 常に 0 になる (GA4 分析 2026-10-12)。Automatic screen reporting は
+    /// ViewController ベースのアプリ向けなので、自分で送る
+    static func screenView(_ name: ScreenName) {
+        guard isEnabled else { return }
+        Analytics.logEvent(AnalyticsEventScreenView, parameters: [
+            AnalyticsParameterScreenName: name.rawValue
+        ])
     }
 
     private static func log(_ name: String, recordingDuration: TimeInterval?,

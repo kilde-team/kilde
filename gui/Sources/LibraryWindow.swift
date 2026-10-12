@@ -81,6 +81,10 @@ final class LibraryWindowController: NSObject, NSWindowDelegate {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
+        // ライブラリを表示した (issue #343)。初回生成と既存ウィンドウの前面出しの
+        // 両経路がここを通るので 1 箇所で計測できる。Firebase が無い構成
+        // (セルフテスト・Debug) では UsageAnalytics 内で跳ねる
+        UsageAnalytics.screenView(.library)
     }
 
     func windowWillClose(_ notification: Notification) {
