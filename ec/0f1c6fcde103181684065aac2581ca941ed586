@@ -1,0 +1,37 @@
+gui/Sources/AppDelegate.swift
+  s_ebe85be52a68bc::t_76ccf2ba606532 599,612-615
+gui/Sources/RecordingController.swift
+  s_ebe85be52a68bc::t_fa91a625b38614 16,24,71,119,144-152,176-178,182-183,187,200,253
+gui/Sources/MeetingAutoRecorder.swift
+  s_ebe85be52a68bc::t_eec6edadd3c89f 294
+README.ja.md
+  s_ebe85be52a68bc::t_efdf28d820431a 233
+docs/DEVELOPMENT.md
+  s_ebe85be52a68bc::t_efdf28d820431a 124,127-128,167-176
+  s_ebe85be52a68bc::t_83d78cdb638aa4 177
+gui/Sources/SelfTest.swift
+  s_ebe85be52a68bc::t_6c80275ad01b6e 190-194
+  s_ebe85be52a68bc::t_b8ec959094b8e6 279-321
+gui/Sources/ContentView.swift
+  s_ebe85be52a68bc::t_4370ebe6e37f31 997,999,1001-1004,1052-1060
+README.md
+  s_ebe85be52a68bc::t_efdf28d820431a 382
+gui/Resources/Localizable.xcstrings
+  s_ebe85be52a68bc::t_d02f4659393115 4-119
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ec0f1c6fcde103181684065aac2581ca941ed586",
+  "prompts": {},
+  "sessions": {
+    "s_ebe85be52a68bc": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a12da3-a0d8-7d10-bb85-daacded75c7c",
+        "model": "gpt-6-sol"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
