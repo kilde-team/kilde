@@ -183,3 +183,16 @@ v0.10.0) y sin requisitos nuevos.
 ```text
 Ya puedes exportar la transcripción de una grabación como archivo de texto (.txt) desde la biblioteca de grabaciones: útil para llevar el texto de tus reuniones a tus notas u otras herramientas.
 ```
+
+## Novedades (0.12.0)
+
+Un cambio visible desde MAS 0.11.0: ahora las grabaciones se pueden pausar
+y reanudar desde el panel de la barra de menús (issue #338). Mientras está
+en pausa el tiempo transcurrido se congela, y los periodos en pausa quedan
+excluidos tanto de la duración como del archivo guardado. El comportamiento
+del motor llegó con kilde-cli-swift v0.10.0; sin actualización de motor (el
+pin sigue en v0.10.0) y sin requisitos nuevos.
+
+```text
+Ahora puedes pausar y reanudar una grabación desde el panel de la barra de menús. Los periodos en pausa quedan excluidos de la duración de la grabación y del archivo guardado.
+```
