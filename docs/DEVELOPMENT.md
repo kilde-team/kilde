@@ -165,7 +165,7 @@ kilde inspect /tmp/kilde-yyyyMMdd-HHmmss.mp4   # CLI の録画と同じトラッ
 (例: `device:BlackHole 2ch`。スピーカーを介さずに信号を入れて検証でき、既定の出力デバイスも変えずに済む)。
 
 `KILDE_GUI_SELFTEST_PAUSE=1` を `KILDE_GUI_SELFTEST_RECORD` に付けると、録画開始後に
-一時停止 → 経過時間が止まることの確認 → 再開 → 経過時間が進むことの確認 → 停止を行います。
+一時停止 → 経過時間が止まることの確認 → 再開 → 経過時間が指定秒数まで進むことの確認 → 停止を行います。
 `KILDE_GUI_SELFTEST_POPOVER=close` とは別々に実行します。実録画を伴うため、ほかの録画
 テストと同時に回さないでください。
 

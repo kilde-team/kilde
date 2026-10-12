@@ -188,6 +188,9 @@ enum SelfTest {
             print("selftest: transcribeEnabled forced=true for record (config は変更しません)")
         }
         let testsPause = env["KILDE_GUI_SELFTEST_PAUSE"] == "1"
+        if testsPause && (!seconds.isFinite || seconds > 3600) {
+            fail("一時停止テストの KILDE_GUI_SELFTEST_RECORD は 3600 以下の秒数にしてください: \(text)")
+        }
         let closesPopover = env["KILDE_GUI_SELFTEST_POPOVER"] == "close"
         if testsPause && closesPopover {
             fail("KILDE_GUI_SELFTEST_PAUSE と KILDE_GUI_SELFTEST_POPOVER=close は別々に実行してください")
@@ -309,8 +312,12 @@ enum SelfTest {
                 guard recording.phase == .recording, !recording.isPaused else {
                     fail("再開へ遷移しません (phase=\(recording.phase))")
                 }
-                try? await Task.sleep(nanoseconds: 1_200_000_000)
-                guard recording.elapsed > pausedElapsed + 0.5 else {
+                let progressDeadline = Date().addingTimeInterval(max(seconds + 20, 22))
+                while recording.elapsed < max(seconds, pausedElapsed + 0.5),
+                      Date() < progressDeadline {
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                }
+                guard recording.elapsed >= max(seconds, pausedElapsed + 0.5) else {
                     fail("再開後に経過時間が進みません (\(pausedElapsed) → \(recording.elapsed))")
                 }
                 print("selftest: pause/resume elapsed=\(String(format: "%.1f", pausedElapsed))s → \(String(format: "%.1f", recording.elapsed))s")

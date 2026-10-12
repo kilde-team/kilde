@@ -343,7 +343,7 @@ open KildeGUI.xcodeproj # 在 Xcode 中运行 KildeGUI scheme
   （引擎与 CLI 源码已迁移至
   [kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift)，
   issue #115）
-- **M2** 全局快捷键 ✅；区域录制 ✅；暂停/恢复
+- **M2** 全局快捷键 ✅；区域录制 ✅；暂停/恢复 ✅
 - **M3** 菜单栏 GUI 应用：骨架 ✅ / 录制 UI ✅ / 权限引导 ✅ /
   完成通知、最近录制、全局快捷键和登录时启动 ✅
 
