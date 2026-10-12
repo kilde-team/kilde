@@ -396,7 +396,7 @@ los valores iniciales, el atajo global y los demás ajustes no se comparten con
   (el motor y el código del CLI viven ahora en
   [kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift),
   issue #115)
-- **M2** Atajo global ✅; captura por región ✅; pausa/reanudación
+- **M2** Atajo global ✅; captura por región ✅; pausa/reanudación ✅
 - **M3** App GUI de barra de menús: esqueleto ✅ / UI de grabación ✅ /
   incorporación de permisos ✅ / notificaciones de finalización, grabaciones
   recientes, atajo global e inicio al iniciar sesión ✅

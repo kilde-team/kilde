@@ -291,7 +291,7 @@ final class MeetingAutoRecorder: ObservableObject {
                     appName: notice.meeting.appName, title: notice.meeting.title,
                     micIncluded: notice.micIncluded)
             }
-        case .starting, .finalizing:
+        case .starting, .paused, .finalizing:
             break
         }
     }

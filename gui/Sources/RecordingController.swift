@@ -13,6 +13,7 @@ final class RecordingController: ObservableObject {
         /// 権限確認・デバイス解決・ストリーム構築中
         case starting
         case recording
+        case paused
         /// 停止後のファイナライズ中
         case finalizing
         case finished(URL)
@@ -20,6 +21,7 @@ final class RecordingController: ObservableObject {
     }
 
     @Published private(set) var phase: Phase = .idle
+    @Published private(set) var isPaused = false
     @Published private(set) var elapsed: TimeInterval = 0
     @Published private(set) var outputBytes: Int64 = 0
     /// ソースのラベル (system / mic / dev:<名前>) ごとの直近のピーク (0...1)
@@ -66,7 +68,7 @@ final class RecordingController: ObservableObject {
     /// `applicationShouldTerminate` だけなので、そこで個別に見る
     var isActive: Bool {
         switch phase {
-        case .starting, .recording, .finalizing: return true
+        case .starting, .recording, .paused, .finalizing: return true
         case .idle, .finished, .failed: return false
         }
     }
@@ -114,6 +116,7 @@ final class RecordingController: ObservableObject {
             sessionEndHandlers[index].session = recorder
         }
         phase = .starting
+        isPaused = false
         elapsed = 0
         outputBytes = 0
         peaks = [:]
@@ -136,6 +139,15 @@ final class RecordingController: ObservableObject {
         // のか «デバイス解決などに失敗した» のかは、これが無いと区別できない
         if recordingStartedAt == nil { stopRequestedDuringPreparation = true }
         recorder?.stop()
+    }
+
+    /// 状態イベントを正として表示を切り替える。連打や停止中の操作は Recorder に渡さない
+    func togglePause() {
+        switch phase {
+        case .recording: recorder?.pause()
+        case .paused: recorder?.resume()
+        default: break
+        }
     }
 
     /// 経過時間の表示 (mm:ss、1 時間以上は h:mm:ss)。メニューバーとポップオーバーで共用
@@ -161,17 +173,18 @@ final class RecordingController: ObservableObject {
         switch event {
         case .stateChanged(let state):
             switch state {
-            case .preparing, .armed: phase = .starting
-            // 一時停止中も「録画中」として扱う — GUI にはまだ一時停止を始める操作がなく
-            // (issue #11 は CLI のみ)、この状態には入らない。GUI に操作を足すときは
-            // Phase に .paused を足して、メニューバーとポップオーバーの表示を分ける
+            case .preparing, .armed:
+                isPaused = false
+                phase = .starting
             case .recording, .paused:
                 // 収録が実際に始まった瞬間。準備フェーズを長さに含めない
                 if recordingStartedAt == nil { recordingStartedAt = Date() }
-                phase = .recording
+                isPaused = state == .paused
+                phase = isPaused ? .paused : .recording
             case .finalizing:
                 // 収録が止まった時刻。ここから先 (writer の finish) は録画時間ではない
                 if stoppedAt == nil { stoppedAt = Date() }
+                isPaused = false
                 phase = .finalizing
             // 結果は .completed / .failed で確定させる (done / error の遷移は必ずその直前に来る)
             case .idle, .done, .error: break
@@ -184,6 +197,7 @@ final class RecordingController: ObservableObject {
             // monitor の既定出力の復元失敗など。録画は成立しているので結果と一緒に見せる
             warnings.append(warning)
         case .completed(let summary):
+            isPaused = false
             // 実収録時間の確定は **phase 更新の前**。評価依頼 (issue #156) の sink は
             // .finished の willSet の次の MainActor ホップで lastRecordedDuration を
             // 読む — 更新後に計算すると sink が古い値 (0) を見てしまう
@@ -236,6 +250,7 @@ final class RecordingController: ObservableObject {
                                                 completion: done)
             }
         case .failed(let error, let partialFileExists):
+            isPaused = false
             var message = "\(error)"
             if partialFileExists, let outputURL {
                 message += "\n" + String(localized: "不完全なファイルが残っています: \(outputURL.path)")

@@ -187,6 +187,14 @@ enum SelfTest {
             setup.transcribeEnabled = true
             print("selftest: transcribeEnabled forced=true for record (config は変更しません)")
         }
+        let testsPause = env["KILDE_GUI_SELFTEST_PAUSE"] == "1"
+        if testsPause && (!seconds.isFinite || seconds > 3600) {
+            fail("一時停止テストの KILDE_GUI_SELFTEST_RECORD は 3600 以下の秒数にしてください: \(text)")
+        }
+        let closesPopover = env["KILDE_GUI_SELFTEST_POPOVER"] == "close"
+        if testsPause && closesPopover {
+            fail("KILDE_GUI_SELFTEST_PAUSE と KILDE_GUI_SELFTEST_POPOVER=close は別々に実行してください")
+        }
         applyRecordingRequest(setup, env: env)
 
         let options: RecordOptions
@@ -198,7 +206,6 @@ enum SelfTest {
         // KILDE_GUI_SELFTEST_POPOVER=close: 録画中にポップオーバーを閉じても録画が続くこと
         // (issue #18 の受け入れ条件) を確かめる。閉じた時点と終了時の出力サイズを出すので、
         // 閉じた後もファイルが伸びていれば録画が継続している
-        let closesPopover = env["KILDE_GUI_SELFTEST_POPOVER"] == "close"
         if closesPopover {
             // LSUIElement のアプリをターミナルから起動すると非アクティブのままで、
             // その状態では NSPopover が表示されない (isShown が false のまま)。明示的にアクティブ化する
@@ -272,6 +279,53 @@ enum SelfTest {
         // 失敗時に停止 → ファイナライズできるよう、開始前に覚えておく
         active = recording
         recording.start(options)
+        if testsPause {
+            Task { @MainActor in
+                let deadline = Date().addingTimeInterval(20)
+                while recording.phase != .recording, Date() < deadline {
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                }
+                guard recording.phase == .recording else {
+                    fail("録画が始まりません (phase=\(recording.phase))")
+                }
+                try? await Task.sleep(nanoseconds: 1_200_000_000)
+                recording.togglePause()
+                let pauseDeadline = Date().addingTimeInterval(3)
+                while recording.phase != .paused, Date() < pauseDeadline {
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                }
+                guard recording.isPaused, recording.isActive else {
+                    fail("一時停止へ遷移しません (phase=\(recording.phase))")
+                }
+                // progress は 0.5 秒周期なので、停止直後の最後の更新を待ってから比較する
+                try? await Task.sleep(nanoseconds: 700_000_000)
+                let pausedElapsed = recording.elapsed
+                try? await Task.sleep(nanoseconds: 1_200_000_000)
+                guard abs(recording.elapsed - pausedElapsed) < 0.1 else {
+                    fail("一時停止中に経過時間が進みました (\(pausedElapsed) → \(recording.elapsed))")
+                }
+                recording.togglePause()
+                let resumeDeadline = Date().addingTimeInterval(3)
+                while recording.phase != .recording, Date() < resumeDeadline {
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                }
+                guard recording.phase == .recording, !recording.isPaused else {
+                    fail("再開へ遷移しません (phase=\(recording.phase))")
+                }
+                let progressDeadline = Date().addingTimeInterval(max(seconds + 20, 22))
+                while recording.elapsed < max(seconds, pausedElapsed + 0.5),
+                      Date() < progressDeadline {
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                }
+                guard recording.elapsed >= max(seconds, pausedElapsed + 0.5) else {
+                    fail("再開後に経過時間が進みません (\(pausedElapsed) → \(recording.elapsed))")
+                }
+                print("selftest: pause/resume elapsed=\(String(format: "%.1f", pausedElapsed))s → \(String(format: "%.1f", recording.elapsed))s")
+                fflush(stdout)
+                recording.stop()
+            }
+            return
+        }
         guard closesPopover else {
             DispatchQueue.main.asyncAfter(deadline: .now() + seconds) {
                 recording.stop()

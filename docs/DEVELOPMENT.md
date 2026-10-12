@@ -121,10 +121,11 @@ xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI -configuration Debug bui
 メニューバーの ● をクリックすると録画パネルが開きます (issue #18):
 収録対象 (画面 / ウィンドウ (サムネイル付き) / 音声のみ)・音声ソース (システム音声 /
 マイク / 入力デバイス)・複数ソースの合成か分離・保存先を選んで「録画開始」。
-録画中はメニューバーに経過時間が出て、パネルにはソース別のレベルメーターと停止ボタンが
+録画中はメニューバーに経過時間が出て、パネルにはソース別のレベルメーターと一時停止/再開・停止ボタンが
 出ます。**パネルを閉じても録画は続きます** (録画はパネルではなく AppDelegate が持つ
 `RecordingController` にある)。録画中にアプリを終了すると、停止してファイナライズを
-待ってから終わります。
+待ってから終わります。一時停止中はメニューバーに `PAUSED mm:ss` と表示され、経過時間は
+一時停止した区間を除いた録画時間を示します。一時停止中でも停止・アプリ終了は可能です。
 
 - 選択 → 録画オプションの変換は KildeCore の `RecordRequest` で行い、CLI と同じ
   `RecordSettings.apply()` → `Recorder` を通る (codec / fps / カーソルは設定ファイルの値)
@@ -162,6 +163,17 @@ kilde inspect /tmp/kilde-yyyyMMdd-HHmmss.mp4   # CLI の録画と同じトラッ
 `KILDE_GUI_SELFTEST_AUDIO` で音声ソースを変えられます: `system` (既定) / `none` (映像のみ — 音声出力が
 使えない環境でも GUI → Recorder の経路は確かめられる) / `device:<UID または名前>`
 (例: `device:BlackHole 2ch`。スピーカーを介さずに信号を入れて検証でき、既定の出力デバイスも変えずに済む)。
+
+`KILDE_GUI_SELFTEST_PAUSE=1` を `KILDE_GUI_SELFTEST_RECORD` に付けると、録画開始後に
+一時停止 → 経過時間が止まることの確認 → 再開 → 経過時間が指定秒数まで進むことの確認 → 停止を行います。
+`KILDE_GUI_SELFTEST_POPOVER=close` とは別々に実行します。実録画を伴うため、ほかの録画
+テストと同時に回さないでください。
+
+```sh
+KILDE_GUI_SELFTEST_RECORD=6 KILDE_GUI_SELFTEST_PAUSE=1 \
+  KILDE_GUI_SELFTEST_AUDIO=none KILDE_GUI_SELFTEST_OUTPUT=/tmp \
+  "$APP/Contents/MacOS/KildeGUI"
+```
 
 `KILDE_GUI_SELFTEST_POPOVER=close` を付けると、録画中にポップオーバーを開いてから閉じ、
 **閉じた後も録画が続く** (経過時間が伸びる) ことを成功条件にします (issue #18 の受け入れ条件 2)。

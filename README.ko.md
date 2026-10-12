@@ -360,7 +360,7 @@ Finder에서 해당 파일이 선택된 채로 열립니다. 패널에는 출력
   (엔진과 CLI 소스는
   [kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift)로
   이전됨, issue #115)
-- **M2** 전역 단축키 ✅; 영역 캡처 ✅; 일시정지/재개
+- **M2** 전역 단축키 ✅; 영역 캡처 ✅; 일시정지/재개 ✅
 - **M3** 메뉴 막대 GUI 앱: 골격 ✅ / 녹화 UI ✅ / 권한 온보딩 ✅ /
   완료 알림·최근 녹화·전역 단축키·로그인 시 실행 ✅
 
