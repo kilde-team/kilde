@@ -56,16 +56,25 @@ enum UsageAnalytics {
     static func setUserProperties() {
         guard isEnabled else { return }
         Analytics.setUserProperty(distributionChannel, forName: "distribution_channel")
-        // Catalyst ビルドはデバイス カテゴリが «iOS / mobile» と計測されるため、
-        // GA4 の既存ディメンションだけでは Mac (MAS / 直接配布) と iPhone を
-        // 分離できない (GA4 分析 2026-10-12)。コンパイル条件で確定する
-        // (distributionChannel と同じ規約)。GA4 側のカスタム ディメンション
-        // «app_platform» は、この値が届いた後で作る (実在するユーザー プロパティ
-        // しか選べないため)
-        #if targetEnvironment(macCatalyst)
-        Analytics.setUserProperty("macos", forName: "app_platform")
+        // このアプリは 2 ターゲットとも **ネイティブ macOS** (project.yml の
+        // platform: macOS) だが、Firebase には **iOS アプリとして** 登録されている
+        // («Kilde iOS» ストリーム) ため、GA4 のプラットフォーム / デバイス カテゴリは
+        // «iOS» と表示される (GA4 分析 2026-10-12)。«実プラットフォームの真実» を
+        // ユーザー プロパティに持たせ、集計はそちらで揃える。将来ビルド構成を足して
+        // も語彙が破綻しないよう 3 経路で確定する — コンパイル条件で決まる
+        // (distributionChannel と同じく実行時の判別を持ち込まない)。GA4 側の
+        // カスタム ディメンション «app_platform» は、この値が届いた後で作る
+        // (実在するユーザー プロパティしか選べないため)
+        #if os(iOS)
+            #if targetEnvironment(macCatalyst)
+            // Catalyst は Mac 上で動くので «macos»
+            Analytics.setUserProperty("macos", forName: "app_platform")
+            #else
+            Analytics.setUserProperty("ios", forName: "app_platform")
+            #endif
         #else
-        Analytics.setUserProperty("ios", forName: "app_platform")
+            // ネイティブ macOS (現在の 2 ターゲットはすべてここ)
+            Analytics.setUserProperty("macos", forName: "app_platform")
         #endif
         let defaults = UserDefaults.standard
         migrateRecordingCountIfNeeded(defaults)
