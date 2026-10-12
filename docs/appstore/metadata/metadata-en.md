@@ -177,3 +177,15 @@ kilde-cli-swift v0.10.0) and no new requirements.
 ```text
 You can now export a recording's transcript as a plain text (.txt) file right from the recording library — handy for carrying meeting text into your notes or other tools.
 ```
+
+## What's New (0.12.0)
+
+One user-visible change since MAS 0.11.0: recordings can now be paused and
+resumed from the menu bar panel (issue #338). While paused the elapsed time
+freezes, and paused periods are excluded from both the recorded length and
+the saved file. The engine behavior itself shipped in kilde-cli-swift
+v0.10.0; no engine update (the pin stays at v0.10.0) and no new requirements.
+
+```text
+You can now pause and resume a recording from the menu bar panel. Paused periods are excluded from both the recording time and the saved file.
+```
