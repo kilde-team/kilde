@@ -1,0 +1,20 @@
+gui/Sources/AppDelegate.swift
+  h_864205080385bc 570-572
+gui/Sources/LibraryWindow.swift
+  h_864205080385bc 84-87
+gui/Sources/RecordingController.swift
+  h_864205080385bc 181-187
+gui/Sources/UsageAnalytics.swift
+  h_864205080385bc 59-69,100-111,194-214
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b7c7120fb0d07e77661b14112162318593330a2f",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
