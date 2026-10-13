@@ -60,7 +60,14 @@ packages:
     # 1 時間あたり約 200MB に収まる (h264 350kbps + AAC 96kbps + GOP 2 秒固定)。
     # 従来既定 (h264 12Mbps) では内容により 1GB 超えだった。画質優先は
     # 設定 videoBitrate / audioBitrate で復元できる
-    exactVersion: 0.10.0
+    # v0.13.0: 録画開始前のディスク残量プリフライト (StoragePreflight)。開始前に
+    # この構成の推定サイズを出力先の空き容量と比較し、足りなければ警告ノート、
+    # 明らかに足りないときは録画開始前に失敗する。Recorder の前処理として働くため
+    # GUI 側のコード変更は不要 (GUI 既存のノート / エラー表示に乗る)
+    # v0.14.0: CLI 向けの改善が中心 (rec --dry-run、devices / inspect / config show の
+    # --json、表示系の整理)。録画の挙動は不変 — DisplayCatalog に同期版 resolver が
+    # 増えたのみで、GUI が使う async 経路に変更はない
+    exactVersion: 0.14.0
   # GUI の自動更新 (issue #122)。Sparkle 2 のバイナリターゲット (macOS 12+) で、
   # リンクすると Sparkle.framework が Contents/Frameworks に埋め込まれる。
   # バージョンを固定する理由は kilde-cli-swift と同じ: 浮動参照だと上流の push が
