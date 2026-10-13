@@ -1,0 +1,26 @@
+.github/workflows/release.yml
+  h_864205080385bc 54-57
+docs/appstore/metadata/metadata-en.md
+  h_864205080385bc 204
+docs/appstore/metadata/metadata-es.md
+  h_864205080385bc 212
+docs/appstore/metadata/metadata-ja.md
+  h_864205080385bc 217
+docs/appstore/metadata/metadata-ko.md
+  h_864205080385bc 193
+docs/appstore/metadata/metadata-zh-Hans.md
+  h_864205080385bc 183
+docs/release-notes/v0.13.0.md
+  h_864205080385bc 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "975ffeea90af8d0efb66ccdb2e36aee431d72e61",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
