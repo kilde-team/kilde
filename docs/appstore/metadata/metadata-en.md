@@ -189,3 +189,17 @@ v0.10.0; no engine update (the pin stays at v0.10.0) and no new requirements.
 ```text
 You can now pause and resume a recording from the menu bar panel. Paused periods are excluded from both the recording time and the saved file.
 ```
+
+## What's New (0.13.0)
+
+The headline change since MAS 0.12.0 is a **free-disk-space check before
+recordings start** (the engine v0.13.0 preflight, adopted by moving the pin
+from v0.10.0 to v0.14.0). Before recording, the estimated output size is
+compared against the free space at the destination: tight space shows a
+warning up front, and a clearly insufficient disk refuses to start. Engine
+v0.14.0 is mostly CLI-facing improvements with no effect on GUI recording.
+Also includes metrics instrumentation (issue #343) with no functional change.
+
+```text
+Kilde now checks free disk space before a recording starts. You get a warning up front when space is tight, and recording won't start when it clearly isn't enough — no more recordings that fill the disk halfway through.
+```

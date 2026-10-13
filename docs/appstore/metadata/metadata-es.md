@@ -196,3 +196,18 @@ pin sigue en v0.10.0) y sin requisitos nuevos.
 ```text
 Ahora puedes pausar y reanudar una grabación desde el panel de la barra de menús. Los periodos en pausa quedan excluidos de la duración de la grabación y del archivo guardado.
 ```
+
+## Novedades (0.13.0)
+
+El cambio principal desde MAS 0.12.0 es una **comprobación de espacio libre
+en disco antes de iniciar la grabación** (la preverificación del motor
+v0.13.0, adoptada al subir el pin de v0.10.0 a v0.14.0). Antes de grabar se
+compara el tamaño estimado de la configuración con el espacio libre del
+destino: si el espacio está justo se avisa de antemano y, si claramente no
+basta, la grabación no se inicia. El motor v0.14.0 trae sobre todo mejoras
+para la CLI, sin efecto en la grabación desde la GUI. También incluye
+instrumentación de métricas (issue #343) sin cambios funcionales.
+
+```text
+Kilde ahora comprueba el espacio libre en disco antes de iniciar una grabación. Recibirás un aviso por adelantado si el espacio está justo y la grabación no comenzará si claramente no es suficiente: no más grabaciones que llenan el disco a mitad de camino.
+```
