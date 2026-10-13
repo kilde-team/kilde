@@ -201,5 +201,5 @@ v0.14.0 is mostly CLI-facing improvements with no effect on GUI recording.
 Also includes metrics instrumentation (issue #343) with no functional change.
 
 ```text
-Kilde now checks free disk space before a recording starts. You get a warning up front when space is tight, and recording won't start when it clearly isn't enough — no more recordings that fill the disk halfway through.
+kilde now checks free disk space before a recording starts. You get a warning up front when space is tight, and recording won't start when it clearly isn't enough — so a long recording is far less likely to fill the disk midway.
 ```

@@ -209,5 +209,5 @@ para la CLI, sin efecto en la grabación desde la GUI. También incluye
 instrumentación de métricas (issue #343) sin cambios funcionales.
 
 ```text
-Kilde ahora comprueba el espacio libre en disco antes de iniciar una grabación. Recibirás un aviso por adelantado si el espacio está justo y la grabación no comenzará si claramente no es suficiente: no más grabaciones que llenan el disco a mitad de camino.
+kilde ahora comprueba el espacio libre en disco antes de iniciar una grabación. Recibirás un aviso por adelantado si el espacio está justo y la grabación no comenzará si claramente no es suficiente: así una grabación larga es mucho menos probable que llene el disco a mitad de camino.
 ```
