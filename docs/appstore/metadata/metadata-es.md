@@ -211,3 +211,13 @@ instrumentación de métricas (issue #343) sin cambios funcionales.
 ```text
 kilde ahora comprueba el espacio libre en disco antes de iniciar una grabación. Recibirás un aviso por adelantado si el espacio está justo y la grabación no comenzará si claramente no es suficiente: así una grabación larga es mucho menos probable que llene el disco a mitad de camino.
 ```
+
+## Novedades (0.14.0)
+
+Esta versión se centra en mejoras internas: el motor de grabación se ha
+actualizado para mayor estabilidad y como base para próximas funciones
+(issue #352).
+
+```text
+Hemos actualizado el motor de grabación para mejorar la estabilidad.
+```

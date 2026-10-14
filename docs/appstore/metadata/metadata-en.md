@@ -203,3 +203,13 @@ Also includes metrics instrumentation (issue #343) with no functional change.
 ```text
 kilde now checks free disk space before a recording starts. You get a warning up front when space is tight, and recording won't start when it clearly isn't enough — so a long recording is far less likely to fill the disk midway.
 ```
+
+## What's New (0.14.0)
+
+This release focuses on internal improvements: the recording engine has
+been updated for better stability and a stronger foundation for upcoming
+features (issue #352).
+
+```text
+We've updated the recording engine for improved stability.
+```
