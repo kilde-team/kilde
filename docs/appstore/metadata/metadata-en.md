@@ -211,5 +211,5 @@ been updated as groundwork for upcoming features (issue #352). No changes
 to recording operations in the GUI.
 
 ```text
-We've updated the recording engine for improved stability.
+We've updated the recording engine as groundwork for upcoming features.
 ```
