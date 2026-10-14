@@ -219,5 +219,5 @@ actualizado como base para próximas funciones (issue #352). Sin cambios
 en las operaciones de grabación de la GUI.
 
 ```text
-Hemos actualizado el motor de grabación para mejorar la estabilidad.
+Esta actualización renueva el motor de grabación como base para próximas funciones.
 ```
