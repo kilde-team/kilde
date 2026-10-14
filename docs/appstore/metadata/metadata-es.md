@@ -215,8 +215,8 @@ kilde ahora comprueba el espacio libre en disco antes de iniciar una grabación.
 ## Novedades (0.14.0)
 
 Esta versión se centra en mejoras internas: el motor de grabación se ha
-actualizado para mayor estabilidad y como base para próximas funciones
-(issue #352).
+actualizado como base para próximas funciones (issue #352). Sin cambios
+en las operaciones de grabación de la GUI.
 
 ```text
 Hemos actualizado el motor de grabación para mejorar la estabilidad.

@@ -207,8 +207,8 @@ kilde now checks free disk space before a recording starts. You get a warning up
 ## What's New (0.14.0)
 
 This release focuses on internal improvements: the recording engine has
-been updated for better stability and a stronger foundation for upcoming
-features (issue #352).
+been updated as groundwork for upcoming features (issue #352). No changes
+to recording operations in the GUI.
 
 ```text
 We've updated the recording engine for improved stability.
