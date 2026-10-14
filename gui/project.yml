@@ -67,7 +67,10 @@ packages:
     # v0.14.0: CLI 向けの改善が中心 (rec --dry-run、devices / inspect / config show の
     # --json、表示系の整理)。録画の挙動は不変 — DisplayCatalog に同期版 resolver が
     # 増えたのみで、GUI が使う async 経路に変更はない
-    exactVersion: 0.14.0
+    # v0.15.0: Audio Process Tap によるアプリ別音声収録の土台 (--audio app:)。
+    # ProcessTapStream を新設 (macOS 15+ の tap 経路) し、IOProc の並行性規約を
+    # CLAUDE.md §6 に追加。GUI UI からの利用は後続。録画の既存経路には影響なし
+    exactVersion: 0.15.0
   # GUI の自動更新 (issue #122)。Sparkle 2 のバイナリターゲット (macOS 12+) で、
   # リンクすると Sparkle.framework が Contents/Frameworks に埋め込まれる。
   # バージョンを固定する理由は kilde-cli-swift と同じ: 浮動参照だと上流の push が

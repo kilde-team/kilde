@@ -51,10 +51,10 @@ jobs:
           repository: kilde-team/kilde-cli-swift
           # GUI (gui/project.yml) と同じ pin。リリース成果物が「どのコミットで
           # ビルドされたか」を追跡可能にするため。更新時は GUI 側と揃える。
-          # GUI (gui/project.yml) と同じ pin。v0.13.0 は録画開始前のディスク残量
-          # プリフライト (StoragePreflight)、v0.14.0 は CLI 向けの改善 (--dry-run、
-          # --json、表示系 — GUI の録画挙動は不変) を含む。
-          ref: v0.14.0
+          # GUI (gui/project.yml) と同じ pin。v0.15.0 は Audio Process Tap による
+          # アプリ別音声収録の土台 (--audio app: — 新キャプチャ経路) と IOProc の
+          # 並行性規約 (CLAUDE.md §6) を含む。GUI の既存録画経路には影響なし。
+          ref: v0.15.0
           # private リポジトリ: GITHUB_TOKEN は他リポジトリを読めないため
           # fine-grained PAT (contents:read) を使う
           token: ${{ secrets.KILDE_CLI_SWIFT_TOKEN }}
