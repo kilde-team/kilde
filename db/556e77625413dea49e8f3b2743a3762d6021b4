@@ -1,0 +1,21 @@
+docs/release-notes/v0.14.0.md
+  s_bf1b342e3a1cdc::t_9ae49c64bfe176 1-5
+gui/project.yml
+  s_bf1b342e3a1cdc::t_8f8fdf715a0bb5 70-73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "db556e77625413dea49e8f3b2743a3762d6021b4",
+  "prompts": {},
+  "sessions": {
+    "s_bf1b342e3a1cdc": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "2556aafc-d282-4274-8bb3-57b47233c3cc",
+        "model": "auto"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
