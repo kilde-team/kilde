@@ -278,24 +278,30 @@ jobs:
             fi
           fi
 
-      # Release の作成はタグ起動時のみ。手動実行 (workflow_dispatch) は dry-run 固定 —
-      # タグが無いと Info.plist 由来の現在値で v タグを作りかねないため
-      - name: Create GitHub Release and upload artifacts
-        # event が push (タグ) であることも条件に含める — dispatch は ref を偽装できないが、
-        # 判定を独立させて「手動実行は Release を作らない」を二重に保証する
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+      # Release 本文の生成は手動実行 (workflow_dispatch) でも行う — dry-run で本文
+      # (インストール手順) をログから確認できるようにするため (issue #309)。
+      # Release 自体は作らない — 作成は次の step (タグ起動時のみ) に限定する
+      - name: Generate release notes
+        # github.event_name は run に直接展開しない (zizmor template-injection — issue #203)
         env:
-          GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          TAG="v$VERSION"
           # 成果物の zip は実ファイルから取る (ブランチで名前が変わるため。
           # 現在はどちらも kilde-<ver>-macos.zip)
           # ls の出力を解析しない (ShellCheck SC2012 — kilde#201)。dist/*.zip と同じく
           # 直下だけを見て、名前順の先頭を採る (find は列挙順が不定なので sort する)
           ARTIFACT="$(find dist -maxdepth 1 -type f -name '*.zip' 2>/dev/null | sort | head -1)"
           [ -n "$ARTIFACT" ] || { echo "dist/ に zip が無い — ビルド/署名 step を確認"; exit 1; }
-          NOTES="$(mktemp)"
+          # 本文のインストール手順は zip 内の配置 (release/kilde) を前提にするが、
+          # その唯一の真実の源は sign.sh の ditto --keepParent の引数。3 箇所
+          # (sign.sh / Homebrew formula / この本文) が同じ契約を暗黙に共有しているため、
+          # 実 zip を検証してずれがあればリリースを失敗させる (#309 と同種の回帰防止 —
+          # cubic レビュー指摘)
+          unzip -Z1 "$ARTIFACT" | grep -qx 'release/kilde' \
+            || { echo "zip 内に release/kilde がありません — sign.sh の ditto 引数と配置が不一致"; exit 1; }
+          echo "ARTIFACT_PATH=$ARTIFACT" >> "$GITHUB_ENV"
+          NOTES="$RUNNER_TEMP/release-notes.md"
           # リリースノートの正本は docs/release-notes/v<VERSION>.md (issue #283)。
           # あれば本文の先頭に組み込み、無ければ定型のみ (これまで通り)。
           # appcast の <description sparkle:format="html"> も sign.sh が同じファイルから生成するため、
@@ -316,12 +322,36 @@ jobs:
             echo
             echo "### インストール"
             echo '```sh'
-            echo "unzip $(basename "$ARTIFACT") && sudo cp kilde /usr/local/bin/"
+            # zip 内のバイナリは sign.sh の ditto --keepParent により release/kilde に
+            # なる (issue #309)。Homebrew 経路は formula の bin.install "kilde" が
+            # トップレベル dir への chdir を前提にするため影響しない
+            echo "unzip $(basename "$ARTIFACT") && sudo cp release/kilde /usr/local/bin/"
             echo '```'
             echo
             echo "### Homebrew"
             echo "brew install kilde-team/kilde/kilde"
           } > "$NOTES"
+          echo "NOTES_PATH=$NOTES" >> "$GITHUB_ENV"
+          # 手動実行 (dry-run) では Release を作らない代わりに本文をログに出す。
+          # タグ起動時は次の step が同じ内容で Release を作るため出力しない
+          if [ "$EVENT_NAME" != "push" ]; then
+            echo "--- Release 本文プレビュー (dry-run) ---"
+            cat "$NOTES"
+          fi
+
+      # Release の作成はタグ起動時のみ。手動実行 (workflow_dispatch) は dry-run 固定 —
+      # タグが無いと Info.plist 由来の現在値で v タグを作りかねないため
+      - name: Create GitHub Release and upload artifacts
+        # event が push (タグ) であることも条件に含める — dispatch は ref を偽装できないが、
+        # 判定を独立させて「手動実行は Release を作らない」を二重に保証する
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          TAG="v$VERSION"
+          ARTIFACT="$ARTIFACT_PATH"
+          NOTES="$NOTES_PATH"
           ARGS=("$ARTIFACT")
           # sign.sh が GUI の DMG と appcast.xml を必ず作る — appcast は SUFeedURL
           # (latest download の固定 URL) の中身なので添付漏れは全ユーザーの更新を壊す
