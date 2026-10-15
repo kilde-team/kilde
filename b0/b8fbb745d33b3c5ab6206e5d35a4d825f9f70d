@@ -1,0 +1,22 @@
+docs/DEVELOPMENT.md
+  h_864205080385bc 132-137,139,143-144
+gui/Sources/AppDelegate.swift
+  h_864205080385bc 466-470
+gui/Sources/RecordingSetup.swift
+  h_864205080385bc 121-125,160-161,210,379-380,384-396,400-403,413-415,418-423,427,429-448,450-463,466-484
+gui/Sources/SandboxSupport.swift
+  h_864205080385bc 25-33,35,43-44
+gui/Sources/SelfTestConfigSave.swift
+  h_864205080385bc 12-22,25-29,45,49-53,56-57,62-66,70,72,82-83,85-94,96-104,110-119,130-132,144-147,150,162,173,175,182,184-185,188-193,195-196,198,200-232,234-235
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b0b8fbb745d33b3c5ab6206e5d35a4d825f9f70d",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
