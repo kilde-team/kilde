@@ -1,0 +1,18 @@
+gui/Sources/ContentView.swift
+  h_864205080385bc 387-394,402-407,456-459,461-466,480
+gui/Sources/RecordingSetup.swift
+  h_864205080385bc 839-855,860-861,864,875-880,882-886
+gui/Sources/SelfTestAppAudio.swift
+  h_864205080385bc 121-137
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "bc0e2637e883e36dca08e2ab439549bea2507f67",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
