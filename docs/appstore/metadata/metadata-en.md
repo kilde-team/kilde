@@ -213,3 +213,17 @@ to recording operations in the GUI.
 ```text
 We've updated the recording engine as groundwork for upcoming features.
 ```
+
+## What's New (0.15.0)
+
+The single user-visible change since MAS 0.14.0: the capture source
+(screen / window / audio only), audio sources and devices, audio track
+layout ("Mix into one track" / "Separate per source"), and transcription
+settings chosen in the panel are now saved when the recording starts and
+restored on the next launch (issue #345 / PR #359). "Make this audio &
+save location selection the default" now also saves the capture source.
+No engine update (the pin stays at kilde-cli-swift v0.15.0).
+
+```text
+kilde now remembers the capture source, audio sources and devices, audio track layout, and transcription settings you choose in the panel, so the next launch starts with the same setup. "Make this audio & save location selection the default" now also saves the capture source.
+```
