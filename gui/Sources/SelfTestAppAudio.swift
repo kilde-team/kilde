@@ -112,12 +112,28 @@ enum SelfTestAppAudio {
         fresh.setAppSource(true, spec: appSpec.uppercased())
         check(fresh.request.appSources == [appSpec.uppercased()],
               "大文字小文字の違う同じ bundleID で二重追加しない (後の指定で置き換わる)")
-        check(fresh.isSelected(appSource: appSpec), "照合は大文字小文字を無視する")
         check(fresh.unrunningSelectedAppSources == [appSpec.uppercased()],
               "実行していないアプリの指定は «実行中でない» 側に出る")
         // 以降の検証は正規の表記 (小文字) に戻す — 保持値は UI が渡した通りの
         // 文字列で、エンジンの解決が大文字小文字を同一視する
         fresh.setAppSource(true, spec: appSpec)
+
+        // 3-b) 名前指定と実行中アプリの項目の対応 (CodeRabbit レビュー指摘)。
+        //     手編集 config の `app:Safari` のような名前指定が、実行中アプリ
+        //     «Safari» のメニュー項目で «未選択» になると、クリックで同じアプリが
+        //     二重に足される。解決の照合 (resolvesToApp) は合成アプリで確かめる
+        let safari = RecordingSetup.RunningApp(
+            bundleID: "com.apple.Safari", name: "Safari", icon: nil)
+        check(fresh.resolvesToApp("Safari", app: safari),
+              "名前指定 (app:Safari) は実行中アプリ «Safari» の項目に解決される")
+        check(fresh.resolvesToApp("com.apple.Safari", app: safari),
+              "bundleID 指定はその実行中アプリの項目に解決される")
+        check(fresh.resolvesToApp("COM.APPLE.SAFARI", app: safari),
+              "bundleID の照合は大文字小文字を無視する")
+        check(!fresh.resolvesToApp("com.example.selftestapp", app: safari),
+              "別のアプリの指定はその項目に解決されない")
+        check(fresh.hasSelectedSource(resolvingTo: safari) == false,
+              "名前指定だけでは無関係な実行中アプリは «選択中» にならない")
 
         // 4) エンジン契約 — «app と system の併用は makeOptions / savingDefaults の
         //    両方で拒否» (RecordRequest.checkSourceCombination)。GUI が外し忘れた

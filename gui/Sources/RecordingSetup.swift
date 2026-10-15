@@ -836,30 +836,32 @@ final class RecordingSetup: ObservableObject {
         .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
-    /// アプリの音声ソースが選択中か。照合は bundleID の**大文字小文字を無視する** —
-    /// エンジンの解決 (ProcessTapStream.resolveTargets の bundleID 完全一致は
-    /// caseInsensitiveCompare) と同じ規則にしないと、手編集 config の大文字小文字の揺れを
-    /// «未選択» と誤表示する
-    func isSelected(appSource spec: String) -> Bool {
-        request.appSources.contains { $0.caseInsensitiveCompare(spec) == .orderedSame }
+    /// spec がこの実行中アプリに解決されるか。照合は**エンジンの解決順と同じ**
+    /// «bundleID の完全一致 (大文字小文字を無視) → 名前の部分一致» —
+    /// 手編集 config の `app:Safari` のような名前指定を、実行中アプリ
+    /// «Safari» (com.apple.Safari) のメニュー項目で «未選択» と誤表示すると、
+    /// クリックで同じアプリが二重に足される (CodeRabbit レビュー指摘)。
+    /// 名前の部分一致は解決のフォールバック (音声を出しているプロセス限定) を
+    /// 精度より採用側で広く見る — «選べるはずなのに未選択» より «選択中» 表示の
+    /// 誤りのほうが被害が小さい (外す操作は同じアプリに束ねて効くため)
+    func resolvesToApp(_ spec: String, app: RunningApp) -> Bool {
+        app.bundleID.caseInsensitiveCompare(spec) == .orderedSame
+            || app.name.localizedCaseInsensitiveContains(spec)
+    }
+
+    /// この実行中アプリに解決される選択済みの音声ソースがあるか
+    /// (メニュー項目の選択表示)
+    func hasSelectedSource(resolvingTo app: RunningApp) -> Bool {
+        request.appSources.contains { resolvesToApp($0, app: app) }
     }
 
     /// 選択中のアプリ音声のうち、実行中のアプリ一覧に無いもの (前回の選択を復元したが
     /// そのアプリが終わっていた等)。ピッカーに «実行中でない» 項目として出す —
-    /// 一覧から消えるだけだと «選んだ音声が何か» が見えず、外すこともできない。
-    ///
-    /// «実行中» の判定は bundleID の完全一致に加えて**アプリ名の部分一致も通す** —
-    /// エンジンの解決 (ProcessTapStream.resolveTargets) は bundleID で見つからなかった
-    /// 指定を名前の部分一致で救うため、名前で書かれた手編集 config の値を
-    /// «実行中でない» と誤表示すると、録れるはずの構成に «失敗する» 印を付けてしまう。
-    /// 逆の誤り (一覧にあるのに engine が解決できない — 音声を出していないプロセス) は
-    /// 開始時にエンジンのエラーで分かるので、ここでは起きない方向に倒す
+    /// 一覧から消えるだけだと «選んだ音声が何か» が見えず、外すこともできるようにするため。
+    /// «実行中» の判定は resolvesToApp と同じ
     var unrunningSelectedAppSources: [String] {
         request.appSources.filter { spec in
-            !runningApps.contains {
-                $0.bundleID.caseInsensitiveCompare(spec) == .orderedSame
-                    || $0.name.localizedCaseInsensitiveContains(spec)
-            }
+            !runningApps.contains { resolvesToApp(spec, app: $0) }
         }
     }
 
@@ -870,8 +872,18 @@ final class RecordingSetup: ObservableObject {
     /// UI で先に外しておかないと、選んだ直後の録画開始 («既定値として保存» も) が
     /// 必ず requestInvalid で失敗する状態になる。**マイクとの併用は可** (エンジン契約どおり)。
     /// 切替の理由はピッカーの下の案内文 (ContentView.appAudioPicker) が担う
+    ///
+    /// 追加は **spec をそのまま保持するが、同じ実行中アプリに解決される既存の指定を
+    /// 先に外す** — `app:Safari` (名前指定) が保存済みのときに実行中アプリ «Safari» の
+    /// 項目をクリックすると、`app:Safari` を外して `app:com.apple.Safari` を足す。
+    /// 両方が併存するとエンジンが同じプロセスを 2 つのソースとして解決し、
+    /// 同じ音を二重に録ることになる (CodeRabbit レビュー指摘)
     func setAppSource(_ selected: Bool, spec: String) {
-        request.appSources.removeAll { $0.caseInsensitiveCompare(spec) == .orderedSame }
+        let sameApps = runningApps.filter { resolvesToApp(spec, app: $0) }
+        request.appSources.removeAll { existing in
+            existing.caseInsensitiveCompare(spec) == .orderedSame
+                || sameApps.contains { resolvesToApp(existing, app: $0) }
+        }
         if selected {
             request.captureSystemAudio = false
             request.appSources.append(spec)

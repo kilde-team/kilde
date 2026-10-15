@@ -384,8 +384,14 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 4) {
             Menu {
                 ForEach(setup.runningApps) { app in
-                    appAudioMenuItem(spec: app.bundleID, name: app.name, icon: app.icon,
-                                     running: true)
+                    appAudioMenuItem(
+                        title: app.name,
+                        icon: app.icon,
+                        selected: setup.hasSelectedSource(resolvingTo: app),
+                        noteUnrunning: false,
+                        action: { setup.setAppSource(
+                            !setup.hasSelectedSource(resolvingTo: app),
+                            spec: app.bundleID) })
                 }
                 // 復元した選択のうち、そのアプリが終わっていたもの。**選択を見せる** —
                 // 一覧から消えるだけだと «前回選んだ音声が何か» が分からず外せない。
@@ -393,7 +399,12 @@ struct ContentView: View {
                 // (黙って system に縮退しない — issue の受け入れ条件)。失敗の案内は
                 // 録画開始時の通知とパネルの失敗表示にエンジンのエラーメッセージがそのまま載る
                 ForEach(setup.unrunningSelectedAppSources, id: \.self) { spec in
-                    appAudioMenuItem(spec: spec, name: spec, icon: nil, running: false)
+                    appAudioMenuItem(
+                        title: spec,
+                        icon: nil,
+                        selected: true,
+                        noteUnrunning: true,
+                        action: { setup.setAppSource(false, spec: spec) })
                 }
                 if setup.runningApps.isEmpty && setup.unrunningSelectedAppSources.isEmpty {
                     Button(String(localized: "実行中のアプリがありません")) {}
@@ -442,16 +453,17 @@ struct ContentView: View {
     /// メニューの 1 項目。チェックマークはシステムのメニュー規約に合わせて先頭に置き、
     /// 未選択の行も位置を揃えるため透明化せず opacity で残す。
     /// «実行中でない» の接尾辞は String として連結する (Text 同士の + だと
-    /// 列の間に spacing が入ってアプリ名と離れて見える)
+    /// 列の間に spacing が入ってアプリ名と離れて見える)。
+    /// 選択表示と切替は呼び出し側で決める — «実行中アプリ» の項目は
+    /// `hasSelectedSource(resolvingTo:)` (名前指定の復元値も選択中と見なす)、
+    /// «実行中でない» の項目は常に選択中 (選ぶと外れる)
     @available(macOS 15.0, *)
-    private func appAudioMenuItem(spec: String, name: String, icon: NSImage?,
-                                  running: Bool) -> some View {
-        let selected = setup.isSelected(appSource: spec)
-        let title = running ? name
-            : name + " " + String(localized: "(実行中でない)")
-        return Button {
-            setup.setAppSource(!selected, spec: spec)
-        } label: {
+    private func appAudioMenuItem(title: String, icon: NSImage?, selected: Bool,
+                                  noteUnrunning: Bool, action: @escaping () -> Void) -> some View {
+        let displayTitle = noteUnrunning
+            ? title + " " + String(localized: "(実行中でない)")
+            : title
+        return Button(action: action) {
             HStack(spacing: 6) {
                 Image(systemName: "checkmark")
                     .opacity(selected ? 1 : 0)
@@ -465,7 +477,7 @@ struct ContentView: View {
                         .frame(width: 16, height: 16)
                         .foregroundStyle(.secondary)
                 }
-                Text(title)
+                Text(displayTitle)
                     .lineLimit(1)
             }
         }
