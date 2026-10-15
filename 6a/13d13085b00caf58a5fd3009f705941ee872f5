@@ -1,0 +1,18 @@
+docs/appstore/metadata/metadata-en.md
+  h_864205080385bc 224-229
+docs/appstore/metadata/metadata-es.md
+  h_864205080385bc 232-238
+docs/appstore/metadata/metadata-ja.md
+  h_864205080385bc 236
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6a13d13085b00caf58a5fd3009f705941ee872f5",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
