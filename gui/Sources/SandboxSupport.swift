@@ -38,9 +38,16 @@ enum SandboxSupport {
         // サンドボックス下では .applicationSupportDirectory がコンテナ内を指す。
         // ホーム直下の ".kilde" と対応する場所として <コンテナ>/Application Support/kilde を使う
         let directory = support.appendingPathComponent("kilde", isDirectory: true)
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        } catch {
+            // 作成に失敗したときは directory も «済» フラグも更新しない —
+            // 失敗したパスへ差し替えたまま固めると、以降の load()/save() がずっと
+            // その失敗を引きずる。«済» にしないことで次の init で再試行できる
+            // (cubic レビュー指摘)
+            return
+        }
         ConfigStore.directory = directory
-        // 実際に差し替えたときだけ «済» にする — 解決に失敗したときは再試行の余地を残す
         hasRedirectedConfigStore = true
     }
 
