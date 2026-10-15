@@ -221,11 +221,12 @@ The single user-visible change since MAS 0.14.0: the capture source
 layout ("Mix into one track" / "Separate per source"), and transcription
 settings chosen in the panel are now saved when a recording is started
 from the panel (button or global hotkey) and restored on the next launch
-(issue #345 / PR #359). Recordings started via Shortcuts or meeting
-auto-detection still use the panel selection but are not saved. "Make
-this audio & save location selection the default" now also saves the
-capture source. No engine update (the pin stays at kilde-cli-swift
-v0.15.0).
+(issue #345 / PR #359). Only panel-started recordings are saved: Shortcuts
+and meeting auto-detection starts are not (both override the capture
+target, and meeting auto-detection also fixes the audio inputs to the
+meeting setup). "Make this audio & save location selection the default"
+now also saves the capture source. No engine update (the pin stays at
+kilde-cli-swift v0.15.0).
 
 ```text
 When you start a recording from the panel, kilde now remembers the capture source, audio sources and devices, audio track layout, and transcription settings selected there, so the next launch starts with the same setup. "Make this audio & save location selection the default" now also saves the capture source.

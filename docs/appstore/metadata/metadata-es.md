@@ -229,11 +229,13 @@ captura (pantalla / ventana / solo audio), las fuentes y dispositivos de
 audio, la disposición de las pistas («Mezclar en una pista» / «Separar por
 fuente») y la configuración de transcripción elegidos en el panel se
 guardan al iniciar la grabación desde el panel (botón o atajo global) y se
-restauran en el siguiente arranque (issue #345 / PR #359). Las grabaciones
-iniciadas desde Atajos o por detección automática de reuniones siguen
-usando la selección del panel, pero no se guardan. «Hacer predeterminada
-esta selección de audio y ubicación» también guarda el origen de captura.
-Sin actualización del motor (el pin se mantiene en kilde-cli-swift v0.15.0).
+restauran en el siguiente arranque (issue #345 / PR #359). Solo se guardan
+las grabaciones iniciadas desde el panel: las iniciadas desde Atajos o por
+detección automática de reuniones no se guardan (ambas sustituyen el origen
+de captura, y la detección de reuniones también fija las entradas de audio).
+«Hacer predeterminada esta selección de audio y ubicación» también guarda el
+origen de captura. Sin actualización del motor (el pin se mantiene en
+kilde-cli-swift v0.15.0).
 
 ```text
 Al iniciar una grabación desde el panel, kilde ahora recuerda el origen de captura, las fuentes y dispositivos de audio, la disposición de las pistas y la configuración de transcripción seleccionados, para que el próximo arranque empiece con la misma configuración. «Hacer predeterminada esta selección de audio y ubicación» también guarda el origen de captura.
