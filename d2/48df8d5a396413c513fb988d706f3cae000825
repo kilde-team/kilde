@@ -1,0 +1,26 @@
+docs/DEVELOPMENT.md
+  h_864205080385bc 132-142,465-498
+gui/Resources/Localizable.xcstrings
+  h_864205080385bc 4672-4700
+gui/Sources/AppDelegate.swift
+  h_864205080385bc 462-465
+gui/Sources/ContentView.swift
+  h_864205080385bc 840-843
+gui/Sources/RecordingSetup.swift
+  h_864205080385bc 199-206,319-444
+gui/Sources/SelfTest.swift
+  h_864205080385bc 29-36
+gui/Sources/SelfTestConfigSave.swift
+  h_864205080385bc 1-204
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d248df8d5a396413c513fb988d706f3cae000825",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
