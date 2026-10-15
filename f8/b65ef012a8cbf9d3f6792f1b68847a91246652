@@ -1,0 +1,16 @@
+docs/DEVELOPMENT.md
+  h_864205080385bc 137-138
+gui/Sources/SandboxSupport.swift
+  h_864205080385bc 41-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f8b65ef012a8cbf9d3f6792f1b68847a91246652",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
