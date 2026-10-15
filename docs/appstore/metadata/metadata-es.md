@@ -228,11 +228,13 @@ El único cambio visible para el usuario desde MAS 0.14.0: el origen de
 captura (pantalla / ventana / solo audio), las fuentes y dispositivos de
 audio, la disposición de las pistas («Mezclar en una pista» / «Separar por
 fuente») y la configuración de transcripción elegidos en el panel se
-guardan al iniciar la grabación y se restauran en el siguiente arranque
-(issue #345 / PR #359). «Hacer predeterminada esta selección de audio y
-ubicación» también guarda el origen de captura. Sin actualización del motor
-(el pin se mantiene en kilde-cli-swift v0.15.0).
+guardan al iniciar la grabación desde el panel (botón o atajo global) y se
+restauran en el siguiente arranque (issue #345 / PR #359). Las grabaciones
+iniciadas desde Atajos o por detección automática de reuniones siguen
+usando la selección del panel, pero no se guardan. «Hacer predeterminada
+esta selección de audio y ubicación» también guarda el origen de captura.
+Sin actualización del motor (el pin se mantiene en kilde-cli-swift v0.15.0).
 
 ```text
-kilde ahora recuerda el origen de captura, las fuentes y dispositivos de audio, la disposición de las pistas y la configuración de transcripción que eliges en el panel: el próximo arranque empieza con la misma configuración. «Hacer predeterminada esta selección de audio y ubicación» también guarda el origen de captura.
+Al iniciar una grabación desde el panel, kilde ahora recuerda el origen de captura, las fuentes y dispositivos de audio, la disposición de las pistas y la configuración de transcripción seleccionados, para que el próximo arranque empiece con la misma configuración. «Hacer predeterminada esta selección de audio y ubicación» también guarda el origen de captura.
 ```
