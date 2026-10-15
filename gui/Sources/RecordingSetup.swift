@@ -118,6 +118,11 @@ final class RecordingSetup: ObservableObject {
     /// 設定ファイル (~/.kilde/config.json) の内容。CLI と共有する (issue #14)
     private(set) var config = KildeConfig()
 
+    /// 収録対象の保存先。**既定は .standard だがセルフテストは別スイートを注入する** —
+    /// 共有の standard を検証で消去・復元すると、同時に走っている別プロセスの GUI が
+    /// 保存したばかりの収録対象を消してしまうため (cubic レビュー指摘)
+    private let defaults: UserDefaults
+
     /// 列挙の多重実行を防ぐ。UI の読み込み表示 (loading) はタイムアウトで解除して再試行を
     /// 許すが、SCShareableContent の列挙自体は止められない (権限プロンプト保留中は返らない
     /// こともある)。実列挙の完了まで次を始めず、その間の要求は記録して完了後に 1 回だけ再実行する
@@ -152,7 +157,8 @@ final class RecordingSetup: ObservableObject {
         localized: "保存先を変更しました。ただし記録できなかったため、次にアプリを起動したときは既定の保存先に戻ります")
 #endif
 
-    init() {
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
 #if APPSTORE
         // **ConfigStore に触るより先に**設定の保存先をコンテナ内へ退避させる (issue #126)。
         // 既定の ~/.kilde はサンドボックス下で読み書きできないため
@@ -196,6 +202,14 @@ final class RecordingSetup: ObservableObject {
             request.outputDirectory = fallback
         }
 #endif
+        // 前回録画したときの収録対象を復元する (issue #345)。音声ソース・トラック方針・
+        // 保存先は上の RecordRequest.initial が config.json から復元済みだが、収録対象
+        // (画面 / ウィンドウ / 音声のみ) だけは config.json にキーが存在しないため
+        // GUI ローカル (UserDefaults) で持ち越す。ユーザー報告 «「既定値として保存」を押しても
+        // capture source selector が保存されない» の直接の原因はここ (保存・復元の両方が無い)
+        if let restored = Self.restoreCaptureTarget(defaults: defaults) {
+            request.target = restored
+        }
         hotkeyDraft = config.hotkey ?? ""
         transcribeEnabled = config.transcribe ?? false
         transcriptLocale = Self.normalizedLocale(config.locale)
@@ -307,6 +321,166 @@ final class RecordingSetup: ObservableObject {
             notice = String(localized: "既定値として保存しました (\(ConfigStore.fileURL.path))")
         } catch {
             notice = String(localized: "既定値を保存できません: \(error)")
+        }
+        // 収録対象も«既定»の対象に含める (issue #345)。«この音声・保存先の選択を既定にする» と
+        // ボタンにある以上、収録対象 (capture source selector) が抜けるのはユーザー報告のとおり
+        // 不自然 — config.json にキーが無いため GUI ローカルへ保存する
+        persistCaptureTarget()
+    }
+
+    // MARK: - 録画に使った構成の引き継ぎ (issue #345)
+
+    /// 収録対象を保存する UserDefaults のキー。**GUI ローカル** — config.json (CLI と共有) には
+    /// «収録対象» のキーが存在せず (KildeConfig のキー一覧を参照)、エンジン
+    /// (kilde-team/kilde-cli-swift) を変更せずに持たせるため。セルフテストから参照するため non-private
+    static let captureTargetDefaultsKey = "lastCaptureTarget"
+
+    /// 録画開始時に、パネルの選択を次回起動時の初期選択として保存する (issue #345)。
+    ///
+    /// **パネルからの録画開始経路 (ボタン・グローバルホットキー) からだけ呼ぶ。**
+    /// ポップオーバー操作のたびのディスク書き込みを避けることと、«実際に使った構成が
+    /// 次回の既定になる» という意味論のため。会議の自動録画・ショートカット
+    /// (AppIntents) はパネルと別の構成 (または対象の差し替え) で始まりうるため呼ばない。
+    /// セルフテストの録画経路 (SelfTest の makeOptions → recording.start) も通らない —
+    /// «セルフテストはユーザーの config を書き換えない» 規約を守るため、このメソッドは
+    /// makeOptions 内ではなく開始経路の側から呼ぶ
+    ///
+    /// config.json に書くのは音声ソース (`defaultAudioSources`)・トラック方針
+    /// (`audioTracks`)・文字起こし (`transcribe`)。変換は `RecordRequest.audioSourceStrings`
+    /// (`--audio` と同じ文字列表現) をそのまま使う。**保存先 (`outputDirectory`) は触らない** —
+    /// MAS 版は security-scoped bookmark 経由で独立に永続化されており
+    /// (SandboxOutputDirectory)、config のパスはコンテナ内を指しえて CLI でも解釈できない。
+    /// 収録対象は config.json にキーが無いため UserDefaults へ保存する (persistCaptureTarget)
+    ///
+    /// 書き込みは load → 反映 → save の順 (saveTranscriptionSetting と同じ理由 —
+    /// GUI はメニューバー常駐のため立ち上がったまま長く経つので、起動時スナップショットで
+    /// CLI 側の変更を握りつぶさない)。失敗しても**録画開始は止めない** —
+    /// 既定値の保存は本質ではなく、開始を妨げる理由がない (案内のみ出す)
+    func persistSessionDefaults() {
+        do {
+            var updated = try ConfigStore.load()
+            updated.defaultAudioSources = request.audioSourceStrings
+            updated.audioTracks = request.trackPolicy.name
+            updated.transcribe = transcribeEnabled
+            try ConfigStore.save(updated)
+            config = updated
+        } catch {
+            // 隣の saveAsDefaults と違い String(describing:) を明示する — Error の素の補間は
+            // «debug description を使う» deprecation 警告になるため、新規のコードで
+            // 警告を増やさない (出力は同じ debug description になる)
+            notice = String(localized: "次回起動用の設定を保存できません: \(String(describing: error))")
+        }
+        persistCaptureTarget()
+    }
+
+    /// 収録対象を UserDefaults へ保存する。config.json にこのキーは無い
+    /// (captureTargetDefaultsKey のコメント)
+    private func persistCaptureTarget() {
+        defaults.set(
+            Self.encodedCaptureTarget(request.target), forKey: Self.captureTargetDefaultsKey)
+    }
+
+    /// RecordRequest.Target を UserDefaults に保存できる文字列へ変換する
+    /// ("audioOnly" / "display:<index>" / "window:<id>:<bundleIdentifier>")。
+    /// タグを含まない素の列挙なので Codable が使えず、CLI の `--display` / `--window`
+    /// と同じ語彙の文字列で持つ
+    ///
+    /// ウィンドウ選択は **所有アプリの bundle identifier を一緒に保存する** —
+    /// windowID は再起動後に別のウィンドウへ再利用されることがあり、ID の存続確認だけでは
+    /// «別ウィンドウへすり替わった» ものを復元してしまう (cubic レビュー指摘)。
+    /// 復元時は ID の存続と bundle の一致の両方を要求する (restoreCaptureTarget)。
+    /// ウィンドウが見つからないときは bundle を空で保存する — 復元時の一致確認は
+    /// 必ず失敗し、既定 (ディスプレイ 0) に倒れる
+    static func encodedCaptureTarget(
+        _ target: RecordRequest.Target, liveWindows: [WindowIdentity]? = nil
+    ) -> String {
+        switch target {
+        case .audioOnly: return "audioOnly"
+        case .display(let index): return "display:\(index)"
+        case .window(let id):
+            let windows = liveWindows ?? Self.currentWindows()
+            let bundle = windows.first { $0.id == id }?.bundleIdentifier ?? ""
+            return "window:\(id):\(bundle)"
+        }
+    }
+
+    /// 保存済みの収録対象を、**今の環境で意味が通るか検証してから**復元する。
+    /// ディスプレイ番号と windowID は環境で変わる値なので、存在しない対象をそのまま
+    /// 選択状態にすると «選んだのに一覧に無い» 状態になる。無効と判断したら nil を返し、
+    /// 呼び出し側は既定 (ディスプレイ 0) のままにする
+    ///
+    /// - ディスプレイ: NSScreen は権限不要で取れる。SCShareableContent の列挙数と
+    ///   一致する保証はないが、範囲外の番号を落とす用途には足りる。判定は
+    ///   **`0 <= index && index < 台数` の単一規則**にする — «0 は常に有効» の
+    ///   特例を入れると、0 台の環境で範囲検証が壊れても見逃される (cubic レビュー指摘)。
+    ///   範囲内でも列挙後に消えていた場合は apply の既定経路がディスプレイ 0 へ戻す
+    /// - ウィンドウ: **windowID は WindowServer の起動単位で振り直される**ため、
+    ///   再起動後の同一ウィンドウ保証は無い。ID の存続に加えて
+    ///   **保存時に記録した所有アプリの bundle identifier との一致**を要求する —
+    ///   存続確認だけだと、再利用された ID が別アプリのウィンドウを指したまま
+    ///   復元され、パネルを開かないホットキー開始で意図しないウィンドウを録りえる
+    ///   (cubic レビュー指摘)。bundle の取れないウィンドウはパネルから選べない
+    ///   (apply のフィルタ) ので、空の bundle を要求することはない
+    static func restoreCaptureTarget(
+        defaults: UserDefaults = .standard,
+        screens: [NSScreen] = NSScreen.screens,
+        liveWindows: [WindowIdentity]? = nil
+    ) -> RecordRequest.Target? {
+        guard let raw = defaults.string(forKey: captureTargetDefaultsKey) else { return nil }
+        if raw == "audioOnly" { return .audioOnly }
+        if raw.hasPrefix("display:") {
+            guard let index = Int(raw.dropFirst("display:".count)),
+                  index >= 0, index < screens.count else { return nil }
+            return .display(index: index)
+        }
+        if raw.hasPrefix("window:") {
+            // "window:<id>:<bundleIdentifier>" — bundle は encodedCaptureTarget の
+            // コメントのとおり再利用検出のため。ID と bundle の区切りは最初の ":"
+            let rest = raw.dropFirst("window:".count)
+            guard let separator = rest.firstIndex(of: ":"),
+                  separator > rest.startIndex,
+                  let id = UInt32(rest[..<separator]) else { return nil }
+            let bundle = String(rest[rest.index(after: separator)...])
+            guard !bundle.isEmpty else { return nil }
+            let windows = liveWindows ?? Self.currentWindows()
+            guard let live = windows.first(where: { $0.id == id }),
+                  live.bundleIdentifier == bundle else { return nil }
+            return .window(id: id)
+        }
+        return nil
+    }
+
+    /// いま生きているウィンドウの識別情報 (CGWindowID と所有アプリの bundle identifier)。
+    /// 存在するすべてのウィンドウを対象にする — **最小化・別 Space・画面外のウィンドウも
+    /// 復元の対象**にするため (画面上のものだけだと、最小化したまま保存したウィンドウが
+    /// 復元できなくなる。cubic レビュー指摘)。MeetingDetector と同じ
+    /// CGWindowListCopyWindowInfo の問い合わせで、収録対象の列挙に SCK を使わない
+    /// 理由もそちらのコメント。bundle identifier は CGWindowList の辞書には載らないため
+    /// (未文書のキーが実測で空。2026-10-15)、MeetingDetector と同じく
+    /// 所有プロセスの NSRunningApplication から取る
+    struct WindowIdentity {
+        let id: UInt32
+        let bundleIdentifier: String
+    }
+
+    private static func currentWindows() -> [WindowIdentity] {
+        guard let list = CGWindowListCopyWindowInfo(.optionAll, kCGNullWindowID)
+                as? [[String: Any]] else { return [] }
+        // NSRunningApplication の問い合わせは PID 単位でまとめる — 同じアプリの
+        // ウィンドウごとに LaunchServices を叩かない
+        var bundleCache: [pid_t: String?] = [:]
+        return list.compactMap { info in
+            guard let number = info[kCGWindowNumber as String] as? Int,
+                  let pid = info[kCGWindowOwnerPID as String] as? Int else { return nil }
+            let ownerPID = pid_t(pid)
+            let bundle: String?
+            if let cached = bundleCache[ownerPID] {
+                bundle = cached
+            } else {
+                bundle = NSRunningApplication(processIdentifier: ownerPID)?.bundleIdentifier
+                bundleCache[ownerPID] = bundle
+            }
+            return WindowIdentity(id: UInt32(number), bundleIdentifier: bundle ?? "")
         }
     }
 

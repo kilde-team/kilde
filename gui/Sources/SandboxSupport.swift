@@ -22,14 +22,33 @@ enum SandboxSupport {
     /// 初期化されるので、それ以降の差し替えは間に合わない。現在の最初の消費者は
     /// RecordingSetup.init (AppDelegate のプロパティ初期化)。ここ以外から先に
     /// ConfigStore に触る実装を足すときは、この呼び出しの位置を見直すこと
+    ///
+    /// **プロセス内で 1 回だけ効く。** RecordingSetup.init は RecordingSetup を
+    /// 作るたびにこの関数を呼ぶが、2 回目以降で directory をコンテナへ戻すと、
+    /// 設定の引き継ぎのセルフテスト (KILDE_GUI_SELFTEST_CONFIG_SAVE、issue #345) が
+    /// ConfigStore.directory を一時ディレクトリへ差し替えて RecordingSetup を
+    /// 作り直した途端に**実コンテナの config.json を読み書きしてしまう**
+    /// (cubic レビュー指摘)。実運用では AppDelegate.setup の初回 init が唯一の
+    /// 呼び出し元なので、1 回だけの制約で挙動は変わらない
+    private static var hasRedirectedConfigStore = false
     static func redirectConfigStoreIntoContainer() {
+        guard !hasRedirectedConfigStore else { return }
         guard let support = FileManager.default.urls(
             for: .applicationSupportDirectory, in: .userDomainMask).first else { return }
         // サンドボックス下では .applicationSupportDirectory がコンテナ内を指す。
         // ホーム直下の ".kilde" と対応する場所として <コンテナ>/Application Support/kilde を使う
         let directory = support.appendingPathComponent("kilde", isDirectory: true)
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        } catch {
+            // 作成に失敗したときは directory も «済» フラグも更新しない —
+            // 失敗したパスへ差し替えたまま固めると、以降の load()/save() がずっと
+            // その失敗を引きずる。«済» にしないことで次の init で再試行できる
+            // (cubic レビュー指摘)
+            return
+        }
         ConfigStore.directory = directory
+        hasRedirectedConfigStore = true
     }
 
     /// 録画の保存先の既定 (~/Movies) を **ユーザーから見えるパス** で返す。

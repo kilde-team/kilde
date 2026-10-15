@@ -459,6 +459,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         do {
             let options = try setup.makeOptions()
             setup.notice = nil
+            // パネルの選択を次回起動時の初期選択として保存する (issue #345)。
+            // 開始ボタンと同じ意味論 — ボタン経由でしか保存しないと、ホットキー運用の
+            // ユーザーの選択が次回に引き継がれない。保存に失敗しても録画開始は止めない
+            setup.persistSessionDefaults()
+            // 保存に失敗したときはポップオーバーを開いて案内を見せる — この経路は
+            // 他アプリの前面から始まるため、開かないと «次回に引き継がれない» ことに
+            // 気付けない (cubic レビュー指摘)。直前で notice を nil にしているので、
+            // 非 nil は persist の失敗を意味する
+            if setup.notice != nil { showPopover() }
             recording.start(options)
         } catch {
             setup.notice = String(localized: "開始できません: \(error)")

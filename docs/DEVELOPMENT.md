@@ -129,8 +129,20 @@ xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI -configuration Debug bui
 
 - 選択 → 録画オプションの変換は KildeCore の `RecordRequest` で行い、CLI と同じ
   `RecordSettings.apply()` → `Recorder` を通る (codec / fps / カーソルは設定ファイルの値)
-- 初期値は `~/.kilde/config.json` から読む。GUI の操作で設定ファイルは書き換えず、
-  「この音声・保存先の選択を既定にする」を押したときだけ保存する (CLI の既定も変わるため)
+- 初期値は設定ファイルから読む (issue #345)。直接配布版では `~/.kilde/config.json`
+  (CLI と共有)、**MAS 版は `SandboxSupport` がコンテナ内へ退避した設定**を用いる。
+  **パネルからの録画開始** (ボタン・グローバルホットキー) のたびに、そのときの音声ソース・
+  トラック方針・文字起こしの設定が設定ファイルの既定値に書かれるため、アプリの再起動後も
+  前回録画した構成で始まる。**直接配布版では CLI の既定も同じファイルなので変わる**
+  (意図した挙動) — MAS 版は CLI と設定を共有しないため変わらない。保存に失敗した場合は
+  案内を出して録画自体は続行するが、**次回起動には反映されない**。
+  «この音声・保存先の選択を既定にする» ボタンは録画を始めずに同じ内容を保存する。
+  収録対象 (画面 / ウィンドウ / 音声のみ) だけは設定ファイルにキーが無いため
+  GUI ローカルの設定 (UserDefaults) に保存し、ディスプレイ番号と windowID は
+  復元時に存在を確かめてから採用する (windowID は再起動で無効になりうる)。
+  保存先 (outputDirectory) は録画開始の保存では書かない — MAS 版は
+  security-scoped bookmark で独立に永続化されており、設定ファイルに書くと
+  コンテナ内のパスが残るため (ボタン経由では保存される — 直接配布版では CLI の既定として有効)
 - 設定に保存先が無いときは `~/Movies` に保存する (GUI はカレントディレクトリが `/` のため)
 
 権限が足りない構成を選ぶと、パネルに案内が出て「録画開始」が押せなくなります (issue #19)。
@@ -452,6 +464,40 @@ KILDE_GUI_SELFTEST_LIBRARY_EXPORT=1 "$APP/Contents/MacOS/KildeGUI"
 書かれ、中身がライブラリ表示と同じ文字起こしであること** を確かめてください。
 あわせて **検索語を入れて絞り込んだ状態で書き出し、ヒットしていない行も含めて
 録画全体が書かれること** (書き出しは検索の影響を受けない) も確かめてください。
+
+### 設定の引き継ぎ (録画開始時の保存 → 次回起動時の復元) を確かめる (issue #345)
+
+`KILDE_GUI_SELFTEST_CONFIG_SAVE=1` は録画せず、**設定の引き継ぎ**を
+ConfigStore の保存先を一時ディレクトリへ差し替えて検証し、終わります。
+**実録画を伴わない**ため、録画のスロット (権限・スピーカー) を占有しません
+(並行する録画テストと同時に回せます)。ユーザーの実 `~/.kilde/config.json` と
+UserDefaults (`lastCaptureTarget`) は退避して元へ戻します:
+
+```sh
+KILDE_GUI_SELFTEST_CONFIG_SAVE=1 "$APP/Contents/MacOS/KildeGUI"
+# → selftest: config-save OK: 保存が無い状態の captureMic はオフ
+#   selftest: config-save OK: 音声ソースが --audio と同じ文字列表現で保存される (…)
+#   selftest: config-save OK: outputDirectory は書き換えない (bookmark に任せる)
+#   selftest: config-save OK: 復元: 収録対象が音声のみ (capture source selector — ユーザー報告の修正)
+#   selftest: config-save OK: persist を呼ばない変更は config.json に漏れない
+#   …
+#   selftest: config-save failures=0 (exit 0)
+```
+
+検証しているのは、`persistSessionDefaults` の config.json への反映
+(音声ソースは `--audio` と同じ文字列表現、トラック方針、文字起こしのトグル。
+**outputDirectory を書かない**ことも)、収録対象の UserDefaults への保存と
+復元 (`RecordingSetup.init` = 再起動後と同じ経路で作り直して確かめる)、
+無効になったディスプレイ番号・windowID を復元しないこと、
+«persist を呼ばない変更は漏れない» こと (受け入れ条件
+«録画を開始しないまま終了した場合、開始していない構成は保存されない» の検証) です。
+
+**このセルフテストで「通った」にできないもの**: 実際の録画開始経路
+(ボタン・グローバルホットキー) から保存が呼ばれること。実録画が要るため実機で
+確認します — パネルで構成を変えて録画を開始 → アプリを終了 → 起動し直して
+**前回の構成 (収録対象・音声・トラック方針・文字起こし) が選択された状態で
+パネルが開くこと** を確かめてください。保存先は MAS 版が bookmark 経由、
+直接配布版は «既定値として保存» ボタンで復元されます。
 
 ### 検証時の環境の注意
 

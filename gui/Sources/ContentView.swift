@@ -837,6 +837,10 @@ struct ContentView: View {
         do {
             let options = try setup.makeOptions()
             setup.notice = nil
+            // パネルの選択を次回起動時の初期選択として保存する (issue #345)。
+            // «実際に使った構成が次回の既定になる» の意味論。保存に失敗しても
+            // 録画開始は止めない (persistSessionDefaults のコメント)
+            setup.persistSessionDefaults()
             recording.start(options)
         } catch {
             setup.notice = String(localized: "開始できません: \(error)")
