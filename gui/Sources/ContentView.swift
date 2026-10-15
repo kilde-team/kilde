@@ -336,7 +336,10 @@ struct ContentView: View {
 
     private var audioToggles: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Toggle("システム音声 (相手の声・アプリの音)", isOn: $setup.request.captureSystemAudio)
+            // Binding 経由にする — 直接 $request.captureSystemAudio を触ると
+            // «オンのときアプリの音声を外す» 排他制御 (RecordingSetup.setSystemAudio) を
+            // 踏めず、app + system の不正な組合せが作れてしまう
+            Toggle("システム音声 (相手の声・アプリの音)", isOn: systemAudioBinding)
             Toggle("マイク (既定の入力デバイス)", isOn: $setup.request.captureMic)
             ForEach(setup.inputDevices, id: \.uid) { device in
                 Toggle(isOn: Binding(
@@ -344,6 +347,11 @@ struct ContentView: View {
                     set: { setup.setSelected($0, device: device) })) {
                     Text(device.name)
                 }
+            }
+            // アプリの音声 (issue #364)。Audio Process Tap は macOS 15+ のため、
+            // 14.x では UI ごと隠す (既有のトグル構成のまま — issue の受け入れ条件)
+            if #available(macOS 15.0, *) {
+                appAudioPicker
             }
             if case .window = setup.request.target, setup.request.captureSystemAudio {
                 // ウィンドウ単位の収録では SCK がそのアプリの音声だけを渡す (SPIKE-NOTES F-B)
@@ -353,6 +361,114 @@ struct ContentView: View {
             }
         }
         .toggleStyle(.checkbox)
+    }
+
+    /// システム音声トグルの Binding。排他制御はモデル側 (RecordingSetup.setSystemAudio) が
+    /// 持つ — «UI で選んだ状態» をセルフテスト (KILDE_GUI_SELFTEST_APP_AUDIO) が
+    /// 同じメソッドで検証できるようにするため
+    private var systemAudioBinding: Binding<Bool> {
+        Binding(
+            get: { setup.request.captureSystemAudio },
+            set: { setup.setSystemAudio($0) })
+    }
+
+    /// «アプリの音声» ピッカー (issue #364)。実行中のアプリをアイコン付きのメニューで
+    /// 出し、選択は bundleID で保持する (RecordRequest.appSources — エンジンの解決が
+    /// bundleID 完全一致のため)。
+    ///
+    /// メニューにした理由: 実行中のアプリは数十件になりうるので、入力デバイスのように
+    /// トグルを並べるとパネルが縦に伸びる。Menu は折りたたまれ、アプリ数が多くても
+    /// パネルの他の項目を押し出さない
+    @available(macOS 15.0, *)
+    private var appAudioPicker: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Menu {
+                ForEach(setup.runningApps) { app in
+                    appAudioMenuItem(spec: app.bundleID, name: app.name, icon: app.icon,
+                                     running: true)
+                }
+                // 復元した選択のうち、そのアプリが終わっていたもの。**選択を見せる** —
+                // 一覧から消えるだけだと «前回選んだ音声が何か» が分からず外せない。
+                // このまま録画を始めるとエンジンが «実行中に見つかりません» で失敗する
+                // (黙って system に縮退しない — issue の受け入れ条件)。失敗の案内は
+                // 録画開始時の通知とパネルの失敗表示にエンジンのエラーメッセージがそのまま載る
+                ForEach(setup.unrunningSelectedAppSources, id: \.self) { spec in
+                    appAudioMenuItem(spec: spec, name: spec, icon: nil, running: false)
+                }
+                if setup.runningApps.isEmpty && setup.unrunningSelectedAppSources.isEmpty {
+                    Button(String(localized: "実行中のアプリがありません")) {}
+                        .disabled(true)
+                }
+            } label: {
+                // «app» は SF Symbols 2 (macOS 11+) — deployment target 14 で確実にある
+                Label(appAudioMenuTitle, systemImage: "app.fill")
+            }
+            // 排他の案内。**アプリを選んでいるときだけ出す** — «選んだら system が外れた»
+            // の直後に理由が目に入る位置で、選んでいないときの常設行を増やさない
+            // (es 等の長い訳でパネルを押し広げた前例 — issue #195 — があるため)
+            if !setup.request.appSources.isEmpty {
+                Text("アプリの音声とシステム音声は同時に収録できません (マイクとは併用できます)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            ForEach(setup.unrunningSelectedAppSources, id: \.self) { spec in
+                Text("アプリ \"\(spec)\" は実行中ではありません (起動してから録画を開始してください)")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    /// ピッカーのラベル。未選択は案内語、1 件はアプリ名、複数は件数
+    @available(macOS 15.0, *)
+    private var appAudioMenuTitle: String {
+        switch setup.request.appSources.count {
+        case 0: return String(localized: "アプリの音声を選ぶ…")
+        case 1: return appNameOrSpec(setup.request.appSources[0])
+        default: return String(localized: "\(setup.request.appSources.count) 個のアプリの音声")
+        }
+    }
+
+    /// bundleID の表示名。実行中のアプリ一覧で見つかればそのアプリ名、
+    /// 見つからなければ spec のまま (手編集 config の値や終了済みアプリ)
+    private func appNameOrSpec(_ spec: String) -> String {
+        setup.runningApps.first {
+            $0.bundleID.caseInsensitiveCompare(spec) == .orderedSame
+        }?.name ?? spec
+    }
+
+    /// メニューの 1 項目。チェックマークはシステムのメニュー規約に合わせて先頭に置き、
+    /// 未選択の行も位置を揃えるため透明化せず opacity で残す。
+    /// «実行中でない» の接尾辞は String として連結する (Text 同士の + だと
+    /// 列の間に spacing が入ってアプリ名と離れて見える)
+    @available(macOS 15.0, *)
+    private func appAudioMenuItem(spec: String, name: String, icon: NSImage?,
+                                  running: Bool) -> some View {
+        let selected = setup.isSelected(appSource: spec)
+        let title = running ? name
+            : name + " " + String(localized: "(実行中でない)")
+        return Button {
+            setup.setAppSource(!selected, spec: spec)
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "checkmark")
+                    .opacity(selected ? 1 : 0)
+                if let icon {
+                    Image(nsImage: icon)
+                        .resizable()
+                        .frame(width: 16, height: 16)
+                } else {
+                    // アイコンの取れないプロセス (実行中でない復元値など) の位置合わせ
+                    Image(systemName: "app.dashed")
+                        .frame(width: 16, height: 16)
+                        .foregroundStyle(.secondary)
+                }
+                Text(title)
+                    .lineLimit(1)
+            }
+        }
     }
 
     private var outputRow: some View {

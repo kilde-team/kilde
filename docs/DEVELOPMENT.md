@@ -120,12 +120,23 @@ xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI -configuration Debug bui
 
 メニューバーの ● をクリックすると録画パネルが開きます (issue #18):
 収録対象 (画面 / ウィンドウ (サムネイル付き) / 音声のみ)・音声ソース (システム音声 /
-マイク / 入力デバイス)・複数ソースの合成か分離・保存先を選んで「録画開始」。
+マイク / 入力デバイス / **アプリの音声** — issue #364)・複数ソースの合成か分離・保存先を選んで「録画開始」。
 録画中はメニューバーに経過時間が出て、パネルにはソース別のレベルメーターと一時停止/再開・停止ボタンが
 出ます。**パネルを閉じても録画は続きます** (録画はパネルではなく AppDelegate が持つ
 `RecordingController` にある)。録画中にアプリを終了すると、停止してファイナライズを
 待ってから終わります。一時停止中はメニューバーに `PAUSED mm:ss` と表示され、経過時間は
 一時停止した区間を除いた録画時間を示します。一時停止中でも停止・アプリ終了は可能です。
+
+«アプリの音声» (issue #364) は macOS 15 以降でのみ出ます (Audio Process Tap が
+macOS 15+ のため。14.x では既有のトグル構成のまま)。実行中のアプリをアイコン付きの
+メニューから選ぶと、そのアプリの音だけを収録します (選択は bundleID で保持)。
+**システム音声とは併用できません** (system には全アプリの音が含まれるため —
+エンジン契約。アプリを選ぶと UI が先に system を外し、system を戻すとアプリの選択が
+外れる)。マイクとの併用は可能です。前回の選択は config.json (`defaultAudioSources` の
+`app:<bundleID>`) に保存され、再起動後に復元されます。復元した対象のアプリが
+終わっている場合はピッカーに «(実行中でない)» で出続け、このまま録画を始めると
+エンジンのエラー («アプリ "…" が実行中に見つかりません») で失敗します —
+**黙ってシステム音声に縮退することはありません**。
 
 - 選択 → 録画オプションの変換は KildeCore の `RecordRequest` で行い、CLI と同じ
   `RecordSettings.apply()` → `Recorder` を通る (codec / fps / カーソルは設定ファイルの値)
@@ -174,7 +185,29 @@ kilde inspect /tmp/kilde-yyyyMMdd-HHmmss.mp4   # CLI の録画と同じトラッ
 
 `KILDE_GUI_SELFTEST_AUDIO` で音声ソースを変えられます: `system` (既定) / `none` (映像のみ — 音声出力が
 使えない環境でも GUI → Recorder の経路は確かめられる) / `device:<UID または名前>`
-(例: `device:BlackHole 2ch`。スピーカーを介さずに信号を入れて検証でき、既定の出力デバイスも変えずに済む)。
+(例: `device:BlackHole 2ch`。スピーカーを介さずに信号を入れて検証でき、既定の出力デバイスも変えずに済む) /
+`app:<bundleID または名前>` (例: `app:com.apple.Safari`。**Audio Process Tap の経路 —
+macOS 15+、issue #364** — を GUI と同じ `RecordRequest.appSources` から通す。tap の生成は
+録画開始時にしか起こらないため、サンドボックス (MAS ビルド) での動作もこの経路で実測できる)。
+
+`KILDE_GUI_SELFTEST_APP_AUDIO=1` は録画せず、**«アプリの音声» の選択ロジックと設定の
+往復**を検証して終わります (issue #364)。アプリの選択でシステム音声が外れること・
+mic との併用が生きていること・`app:` と `system` の不正な組合せをエンジンが拒否すること
+(makeOptions / savingDefaults の両方)・config.json の `app:` 付き保存 → 復元の往復・
+**対象アプリが非実行でも system に縮退しないこと**を、ConfigStore を一時ディレクトリへ
+差し替えて確かめます。実録画を伴わないため、録画のスロット (権限・スピーカー) を占有しません:
+
+```sh
+KILDE_GUI_SELFTEST_APP_AUDIO=1 "$APP/Contents/MacOS/KildeGUI"
+# → selftest: app-audio OK: アプリを選ぶとシステム音声が外れる
+#   selftest: app-audio OK: mic との併用が生きている (順序は system → mic → device → app の契約)
+#   …
+#   selftest: app-audio failures=0 (exit 0)
+```
+
+tap そのもの (アプリの音が入るか) は録画を伴うため実機で確認します —
+`KILDE_GUI_SELFTEST_RECORD=<秒> KILDE_GUI_SELFTEST_AUDIO=app:<bundleID>` で
+録り、`kilde inspect` の `rms=` が 0 超 (アプリの音が入っている) であることを見てください。
 
 `KILDE_GUI_SELFTEST_PAUSE=1` を `KILDE_GUI_SELFTEST_RECORD` に付けると、録画開始後に
 一時停止 → 経過時間が止まることの確認 → 再開 → 経過時間が指定秒数まで進むことの確認 → 停止を行います。

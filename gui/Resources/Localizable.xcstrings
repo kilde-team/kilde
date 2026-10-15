@@ -1,122 +1,122 @@
 {
   "sourceLanguage": "ja",
   "strings": {
-      "PAUSED": {
-        "extractionState": "manual",
-        "localizations": {
-          "en": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "PAUSED"
-            }
-          },
-          "es": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "PAUSED"
-            }
-          },
-          "ko": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "PAUSED"
-            }
-          },
-          "zh-Hans": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "PAUSED"
-            }
+    "PAUSED": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PAUSED"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PAUSED"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PAUSED"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PAUSED"
           }
         }
-      },
-      "一時停止": {
-        "extractionState": "manual",
-        "localizations": {
-          "en": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "Pause"
-            }
-          },
-          "es": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "Pausar"
-            }
-          },
-          "ko": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "일시 정지"
-            }
-          },
-          "zh-Hans": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "暂停"
-            }
+      }
+    },
+    "一時停止": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pause"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pausar"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "일시 정지"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂停"
           }
         }
-      },
-      "一時停止中": {
-        "extractionState": "manual",
-        "localizations": {
-          "en": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "Paused"
-            }
-          },
-          "es": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "En pausa"
-            }
-          },
-          "ko": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "일시 정지 중"
-            }
-          },
-          "zh-Hans": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "已暂停"
-            }
+      }
+    },
+    "一時停止中": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paused"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "En pausa"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "일시 정지 중"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已暂停"
           }
         }
-      },
-      "再開": {
-        "extractionState": "manual",
-        "localizations": {
-          "en": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "Resume"
-            }
-          },
-          "es": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "Reanudar"
-            }
-          },
-          "ko": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "재개"
-            }
-          },
-          "zh-Hans": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "继续"
-            }
+      }
+    },
+    "再開": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resume"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reanudar"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "재개"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "继续"
           }
         }
-      },
+      }
+    },
     "%@ (build %@)": {
       "extractionState": "manual",
       "localizations": {
@@ -4671,30 +4671,204 @@
       }
     },
     "次回起動用の設定を保存できません: %@": {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Could not save settings for the next launch: %@"
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not save settings for the next launch: %@"
           }
         },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No se han podido guardar los ajustes para el próximo inicio: %@"
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se han podido guardar los ajustes para el próximo inicio: %@"
           }
         },
-        "ko" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "다음 실행을 위한 설정을 저장할 수 없습니다: %@"
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다음 실행을 위한 설정을 저장할 수 없습니다: %@"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无法保存下次启动用的设置：%@"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法保存下次启动用的设置：%@"
+          }
+        }
+      }
+    },
+    "アプリの音声とシステム音声は同時に収録できません (マイクとは併用できます)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App audio and system audio cannot be recorded at the same time (can be combined with the microphone)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El audio de apps y el audio del sistema no se pueden grabar a la vez (sí se puede combinar con el micrófono)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 오디오와 시스템 오디오는 동시에 녹음할 수 없습니다 (마이크와는 함께 사용할 수 있습니다)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用声音与系统声音不能同时录制（可与麦克风同时使用）"
+          }
+        }
+      }
+    },
+    "アプリ \"%@\" は実行中ではありません (起動してから録画を開始してください)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App \"%@\" is not running (launch it before starting the recording)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La app \"%@\" no está en ejecución (iníciela antes de comenzar la grabación)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 \"%@\"이(가) 실행 중이 아닙니다 (실행한 후 녹화를 시작해 주세요)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用“%@”未在运行（请先启动该应用再开始录制）"
+          }
+        }
+      }
+    },
+    "アプリの音声を選ぶ…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose app audio…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elegir audio de apps…"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 오디오 선택…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择应用声音…"
+          }
+        }
+      }
+    },
+    "%lld 個のアプリの音声": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio of %lld apps"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Audio de %lld apps"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 %lld개의 오디오"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 个应用的声音"
+          }
+        }
+      }
+    },
+    "実行中のアプリがありません": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No apps are running"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No hay apps en ejecución"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "실행 중인 앱이 없습니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有正在运行的应用"
+          }
+        }
+      }
+    },
+    "(実行中でない)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "(not running)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "(no está en ejecución)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "(실행 중 아님)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "（未运行）"
           }
         }
       }
