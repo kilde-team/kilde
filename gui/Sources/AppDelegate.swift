@@ -459,6 +459,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         do {
             let options = try setup.makeOptions()
             setup.notice = nil
+            // パネルの選択を次回起動時の初期選択として保存する (issue #345)。
+            // 開始ボタンと同じ意味論 — ボタン経由でしか保存しないと、ホットキー運用の
+            // ユーザーの選択が次回に引き継がれない。保存に失敗しても録画開始は止めない
+            setup.persistSessionDefaults()
             recording.start(options)
         } catch {
             setup.notice = String(localized: "開始できません: \(error)")

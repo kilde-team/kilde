@@ -26,6 +26,14 @@ enum SelfTest {
                                permissions: PermissionsModel, updater: UpdaterCoordinator,
                                transcription: TranscriptionCoordinator, popover: PopoverControl) {
         let env = ProcessInfo.processInfo.environment
+        // KILDE_GUI_SELFTEST_CONFIG_SAVE=1: 設定の引き継ぎ (issue #345) の検証。
+        // ConfigStore の保存先を一時ディレクトリへ差し替え、«録画開始時のパネルの選択の保存 →
+        // 次回起動時 (RecordingSetup.init と同じ経路) の復元» の往復を確かめる。
+        // 実録画を伴わないため録画のスロット (権限・スピーカー) を占有しない
+        if env["KILDE_GUI_SELFTEST_CONFIG_SAVE"] == "1" {
+            SelfTestConfigSave.run()
+            return
+        }
         // KILDE_GUI_SELFTEST_LIBRARY_SEARCH: ライブラリの索引構築 + 全文検索の検証
         // (issue #165)。一時ディレクトリに合成したサイドカー 100 件で実測時間を出す —
         // 実録画を伴わないため録画のスロット (権限・スピーカー) を占有しない

@@ -196,6 +196,14 @@ final class RecordingSetup: ObservableObject {
             request.outputDirectory = fallback
         }
 #endif
+        // 前回録画したときの収録対象を復元する (issue #345)。音声ソース・トラック方針・
+        // 保存先は上の RecordRequest.initial が config.json から復元済みだが、収録対象
+        // (画面 / ウィンドウ / 音声のみ) だけは config.json にキーが存在しないため
+        // GUI ローカル (UserDefaults) で持ち越す。ユーザー報告 «「既定値として保存」を押しても
+        // capture source selector が保存されない» の直接の原因はここ (保存・復元の両方が無い)
+        if let restored = Self.restoreCaptureTarget() {
+            request.target = restored
+        }
         hotkeyDraft = config.hotkey ?? ""
         transcribeEnabled = config.transcribe ?? false
         transcriptLocale = Self.normalizedLocale(config.locale)
@@ -308,6 +316,132 @@ final class RecordingSetup: ObservableObject {
         } catch {
             notice = String(localized: "既定値を保存できません: \(error)")
         }
+        // 収録対象も«既定»の対象に含める (issue #345)。«この音声・保存先の選択を既定にする» と
+        // ボタンにある以上、収録対象 (capture source selector) が抜けるのはユーザー報告のとおり
+        // 不自然 — config.json にキーが無いため GUI ローカルへ保存する
+        persistCaptureTarget()
+    }
+
+    // MARK: - 録画に使った構成の引き継ぎ (issue #345)
+
+    /// 収録対象を保存する UserDefaults のキー。**GUI ローカル** — config.json (CLI と共有) には
+    /// «収録対象» のキーが存在せず (KildeConfig のキー一覧を参照)、エンジン
+    /// (kilde-team/kilde-cli-swift) を変更せずに持たせるため。セルフテストから参照するため non-private
+    static let captureTargetDefaultsKey = "lastCaptureTarget"
+
+    /// 録画開始時に、パネルの選択を次回起動時の初期選択として保存する (issue #345)。
+    ///
+    /// **パネルからの録画開始経路 (ボタン・グローバルホットキー) からだけ呼ぶ。**
+    /// ポップオーバー操作のたびのディスク書き込みを避けることと、«実際に使った構成が
+    /// 次回の既定になる» という意味論のため。会議の自動録画・ショートカット
+    /// (AppIntents) はパネルと別の構成 (または対象の差し替え) で始まりうるため呼ばない。
+    /// セルフテストの録画経路 (SelfTest の makeOptions → recording.start) も通らない —
+    /// «セルフテストはユーザーの config を書き換えない» 規約を守るため、このメソッドは
+    /// makeOptions 内ではなく開始経路の側から呼ぶ
+    ///
+    /// config.json に書くのは音声ソース (`defaultAudioSources`)・トラック方針
+    /// (`audioTracks`)・文字起こし (`transcribe`)。変換は `RecordRequest.audioSourceStrings`
+    /// (`--audio` と同じ文字列表現) をそのまま使う。**保存先 (`outputDirectory`) は触らない** —
+    /// MAS 版は security-scoped bookmark 経由で独立に永続化されており
+    /// (SandboxOutputDirectory)、config のパスはコンテナ内を指しえて CLI でも解釈できない。
+    /// 収録対象は config.json にキーが無いため UserDefaults へ保存する (persistCaptureTarget)
+    ///
+    /// 書き込みは load → 反映 → save の順 (saveTranscriptionSetting と同じ理由 —
+    /// GUI はメニューバー常駐のため立ち上がったまま長く経つので、起動時スナップショットで
+    /// CLI 側の変更を握りつぶさない)。失敗しても**録画開始は止めない** —
+    /// 既定値の保存は本質ではなく、開始を妨げる理由がない (案内のみ出す)
+    func persistSessionDefaults() {
+        do {
+            var updated = try ConfigStore.load()
+            updated.defaultAudioSources = request.audioSourceStrings
+            updated.audioTracks = request.trackPolicy.name
+            updated.transcribe = transcribeEnabled
+            try ConfigStore.save(updated)
+            config = updated
+        } catch {
+            // 隣の saveAsDefaults と違い String(describing:) を明示する — Error の素の補間は
+            // «debug description を使う» deprecation 警告になるため、新規のコードで
+            // 警告を増やさない (出力は同じ debug description になる)
+            notice = String(localized: "次回起動用の設定を保存できません: \(String(describing: error))")
+        }
+        persistCaptureTarget()
+    }
+
+    /// 収録対象を UserDefaults へ保存する。config.json にこのキーは無い
+    /// (captureTargetDefaultsKey のコメント)
+    private func persistCaptureTarget() {
+        UserDefaults.standard.set(
+            Self.encodeCaptureTarget(request.target), forKey: Self.captureTargetDefaultsKey)
+    }
+
+    /// RecordRequest.Target を UserDefaults に保存できる文字列へ変換する
+    /// ("audioOnly" / "display:<index>" / "window:<id>")。タグを含まない素の列挙なので
+    /// Codable が使えず、CLI の `--display` / `--window` と同じ語彙の文字列で持つ
+    static func encodeCaptureTarget(_ target: RecordRequest.Target) -> String {
+        switch target {
+        case .audioOnly: return "audioOnly"
+        case .display(let index): return "display:\(index)"
+        case .window(let id): return "window:\(id)"
+        }
+    }
+
+    /// 保存した文字列を RecordRequest.Target に戻す (未知の形式は nil)
+    static func decodeCaptureTarget(_ value: String) -> RecordRequest.Target? {
+        if value == "audioOnly" { return .audioOnly }
+        if value.hasPrefix("display:") {
+            guard let index = Int(value.dropFirst("display:".count)) else { return nil }
+            return .display(index: index)
+        }
+        if value.hasPrefix("window:") {
+            guard let id = UInt32(value.dropFirst("window:".count)) else { return nil }
+            return .window(id: id)
+        }
+        return nil
+    }
+
+    /// 保存済みの収録対象を、**今の環境で意味が通るか検証してから**復元する。
+    /// ディスプレイ番号と windowID は環境で変わる値なので、存在しない対象をそのまま
+    /// 選択状態にすると «選んだのに一覧に無い» 状態になる。無効と判断したら nil を返し、
+    /// 呼び出し側は既定 (ディスプレイ 0) のままにする
+    ///
+    /// - ディスプレイ: NSScreen は権限不要で取れる。SCShareableContent の列挙数と
+    ///   一致する保証はないが、明らかに範囲外の番号を落とす用途には足りる。
+    ///   範囲内でも列挙後に消えていた場合は apply の既定経路がディスプレイ 0 へ戻す
+    /// - ウィンドウ: **windowID は WindowServer の起動単位で振り直される**ため、
+    ///   再起動後の同一ウィンドウ保証は無い。CGWindowList に今も存在するものだけを
+    ///   復元し、無ければ nil に倒す (基本情報の番号は画面収録の権限が無くても取れる)。
+    ///   残っているIDが別のウィンドウに再利用されていたケースは、サムネイルで
+    ///   «何が選ばれているか» が見えるので黙って誤収録にはならない
+    static func restoreCaptureTarget(
+        defaults: UserDefaults = .standard,
+        screens: [NSScreen] = NSScreen.screens,
+        liveWindowIDs: Set<UInt32>? = nil
+    ) -> RecordRequest.Target? {
+        guard let raw = defaults.string(forKey: captureTargetDefaultsKey),
+              let target = decodeCaptureTarget(raw) else { return nil }
+        switch target {
+        case .audioOnly:
+            return target
+        case .display(let index):
+            guard index == 0 || index < screens.count else { return nil }
+            return target
+        case .window(let id):
+            let ids = liveWindowIDs ?? Self.currentWindowIDs()
+            guard ids.contains(id) else { return nil }
+            return target
+        }
+    }
+
+    /// いま画面上にあるウィンドウの CGWindowID 一覧。MeetingDetector と同じ
+    /// CGWindowListCopyWindowInfo 経由 (列挙に SCK を使わない理由はそちらのコメント)。
+    /// 番号は CFNumber で来るため Int で受け、CGWindowID (UInt32) へ詰め直す
+    private static func currentWindowIDs() -> Set<UInt32> {
+        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+        guard let list = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]]
+        else { return [] }
+        return Set(list.compactMap { info in
+            (info[kCGWindowNumber as String] as? Int).map(UInt32.init)
+        })
     }
 
     /// ホットキーを設定ファイルに保存する (issue #20)。CLI の `hotkey` と同じキーなので、

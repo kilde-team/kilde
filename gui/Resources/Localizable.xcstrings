@@ -4669,6 +4669,35 @@
           }
         }
       }
+    },
+    "次回起動用の設定を保存できません: %@": {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not save settings for the next launch: %@"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se han podido guardar los ajustes para el próximo inicio: %@"
+          }
+        },
+        "ko" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "다음 실행을 위한 설정을 저장할 수 없습니다: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法保存下次启动用的设置：%@"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
