@@ -1,0 +1,34 @@
+.github/workflows/release.yml
+  h_864205080385bc 54-57
+docs/DESIGN.md
+  h_864205080385bc 276
+docs/DEVELOPMENT.md
+  h_864205080385bc 123,130-140,188-210
+gui/Resources/Localizable.xcstrings
+  h_864205080385bc 4-119,4674-4749,4752-4772,4775-4778,4781-4871
+gui/Sources/ContentView.swift
+  h_864205080385bc 339-342,351-355,366-473
+gui/Sources/RecordingController.swift
+  h_864205080385bc 58,60-62,112-119,197
+gui/Sources/RecordingSetup.swift
+  h_864205080385bc 14-19,799-889,1011-1013
+gui/Sources/SelfTest.swift
+  h_864205080385bc 29-37,1220,1223-1226,1235,1244-1248,1250
+gui/Sources/SelfTestAppAudio.swift
+  h_864205080385bc 1-223
+gui/Sources/UsageAnalytics.swift
+  h_864205080385bc 115-122,124-125,233,238
+gui/project.yml
+  h_864205080385bc 73-77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7d52843d3b1d929f087adcacc292fdc01fa5ddb2",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
