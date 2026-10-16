@@ -231,3 +231,19 @@ No engine update (the pin stays at kilde-cli-swift v0.15.0).
 ```text
 When you start a recording from the panel, kilde now remembers the capture source, audio sources and devices, audio track layout, and transcription settings selected there, so the next launch starts with the same setup. "Make this audio & save location selection the default" now also saves the capture source.
 ```
+
+## What's New (0.16.0)
+
+The single user-visible change since MAS 0.15.0: picking a running app in the
+popover now records only that app's audio (issue #364 / PR #366). The feature
+is **available on macOS 15 or later** (the Audio Process Tap of engine
+kilde-cli-swift v0.16.0 — the pin was updated in PR #366); on macOS 14.x the
+"Choose app audio" UI is not shown at all. It can be combined with the
+microphone, but app audio and system audio cannot be recorded at the same
+time (picking an app turns system audio off). The selection is stored by
+bundle ID and carried over to the next launch (a not-running app shows
+"(not running)" with guidance when you start recording).
+
+```text
+Pick a running app in the popover to record only that app's audio (requires macOS 15 or later). You can combine it with the microphone, but app audio and system audio can't be recorded at the same time. Your selection is carried over to the next launch.
+```
