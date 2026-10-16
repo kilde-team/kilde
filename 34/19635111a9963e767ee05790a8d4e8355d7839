@@ -1,0 +1,22 @@
+PRIVACY.md
+  h_864205080385bc 25-28,160-163,168-169
+README.md
+  h_864205080385bc 245-247
+docs/DESIGN.md
+  h_864205080385bc 217-224
+gui/Sources/SelfTest.swift
+  h_864205080385bc 1250-1251
+gui/Sources/SelfTestAppAudio.swift
+  h_864205080385bc 79-83,87-90,132-133,144-168,172-175,181-182,188-189,268-273
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3419635111a9963e767ee05790a8d4e8355d7839",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
