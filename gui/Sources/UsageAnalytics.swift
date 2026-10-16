@@ -112,10 +112,17 @@ enum UsageAnalytics {
     /// transcription_start (#153) と同じ位置づけで、**収録が実際に始まった
     /// 瞬間** に送る (準備中のキャンセルは数えない — 呼び出し側 RecordingController
     /// の recordingStartedAt の初回セットと同じ条件)。チャネルは
-    /// recording_complete と同じくイベント パラメータにも載せる
-    static func recordingStarted() {
+    /// recording_complete と同じくイベント パラメータにも載せる。
+    ///
+    /// `usesAppAudio`: «アプリの音声» を使った構成か (issue #364)。**新規イベントは
+    /// 足さず、既存の recording_start のパラメータに語彙を 1 つ足す** — «アプリ別収録が
+    /// どれだけ使われるか» は «開始の構成» の属性であって別種の行為ではないため。
+    /// 値は "yes" / "no" の 2 値で、**bundleID やアプリ名は絶対に送らない**
+    /// (PRIVACY.md «利用統計» の枠 — «何のアプリか» は行動の計測に要らない)
+    static func recordingStarted(usesAppAudio: Bool) {
         log("recording_start", recordingDuration: nil,
-            processingTime: nil, channel: distributionChannel)
+            processingTime: nil, channel: distributionChannel,
+            appAudio: usesAppAudio ? "yes" : "no")
     }
 
     /// 録画 1 件が完了した (issue #159)。«月間アクティブ (録画完了) ユーザー数» と
@@ -223,11 +230,12 @@ enum UsageAnalytics {
 
     private static func log(_ name: String, recordingDuration: TimeInterval?,
                             processingTime: TimeInterval?, errorKind: String? = nil,
-                            channel: String? = nil) {
+                            channel: String? = nil, appAudio: String? = nil) {
         guard isEnabled else { return }
         var parameters: [String: String] = [:]
         if let errorKind { parameters["error_kind"] = errorKind }
         if let channel { parameters["channel"] = channel }
+        if let appAudio { parameters["app_audio"] = appAudio }
         if let bucket = recordingLengthBucket(recordingDuration) {
             parameters["recording_length"] = bucket
         }

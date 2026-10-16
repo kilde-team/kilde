@@ -55,8 +55,11 @@ final class RecordingController: ObservableObject {
     /// 閾値ぎりぎりの録画で最後の更新が 14.5 秒のまま止まり «15 秒以上録ったのに
     /// 数えられない» ことがある。通知 (`notifyCompleted`) と同じ値
     private(set) var lastRecordedDuration: TimeInterval = 0
-    /// 収録開始前に stop() が呼ばれたか (準備中の失敗が自発的な停止かの判定に使う)
+    /// 実収録開始前に stop() が呼ばれたか (準備中の失敗が自発的な停止かの判定に使う)
     private var stopRequestedDuringPreparation = false
+    /// 今のセッションが «アプリの音声» を使うか (issue #364)。start() の options から
+    /// 確定させ、recording_start 計測に渡す (セッションごとの属性)
+    private var usesAppAudio = false
 
     /// 録画が進行中か。
     ///
@@ -106,6 +109,14 @@ final class RecordingController: ObservableObject {
         // (SIGKILL でも 60 秒回復しない) を起こす。引数は let なので複製して立てる
         var sessionOptions = options
         sessionOptions.callerOutlivesSession = true
+        // «アプリの音声» を使う構成か (issue #364)。計測の recording_start に
+        // 構成の属性として載せる (語彙は 2 値 — UsageAnalytics.recordingStarted のコメント)。
+        // **options から確定させる** — setup の現在値を後から読むと、«開始した構成» と
+        // «表示中の構成» が録画中の変更でずれる (文字起こしの enqueue と同じ経路の選択)
+        usesAppAudio = sessionOptions.audioSources.contains { source in
+            if case .app = source { return true }
+            return false
+        }
         let recorder = Recorder(options: sessionOptions)
         self.recorder = recorder
         // **開始前に登録されたハンドラをこのセッションへ移す。** SelfTest は
@@ -183,7 +194,7 @@ final class RecordingController: ObservableObject {
                     // 録画開始の計測 (issue #343)。«試行 → 完了» のファネルの始点。
                     // Firebase が無い構成 (セルフテスト・Debug) では
                     // UsageAnalytics 内で跳ねるので、ここからは送信条件を気にしない
-                    UsageAnalytics.recordingStarted()
+                    UsageAnalytics.recordingStarted(usesAppAudio: usesAppAudio)
                 }
                 isPaused = state == .paused
                 phase = isPaused ? .paused : .recording

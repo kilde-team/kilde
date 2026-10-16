@@ -26,6 +26,15 @@ enum SelfTest {
                                permissions: PermissionsModel, updater: UpdaterCoordinator,
                                transcription: TranscriptionCoordinator, popover: PopoverControl) {
         let env = ProcessInfo.processInfo.environment
+        // KILDE_GUI_SELFTEST_APP_AUDIO=1: «アプリの音声» (issue #364) の検証。
+        // ピッカーの選択 → RecordRequest の組み立て (排他制御 — system と app は
+        // 併用不可、mic は併用可) と、config.json の app: 付き保存 → 復元の往復を、
+        // ConfigStore を一時ディレクトリへ差し替えて確かめる。実録画を伴わないため
+        // 録画のスロット (権限・スピーカー) を占有しない
+        if env["KILDE_GUI_SELFTEST_APP_AUDIO"] == "1" {
+            SelfTestAppAudio.run()
+            return
+        }
         // KILDE_GUI_SELFTEST_CONFIG_SAVE=1: 設定の引き継ぎ (issue #345) の検証。
         // ConfigStore の保存先を一時ディレクトリへ差し替え、«録画開始時のパネルの選択の保存 →
         // 次回起動時 (RecordingSetup.init と同じ経路) の復元» の往復を確かめる。
@@ -1208,10 +1217,13 @@ enum SelfTest {
 
     /// 録画の対象と音声を環境変数から RecordRequest に当てはめる
     /// (KILDE_GUI_SELFTEST_RECORD と実録画版 TRANSCRIBE の共通部分)。
-    /// KILDE_GUI_SELFTEST_AUDIO: system (既定) / none / device:<UID or 名前>。
+    /// KILDE_GUI_SELFTEST_AUDIO: system (既定) / none / device:<UID or 名前> / app:<bundleID or 名前>。
     /// none は音声出力が使えない環境 (既定出力が鳴らないデバイスだと SCK の音声開始が -3818 で
     /// 失敗する) でも GUI → Recorder の経路を確かめるため。device: は BlackHole ループバックの
-    /// ようにスピーカーを介さずに信号を入れて検証するため (既定の出力デバイスを変えずに済む)
+    /// ようにスピーカーを介さずに信号を入れて検証するため (既定の出力デバイスを変えずに済む)。
+    /// app: は Audio Process Tap の経路 (macOS 15+、issue #364) を GUI と同じ
+    /// RecordRequest.appSources から通すため — tap の生成は録画開始時にしか起こらないので、
+    /// サンドボックス (MAS ビルド) での実測もこの経路で行う
     @MainActor
     private static func applyRecordingRequest(_ setup: RecordingSetup, env: [String: String]) {
         if let dir = env["KILDE_GUI_SELFTEST_OUTPUT"] {
@@ -1220,6 +1232,7 @@ enum SelfTest {
         setup.request.target = .display(index: 0)
         setup.request.captureMic = false
         setup.request.inputDevices = []
+        setup.request.appSources = []
         switch env["KILDE_GUI_SELFTEST_AUDIO"] ?? "system" {
         case "system":
             setup.request.captureSystemAudio = true
@@ -1228,8 +1241,14 @@ enum SelfTest {
         case let value where value.hasPrefix("device:"):
             setup.request.captureSystemAudio = false
             setup.request.inputDevices = [String(value.dropFirst("device:".count))]
+        case let value where value.hasPrefix("app:"):
+            // エンジン契約 (app と system は併用不可) に合わせて system を外す。
+            // GUI の排他制御 (ContentView の音声セクション) と同じ向きの操作
+            setup.request.captureSystemAudio = false
+            setup.request.appSources = [String(value.dropFirst("app:".count))]
         case let other:
-            fail("KILDE_GUI_SELFTEST_AUDIO は system / none / device:<名前> を指定してください: \(other)")
+            // app: は bundleID のほかに名前の部分一致も受ける (エンジンの解決と同じ)
+            fail("KILDE_GUI_SELFTEST_AUDIO は system / none / device:<名前> / app:<bundleID または名前> を指定してください: \(other)")
         }
     }
 

@@ -187,6 +187,7 @@ SCStream(contentFilter, configuration)
 | system | SCStream の `capturesAudio` | マイク権限不要 (要検証 F1/F3) |
 | mic | `AVCaptureDeviceInput` (内蔵マイク等) | マイク TCC 権限 |
 | device:* | `AVCaptureDeviceInput` (`deviceUniqueID` 指定) | BlackHole、USB オーディオ等 |
+| app:* | **Audio Process Tap** (macOS 15+) | 指定アプリの音だけ。bundleID の完全一致 (大文字小文字を無視) または名前の部分一致で実行中プロセスへ解決し、見つからなければ録画開始前に失敗 (終了コード 3 — `system` へは縮退しない)。**`system` とは併用不可** (system には全アプリの音が含まれる)、`mic` とは併用可。エンジン v0.15.0/v0.16.0 — kilde-cli-swift#112 / #124。`--no-video` 専用ではなく**映像ありの録画でも使える**。GUI では «アプリの音声» ピッカー (issue #364) が同じ経路を使う |
 
 - **既定はミックスダウン** (`--audio-tracks mixed`、音声ソースが 2 つ以上のとき):
   KildeCore 自前の `AudioMixer` が全ソースを 1 本のステレオトラックに合成する
@@ -214,10 +215,13 @@ SCStream(contentFilter, configuration)
 
 - **SCK ネイティブ (既定)**: `.audio` 出力のみを登録した SCStream で音声のみ
   取得 (S8 で実証)。マイクもシステム音声もドライバ追加なしで動作し、
-  音は通常どおりスピーカーから聞こえ続ける。`--window` 併用で
-  **特定アプリの音声だけ**を録音できる (S9 で実証)。
+  音は通常どおりスピーカーから聞こえ続ける。`--window` 併用でも
+  **特定アプリの音声だけ**を録音できる (S9 で実証 — ウィンドウ収録時に
+  SCK がそのアプリの音へスコープする経路)。
 - **BlackHole 経由 (オプション)**: `--audio device:BlackHole` で従来型
   ループバック。`--monitor` でマルチ出力デバイスの作成/復元を自動化。
+- 音声ソースの種類 («アプリの音声» `app:` を含む) と併用の規則は
+  §5 «音声» の表のとおり — 音声のみモードに限らず使える。
 - 出力: M4A (AAC)。映像トラックは書かない。
 
 ### ライタと A/V 同期
@@ -273,7 +277,7 @@ kilde config [show|set|unset|path]        設定ファイル ~/.kilde/config.jso
 | `--window <windowID\|文字列>` | なし | ウィンドウ単位で収録。windowID の完全一致、またはタイトル / bundleID の部分一致 (大文字小文字を区別しない)。複数ヒット時は面積が最大のもの。見つからなければ終了コード 3。音声もそのアプリにスコープされる。**複数回指定可 (M2 — #13)**: 2 つ以上指定するとそのウィンドウ群をまとめて 1 本に収録する。このとき出力はディスプレイ全体の大きさになり (ウィンドウごとに切り出されるわけではない)、対象外の領域は黒で埋まる |
 | `--exclude-app <bundleID>` | なし | ディスプレイ収録から指定アプリを除外する (M2 — #13)。**映像だけでなくそのアプリのシステム音声も出力に入らない** (SCK のフィルタは音声にも適用される — SPIKE-NOTES F-F)。音を出しているアプリ (会議アプリ・ブラウザ等) を除外すると、その音声も失われる点に注意。bundleID の**完全一致** (大文字小文字は区別しない。除外は「写っていないはず」を期待する操作で、取り違えても画面を見るまで気づけないため部分一致にしていない)。複数回指定可。実行中に見つからなければ終了コード 3。`--window` / `--no-video` / `--preset meeting` とは併用不可 (いずれも収録対象を選ぶ指定で、除外と矛盾するため)。`--region` とは併用可 |
 | `--region <x,y,w,h>` | なし (ディスプレイ全体) | ディスプレイの一部だけを収録 (ポイント座標、左上が原点 — M2 #9)。H.264 の制約で幅・高さは偶数へ切り捨てる (`sourceRect` も同じ大きさに揃えるので引き伸ばされない)。ディスプレイの範囲外は終了コード 1、形式不正と 2 ポイント未満は 64。`--window` / `--no-video` / `--preset meeting` とは併用不可 (meeting は対話でウィンドウを選ぶため) |
-| `--audio <source>` | `system` (設定 `defaultAudioSources`) | `system` / `mic` / `device:<名前 or UID>` / `none`。複数回指定可。`device:` は入力デバイスの UID 完全一致または名前の部分一致。`none` は他ソースと併用不可、`--no-video` とも併用不可 |
+| `--audio <source>` | `system` (設定 `defaultAudioSources`) | `system` / `mic` / `device:<名前 or UID>` / `app:<bundleID または名前>` / `none`。複数回指定可。`device:` は入力デバイスの UID 完全一致または名前の部分一致。`app:` は Audio Process Tap によるアプリ単位のシステム音声 (エンジン v0.16.0 — kilde-cli-swift#124)。**macOS 15 以降**で、bundleID の完全一致 (大文字小文字を区別しない) またはアプリ名の部分一致で実行中プロセスへ解決する。実行中に見つからなければ終了コード 3。**`system` とは併用不可** (system には全アプリの音が含まれる — 併用すると録画開始前に終了コード 1)。`mic` との併用は可。`none` は他ソースと併用不可、`--no-video` とも併用不可 |
 | `--audio-tracks <mixed\|separate>` | `mixed` (設定 `audioTracks`) | 音声ソースが複数のとき 1 トラックに合成 (既定) か、ソースごとにトラック分離か |
 | `--no-video` | off | 録音 (音声のみ) モード。出力は M4A |
 | `--monitor` | off | 録画中だけ "kilde Monitor" を自動 setup し、終了時に teardown する。手動 setup 済みの Monitor には触れない。BlackHole 未導入なら終了コード 3、復元に失敗したら WARNING を出して終了コード 1 |

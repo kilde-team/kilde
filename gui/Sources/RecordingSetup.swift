@@ -11,6 +11,12 @@ final class RecordingSetup: ObservableObject {
     @Published private(set) var windows: [WindowInfo] = []
     @Published private(set) var inputDevices: [AudioDeviceInfo] = []
     @Published private(set) var thumbnails: [UInt32: NSImage] = [:]
+    /// 実行中のアプリ («アプリの音声» ピッカーの選択肢 — issue #364)。
+    /// NSWorkspace の列挙はサンドボックス下 (MAS ビルド) でも全アプリの bundleID と
+    /// アイコンを返すことを実測済み (フェーズ 0 のスパイク — PR の «サンドボックス・スパイク» 参照)。
+    /// 画面の列挙 (SCShareableContent) と違い権限不要・即時に終わるので、reload() のたびに
+    /// 同期で取り直す
+    @Published private(set) var runningApps: [RunningApp] = []
     @Published private(set) var loading = false
     @Published private(set) var loadError: String?
     /// 操作の結果 (保存しました / 開始できません 等) を一時的に出す
@@ -790,6 +796,113 @@ final class RecordingSetup: ObservableObject {
         }
     }
 
+    // MARK: - アプリの音声 (issue #364)
+
+    /// ピッカーの選択肢 1 件分。Audio Process Tap は bundleID で解決するので、
+    /// **選択の保持も bundleID** (RecordRequest.appSources の要素)
+    struct RunningApp: Identifiable, Equatable {
+        let bundleID: String
+        let name: String
+        let icon: NSImage?
+        var id: String { bundleID }
+    }
+
+    /// 実行中のアプリを取り直す。`reload()` の先頭から呼ぶ — 画面の列挙と違い
+    /// 同期で終わるので、in-flight の guard の手前に置いても待ちが発生しない。
+    /// **«アプリの一覧だけ» を取り直したい経路 (セルフテスト) もこのメソッドを直接
+    /// 呼ぶ** — reload() は SCK の画面列挙も始めるため、«録画テストと並行できる»
+    /// セルフテストから呼ぶと列挙と録画開始の競合 (issue #70) を作りうる
+    /// (cubic レビュー指摘)
+    ///
+    /// 絞り込みの根拠:
+    /// - bundleID が取れないプロセスは選べない (保持値が bundleID のため)
+    /// - 自アプリ自身は収録対象にしない (画面のウィンドウ一覧と同じ除外)
+    /// - activationPolicy が .prohibited (UI の無いヘルパー) はピッカーの語彙として煩雑なので
+    ///   外す。**エンジンの解決 (bundleID 完全一致) は prohibited も拾う** ため、
+    ///   手編集の config.json がその値を指していれば録れる — ピッカーから見えないだけ
+    /// - 同一 bundleID が複数動く (ヘルパー等) 場合は 1 件にまとめる。録画時には
+    ///   すべての PID が tap の対象になる (ProcessTapStream.resolveTargets が複数ヒットを
+    ///   すべて返すため、見た目 1 項目で録れる音に欠けがない)
+    func reloadRunningApps() {
+        let own = Self.ownBundleID
+        var seen = Set<String>()
+        runningApps = NSWorkspace.shared.runningApplications.compactMap { app in
+            guard let bundleID = app.bundleIdentifier, bundleID != own else { return nil }
+            switch app.activationPolicy {
+            case .regular, .accessory: break
+            default: return nil
+            }
+            guard seen.insert(bundleID).inserted else { return nil }
+            return RunningApp(bundleID: bundleID,
+                              name: app.localizedName ?? bundleID,
+                              icon: app.icon)
+        }
+        .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    /// spec がこの実行中アプリに解決されるか。照合は**エンジンの解決順と同じ**
+    /// «bundleID の完全一致 (大文字小文字を無視) → 名前の部分一致» —
+    /// 手編集 config の `app:Safari` のような名前指定を、実行中アプリ
+    /// «Safari» (com.apple.Safari) のメニュー項目で «未選択» と誤表示すると、
+    /// クリックで同じアプリが二重に足される (CodeRabbit レビュー指摘)。
+    /// 名前の部分一致は解決のフォールバック (音声を出しているプロセス限定) を
+    /// 精度より採用側で広く見る — «選べるはずなのに未選択» より «選択中» 表示の
+    /// 誤りのほうが被害が小さい (外す操作は同じアプリに束ねて効くため)
+    func resolvesToApp(_ spec: String, app: RunningApp) -> Bool {
+        app.bundleID.caseInsensitiveCompare(spec) == .orderedSame
+            || app.name.localizedCaseInsensitiveContains(spec)
+    }
+
+    /// この実行中アプリに解決される選択済みの音声ソースがあるか
+    /// (メニュー項目の選択表示)
+    func hasSelectedSource(resolvingTo app: RunningApp) -> Bool {
+        request.appSources.contains { resolvesToApp($0, app: app) }
+    }
+
+    /// 選択中のアプリ音声のうち、実行中のアプリ一覧に無いもの (前回の選択を復元したが
+    /// そのアプリが終わっていた等)。ピッカーに «実行中でない» 項目として出す —
+    /// 一覧から消えるだけだと «選んだ音声が何か» が見えず、外すこともできるようにするため。
+    /// «実行中» の判定は resolvesToApp と同じ
+    var unrunningSelectedAppSources: [String] {
+        request.appSources.filter { spec in
+            !runningApps.contains { resolvesToApp(spec, app: $0) }
+        }
+    }
+
+    /// アプリの音声ソースの選択を切り替える (ピッカーの本体)。
+    ///
+    /// 選ぶときは **システム音声を先に外す** — エンジンが «app: と system の併用» を
+    /// makeOptions / savingDefaults の両方で拒否するため (RecordRequest.checkSourceCombination)。
+    /// UI で先に外しておかないと、選んだ直後の録画開始 («既定値として保存» も) が
+    /// 必ず requestInvalid で失敗する状態になる。**マイクとの併用は可** (エンジン契約どおり)。
+    /// 切替の理由はピッカーの下の案内文 (ContentView.appAudioPicker) が担う
+    ///
+    /// 追加は **spec をそのまま保持するが、同じ実行中アプリに解決される既存の指定を
+    /// 先に外す** — `app:Safari` (名前指定) が保存済みのときに実行中アプリ «Safari» の
+    /// 項目をクリックすると、`app:Safari` を外して `app:com.apple.Safari` を足す。
+    /// 両方が併存するとエンジンが同じプロセスを 2 つのソースとして解決し、
+    /// 同じ音を二重に録ることになる (CodeRabbit レビュー指摘)
+    func setAppSource(_ selected: Bool, spec: String) {
+        let sameApps = runningApps.filter { resolvesToApp(spec, app: $0) }
+        request.appSources.removeAll { existing in
+            existing.caseInsensitiveCompare(spec) == .orderedSame
+                || sameApps.contains { resolvesToApp(existing, app: $0) }
+        }
+        if selected {
+            request.captureSystemAudio = false
+            request.appSources.append(spec)
+        }
+    }
+
+    /// システム音声トグルの反映。オンにしたときアプリの音声を空にする —
+    /// «system + app» の不正な組合せを作らない (setAppSource のコメント)。
+    /// Binding の set から呼ぶ (UI 側で `$request.captureSystemAudio` を直接触ると
+    /// この排他を踏めず、セルフテストからも検証できない)
+    func setSystemAudio(_ enabled: Bool) {
+        request.captureSystemAudio = enabled
+        if enabled { request.appSources = [] }
+    }
+
     // MARK: - 最近の録画 (issue #20)
 
     /// 保存先ディレクトリを走査して直近の録画を集める。
@@ -911,6 +1024,9 @@ final class RecordingSetup: ObservableObject {
     // MARK: - 列挙
 
     func reload() {
+        // アプリの一覧 (NSWorkspace) は同期・権限不要なので、画面の列挙が in-flight でも
+        // 先に取り直す — «アプリを起動したままパネルを開き直した» 選択肢の増減を拾う
+        reloadRunningApps()
         guard !enumerationInFlight else {
             // 初回ロード中の要求 (onAppear とポップオーバー表示通知の同時発火) は同じ結果になるので捨てる
             if hasLoadedOnce { needsReload = true }

@@ -70,7 +70,11 @@ packages:
     # v0.15.0: Audio Process Tap によるアプリ別音声収録の土台 (--audio app:)。
     # ProcessTapStream を新設 (macOS 15+ の tap 経路) し、IOProc の並行性規約を
     # CLAUDE.md §6 に追加。GUI UI からの利用は後続。録画の既存経路には影響なし
-    exactVersion: 0.15.0
+    # v0.16.0: RecordRequest が app ソースを表現できるようになった (kilde-cli-swift#124)。
+    # appSources (bundleID / アプリ名の配列) と audioSourceStrings の app: 接頭辞、
+    # system との併用拒否 (makeOptions / savingDefaults の両方)、
+    # defaultAudioSources からの app: 復元を含む (kilde#364 が消費)
+    exactVersion: 0.16.0
   # GUI の自動更新 (issue #122)。Sparkle 2 のバイナリターゲット (macOS 12+) で、
   # リンクすると Sparkle.framework が Contents/Frameworks に埋め込まれる。
   # バージョンを固定する理由は kilde-cli-swift と同じ: 浮動参照だと上流の push が
