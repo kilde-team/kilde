@@ -1,0 +1,14 @@
+.github/workflows/mas.yml
+  h_864205080385bc 96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c43bfa09295d183d5a99e2a1532fbc5246781b4f",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
