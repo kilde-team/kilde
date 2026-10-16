@@ -250,10 +250,12 @@ posterior** (el Audio Process Tap del motor kilde-cli-swift v0.16.0 — el pin
 se actualizó en el PR #366); en macOS 14.x la interfaz «Elegir audio de
 apps…» no aparece. Se puede combinar con el micrófono, pero el audio de apps
 y el audio del sistema no se pueden grabar a la vez (al elegir una app se
-desactiva el audio del sistema). La selección se guarda por bundle ID y se
-conserva en el próximo arranque (una app que no esté en ejecución se muestra
-como «(no está en ejecución)» con un aviso al comenzar la grabación).
+desactiva el audio del sistema). La selección se guarda por bundle ID al
+comenzar una grabación desde el panel (el botón de guardado como
+predeterminada hace lo mismo) y se conserva en el próximo arranque (una app
+que no esté en ejecución se muestra como «(no está en ejecución)» con un
+aviso al comenzar la grabación).
 
 ```text
-Ya puedes elegir una app en ejecución en la ventana emergente para grabar solo el audio de esa app (requiere macOS 15 o posterior). Se puede combinar con el micrófono, pero el audio de apps y el audio del sistema no se pueden grabar a la vez. La selección se conserva en el próximo arranque.
+Ya puedes elegir una app en ejecución en la ventana emergente para grabar solo el audio de esa app (requiere macOS 15 o posterior). Se puede combinar con el micrófono, pero el audio de apps y el audio del sistema no se pueden grabar a la vez. La selección se guarda al comenzar una grabación y se conserva en el próximo arranque.
 ```

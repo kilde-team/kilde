@@ -241,9 +241,10 @@ kilde-cli-swift v0.16.0 — the pin was updated in PR #366); on macOS 14.x the
 "Choose app audio" UI is not shown at all. It can be combined with the
 microphone, but app audio and system audio cannot be recorded at the same
 time (picking an app turns system audio off). The selection is stored by
-bundle ID and carried over to the next launch (a not-running app shows
+bundle ID when a recording starts from the panel (the save-as-default button
+does the same) and carried over to the next launch (a not-running app shows
 "(not running)" with guidance when you start recording).
 
 ```text
-Pick a running app in the popover to record only that app's audio (requires macOS 15 or later). You can combine it with the microphone, but app audio and system audio can't be recorded at the same time. Your selection is carried over to the next launch.
+Pick a running app in the popover to record only that app's audio (requires macOS 15 or later). You can combine it with the microphone, but app audio and system audio can't be recorded at the same time. kilde remembers your selection when you start a recording and carries it over to the next launch.
 ```
