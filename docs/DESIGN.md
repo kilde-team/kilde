@@ -187,6 +187,7 @@ SCStream(contentFilter, configuration)
 | system | SCStream の `capturesAudio` | マイク権限不要 (要検証 F1/F3) |
 | mic | `AVCaptureDeviceInput` (内蔵マイク等) | マイク TCC 権限 |
 | device:* | `AVCaptureDeviceInput` (`deviceUniqueID` 指定) | BlackHole、USB オーディオ等 |
+| app:* | **Audio Process Tap** (macOS 15+) | 指定アプリの音だけ。bundleID の完全一致 (大文字小文字を無視) または名前の部分一致で実行中プロセスへ解決し、見つからなければ録画開始前に失敗 (終了コード 3 — `system` へは縮退しない)。**`system` とは併用不可** (system には全アプリの音が含まれる)、`mic` とは併用可。エンジン v0.15.0/v0.16.0 — kilde-cli-swift#112 / #124。`--no-video` 専用ではなく**映像ありの録画でも使える**。GUI では «アプリの音声» ピッカー (issue #364) が同じ経路を使う |
 
 - **既定はミックスダウン** (`--audio-tracks mixed`、音声ソースが 2 つ以上のとき):
   KildeCore 自前の `AudioMixer` が全ソースを 1 本のステレオトラックに合成する
@@ -217,13 +218,10 @@ SCStream(contentFilter, configuration)
   音は通常どおりスピーカーから聞こえ続ける。`--window` 併用でも
   **特定アプリの音声だけ**を録音できる (S9 で実証 — ウィンドウ収録時に
   SCK がそのアプリの音へスコープする経路)。
-- **アプリ単位のシステム音声 (macOS 15+)**: `--audio app:<bundleID または名前>` は
-  Audio Process Tap で指定アプリの音だけを取得する (エンジン v0.15.0/v0.16.0 —
-  kilde-cli-swift#112 / #124。ウィンドウを上げずに特定アプリだけを録る経路で、
-  BlackHole 等の仮想デバイスは不要)。`system` とは併用不可、`mic` とは併用可。
-  GUI では «アプリの音声» ピッカー (issue #364) から同じ経路を使う。
 - **BlackHole 経由 (オプション)**: `--audio device:BlackHole` で従来型
   ループバック。`--monitor` でマルチ出力デバイスの作成/復元を自動化。
+- 音声ソースの種類 («アプリの音声» `app:` を含む) と併用の規則は
+  §5 «音声» の表のとおり — 音声のみモードに限らず使える。
 - 出力: M4A (AAC)。映像トラックは書かない。
 
 ### ライタと A/V 同期

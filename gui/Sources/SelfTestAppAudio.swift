@@ -77,14 +77,15 @@ enum SelfTestAppAudio {
         // 1) ピッカーの列挙 (実機の環境に依存するので不変条件だけ見る)。
         //    bundleID は保持値の語彙なので空が混ざらないこと、重複がないこと、
         //    自アプリが含まれないことを確かめる。
-        //    **reload() を呼んでから確かめる** — init だけでは列挙が走らず、
-        //    空の一覧への検証が «壊れていても成功» になる (cubic レビュー指摘)。
-        //    reload() の中で runningApps は同期で埋まり、画面の列挙 (SCK) は
-        //    非同期で走るが、この検証は runningApps だけを見るので待たない
+        //    **reloadRunningApps() (アプリの一覧だけの専用経路) を呼ぶ** —
+        //    reload() は SCK の画面列挙も始めるため、«録画テストと並行して回せる»
+        //    このセルフテストから呼ぶと列挙と録画開始の競合 (issue #70) を作る
+        //    (cubic レビュー指摘)。NSWorkspace の列挙は同期なので、この後の検証では
+        //    一覧が埋まっていることが保証される
         let fresh = RecordingSetup(defaults: suite)
         check(ConfigStore.directory == directory,
               "RecordingSetup を作り直しても一時ディレクトリの差し替えが保たれる")
-        fresh.reload()
+        fresh.reloadRunningApps()
         guard !fresh.runningApps.isEmpty else {
             abort("実行中のアプリが列挙されませんでした (NSWorkspace の一覧が空。ピッカーの検証ができない)")
         }

@@ -808,7 +808,11 @@ final class RecordingSetup: ObservableObject {
     }
 
     /// 実行中のアプリを取り直す。`reload()` の先頭から呼ぶ — 画面の列挙と違い
-    /// 同期で終わるので、in-flight の guard の手前に置いても待ちが発生しない
+    /// 同期で終わるので、in-flight の guard の手前に置いても待ちが発生しない。
+    /// **«アプリの一覧だけ» を取り直したい経路 (セルフテスト) もこのメソッドを直接
+    /// 呼ぶ** — reload() は SCK の画面列挙も始めるため、«録画テストと並行できる»
+    /// セルフテストから呼ぶと列挙と録画開始の競合 (issue #70) を作りうる
+    /// (cubic レビュー指摘)
     ///
     /// 絞り込みの根拠:
     /// - bundleID が取れないプロセスは選べない (保持値が bundleID のため)
@@ -819,7 +823,7 @@ final class RecordingSetup: ObservableObject {
     /// - 同一 bundleID が複数動く (ヘルパー等) 場合は 1 件にまとめる。録画時には
     ///   すべての PID が tap の対象になる (ProcessTapStream.resolveTargets が複数ヒットを
     ///   すべて返すため、見た目 1 項目で録れる音に欠けがない)
-    private func reloadRunningApps() {
+    func reloadRunningApps() {
         let own = Self.ownBundleID
         var seen = Set<String>()
         runningApps = NSWorkspace.shared.runningApplications.compactMap { app in

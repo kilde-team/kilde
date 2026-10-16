@@ -243,8 +243,10 @@ Common options include:
 
 - `--display NUMBER` or `--window MATCH` to select the capture target
 - repeatable `--audio system|mic|device:NAME_OR_UID|none` to select audio sources;
-  `app:BUNDLEID_OR_NAME` records a specific app's audio via Audio Process Tap
-  (macOS 15+, cannot be combined with `system`)
+  `app:BUNDLEID_OR_NAME` records audio from a running app via Audio Process Tap —
+  bundle IDs match exactly (case-insensitive), names match by substring
+  (macOS 15+, cannot be combined with `system`; an app that cannot be resolved
+  fails before recording instead of falling back to `system`)
 - `--audio-tracks mixed|separate` to mix sources or preserve separate tracks
 - `--no-video`, `--monitor`, `--duration 30s` (counted from the end of a hotkey
   wait, not from launch), `--codec h264|hevc|prores`, `--fps NUMBER (1–240)`, and
