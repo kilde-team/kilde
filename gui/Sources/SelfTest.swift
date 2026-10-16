@@ -1247,7 +1247,8 @@ enum SelfTest {
             setup.request.captureSystemAudio = false
             setup.request.appSources = [String(value.dropFirst("app:".count))]
         case let other:
-            fail("KILDE_GUI_SELFTEST_AUDIO は system / none / device:<名前> / app:<bundleID> を指定してください: \(other)")
+            // app: は bundleID のほかに名前の部分一致も受ける (エンジンの解決と同じ)
+            fail("KILDE_GUI_SELFTEST_AUDIO は system / none / device:<名前> / app:<bundleID または名前> を指定してください: \(other)")
         }
     }
 

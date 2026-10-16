@@ -242,7 +242,9 @@ complete option list.
 Common options include:
 
 - `--display NUMBER` or `--window MATCH` to select the capture target
-- repeatable `--audio system|mic|device:NAME_OR_UID|none` to select audio sources
+- repeatable `--audio system|mic|device:NAME_OR_UID|none` to select audio sources;
+  `app:BUNDLEID_OR_NAME` records a specific app's audio via Audio Process Tap
+  (macOS 15+, cannot be combined with `system`)
 - `--audio-tracks mixed|separate` to mix sources or preserve separate tracks
 - `--no-video`, `--monitor`, `--duration 30s` (counted from the end of a hotkey
   wait, not from launch), `--codec h264|hevc|prores`, `--fps NUMBER (1–240)`, and

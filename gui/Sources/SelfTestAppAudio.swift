@@ -76,10 +76,18 @@ enum SelfTestAppAudio {
 
         // 1) ピッカーの列挙 (実機の環境に依存するので不変条件だけ見る)。
         //    bundleID は保持値の語彙なので空が混ざらないこと、重複がないこと、
-        //    自アプリが含まれないことを確かめる
+        //    自アプリが含まれないことを確かめる。
+        //    **reload() を呼んでから確かめる** — init だけでは列挙が走らず、
+        //    空の一覧への検証が «壊れていても成功» になる (cubic レビュー指摘)。
+        //    reload() の中で runningApps は同期で埋まり、画面の列挙 (SCK) は
+        //    非同期で走るが、この検証は runningApps だけを見るので待たない
         let fresh = RecordingSetup(defaults: suite)
         check(ConfigStore.directory == directory,
               "RecordingSetup を作り直しても一時ディレクトリの差し替えが保たれる")
+        fresh.reload()
+        guard !fresh.runningApps.isEmpty else {
+            abort("実行中のアプリが列挙されませんでした (NSWorkspace の一覧が空。ピッカーの検証ができない)")
+        }
         check(fresh.runningApps.allSatisfy { !$0.bundleID.isEmpty },
               "ピッカーの選択肢は bundleID を持つ (\(fresh.runningApps.count) 件)")
         check(Set(fresh.runningApps.map(\.bundleID)).count == fresh.runningApps.count,
@@ -121,7 +129,8 @@ enum SelfTestAppAudio {
         // 3-b) 名前指定と実行中アプリの項目の対応 (CodeRabbit レビュー指摘)。
         //     手編集 config の `app:Safari` のような名前指定が、実行中アプリ
         //     «Safari» のメニュー項目で «未選択» になると、クリックで同じアプリが
-        //     二重に足される。解決の照合 (resolvesToApp) は合成アプリで確かめる
+        //     二重に足される。解決の照合 (resolvesToApp) は合成アプリで確かめ、
+        //     «選択表示 → 切替の置換» は実在の実行中アプリで確かめる
         let safari = RecordingSetup.RunningApp(
             bundleID: "com.apple.Safari", name: "Safari", icon: nil)
         check(fresh.resolvesToApp("Safari", app: safari),
@@ -132,24 +141,52 @@ enum SelfTestAppAudio {
               "bundleID の照合は大文字小文字を無視する")
         check(!fresh.resolvesToApp("com.example.selftestapp", app: safari),
               "別のアプリの指定はその項目に解決されない")
-        check(fresh.hasSelectedSource(resolvingTo: safari) == false,
-              "名前指定だけでは無関係な実行中アプリは «選択中» にならない")
+        // «復元した名前指定が選択表示に出る» 経路。appSources に直接名前を置くのは
+        // 手編集 config からの復元 (RecordRequest.initial) と同じ状態を作るため
+        fresh.request.appSources = ["Safari"]
+        check(fresh.hasSelectedSource(resolvingTo: safari),
+              "保存済みの名前指定は実行中アプリ «Safari» の項目を «選択中» にする")
+        fresh.request.appSources = []
+        // «選び替えの置換» (実在の実行中アプリ 1 件で端到端に確かめる)。名前指定が
+        // 残ったまま bundleID が足されると、エンジンが同じプロセスを 2 つのソースと
+        // して解決し、同じ音を二重に録る。
+        // **名前が取れるアプリに限る** — localizedName が空のプロセス (FollowUpUI など)
+        // は名前指定の語彙そのものが成立しない
+        guard let target = fresh.runningApps.first(where: { !$0.name.isEmpty }) else {
+            abort("名前の取れる実行中アプリがありません (名前指定の置換を検証できない)")
+        }
+        fresh.request.appSources = [target.name]
+        fresh.setAppSource(true, spec: target.bundleID)
+        check(fresh.request.appSources == [target.bundleID],
+              "実行中アプリを選ぶと同名の保存済み指定が bundleID に置き換わる "
+                  + "(実際 \(String(describing: fresh.request.appSources)))")
+        fresh.setAppSource(false, spec: target.bundleID)
+        check(fresh.request.appSources.isEmpty,
+              "置き換え後の選択は 1 回の解除で外れる")
+        // 以降 (セクション 4) の «app + system» の状態を作り直す — 上の解除で
+        // appSources を空にしたまま進むと、system 単独の«有効な»構成になってしまう
+        fresh.request.appSources = [appSpec]
 
         // 4) エンジン契約 — «app と system の併用は makeOptions / savingDefaults の
         //    両方で拒否» (RecordRequest.checkSourceCombination)。GUI が外し忘れた
-        //    組合せを録画開始まで通さないことの最後の砦
+        //    組合せを録画開始まで通さないことの最後の砦。
+        //    **投げられたエラーが requestInvalid であることまで見る** — «何か例外が
+        //    出た» だけだと、保存先不存在などの別の失敗を «契約どおり» と誤判定する
+        //    (cubic レビュー指摘)
         fresh.request.captureSystemAudio = true
         do {
             _ = try fresh.makeOptions(for: fresh.request)
             check(false, "app + system の makeOptions は拒否される")
         } catch {
-            check(true, "app + system の makeOptions は拒否される (\(errorKind(error)))")
+            check(isRequestInvalid(error),
+                  "app + system の makeOptions は requestInvalid で拒否される (\(errorKind(error)))")
         }
         do {
             _ = try fresh.request.savingDefaults(into: KildeConfig())
             check(false, "app + system の savingDefaults は拒否される")
         } catch {
-            check(true, "app + system の savingDefaults は拒否される (\(errorKind(error)))")
+            check(isRequestInvalid(error),
+                  "app + system の savingDefaults は requestInvalid で拒否される (\(errorKind(error)))")
         }
         // 不正な組合せは config.json に書かせない — «既定値として保存» でも同じ
         fresh.request.captureSystemAudio = false
@@ -226,6 +263,12 @@ enum SelfTestAppAudio {
         let text = String(describing: error)
         if let range = text.range(of: "\n") { return String(text[..<range.lowerBound]) }
         return text
+    }
+
+    /// エンジンの «app と system の併用» 拒否 (KilError.Code.requestInvalid) か。
+    /// «何かエラーが出た» を合格にしないための判定 (cubic レビュー指摘)
+    private static func isRequestInvalid(_ error: Error) -> Bool {
+        (error as? KilError)?.code == .requestInvalid
     }
 
     private static func check(_ condition: Bool, _ label: String) {
