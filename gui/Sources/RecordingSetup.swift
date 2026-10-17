@@ -337,10 +337,12 @@ final class RecordingSetup: ObservableObject {
 
     /// 選択中の音声ソース・トラック方針・保存先を設定ファイルの既定値にする (CLI の既定も変わる)
     func saveAsDefaults() {
+        var configSaved = false
         do {
             let updated = try request.savingDefaults(into: try ConfigStore.load())
             try ConfigStore.save(updated)
             config = updated
+            configSaved = true
             notice = String(localized: "既定値として保存しました (\(ConfigStore.fileURL.path))")
         } catch {
             notice = String(localized: "既定値を保存できません: \(error)")
@@ -350,7 +352,7 @@ final class RecordingSetup: ObservableObject {
         // ユーザー報告のとおり不自然。display / audioOnly は上の savingDefaults が
         // config.json (`defaultTarget`) へ書き、window は persistCaptureTarget が
         // UserDefaults へ書く (config には windowID を保存できない)
-        persistCaptureTarget()
+        persistCaptureTarget(configSaved: configSaved)
     }
 
     // MARK: - 録画に使った構成の引き継ぎ (issue #345)
@@ -386,6 +388,7 @@ final class RecordingSetup: ObservableObject {
     /// CLI 側の変更を握りつぶさない)。失敗しても**録画開始は止めない** —
     /// 既定値の保存は本質ではなく、開始を妨げる理由がない (案内のみ出す)
     func persistSessionDefaults() {
+        var configSaved = false
         do {
             var updated = try ConfigStore.load()
             updated.defaultAudioSources = request.audioSourceStrings
@@ -398,13 +401,14 @@ final class RecordingSetup: ObservableObject {
             updated.defaultTarget = request.target.persistedValue
             try ConfigStore.save(updated)
             config = updated
+            configSaved = true
         } catch {
             // 隣の saveAsDefaults と違い String(describing:) を明示する — Error の素の補間は
             // «debug description を使う» deprecation 警告になるため、新規のコードで
             // 警告を増やさない (出力は同じ debug description になる)
             notice = String(localized: "次回起動用の設定を保存できません: \(String(describing: error))")
         }
-        persistCaptureTarget()
+        persistCaptureTarget(configSaved: configSaved)
     }
 
     /// 収録対象のうち config.json に保存できない **window** だけを UserDefaults へ保存する
@@ -412,10 +416,17 @@ final class RecordingSetup: ObservableObject {
     /// config (`defaultTarget`) へ書くため、こちらは逆に **UserDefaults のキーを消す** —
     /// 復元は «config に既定があれば config、無ければ UserDefaults» の単一規則なので、
     /// ここに古い display / audioOnly が残っていると (config 側が window で消えた) 次の
-    /// 起動で蘇ってしまう
-    private func persistCaptureTarget() {
+    /// 起動で蘇ってしまう。
+    /// **display / audioOnly でキーを消すのは config の保存が成功したときだけ**
+    /// (`configSaved`) — 保存に失敗したときに消すと «config も UserDefaults も
+    /// 前回の選択を持たない» 状態になり、次回起動でディスプレイ 0 に戻るうえ
+    /// 移行の再試行もできなくなる (cubic レビュー指摘)。失敗時は旧キーを残し、
+    /// 次回起動の移行 (または UserDefaults フォールバック) が前回の選択を覚えている
+    private func persistCaptureTarget(configSaved: Bool) {
         if request.target.persistedValue != nil {
-            defaults.removeObject(forKey: Self.captureTargetDefaultsKey)
+            if configSaved {
+                defaults.removeObject(forKey: Self.captureTargetDefaultsKey)
+            }
         } else {
             defaults.set(
                 Self.encodedCaptureTarget(request.target), forKey: Self.captureTargetDefaultsKey)

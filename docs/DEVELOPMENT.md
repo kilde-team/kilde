@@ -143,20 +143,26 @@ macOS 15+ のため。14.x では既有のトグル構成のまま)。実行中�
 - 初期値は設定ファイルから読む (issue #345)。直接配布版では `~/.kilde/config.json`
   (CLI と共有)、**MAS 版は `SandboxSupport` がコンテナ内へ退避した設定**を用いる。
   **パネルからの録画開始** (ボタン・グローバルホットキー) のたびに、そのときの音声ソース・
-  トラック方針・文字起こし・収録対象の設定が設定ファイルの既定値に書かれるため、
-  アプリの再起動後も前回録画した構成で始まる。**直接配布版では CLI の既定も同じファイルなので
-  変わる** (意図した挙動) — MAS 版は CLI と設定を共有しないため変わらない
+  トラック方針・文字起こしの設定と、**収録対象のうち display / audioOnly**
+  (`defaultTarget` キー) が設定ファイルの既定値に書かれるため (**window は設定ファイルに
+  は書かれず、下のとおり UserDefaults へ保存される**)、アプリの再起動後も前回録画した
+  構成で始まる。**直接配布版では CLI の既定も同じファイルなので変わる**
+  (意図した挙動) — MAS 版は CLI と設定を共有しないため変わらない
   (なお `kilde rec` の既定収録対象は従来どおり display 0 — `defaultTarget` は GUI の
   初期選択だけが消費する)。保存に失敗した場合は案内を出して録画自体は続行するが、
   **次回起動には反映されない**。«この音声・保存先の選択を既定にする» ボタンは
   録画を始めずに同じ内容を保存する。
-  収録対象 (issue #372、エンジン kilde-cli-swift v0.17.0 — kilde-cli-swift#123) は
-  設定ファイルの `defaultTarget` キーに保存する (`display:<n>` / `audioOnly` は config、
-  **window は config に保存できない** — windowID はプロセス内の ID のため。window だけは
+  収録対象 (issue #372、エンジン kilde-cli-swift v0.17.0 — kilde-cli-swift#123) のうち
+  `display:<n>` / `audioOnly` は設定ファイルの `defaultTarget` キーに保存する。
+  **window は config に保存できない** — windowID はプロセス内の ID のためで、window だけは
   GUI ローカルの UserDefaults (`lastCaptureTarget`) に保存し、windowID の存続と
-  所有アプリの bundle identifier 一致を復元時に確かめてから採用する)。
+  所有アプリの bundle identifier 一致を復元時に確かめてから採用する。
   0.16.x が UserDefaults に保存した display / audioOnly は起動時に config へ
   一度だけ取り込んで消す (併用だと «どちらが最後の選択か» が決められないため)。
+  取り込み (config への書き込み) が失敗したときは UserDefaults を**消さず**、
+  次の起動で再試行する。録画開始時の保存で config への書き込みが失敗した場合も、
+  UserDefaults の旧キーは消さない («config も UserDefaults も前回の選択を持たない»
+  状態を作らないため)。
   ディスプレイ番号の範囲確認 (NSScreen 台数) は GUI 側で行う — エンジンの
   `RecordRequest.initial` は形式だけを見る (kilde-cli-swift#127)。
   保存先 (outputDirectory) は録画開始の保存では書かない — MAS 版は
@@ -508,12 +514,14 @@ KILDE_GUI_SELFTEST_LIBRARY_EXPORT=1 "$APP/Contents/MacOS/KildeGUI"
 
 ### 設定の引き継ぎ (録画開始時の保存 → 次回起動時の復元) を確かめる (issue #345 / #372)
 
-`KILDE_GUI_SELFTEST_CONFIG_SAVE=1` は録画せず、**設定の引き継ぎ**を
-ConfigStore の保存先を一時ディレクトリへ差し替えて検証し、終わります。
+`KILDE_GUI_SELFTEST_CONFIG_SAVE=1` は録画せず、**設定の引き継ぎ**を検証し、終わります。
 **実録画を伴わない**ため、録画のスロット (権限・スピーカー) を占有しません
-(並行する録画テストと同時に回せます)。ユーザーの実 `~/.kilde/config.json` と
-UserDefaults (`lastCaptureTarget` — window の保存先と 0.16.x からの移行元) は
-退避して元へ戻します:
+(並行する録画テストと同時に回せます)。**実設定には触れない隔離テスト**です —
+config.json は `ConfigStore.directory` を一時ディレクトリへ差し替えて検証し
+(実 `~/.kilde/config.json` は読み書きしない)、収録対象の UserDefaults も
+**別スイートを注入する**ため実 `UserDefaults.standard` (`lastCaptureTarget` —
+window の保存先と 0.16.x からの移行元) も読み書きしません。退避・復元の
+処理は持たず、そもそも実ファイルに届かないのが設計です:
 
 ```sh
 KILDE_GUI_SELFTEST_CONFIG_SAVE=1 "$APP/Contents/MacOS/KildeGUI"

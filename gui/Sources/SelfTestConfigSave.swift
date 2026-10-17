@@ -192,6 +192,23 @@ enum SelfTestConfigSave {
             abort("再構築でも保存済みの収録対象が保たれる (実際 \(relaunched.request.target))")
         }
 
+        // 5) で使うヘルパー (ステップ 7 の移行検証と共有する)。check と同じく
+        //    fail-fast にしないが、後続の前提が崩れるものは abort する
+        func seedConfig(_ seed: KildeConfig) {
+            do {
+                try ConfigStore.save(seed)
+            } catch {
+                abort("移行検証用の config.json を書けない: \(error)")
+            }
+        }
+        func loadedConfig(_ label: String) -> KildeConfig {
+            do {
+                return try ConfigStore.load()
+            } catch {
+                abort("移行検証中の config.json を読めない (\(label)): \(error)")
+            }
+        }
+
         // 5a) «window で録画を開始したときは config の defaultTarget を消す»
         //    (エンジンと同じ契約 — persistedValue が window で nil を返すため)。
         //    消えないと «window で開始した次回起動» で前回の audioOnly が復元され、
@@ -206,6 +223,39 @@ enum SelfTestConfigSave {
                   "window で録画を開始すると config.json の defaultTarget が消える")
         } catch {
             abort("window 収録開始後の config.json を読めない: \(error)")
+        }
+
+        // 5b) config の保存に失敗したときは UserDefaults のキーを消さない
+        //    (cubic レビュー指摘)。消してしまうと «config も UserDefaults も前回の
+        //    選択を持たない» 状態になり、次回起動でディスプレイ 0 に戻るうえ
+        //    移行の再試行もできなくなる。保存先を実在しない設定ディレクトリ (親がファイル)
+        //    へ差し替えて保存を失敗させる
+        suite.set("display:0", forKey: RecordingSetup.captureTargetDefaultsKey)
+        let blocker = directory.appendingPathComponent("blocker-\(UUID().uuidString)")
+        do {
+            try Data().write(to: blocker)
+        } catch {
+            abort("保存失敗のトリガー用ファイルを書けない: \(error)")
+        }
+        let savedDirectory = ConfigStore.directory
+        // createDirectory が «Not a directory» で失敗するパス (親がファイル)
+        ConfigStore.directory = blocker.appendingPathComponent("config")
+        let failedStart = RecordingSetup(defaults: suite)
+        failedStart.request.target = .audioOnly
+        failedStart.persistSessionDefaults()
+        check(failedStart.notice != nil, "config の保存に失敗したとき案内が出る")
+        check(suite.string(forKey: RecordingSetup.captureTargetDefaultsKey) == "display:0",
+              "config の保存に失敗したとき UserDefaults のキーを消さない (次の起動で再試行)")
+        // 差し替えを戻して «次の起動» を作ると、残っていたキーで移行が完了する
+        ConfigStore.directory = savedDirectory
+        let retried = RecordingSetup(defaults: suite)
+        check(loadedConfig("5b").defaultTarget == "display:0",
+              "保存失敗の次の起動で移行が完了する")
+        check(suite.string(forKey: RecordingSetup.captureTargetDefaultsKey) == nil,
+              "保存失敗の次の起動で UserDefaults のキーが消える")
+        guard case .display(index: 0) = retried.request.target else {
+            abort("保存失敗の次の起動で取り込んだ収録対象が復元される "
+                  + "(実際 \(retried.request.target))")
         }
 
         // 6) 収録対象の妥当性検証。環境で意味が通らなくなった値は復元しない。
@@ -267,21 +317,8 @@ enum SelfTestConfigSave {
 
         // 7) 0.16.x からの移行 (issue #372)。UserDefaults に残った display / audioOnly を
         //    一度だけ config (`defaultTarget`) へ取り込んで消す。検証ごとに config を
-        //    作り直す ( RecordingSetup.init が移行を実行するため、構築だけで検証になる)
-        func seedConfig(_ seed: KildeConfig) {
-            do {
-                try ConfigStore.save(seed)
-            } catch {
-                abort("移行検証用の config.json を書けない: \(error)")
-            }
-        }
-        func loadedConfig(_ label: String) -> KildeConfig {
-            do {
-                return try ConfigStore.load()
-            } catch {
-                abort("移行検証中の config.json を読めない (\(label)): \(error)")
-            }
-        }
+        //    作り直す ( RecordingSetup.init が移行を実行するため、構築だけで検証になる)。
+        //    seedConfig / loadedConfig はステップ 5 の前に定義したものを使う
 
         // 7a) config に既定が無いとき、0.16.x の audioOnly を取り込んで消し、
         //     その対象で初期値が作られる (1 回目の起動で復元が欠けない)
@@ -363,6 +400,20 @@ enum SelfTestConfigSave {
         guard case .audioOnly = broken.request.target else {
             abort("移行: 壊れた config.json でも UserDefaults の収録対象で復元する "
                   + "(実際 \(broken.request.target))")
+        }
+
+        // 7f の続き: config を復旧した次の起動では移行が完了する。
+        // «キーを残す» だけで移行が二度と走らなくてもこの検証は通らない —
+        // 再試行の契約そのものを見る (cubic レビュー指摘)
+        seedConfig(KildeConfig())
+        let recovered = RecordingSetup(defaults: suite)
+        check(loadedConfig("7f-recover").defaultTarget == "audioOnly",
+              "移行: config を復旧した次の起動で UserDefaults から取り込まれる")
+        check(suite.string(forKey: RecordingSetup.captureTargetDefaultsKey) == nil,
+              "移行: 復旧後の起動で UserDefaults のキーが消える")
+        guard case .audioOnly = recovered.request.target else {
+            abort("移行: 復旧後の起動で取り込んだ収録対象が復元される "
+                  + "(実際 \(recovered.request.target))")
         }
 
         cleanup()
