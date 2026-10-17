@@ -64,6 +64,16 @@ SSH は `kawai@192.168.2.243` (鍵認証。root には鍵を置いていない)�
 手順 2 と 3 は必ずセット。ジャーナル形式は前方互換なのでずれても直ちには壊れないが、
 放置するとダッシュボードの挙動とワークフローの実コードが離れていく。
 
+### ピン更新の方針 — mas.yml と mas-watch.yml でずれてよい
+
+- **mas.yml のピンが正**。serve (§1) は必ず mas.yml のピンと同じ SHA に揃える
+  (手順 3〜5)。mas.yml より先に serve を更新しない
+- mas-watch.yml は submit フローを使わない (approve 検知のみ) ので、**動作実績のある
+  古いピンを据え置いてよい** (2026-10-17 時点で 895c3562 = v0.4.0 のまま)。
+  «両 workflow のピンを必ず同時に上げる» ではない — PR 本文に「どの修正がどの
+  workflow に必要か」を書き、必要なものだけ上げる。逆に言うと、serve の SHA は
+  mas-watch.yml とずれても構わない
+
 ## 4. トラブルシュート
 
 - serve が応答しない → `launchctl print gui/$(id -u)/dev.takezou621.asc-submit-serve`
