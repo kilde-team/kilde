@@ -1,10 +1,13 @@
 import AppKit
 import KildeCore
 
-/// 設定の引き継ぎ (issue #345) の UI 無し検証。
+/// 設定の引き継ぎ (issue #345 / #372) の UI 無し検証。
 /// «録画開始時にパネルの選択を次回起動用に保存する» (`RecordingSetup.persistSessionDefaults`) と
-/// «起動時に復元する» (`RecordRequest.initial` + `restoreCaptureTarget`) の往復を、
-/// ConfigStore の保存先を一時ディレクトリへ差し替えて確かめる。
+/// «起動時に復元する» (`RecordRequest.initial` が config.json の `defaultTarget` から、
+/// window のみ `restoreCaptureTarget` が UserDefaults から) の往復と、
+/// «0.16.x が UserDefaults に保存した display / audioOnly を config へ一度だけ取り込む»
+/// 移行 (`migrateCaptureTargetToConfig`) を、ConfigStore の保存先を一時ディレクトリへ
+/// 差し替えて確かめる。
 ///
 /// **実録画を伴わない**ため、録画のスロット (画面収録・マイクの権限、スピーカー) を
 /// 占有しない (並行する録画テストと同時に回せる)。
@@ -22,11 +25,13 @@ import KildeCore
 ///
 /// 自動で確かめられるのはここまで、という線引き:
 /// - **確かめられる**: persistSessionDefaults の config.json への反映 (音声ソース / トラック方針 /
-///   文字起こし。既存の outputDirectory を**壊さない**ことも)、収録対象の保存と復元、
-///   RecordingSetup.init が復元済みの値で初期値を作ること (再起動後の init と同じ経路)、
-///   «保存を呼ばない変更は漏れない» こと (受け入れ条件 «録画を開始しないまま終了した場合、
-///   開始していない構成は保存されない» は «persist を呼ぶのが開始経路だけ» という構造 +
-///   この検証で担保する)
+///   文字起こし / 収録対象 (`defaultTarget`)。既存の outputDirectory を**壊さない**ことも)、
+///   収録対象の保存と復元 (display / audioOnly は config 経路、window は UserDefaults 経路)、
+///   0.16.x からの移行 (取り込み / config 優先 / window 不触 / 未知形式の掃除 /
+///   壊れた config での再試行)、RecordingSetup.init が復元済みの値で初期値を作ること
+///   (再起動後の init と同じ経路)、«保存を呼ばない変更は漏れない» こと (受け入れ条件
+///   «録画を開始しないまま終了した場合、開始していない構成は保存されない» は
+///   «persist を呼ぶのが開始経路だけ» という構造 + この検証で担保する)
 /// - **確かめられない**: 実際の録画開始経路 (ボタン・ホットキー) から persist が呼ばれること。
 ///   実録画が要るため実機確認に頼る — この検証で «通った» にしない
 ///
@@ -143,10 +148,17 @@ enum SelfTestConfigSave {
         check(saved.transcribe == true, "文字起こしのトグルが保存される")
         check(saved.outputDirectory == seededOutputDirectory.path,
               "outputDirectory は書き換えない (bookmark に任せる)")
-        check(suite.string(forKey: RecordingSetup.captureTargetDefaultsKey) == "audioOnly",
-              "収録対象が注入した defaults へ保存される")
+        // 収録対象は config (`defaultTarget`) へ保存し、UserDefaults のキーは消す
+        // («config に既定があれば config、無ければ UserDefaults» の復元規則のため — issue #372)
+        check(saved.defaultTarget == "audioOnly",
+              "収録対象が config.json (`defaultTarget`) へ保存される "
+                  + "(実際 \(saved.defaultTarget ?? "nil"))")
+        check(suite.string(forKey: RecordingSetup.captureTargetDefaultsKey) == nil,
+              "display / audioOnly の保存で UserDefaults のキーが消える")
 
-        // 4) 復元。RecordingSetup.init は再起動後と同じ経路 (initial + restoreCaptureTarget)
+        // 4) 復元。RecordingSetup.init は再起動後と同じ経路
+        //    (initial が config の defaultTarget から、window のみ UserDefaults から)。
+        //    config に既定があるので UserDefaults からの復元は行われない
         let restored = RecordingSetup(defaults: suite)
         check(!restored.request.captureSystemAudio, "復元: システム音声のオフ")
         check(restored.request.captureMic, "復元: マイクのオン")
@@ -170,8 +182,10 @@ enum SelfTestConfigSave {
         }
         check(untouched.defaultAudioSources == ["mic", "device:\(deviceSpec)"],
               "persist を呼ばない変更は config.json に漏れない")
-        check(suite.string(forKey: RecordingSetup.captureTargetDefaultsKey) == "audioOnly",
+        check(untouched.defaultTarget == "audioOnly",
               "persist を呼ばない変更は収録対象に漏れない")
+        check(suite.string(forKey: RecordingSetup.captureTargetDefaultsKey) == nil,
+              "persist を呼ばない変更は UserDefaults にも漏れない")
         let relaunched = RecordingSetup(defaults: suite)
         check(relaunched.request.captureMic, "再構築でも保存済みの構成が保たれる")
         guard case .audioOnly = relaunched.request.target else {
@@ -234,6 +248,106 @@ enum SelfTestConfigSave {
         check(RecordingSetup.restoreCaptureTarget(
                 defaults: suite, screens: [], liveWindows: [window]) == nil,
               "未知の形式は復元しない")
+
+        // 7) 0.16.x からの移行 (issue #372)。UserDefaults に残った display / audioOnly を
+        //    一度だけ config (`defaultTarget`) へ取り込んで消す。検証ごとに config を
+        //    作り直す ( RecordingSetup.init が移行を実行するため、構築だけで検証になる)
+        func seedConfig(_ seed: KildeConfig) {
+            do {
+                try ConfigStore.save(seed)
+            } catch {
+                abort("移行検証用の config.json を書けない: \(error)")
+            }
+        }
+        func loadedConfig(_ label: String) -> KildeConfig {
+            do {
+                return try ConfigStore.load()
+            } catch {
+                abort("移行検証中の config.json を読めない (\(label)): \(error)")
+            }
+        }
+
+        // 7a) config に既定が無いとき、0.16.x の audioOnly を取り込んで消し、
+        //     その対象で初期値が作られる (1 回目の起動で復元が欠けない)
+        seedConfig(KildeConfig())
+        suite.set("audioOnly", forKey: RecordingSetup.captureTargetDefaultsKey)
+        let migrated = RecordingSetup(defaults: suite)
+        check(loadedConfig("7a").defaultTarget == "audioOnly",
+              "移行: 0.16.x の audioOnly が config (`defaultTarget`) へ取り込まれる")
+        check(suite.string(forKey: RecordingSetup.captureTargetDefaultsKey) == nil,
+              "移行: 取り込んだ後 UserDefaults のキーを消す (併用しない)")
+        guard case .audioOnly = migrated.request.target else {
+            abort("移行: 取り込んだ収録対象で初期値が作られる (実際 \(migrated.request.target))")
+        }
+
+        // 7b) config に既定があるとき、古い UserDefaults の値は消すだけで config が勝つ
+        //     (CLI や新しい GUI が書いた既定を古い値で上書きしない)
+        var seeded = KildeConfig()
+        seeded.defaultTarget = "audioOnly"
+        seedConfig(seeded)
+        suite.set("display:0", forKey: RecordingSetup.captureTargetDefaultsKey)
+        let configWins = RecordingSetup(defaults: suite)
+        check(loadedConfig("7b").defaultTarget == "audioOnly",
+              "移行: config に既定があるとき config の値が残る")
+        check(suite.string(forKey: RecordingSetup.captureTargetDefaultsKey) == nil,
+              "移行: config に既定があるとき古い UserDefaults の値は消す")
+        guard case .audioOnly = configWins.request.target else {
+            abort("移行: config 側の既定が勝つ (実際 \(configWins.request.target))")
+        }
+
+        // 7c) window 形式は config に取り込まない (UserDefaults に残す —
+        //     既存の検証付き経路 windowID 存続 + bundle 一致 が使う)
+        seedConfig(KildeConfig())
+        suite.set("window:424242:com.example.selftest",
+                  forKey: RecordingSetup.captureTargetDefaultsKey)
+        _ = RecordingSetup(defaults: suite)
+        check(loadedConfig("7c").defaultTarget == nil,
+              "移行: window は config に取り込まない (windowID は永続化に耐えない)")
+        check(suite.string(forKey: RecordingSetup.captureTargetDefaultsKey)
+                == "window:424242:com.example.selftest",
+              "移行: window は UserDefaults に残る")
+
+        // 7d) 未知の形式は消す (0.16.x の復元が nil に倒していたのと同じ結果に揃える)。
+        //     取り込まないのは validate() が弾く値を config に書いて
+        //     «保存が毎回失敗する» 状態を作らないため
+        suite.set("bogus", forKey: RecordingSetup.captureTargetDefaultsKey)
+        _ = RecordingSetup(defaults: suite)
+        check(loadedConfig("7d").defaultTarget == nil, "移行: 未知の形式は取り込まない")
+        check(suite.string(forKey: RecordingSetup.captureTargetDefaultsKey) == nil,
+              "移行: 未知の形式は消す")
+
+        // 7e) config 経路のディスプレイ番号の範囲確認。initial() は形式だけを見るので、
+        //     GUI が NSScreen の台数で範囲外を既定 (ディスプレイ 0) に戻す
+        //     (screens は 6) で取ったものを流用する)
+        if !screens.isEmpty {
+            seedConfig(KildeConfig())
+            suite.set("display:\(screens.count)", forKey: RecordingSetup.captureTargetDefaultsKey)
+            let outOfRange = RecordingSetup(defaults: suite)
+            check(loadedConfig("7e").defaultTarget == "display:\(screens.count)",
+                  "移行: 形式が正しいディスプレイ番号は取り込まれる (台数 \(screens.count))")
+            guard case .display(index: 0) = outOfRange.request.target else {
+                abort("移行: 範囲外のディスプレイ番号は既定 (ディスプレイ 0) に戻る "
+                      + "(実際 \(outOfRange.request.target))")
+            }
+        }
+
+        // 7f) config.json が読めないときは移行しない (壊れたファイルを上書きしない)。
+        //     復元は 0.16.x までと同じく UserDefaults だけが効く
+        seedConfig(KildeConfig())
+        suite.set("audioOnly", forKey: RecordingSetup.captureTargetDefaultsKey)
+        do {
+            try Data("not json".utf8).write(to: ConfigStore.fileURL)
+        } catch {
+            abort("壊れた config.json を書けない: \(error)")
+        }
+        let broken = RecordingSetup(defaults: suite)
+        check(broken.notice != nil, "移行: 壊れた config.json で案内が出る")
+        check(suite.string(forKey: RecordingSetup.captureTargetDefaultsKey) == "audioOnly",
+              "移行: 壊れた config.json では UserDefaults を消さない (次の起動で再試行)")
+        guard case .audioOnly = broken.request.target else {
+            abort("移行: 壊れた config.json でも UserDefaults の収録対象で復元する "
+                  + "(実際 \(broken.request.target))")
+        }
 
         cleanup()
         print("selftest: config-save failures=\(failures)")

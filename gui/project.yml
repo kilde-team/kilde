@@ -74,7 +74,12 @@ packages:
     # appSources (bundleID / アプリ名の配列) と audioSourceStrings の app: 接頭辞、
     # system との併用拒否 (makeOptions / savingDefaults の両方)、
     # defaultAudioSources からの app: 復元を含む (kilde#364 が消費)
-    exactVersion: 0.16.0
+    # v0.17.0: KildeConfig に収録対象のキー defaultTarget が追加された
+    # (kilde-cli-swift#123)。RecordRequest.initial が config から収録対象を復元し、
+    # savingDefaults が書き出す (window は persistedValue が nil を返すため書かない)。
+    # 値の語彙 (display:<n> / audioOnly) は GUI の lastCaptureTarget と同じで、
+    # GUI の保存経路を config.json へ移行するのに使う (kilde#372 が消費)
+    exactVersion: 0.17.0
   # GUI の自動更新 (issue #122)。Sparkle 2 のバイナリターゲット (macOS 12+) で、
   # リンクすると Sparkle.framework が Contents/Frameworks に埋め込まれる。
   # バージョンを固定する理由は kilde-cli-swift と同じ: 浮動参照だと上流の push が
