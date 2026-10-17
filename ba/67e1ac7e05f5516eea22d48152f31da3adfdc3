@@ -1,0 +1,22 @@
+.github/workflows/release.yml
+  h_864205080385bc 54-57
+docs/DEVELOPMENT.md
+  h_864205080385bc 146-161,509,515-516,523,526,532-538
+gui/Sources/RecordingSetup.swift
+  h_864205080385bc 185-188,215-226,229-235,348-352,358-362,376-382,394-398,410-415,417-466
+gui/Sources/SelfTestConfigSave.swift
+  h_864205080385bc 4,6-10,28-34,151-157,159-161,185,187-188,252-351
+gui/project.yml
+  h_864205080385bc 77-82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ba67e1ac7e05f5516eea22d48152f31da3adfdc3",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
