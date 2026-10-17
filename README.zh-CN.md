@@ -4,7 +4,7 @@
 
 [![Release](https://github.com/kilde-team/kilde/actions/workflows/release.yml/badge.svg)](https://github.com/kilde-team/kilde/actions/workflows/release.yml)
 
-一款开源的 macOS 屏幕与音频录制工具。
+一款 macOS 屏幕与音频录制工具 — 菜单栏应用以 MIT 许可证开源，录制引擎在本地运行。
 
 kilde 可以录制屏幕以及 **QuickTime Player 的屏幕录制无法捕捉的系统声音**，
 通过单命令 CLI 和菜单栏应用两种方式实现。
@@ -367,4 +367,7 @@ kilde-team/kilde-cli-swift 进行。
 
 ## 许可证
 
-[MIT License](LICENSE)
+本仓库中的源代码（菜单栏应用与文档）以 [MIT License](LICENSE) 公开。录制引擎与
+`kilde` CLI 在私有的
+[kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift)
+仓库中开发，并包含在发布的版本（应用包与 CLI 二进制）中。

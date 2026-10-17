@@ -4,7 +4,7 @@
 
 [![Release](https://github.com/kilde-team/kilde/actions/workflows/release.yml/badge.svg)](https://github.com/kilde-team/kilde/actions/workflows/release.yml)
 
-macOS용 오픈 소스 화면·오디오 녹화 도구.
+macOS용 화면·오디오 녹화 도구 — 메뉴 막대 앱은 오픈 소스(MIT)이며 녹화 엔진은 로컬에서 동작합니다.
 
 kilde는 화면과 **QuickTime Player의 화면 녹화로는 잡을 수 없는 시스템 사운드**를
 함께 녹화합니다 — 단일 명령 CLI와 메뉴 막대 앱 두 가지 방식으로.
@@ -385,4 +385,7 @@ kilde-team/kilde-cli-swift에서 이루어집니다.
 
 ## 라이선스
 
-[MIT License](LICENSE)
+이 저장소의 소스(메뉴 막대 앱과 문서)는 [MIT License](LICENSE)로 공개합니다.
+녹화 엔진과 `kilde` CLI는 비공개
+[kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift)
+저장소에서 개발하며, 릴리스(앱 번들과 CLI 바이너리)에 포함됩니다.

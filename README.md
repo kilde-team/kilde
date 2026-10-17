@@ -4,7 +4,7 @@
 
 [![Release](https://github.com/kilde-team/kilde/actions/workflows/release.yml/badge.svg)](https://github.com/kilde-team/kilde/actions/workflows/release.yml)
 
-An open-source screen and audio recorder for macOS.
+A screen and audio recorder for macOS — the menu bar app is open source (MIT), built on the local recording engine.
 
 kilde records your screen together with **system audio that QuickTime Player's
 screen recorder cannot capture** — as a single-command CLI and as a menu bar
@@ -411,4 +411,8 @@ engine and the CLI happens in kilde-team/kilde-cli-swift.
 
 ## License
 
-[MIT License](LICENSE)
+The sources in this repository (the menu bar app and documentation) are released
+under the [MIT License](LICENSE). The recording engine and the `kilde` CLI are
+developed in the private
+[kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift)
+repository and are included in the released app bundles and the CLI binary.

@@ -4,7 +4,7 @@
 
 [![Release](https://github.com/kilde-team/kilde/actions/workflows/release.yml/badge.svg)](https://github.com/kilde-team/kilde/actions/workflows/release.yml)
 
-macOS 向けの OSS 画面 + 音声 録画ツール。
+macOS 向けの画面 + 音声 録画ツール。メニューバーアプリはオープンソース (MIT)、録画エンジンはローカルで動作します。
 
 QuickTime Player の画面収録では録れない**システム音声を含めた録画・録音**を、
 CLI のワンコマンドとメニューバーアプリで実現します。
@@ -254,4 +254,7 @@ kilde という名前は、このツールが残すべきもの = 「源」か�
 
 ## ライセンス
 
-[MIT License](LICENSE)
+このリポジトリのソース (メニューバーアプリとドキュメント) は
+[MIT License](LICENSE) で公開しています。録画エンジンと `kilde` CLI は非公開の
+[kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift)
+リポジトリで開発しており、リリース物 (アプリバンドルと CLI バイナリ) に含まれます。
