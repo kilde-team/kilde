@@ -256,8 +256,9 @@ capture source (display / audio-only) saved when a recording starts is now
 stored in the same settings file as the other recording settings (the
 `defaultTarget` key of config.json — issue #372 / PR #373; engine
 kilde-cli-swift v0.17.0, kilde-cli-swift#123). **The save timing is
-unchanged — a recording start** (starting from the panel, or the
-"make this the default" button), and a window selection is still kept inside
+unchanged — a recording start** (the panel's start button, or the global
+hotkey; the "make this the default" button saves the same content without
+starting a recording), and a window selection is still kept inside
 the app because a window ID is reassigned per app launch (the existing
 validated restore path is unchanged). What's New keeps the "what changed,
 what did not" wording precise and short (stating that the save happens when

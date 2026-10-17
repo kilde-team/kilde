@@ -267,8 +267,9 @@ el origen de captura (pantalla / solo audio) que se guarda al comenzar una
 grabación ahora se almacena en el mismo archivo de configuración que los
 demás ajustes de grabación (la clave `defaultTarget` de config.json —
 issue #372 / PR #373; motor kilde-cli-swift v0.17.0, kilde-cli-swift#123).
-**El momento del guardado no cambia: el inicio de una grabación** (comenzar
-desde el panel o el botón de guardado como predeterminada), y la selección de
+**El momento del guardado no cambia: el inicio de una grabación** (el botón
+de inicio del panel o el atajo global; el botón de guardado como predeterminada
+guarda lo mismo sin iniciar una grabación), y la selección de
 una ventana sigue guardándose dentro de la app, porque el ID de ventana se
 reasigna en cada arranque de la app (la ruta de restauración validada existente
 no cambia).
