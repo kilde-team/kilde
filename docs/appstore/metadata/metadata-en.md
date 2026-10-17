@@ -257,7 +257,8 @@ stored in the same settings file as the other recording settings (the
 `defaultTarget` key of config.json — issue #372 / PR #373; engine
 kilde-cli-swift v0.17.0, kilde-cli-swift#123). **The save timing is
 unchanged — a recording start** (the panel's start button, or the global
-hotkey; the "make this the default" button saves the same content without
+hotkey; recordings started via Shortcuts or the meeting auto-recorder are
+not saved; the "make this the default" button saves the same content without
 starting a recording), and a window selection is still kept inside
 the app because a window ID is reassigned per app launch (the existing
 validated restore path is unchanged). What's New keeps the "what changed,
@@ -266,5 +267,5 @@ a recording starts — an ambiguous line that could read as "saved behind your
 back" was flagged by cubic before).
 
 ```text
-The capture source (display or audio-only) selected when you start a recording is now saved to the same settings file as the other recording settings. The save timing is unchanged (when a recording starts) and recording behavior is unchanged.
+The capture source (display or audio-only) selected when you start a recording from the panel or the global hotkey is now saved to the same settings file as the other recording settings. The save timing is unchanged (when a recording starts) and recording behavior is unchanged.
 ```
