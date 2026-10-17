@@ -1,10 +1,14 @@
 class Kilde < Formula
   desc "Command-line screen and audio recorder for macOS"
   homepage "https://github.com/kilde-team/kilde"
-  url "https://github.com/kilde-team/kilde/releases/download/v0.13.0/kilde-0.13.0-macos.zip"
-  # v0.13.0 の実配布物のハッシュ (Release からダウンロードした zip で計算)
-  sha256 "124201b544702d17c27f50da69e4ad9f893d7b62f2d93f95ef16c1f192a0bbb0"
-  license "MIT"
+  url "https://github.com/kilde-team/kilde/releases/download/v0.17.0/kilde-0.17.0-macos.zip"
+  # v0.17.0 の実配布物のハッシュ (Release からダウンロードした zip で計算)。
+  # DMG や zip 名からハッシュを推測して書かないこと (#369 の事故注意)
+  sha256 "2bca471e96ded74e1cac4071f854368e15b51c2dec446d55bcc5682aa0865656"
+  # CLI バイナリは kilde-team/kilde-cli-swift (private) で開発されたプロプライエタリ
+  # のため MIT ではない (README の License 節 — takezou621/kilde#377 で実態に合わせた)。
+  # Homebrew の license 構文でプロプライエタリを表す値は :cannot_represent
+  license :cannot_represent
 
   # 配布 zip は arm64 (Apple Silicon) ビルドのみ (release workflow の macos-26
   # ランナーで swift build -c release した単体バイナリ)。universal に含まれない
@@ -17,7 +21,10 @@ class Kilde < Formula
   # head ブロックは廃止 (kilde#118)。CLI のソースは kilde-team/kilde-cli-swift
   # (private) に分離されたため、外部ユーザーがこのリポジトリからソースビルドする
   # 経路が存在しない。リリースごとに url / sha256 を更新し
-  # kilde-team/homebrew-kilde へ反映する (手順は docs/RELEASE.md「Homebrew tap の更新」)
+  # kilde-team/homebrew-kilde へ反映する (手順は docs/RELEASE.md「Homebrew tap の更新」)。
+  # この正本は 0.13.0 で止まり、0.15.0 / 0.16.0 は tap 直接更新だけが行われた
+  # (0.17.0 で drift を一括解消 — issue #378)。次回以降は正本を先に PR で上げてから
+  # tap に反映する順序を守ること
 
   def install
     # zip 内のバイナリは ditto --keepParent のため release/kilde に入っているが、
