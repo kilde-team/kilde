@@ -4,7 +4,7 @@
 
 [![Release](https://github.com/kilde-team/kilde/actions/workflows/release.yml/badge.svg)](https://github.com/kilde-team/kilde/actions/workflows/release.yml)
 
-Una herramienta de grabación de pantalla y audio de código abierto para macOS.
+Una herramienta de grabación de pantalla y audio para macOS — la app de barra de menús es de código abierto (MIT) y el motor de grabación funciona localmente.
 
 kilde graba tu pantalla junto con **el audio del sistema que la grabadora de
 pantalla de QuickTime Player no puede capturar** — como CLI de un solo comando
@@ -425,4 +425,10 @@ kilde-team/kilde-cli-swift.
 
 ## Licencia
 
-[MIT License](LICENSE)
+El código fuente de este repositorio (la app de barra de menús, los scripts, la
+fórmula de Homebrew y la documentación) se publica bajo la [MIT License](LICENSE).
+El motor de grabación y el CLI `kilde` son propietarios (todos los derechos
+reservados; se desarrollan en el repositorio privado
+[kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift))
+y se ofrecen únicamente como parte de las versiones publicadas (el paquete de la
+app y el binario del CLI).
