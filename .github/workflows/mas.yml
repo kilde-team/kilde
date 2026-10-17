@@ -93,7 +93,7 @@ jobs:
           # この workflow の経路は変えない
           # タグではなくコミット SHA に固定する (タグ移動で異なるコードが走るのを防ぐ —
           # CodeRabbit セキュリティ指摘)。SHA は v0.4.0 を指す
-          ref: 895c35629e9121042cb8fcbff93d8b61c9e38a38 # v0.4.0
+          ref: 31474dca0ffa9f1ea71f3a0d76449f036aaf7b42 # v0.4.0 + phased-release/submit 修正 + 未提出 submission 再利用 (asc-submit PR 9, 10, 11, 12)
           path: asc-submit
           persist-credentials: false
 
