@@ -1,0 +1,14 @@
+docs/appstore/asc-submit-ops.md
+  h_864205080385bc 67-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e196cfb45324ed8236af30bf6eb342b6bf9ed018",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
