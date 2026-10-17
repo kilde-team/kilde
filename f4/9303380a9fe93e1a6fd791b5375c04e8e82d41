@@ -1,0 +1,14 @@
+gui/Sources/SelfTestConfigSave.swift
+  h_864205080385bc 195-210
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f49303380a9fe93e1a6fd791b5375c04e8e82d41",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
