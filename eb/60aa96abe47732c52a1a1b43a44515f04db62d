@@ -1,0 +1,14 @@
+docs/launch/demo-video.md
+  h_864205080385bc 24-27,30,32-36,49-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "eb60aa96abe47732c52a1a1b43a44515f04db62d",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
