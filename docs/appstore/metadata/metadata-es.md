@@ -259,3 +259,20 @@ aviso al comenzar la grabación).
 ```text
 Ya puedes elegir una app en ejecución en la ventana emergente para grabar solo el audio de esa app (requiere macOS 15 o posterior). Se puede combinar con el micrófono, pero el audio de apps y el audio del sistema no se pueden grabar a la vez. La selección se guarda al comenzar una grabación y se conserva en el próximo arranque.
 ```
+
+## Novedades (0.17.0)
+
+Sin cambios visibles para el usuario desde MAS 0.16.0. Como mejora interna,
+el origen de captura (pantalla / solo audio) que se guarda al comenzar una
+grabación ahora se almacena en el mismo archivo de configuración que los
+demás ajustes de grabación (la clave `defaultTarget` de config.json —
+issue #372 / PR #373; motor kilde-cli-swift v0.17.0, kilde-cli-swift#123).
+**El momento del guardado no cambia: el inicio de una grabación** (comenzar
+desde el panel o el botón de guardado como predeterminada), y la selección de
+una ventana sigue guardándose dentro de la app, porque el ID de ventana se
+reasigna en cada arranque de la app (la ruta de restauración validada existente
+no cambia).
+
+```text
+El origen de captura (pantalla o solo audio) elegido al comenzar una grabación ahora se guarda en el mismo archivo de configuración que los demás ajustes de grabación. El momento del guardado no cambia (al comenzar la grabación) y el comportamiento de grabación tampoco.
+```
