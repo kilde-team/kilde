@@ -163,7 +163,7 @@ final class RecordingSetup: ObservableObject {
         localized: "保存先を変更しました。ただし記録できなかったため、次にアプリを起動したときは既定の保存先に戻ります")
 #endif
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, migrateCaptureTarget: Bool = true) {
         self.defaults = defaults
 #if APPSTORE
         // **ConfigStore に触るより先に**設定の保存先をコンテナ内へ退避させる (issue #126)。
@@ -184,8 +184,15 @@ final class RecordingSetup: ObservableObject {
             config = try ConfigStore.load()
             // 収録対象の保存先を UserDefaults から config.json へ移行する (issue #372)。
             // **config.json が読めたときだけ**実行する — 読めないときに書くと、壊れた
-            // (しかし内容は残っている) config.json を新規の既定値で上書きしてしまう
-            migrateCaptureTargetToConfig()
+            // (しかし内容は残っている) config.json を新規の既定値で上書きしてしまう。
+            // セルフテスト起動では AppDelegate の本来の setup には**実行させない**:
+            // この init は SelfTest.runIfRequested より先に走るため、移行まで実行すると
+            // セルフテストの起動だけで実環境の config.json / UserDefaults を書き換える
+            // (cubic レビュー指摘)。移行の検証は、セルフテスト本体が ConfigStore.directory
+            // を差し替えたあとで構築する RecordingSetup (引数既定の true) が担う
+            if migrateCaptureTarget {
+                migrateCaptureTargetToConfig()
+            }
         } catch {
             // 壊れた設定でも GUI 自体は開けるようにし、録画開始時に CLI と同じエラーを出す
             notice = String(localized: "設定ファイルを読めません (既定値で表示します): \(error)")

@@ -12,7 +12,7 @@ import KildeCore
 /// **実録画を伴わない**ため、録画のスロット (画面収録・マイクの権限、スピーカー) を
 /// 占有しない (並行する録画テストと同時に回せる)。
 ///
-/// ユーザーの実環境を壊さないための 2 つの差し替え:
+/// ユーザーの実環境を壊さないための 3 つの差し替え:
 /// - **config.json** は `ConfigStore.directory` を一時ディレクトリへ差し替える。
 ///   MAS ビルドでは RecordingSetup を作り直しても
 ///   `SandboxSupport.redirectConfigStoreIntoContainer()` が 2 回目以降は
@@ -22,6 +22,12 @@ import KildeCore
 ///   共有の `UserDefaults.standard` を検証で消去・復元すると、同時に走っている
 ///   別プロセスの GUI が保存したばかりの収録対象を消しうるため
 ///   (cubic レビュー指摘への対応)。standard には一切触らない
+/// - **起動時の移行は、AppDelegate が持つ本来の setup では走らない** —
+///   その stored property の初期化はこの検証より先に行われるため、移行まで実行すると
+///   セルフテストの起動だけで実環境の config.json / UserDefaults を書き換えてしまう
+///   (AppDelegate の `RecordingSetup(migrateCaptureTarget: !SelfTest.isActive)`。
+///   cubic レビュー指摘への対応)。この検証が構築する RecordingSetup は既定の引数で
+///   移行を実行し、一時環境の中で移行を確かめる
 ///
 /// 自動で確かめられるのはここまで、という線引き:
 /// - **確かめられる**: persistSessionDefaults の config.json への反映 (音声ソース / トラック方針 /
@@ -242,6 +248,9 @@ enum SelfTestConfigSave {
         ConfigStore.directory = blocker.appendingPathComponent("config")
         let failedStart = RecordingSetup(defaults: suite)
         failedStart.request.target = .audioOnly
+        // init が何らかの案内を残していても、ここから先は persist の通知だけを見る —
+        // «保存失敗の案内» の出所を persistSessionDefaults に限定するため (cubic レビュー指摘)
+        failedStart.notice = nil
         failedStart.persistSessionDefaults()
         check(failedStart.notice != nil, "config の保存に失敗したとき案内が出る")
         check(suite.string(forKey: RecordingSetup.captureTargetDefaultsKey) == "display:0",

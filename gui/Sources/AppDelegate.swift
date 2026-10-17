@@ -29,7 +29,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var popover: NSPopover?
     private let recording = RecordingController()
-    private let setup = RecordingSetup()
+    // セルフテスト起動では移行を行わない — この stored property の初期化は
+    // SelfTest.runIfRequested より先に走るため、通常どおり移行まで実行すると
+    // セルフテストの起動だけで実環境の config.json / UserDefaults を書き換える
+    // (issue #372 — cubic レビュー指摘)。移行の検証はセルフテスト本体が
+    // 一時環境で構築する RecordingSetup が担う
+    private let setup = RecordingSetup(migrateCaptureTarget: !SelfTest.isActive)
     private let permissions = PermissionsModel()
     /// 録画後の文字起こし (issue #146)。録画と同じく AppDelegate が持つ —
     /// パネルを閉じても処理が続く (TranscriptionCoordinator のコメント参照)
@@ -138,8 +143,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 送らない** (issue #219、理由は関数のコメント)。**Sparkle と分岐は違う** —
         // Sparkle は KILDE_GUI_SELFTEST_UPDATE=1 でも起動する (updaterStartsAtLaunch)
         // が、Firebase はセルフテスト・Debug 構成のどちらでも起動しない
-        let isSelfTest = ProcessInfo.processInfo.environment.keys
-            .contains { $0.hasPrefix("KILDE_GUI_SELFTEST_") }
+        let isSelfTest = SelfTest.isActive
         if Self.sendsUsageToFirebase(isSelfTest: isSelfTest) {
             FirebaseApp.configure()
             // Analytics の初期化は project.yml の OTHER_LDFLAGS: -ObjC に依存する。

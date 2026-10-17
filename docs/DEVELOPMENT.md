@@ -520,8 +520,11 @@ KILDE_GUI_SELFTEST_LIBRARY_EXPORT=1 "$APP/Contents/MacOS/KildeGUI"
 config.json は `ConfigStore.directory` を一時ディレクトリへ差し替えて検証し
 (実 `~/.kilde/config.json` は読み書きしない)、収録対象の UserDefaults も
 **別スイートを注入する**ため実 `UserDefaults.standard` (`lastCaptureTarget` —
-window の保存先と 0.16.x からの移行元) も読み書きしません。退避・復元の
-処理は持たず、そもそも実ファイルに届かないのが設計です:
+window の保存先と 0.16.x からの移行元) も読み書きしません。
+さらにセルフテスト起動では、AppDelegate が持つ本来の `RecordingSetup` の生成
+(selftest 本体より先に走る) で**移行を実行しない** (`SelfTest.isActive` で抑止)
+ため、テストの起動自体が実設定を書き換えることもありません。
+退避・復元の処理は持たず、そもそも実ファイルに届かないのが設計です:
 
 ```sh
 KILDE_GUI_SELFTEST_CONFIG_SAVE=1 "$APP/Contents/MacOS/KildeGUI"
