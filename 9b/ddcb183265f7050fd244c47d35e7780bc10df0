@@ -1,0 +1,18 @@
+docs/DEVELOPMENT.md
+  h_864205080385bc 146-150,155-157,159,162-165,517,519-524
+gui/Sources/RecordingSetup.swift
+  h_864205080385bc 340,345,355,391,404,411,419-425,427-429
+gui/Sources/SelfTestConfigSave.swift
+  h_864205080385bc 195-211,228-260,320-321,405-418
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9bddcb183265f7050fd244c47d35e7780bc10df0",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
