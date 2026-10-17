@@ -6,7 +6,8 @@ Show HN / r/macapps / Product Hunt のコメント欄で想定される質問と
 
 方針:
 - **誇張しない**。数値実績・«世界初»・«最速» は書かない
-- **将来を約束しない** (収益化・ライセンス方針は #168 で未決定)
+- **将来を約束しない** (収益化方針は #168 で決定済み — docs/MONETIZATION.md §8。
+  実装と告知の時期は未定のため、«永久無料» 等の約束はしない)
 - 批判には防御せず事実で返す。オープンにできる点 (公開リポジトリ、
   プライバシー文書) へのリンクを貼る
 
@@ -23,8 +24,9 @@ Show HN / r/macapps / Product Hunt のコメント欄で想定される質問と
 > signed and notarized, the CLI is free, and the privacy policy
 > (https://kilde.site/privacy/) covers all distribution channels.
 
-補足 (日本語注記): «ソース公開の方針を決めるまでは private» が事実
-(#168 で決める。#115 の移行時点からの合意)。«not a hidden plan» は
+補足 (日本語注記): «ソース公開の方針を決めるまでは private» が事実 (#115 の移行時点からの
+合意。#168 で Pro の判定を private エンジンに置く方針は決定済み — docs/MONETIZATION.md §8 —
+だが、エンジン自体の長期ソース公開方針は引き続き未確定)。«not a hidden plan» は
 事実に基づく — 方針決定 issue が公開リポジトリのロードマップに存在する。
 
 ## 2. 何を収集しているのか (アナリティクス)
@@ -112,11 +114,14 @@ Homebrew 経路も現状 arm64 のため提供なし — 素直に «not right n
 ## 9. 有料化の予定は?
 
 > It's free today, both from the Mac App Store and as a direct download,
-> and the CLI is free too. Longer-term monetization is an open question on
-> our roadmap — nothing to announce, and we'll be upfront when that
+> and the CLI is free too. We've written down our direction for longer-term
+> monetization in the public docs, but there's nothing to announce today —
+> no paywall ships in the current release, and we'll be upfront when that
 > changes.
 
-補足 (日本語注記): «永久無料» とは言わない (MONETIZATION.md / #168 の方針次第)。
+補足 (日本語注記): «永久無料» とは言わない。方針は docs/MONETIZATION.md §8 に
+決定済み (2026-10-17 — 第一弾 Pro は要約、MAS 買い切り ¥2,800 前後の案) だが、
+実装時期はフェーズ 2 (#161) の出口条件後で未定。投稿では «現時点で無料» の事実のみ。
 «be upfront» (変えるときは正面から告知する) で誠実さを見せる。
 
 ## 10. 文字起こしの精度は? (日本語は?)
