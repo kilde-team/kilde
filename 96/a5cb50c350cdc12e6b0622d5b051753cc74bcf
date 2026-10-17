@@ -1,0 +1,24 @@
+README.es.md
+  h_864205080385bc 7,428-432
+README.ja.md
+  h_864205080385bc 7,257-260
+README.ko.md
+  h_864205080385bc 7,388-391
+README.md
+  h_864205080385bc 7,414-418
+README.zh-CN.md
+  h_864205080385bc 7,370-373
+docs/MONETIZATION.md
+  h_864205080385bc 4-6,138-188
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "96a5cb50c350cdc12e6b0622d5b051753cc74bcf",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
