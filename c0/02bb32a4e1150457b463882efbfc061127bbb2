@@ -1,0 +1,18 @@
+docs/MONETIZATION.md
+  h_864205080385bc 204
+docs/launch/README.md
+  h_864205080385bc 31-33
+docs/launch/faq.md
+  h_864205080385bc 9-10,27-29,117-119,122-124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c002bb32a4e1150457b463882efbfc061127bbb2",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
