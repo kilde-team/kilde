@@ -192,6 +192,22 @@ enum SelfTestConfigSave {
             abort("再構築でも保存済みの収録対象が保たれる (実際 \(relaunched.request.target))")
         }
 
+        // 5a) «window で録画を開始したときは config の defaultTarget を消す»
+        //    (エンジンと同じ契約 — persistedValue が window で nil を返すため)。
+        //    消えないと «window で開始した次回起動» で前回の audioOnly が復元され、
+        //    保存時の選択と違う対象で始まる。window 自体は UserDefaults 側に保存される
+        //    (encode は currentWindows を見るので、ここでは config 側の消去だけを見る —
+        //    UserDefaults 側の往復はステップ 2〜4 とステップ 6 が担う)
+        relaunched.request.target = .window(id: 424242)
+        relaunched.persistSessionDefaults()
+        do {
+            let afterWindowStart = try ConfigStore.load()
+            check(afterWindowStart.defaultTarget == nil,
+                  "window で録画を開始すると config.json の defaultTarget が消える")
+        } catch {
+            abort("window 収録開始後の config.json を読めない: \(error)")
+        }
+
         // 6) 収録対象の妥当性検証。環境で意味が通らなくなった値は復元しない。
         //    defaults / screens / liveWindows を注入して実環境に依存しない
         suite.set("audioOnly", forKey: RecordingSetup.captureTargetDefaultsKey)
