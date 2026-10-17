@@ -1,0 +1,14 @@
+docs/MONETIZATION.md
+  h_864205080385bc 188-191
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "c9d749b48ce0120236fa0c61badbb9e608da258b",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
