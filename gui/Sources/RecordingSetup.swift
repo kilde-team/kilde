@@ -163,7 +163,7 @@ final class RecordingSetup: ObservableObject {
         localized: "保存先を変更しました。ただし記録できなかったため、次にアプリを起動したときは既定の保存先に戻ります")
 #endif
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, migrateCaptureTarget: Bool = true) {
         self.defaults = defaults
 #if APPSTORE
         // **ConfigStore に触るより先に**設定の保存先をコンテナ内へ退避させる (issue #126)。
@@ -182,6 +182,17 @@ final class RecordingSetup: ObservableObject {
         request = RecordRequest(outputDirectory: fallback)
         do {
             config = try ConfigStore.load()
+            // 収録対象の保存先を UserDefaults から config.json へ移行する (issue #372)。
+            // **config.json が読めたときだけ**実行する — 読めないときに書くと、壊れた
+            // (しかし内容は残っている) config.json を新規の既定値で上書きしてしまう。
+            // セルフテスト起動では AppDelegate の本来の setup には**実行させない**:
+            // この init は SelfTest.runIfRequested より先に走るため、移行まで実行すると
+            // セルフテストの起動だけで実環境の config.json / UserDefaults を書き換える
+            // (cubic レビュー指摘)。移行の検証は、セルフテスト本体が ConfigStore.directory
+            // を差し替えたあとで構築する RecordingSetup (引数既定の true) が担う
+            if migrateCaptureTarget {
+                migrateCaptureTargetToConfig()
+            }
         } catch {
             // 壊れた設定でも GUI 自体は開けるようにし、録画開始時に CLI と同じエラーを出す
             notice = String(localized: "設定ファイルを読めません (既定値で表示します): \(error)")
@@ -208,13 +219,26 @@ final class RecordingSetup: ObservableObject {
             request.outputDirectory = fallback
         }
 #endif
-        // 前回録画したときの収録対象を復元する (issue #345)。音声ソース・トラック方針・
-        // 保存先は上の RecordRequest.initial が config.json から復元済みだが、収録対象
-        // (画面 / ウィンドウ / 音声のみ) だけは config.json にキーが存在しないため
-        // GUI ローカル (UserDefaults) で持ち越す。ユーザー報告 «「既定値として保存」を押しても
-        // capture source selector が保存されない» の直接の原因はここ (保存・復元の両方が無い)
-        if let restored = Self.restoreCaptureTarget(defaults: defaults) {
+        // 前回録画したときの収録対象を復元する (issue #345 / #372)。display / audioOnly は
+        // 上の RecordRequest.initial が config.json (`defaultTarget`) から復元済み。
+        // UserDefaults (`lastCaptureTarget`) からの復元は **config に既定が無いときだけ** 行う:
+        // - window は config に保存できない (windowID はプロセス内の ID) ため UserDefaults が
+        //   唯一の保存先。«window で開始した次回起動» では保存側が defaultTarget を消して
+        //   おり、この条件で自然に効く
+        // - config に既定がある (= より新しい GUI / CLI が書いた) ときに古い UserDefaults の
+        //   値を適用すると、新しい既定を上書きしてしまう
+        // - config.json が読めなかったときは config.defaultTarget が nil のままなので、
+        //   0.16.x までと同じく UserDefaults の復元だけが効く (壊れた config でも
+        //   収録対象の引き継ぎが死なない)
+        if config.defaultTarget == nil, let restored = Self.restoreCaptureTarget(defaults: defaults) {
             request.target = restored
+        }
+        // config 経路 (`defaultTarget`) のディスプレイ番号の範囲確認。エンジンの initial() は
+        // 形式 (0 以上の整数) だけを見て実在確認しない — 環境依存の判定は呼び出し側が
+        // やる契約 (kilde-team/kilde-cli-swift#127)。restoreCaptureTarget と同じ単一規則
+        // (`0 <= index < 台数`) を適用し、範囲外なら既定 (ディスプレイ 0) に戻す
+        if case .display(let index) = request.target, index >= NSScreen.screens.count {
+            request.target = .display(index: 0)
         }
         hotkeyDraft = config.hotkey ?? ""
         transcribeEnabled = config.transcribe ?? false
@@ -320,25 +344,31 @@ final class RecordingSetup: ObservableObject {
 
     /// 選択中の音声ソース・トラック方針・保存先を設定ファイルの既定値にする (CLI の既定も変わる)
     func saveAsDefaults() {
+        var configSaved = false
         do {
             let updated = try request.savingDefaults(into: try ConfigStore.load())
             try ConfigStore.save(updated)
             config = updated
+            configSaved = true
             notice = String(localized: "既定値として保存しました (\(ConfigStore.fileURL.path))")
         } catch {
             notice = String(localized: "既定値を保存できません: \(error)")
         }
-        // 収録対象も«既定»の対象に含める (issue #345)。«この音声・保存先の選択を既定にする» と
-        // ボタンにある以上、収録対象 (capture source selector) が抜けるのはユーザー報告のとおり
-        // 不自然 — config.json にキーが無いため GUI ローカルへ保存する
-        persistCaptureTarget()
+        // 収録対象も«既定»の対象に含める (issue #345 / #372)。«この音声・保存先の選択を
+        // 既定にする» とボタンにある以上、収録対象 (capture source selector) が抜けるのは
+        // ユーザー報告のとおり不自然。display / audioOnly は上の savingDefaults が
+        // config.json (`defaultTarget`) へ書き、window は persistCaptureTarget が
+        // UserDefaults へ書く (config には windowID を保存できない)
+        persistCaptureTarget(configSaved: configSaved)
     }
 
     // MARK: - 録画に使った構成の引き継ぎ (issue #345)
 
-    /// 収録対象を保存する UserDefaults のキー。**GUI ローカル** — config.json (CLI と共有) には
-    /// «収録対象» のキーが存在せず (KildeConfig のキー一覧を参照)、エンジン
-    /// (kilde-team/kilde-cli-swift) を変更せずに持たせるため。セルフテストから参照するため non-private
+    /// 収録対象のうち **window** を保存する UserDefaults のキー。display / audioOnly は
+    /// config.json (`defaultTarget` — エンジン kilde-team/kilde-cli-swift#123) に保存するため、
+    /// 0.16.x までの «全収録対象の保存先» から «window 専用» に縮小した (issue #372)。
+    /// 0.16.x が保存した display / audioOnly は起動時に config へ一度だけ取り込む
+    /// (migrateCaptureTargetToConfig)。セルフテストから参照するため non-private
     static let captureTargetDefaultsKey = "lastCaptureTarget"
 
     /// 録画開始時に、パネルの選択を次回起動時の初期選択として保存する (issue #345)。
@@ -352,38 +382,106 @@ final class RecordingSetup: ObservableObject {
     /// makeOptions 内ではなく開始経路の側から呼ぶ
     ///
     /// config.json に書くのは音声ソース (`defaultAudioSources`)・トラック方針
-    /// (`audioTracks`)・文字起こし (`transcribe`)。変換は `RecordRequest.audioSourceStrings`
-    /// (`--audio` と同じ文字列表現) をそのまま使う。**保存先 (`outputDirectory`) は触らない** —
-    /// MAS 版は security-scoped bookmark 経由で独立に永続化されており
-    /// (SandboxOutputDirectory)、config のパスはコンテナ内を指しえて CLI でも解釈できない。
-    /// 収録対象は config.json にキーが無いため UserDefaults へ保存する (persistCaptureTarget)
+    /// (`audioTracks`)・文字起こし (`transcribe`)・収録対象 (`defaultTarget`)。変換は
+    /// `RecordRequest.audioSourceStrings` (`--audio` と同じ文字列表現) と
+    /// `RecordRequest.Target.persistedValue` (`defaultTarget` と同じ語彙) をそのまま使う。
+    /// **保存先 (`outputDirectory`) は触らない** — MAS 版は security-scoped bookmark 経由で
+    /// 独立に永続化されており (SandboxOutputDirectory)、config のパスはコンテナ内を指しえて
+    /// CLI でも解釈できない。収録対象のうち window だけは config に保存できないため
+    /// UserDefaults へ保存する (persistCaptureTarget)
     ///
     /// 書き込みは load → 反映 → save の順 (saveTranscriptionSetting と同じ理由 —
     /// GUI はメニューバー常駐のため立ち上がったまま長く経つので、起動時スナップショットで
     /// CLI 側の変更を握りつぶさない)。失敗しても**録画開始は止めない** —
     /// 既定値の保存は本質ではなく、開始を妨げる理由がない (案内のみ出す)
     func persistSessionDefaults() {
+        var configSaved = false
         do {
             var updated = try ConfigStore.load()
             updated.defaultAudioSources = request.audioSourceStrings
             updated.audioTracks = request.trackPolicy.name
             updated.transcribe = transcribeEnabled
+            // 収録対象も次回起動用に含める (issue #345 / #372)。persistedValue は window で
+            // nil を返すため、**window で開始したときは既存の defaultTarget を消す** —
+            // エンジンの savingDefaults と同じ契約。消さないと «window で開始した次回起動» で
+            // 前回の display / audioOnly が復元され、保存時の選択と違う対象で始まる
+            updated.defaultTarget = request.target.persistedValue
             try ConfigStore.save(updated)
             config = updated
+            configSaved = true
         } catch {
             // 隣の saveAsDefaults と違い String(describing:) を明示する — Error の素の補間は
             // «debug description を使う» deprecation 警告になるため、新規のコードで
             // 警告を増やさない (出力は同じ debug description になる)
             notice = String(localized: "次回起動用の設定を保存できません: \(String(describing: error))")
         }
-        persistCaptureTarget()
+        persistCaptureTarget(configSaved: configSaved)
     }
 
-    /// 収録対象を UserDefaults へ保存する。config.json にこのキーは無い
-    /// (captureTargetDefaultsKey のコメント)
-    private func persistCaptureTarget() {
-        defaults.set(
-            Self.encodedCaptureTarget(request.target), forKey: Self.captureTargetDefaultsKey)
+    /// 収録対象のうち config.json に保存できない **window** だけを UserDefaults へ保存する
+    /// (issue #372)。display / audioOnly は persistSessionDefaults / savingDefaults が
+    /// config (`defaultTarget`) へ書くため、こちらは逆に **UserDefaults のキーを消す** —
+    /// 復元は «config に既定があれば config、無ければ UserDefaults» の単一規則なので、
+    /// ここに古い display / audioOnly が残っていると (config 側が window で消えた) 次の
+    /// 起動で蘇ってしまう。
+    /// **display / audioOnly でキーを消すのは config の保存が成功したときだけ**
+    /// (`configSaved`) — 保存に失敗したときに消すと «config も UserDefaults も
+    /// 前回の選択を持たない» 状態になり、次回起動でディスプレイ 0 に戻るうえ
+    /// 移行の再試行もできなくなる (cubic レビュー指摘)。失敗時は旧キーを残し、
+    /// 次回起動の移行 (または UserDefaults フォールバック) が前回の選択を覚えている
+    private func persistCaptureTarget(configSaved: Bool) {
+        if request.target.persistedValue != nil {
+            if configSaved {
+                defaults.removeObject(forKey: Self.captureTargetDefaultsKey)
+            }
+        } else {
+            defaults.set(
+                Self.encodedCaptureTarget(request.target), forKey: Self.captureTargetDefaultsKey)
+        }
+    }
+
+    /// 0.16.x まで UserDefaults (`lastCaptureTarget`) に保存していた収録対象のうち
+    /// config.json に保存できる形 (display / audioOnly) を **一度だけ** `defaultTarget` へ
+    /// 取り込む (issue #372 — エンジン kilde-team/kilde-cli-swift#123)。
+    ///
+    /// **併用ではなく «取り込んで消す»** のは、2 つの保存先を併用すると «どちらが最後の
+    /// 選択か» が決められないため。CLI (`kilde config set defaultTarget`) や手編集で書かれた
+    /// 既定と GUI の古い lastCaptureTarget が黙って競合する状態を残さず、保存先を
+    /// «config (display / audioOnly) + UserDefaults (window のみ)» に単一化することで、
+    /// 復元の優先規則も自明になる。取り込みを RecordingSetup.init で行うのは、
+    /// 録画開始まで待つと «0.16.x で保存した対象» が 0.17.0 の 1 回目の起動で
+    /// 復元されないため
+    ///
+    /// - config にすでに `defaultTarget` がある (新しい GUI / CLI が書いた) 場合、
+    ///   UserDefaults の display / audioOnly は古いので**消すだけ** (config が勝つ)
+    /// - window 形式は config に保存できないため**触らない** (既存の検証付き復元経路が使う)
+    /// - 形式が未知の値は消すだけ — 0.16.x の復元も nil (既定) に倒していたので結果は同じ。
+    ///   取り込まないのは、`validate()` が弾く値を config に書くと保存が失敗し
+    ///   毎回やり直しになるため
+    /// - 書き込みに失敗したら UserDefaults を消さず、次の起動で再試行する (best-effort —
+    ///   移行の失敗で起動を止める理由はなく、案内も出さない)
+    private func migrateCaptureTargetToConfig() {
+        guard let raw = defaults.string(forKey: Self.captureTargetDefaultsKey) else { return }
+        guard let target = RecordRequest.Target(persistedValue: raw) else {
+            // window 形式 ("window:...") もここに来る — config に載せられないので触らない
+            if !raw.hasPrefix("window:") {
+                defaults.removeObject(forKey: Self.captureTargetDefaultsKey)
+            }
+            return
+        }
+        if config.defaultTarget != nil {
+            defaults.removeObject(forKey: Self.captureTargetDefaultsKey)
+            return
+        }
+        var updated = config
+        updated.defaultTarget = target.persistedValue
+        do {
+            try ConfigStore.save(updated)
+            config = updated
+            defaults.removeObject(forKey: Self.captureTargetDefaultsKey)
+        } catch {
+            // 次の起動で再試行する (UserDefaults は消さない)
+        }
     }
 
     /// RecordRequest.Target を UserDefaults に保存できる文字列へ変換する

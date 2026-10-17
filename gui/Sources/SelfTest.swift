@@ -21,6 +21,15 @@ enum SelfTest {
         let isShown: () -> Bool
     }
 
+    /// セルフテスト起動か (環境変数 KILDE_GUI_SELFTEST_* の有無)。
+    /// **static にする理由**: AppDelegate の stored property (`setup` の生成) は
+    /// `applicationDidFinishLaunching` より先に走るため、同メソッド内で作る判定では
+    /// 間に合わない。stored property の初期化からも同じ判定を使えるようにし、
+    /// 定義を 1 か所にしてずれを防ぐ (RecordingSetup の移行の抑止 — cubic レビュー指摘)
+    static var isActive: Bool {
+        ProcessInfo.processInfo.environment.keys.contains { $0.hasPrefix("KILDE_GUI_SELFTEST_") }
+    }
+
     @MainActor
     static func runIfRequested(setup: RecordingSetup, recording: RecordingController,
                                permissions: PermissionsModel, updater: UpdaterCoordinator,
