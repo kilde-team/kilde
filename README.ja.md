@@ -254,7 +254,9 @@ kilde という名前は、このツールが残すべきもの = 「源」か�
 
 ## ライセンス
 
-このリポジトリのソース (メニューバーアプリとドキュメント) は
-[MIT License](LICENSE) で公開しています。録画エンジンと `kilde` CLI は非公開の
+このリポジトリのソース (メニューバーアプリ、スクリプト、Homebrew formula、ドキュメント) は
+[MIT License](LICENSE) で公開しています。録画エンジンと `kilde` CLI はプロプライエタリ
+(全権留保。非公開の
 [kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift)
-リポジトリで開発しており、リリース物 (アプリバンドルと CLI バイナリ) に含まれます。
+リポジトリで開発) であり、リリース物 (アプリバンドルと CLI バイナリ) の一部としてのみ
+提供されます。

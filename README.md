@@ -411,8 +411,9 @@ engine and the CLI happens in kilde-team/kilde-cli-swift.
 
 ## License
 
-The sources in this repository (the menu bar app and documentation) are released
-under the [MIT License](LICENSE). The recording engine and the `kilde` CLI are
-developed in the private
-[kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift)
-repository and are included in the released app bundles and the CLI binary.
+The sources in this repository (the menu bar app, scripts, the Homebrew formula,
+and documentation) are released under the [MIT License](LICENSE). The recording
+engine and the `kilde` CLI are proprietary (all rights reserved; developed in the
+private [kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift)
+repository) and are provided to you only as part of the released app bundles and
+the CLI binary.

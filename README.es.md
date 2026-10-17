@@ -425,8 +425,10 @@ kilde-team/kilde-cli-swift.
 
 ## Licencia
 
-El código fuente de este repositorio (la app de barra de menús y la documentación)
-se publica bajo la [MIT License](LICENSE). El motor de grabación y el CLI `kilde`
-se desarrollan en el repositorio privado
-[kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift)
-y se incluyen en las versiones publicadas (el paquete de la app y el binario del CLI).
+El código fuente de este repositorio (la app de barra de menús, los scripts, la
+fórmula de Homebrew y la documentación) se publica bajo la [MIT License](LICENSE).
+El motor de grabación y el CLI `kilde` son propietarios (todos los derechos
+reservados; se desarrollan en el repositorio privado
+[kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift))
+y se ofrecen únicamente como parte de las versiones publicadas (el paquete de la
+app y el binario del CLI).

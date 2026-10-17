@@ -367,7 +367,7 @@ kilde-team/kilde-cli-swift 进行。
 
 ## 许可证
 
-本仓库中的源代码（菜单栏应用与文档）以 [MIT License](LICENSE) 公开。录制引擎与
-`kilde` CLI 在私有的
+本仓库中的源代码（菜单栏应用、脚本、Homebrew formula 与文档）以 [MIT License](LICENSE) 公开。录制引擎与
+`kilde` CLI 为专有软件（保留所有权利，在私有的
 [kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift)
-仓库中开发，并包含在发布的版本（应用包与 CLI 二进制）中。
+仓库中开发），仅作为发布版本（应用包与 CLI 二进制）的一部分提供。

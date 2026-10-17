@@ -385,7 +385,7 @@ kilde-team/kilde-cli-swift에서 이루어집니다.
 
 ## 라이선스
 
-이 저장소의 소스(메뉴 막대 앱과 문서)는 [MIT License](LICENSE)로 공개합니다.
-녹화 엔진과 `kilde` CLI는 비공개
+이 저장소의 소스(메뉴 막대 앱, 스크립트, Homebrew formula, 문서)는 [MIT License](LICENSE)로 공개합니다.
+녹화 엔진과 `kilde` CLI는 사유 소프트웨어(모든 권리 보유, 비공개
 [kilde-team/kilde-cli-swift](https://github.com/kilde-team/kilde-cli-swift)
-저장소에서 개발하며, 릴리스(앱 번들과 CLI 바이너리)에 포함됩니다.
+저장소에서 개발)이며, 릴리스(앱 번들과 CLI 바이너리)의 일부로만 제공됩니다.
