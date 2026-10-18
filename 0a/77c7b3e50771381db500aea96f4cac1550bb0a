@@ -1,0 +1,16 @@
+gui/Sources/ContentView.swift
+  h_864205080385bc 110-113
+gui/Sources/TipCoordinatorAppStore.swift
+  h_864205080385bc 37-39,46-67
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "0a77c7b3e50771381db500aea96f4cac1550bb0a",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
