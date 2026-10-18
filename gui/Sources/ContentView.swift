@@ -11,10 +11,10 @@ struct ContentView: View {
     @ObservedObject var recording: RecordingController
     @ObservedObject var permissions: PermissionsModel
     @ObservedObject var updater: UpdaterCoordinator
+    /// 文字起こしの状態 (issue #146)。実体は AppDelegate が持つ — このビューは表示だけ
     @ObservedObject var transcription: TranscriptionCoordinator
     /// 会議の自動録画。実体は AppDelegate が持つ — このビューは設定と表示だけ
     @ObservedObject var meetingAutoRecorder: MeetingAutoRecorder
-    /// 文字起こしの状態 (issue #146)。実体は AppDelegate が持つ — このビューは表示だけ
     /// チップの購入 (issue #171)。実体は AppDelegate が持つ。App Store 配布ビルドの
     /// み «アプリを応援» セクションを出す (直接配布版ではスタブで商品が空 = 非表示)
     @ObservedObject var tips: TipCoordinator

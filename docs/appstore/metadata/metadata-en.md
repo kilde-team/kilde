@@ -276,9 +276,9 @@ Tips (the MAS portion of issue #171). Three consumable IAP products
 (kilde.tip.small / kilde.tip.medium / kilde.tip.large) can be purchased from
 the "Support this app" section at the bottom of the panel. The issue's
 "do not degrade the free experience" policy is reflected in the UI: the
-section is hidden entirely when the product list cannot be fetched, and a
-cancelled or failed purchase never raises an alert (a single caption line
-only). The amounts follow the proposal in the issue (¥160 / ¥480 / ¥1,200;
+section is hidden entirely when the product list cannot be fetched, and a cancelled
+purchase shows nothing and a failed purchase shows a single caption line, and
+neither raises an alert. The amounts follow the proposal in the issue (¥160 / ¥480 / ¥1,200;
 price tiers 1 / 3 / 8 in ASC). The direct-distribution (DMG) build shows
 nothing — the "link to Sponsors" part of the issue stays unimplemented until
 the GitHub Sponsors application (bank setup) is done, and will be added
@@ -287,5 +287,5 @@ review"). The What's New states explicitly that every feature stays free
 (conveying both the addition and what remains unchanged).
 
 ```text
-Added a "Support this app" section at the bottom of the panel where you can send a tip in three amounts (App Store version only). All recording and transcription features remain free of charge.
+Added a "Support this app" section at the bottom of the panel where you can send a tip in three amounts (store version only). All recording and transcription features remain free of charge.
 ```

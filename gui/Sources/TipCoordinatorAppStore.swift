@@ -31,7 +31,7 @@ final class TipCoordinator: ObservableObject {
         "kilde.tip.large",
     ]
 
-    /// false の場合は商品を取りにいかない (セルフテスト向け — loadsProductsAtLaunch)
+    /// false の場合は商品を取りにいかない (セルフテスト向け — AppDelegate は !SelfTest.isActive を渡す)
     private let enabled: Bool
 
     /// Transaction.updates の listen タスク。startListening が 1 回だけ始める
@@ -71,7 +71,10 @@ final class TipCoordinator: ObservableObject {
     /// 既に取れている場合は打ち直さない — 開くたびに ASC を叩く必要はなく、
     /// 商品が ASC から消えることもない。失敗時は次回の表示で再試行する
     func loadProducts() async {
-        guard enabled, items.isEmpty, !isLoading else { return }
+        // «全件取得済み» のときだけ no-op にする — 一部の商品だけ取れた場合
+        // (審査中の商品が一覧に出ない等) は、ポップオーバーを開くたびに残りを
+        // 再取得する (CodeRabbit レビュー指摘)
+        guard enabled, productsByID.count < productIDs.count, !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
         do {
@@ -93,10 +96,17 @@ final class TipCoordinator: ObservableObject {
         do {
             switch try await product.purchase() {
             case .success(let verification):
-                // 消耗型のためトランザクションは finish するだけ (所有権の保持は不要)
-                let transaction = try Self.checkVerified(verification)
-                await transaction.finish()
-                celebrate(item.id)
+                switch verification {
+                case .verified(let transaction):
+                    // 消耗型のためトランザクションは finish するだけ (所有権の保持は不要)
+                    await transaction.finish()
+                    celebrate(item.id)
+                case .unverified:
+                    // 署名検証に通らなかった購入。決済が完了している可能性があるため
+                    // «失敗» の補助行は出さない (再購入を促さない) — finish もせず、
+                    // Transaction.updates のリスナーが次回の回収で検証し直す
+                    break
+                }
             case .userCancelled, .pending:
                 // キャンセルは何も言わない。保留 (承認待ち) も同様 — 別途届く通知に任せる
                 break
@@ -128,13 +138,6 @@ final class TipCoordinator: ObservableObject {
         case .verified(let safe):
             return safe
         }
-    }
-
-    /// MAS 版と同じ判定。セルフテスト (KILDE_GUI_SELFTEST_*) では商品を取らず、
-    /// 録画系の検証に ASC へのネットワークアクセスを持ち込まない
-    /// (updaterStartsAtLaunch と同じ配慮)
-    static func loadsProductsAtLaunch(env: [String: String]) -> Bool {
-        !env.keys.contains(where: { $0.hasPrefix("KILDE_GUI_SELFTEST_") })
     }
 }
 

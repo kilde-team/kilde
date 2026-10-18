@@ -78,8 +78,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// (TipCoordinator の実装は APPSTORE 側)、直接配布版ではスタブになる。
     /// セルフテストでは商品を取りにいかない — ASC へのネットワークアクセスを
     /// 録画系の検証に持ち込まない (updaterStartsAtLaunch と同じ配慮)
-    private(set) lazy var tips = TipCoordinator(
-        enabled: TipCoordinator.loadsProductsAtLaunch(env: ProcessInfo.processInfo.environment))
+    private(set) lazy var tips = TipCoordinator(enabled: !SelfTest.isActive)
     private var cancellables: Set<AnyCancellable> = []
     /// グローバルホットキー (issue #20)。CLI と同じ `HotkeyMonitor` / `HotkeySettings` を使い、
     /// 設定 (~/.kilde/config.json の `hotkey`) も CLI と共有する。

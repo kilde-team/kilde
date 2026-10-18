@@ -78,7 +78,10 @@ system confirmation sheet completes. The section appears only after the
 product list has been fetched from the App Store — nothing is gated behind it,
 and every recording or transcription feature is fully available without any
 purchase. To review the tips, tap any tip button in the section and confirm
-with your sandbox Apple ID.
+with your sandbox Apple ID. If you do not see the section, the products are
+not yet available in your environment — it is hidden by design and **no
+feature is missing**; please review the tips from a device signed in to the
+sandbox with the products attached to this app version.
 
 ---
 
@@ -145,7 +148,11 @@ kilde は進行中の会議を検知して自動で録画できます (オプシ
 セクションは App Store から商品一覧を取得できたときにのみ表示され、
 録画・文字起こしのすべての機能は購入なしで完全に利用できます。
 チップをレビューする場合はセクション内のボタンをタップし、
-サンドボックスの Apple ID で承認してください。
+サンドボックスの Apple ID で承認してください。セクションが見えない場合は
+レビュー環境に商品がまだ届いていないもので、設計どおりの非表示です —
+**機能が欠けているわけではありません**。本 IAP はこのバージョン
+(0.18.0) に添付して提出するため、審査中にはサンドボックスでも
+商品が取得できるようになります。
 
 ---
 

@@ -286,8 +286,8 @@ Propinas (la parte MAS del issue #171). Tres productos IAP consumibles
 desde la sección "Apoya esta app" en la parte inferior del panel. La política
 del issue de «no degradar la experiencia gratuita» se refleja en la UI: la
 sección se oculta por completo cuando no se puede obtener la lista de
-productos, y una compra cancelada o fallida no muestra ninguna alerta (solo
-una línea de texto). Los importes siguen la propuesta del issue
+productos, y una compra cancelada no muestra nada y una fallida muestra una sola línea de
+texto; en ningún caso se muestra una alerta. Los importes siguen la propuesta del issue
 (¥160 / ¥480 / ¥1,200; niveles de precio 1 / 3 / 8 en ASC). La compilación de
 distribución directa (DMG) no muestra nada — la parte de «enlace a Sponsors»
 del issue queda sin implementar hasta completar la solicitud de GitHub
@@ -297,5 +297,5 @@ revisión»). Las novedades indican explícitamente que todas las funciones
 siguen siendo gratuitas.
 
 ```text
-Se añadió una sección "Apoya esta app" en la parte inferior del panel donde puedes enviar una propina en tres importes (solo versión de App Store). Todas las funciones de grabación y transcripción siguen siendo gratuitas.
+Se añadió una sección "Apoya esta app" en la parte inferior del panel donde puedes enviar una propina en tres importes (solo en la versión distribuida por la tienda). Todas las funciones de grabación y transcripción siguen siendo gratuitas.
 ```

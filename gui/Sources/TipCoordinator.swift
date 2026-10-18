@@ -23,13 +23,6 @@ final class TipCoordinator: ObservableObject {
 
     /// no-op。UI から呼ばれることはない (セクション非表示)。保険として保持する
     func purchase(_ item: TipItem) async {}
-
-    /// MAS 版と同じ判定。セルフテスト (KILDE_GUI_SELFTEST_*) では商品を取らず、
-    /// 録画系の検証に ASC へのネットワークアクセスを持ち込まない
-    /// (updaterStartsAtLaunch と同じ配慮)
-    static func loadsProductsAtLaunch(env: [String: String]) -> Bool {
-        !env.keys.contains(where: { $0.hasPrefix("KILDE_GUI_SELFTEST_") })
-    }
 }
 
 /// «アプリを応援» セクションに表示するチップ 1 件分。
