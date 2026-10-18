@@ -1,0 +1,22 @@
+gui/Resources/Localizable.xcstrings
+  h_864205080385bc 4789-4875
+gui/Sources/AppDelegate.swift
+  h_864205080385bc 77-82,223-224
+gui/Sources/ContentView.swift
+  h_864205080385bc 18-20,89-91,209-259,262
+gui/Sources/TipCoordinator.swift
+  h_864205080385bc 1-45
+gui/Sources/TipCoordinatorAppStore.swift
+  h_864205080385bc 1-126
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "6e49297052fe952a230b5fb96143383459fd3558",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
