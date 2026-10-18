@@ -93,9 +93,15 @@ struct ContentView: View {
         }
         // 録画が終わった瞬間に一覧を取り直す。ポップオーバーを開いたまま録画を終えると、
         // onAppear も kildePopoverDidShow も発火しないので、閉じて開き直すまで
-        // 出来たばかりのファイルが «最近の録画» に出てこない
+        // 出たばかりのファイルが «最近の録画» に出てこない
         .onChange(of: recording.phase) { _, newPhase in
-            if case .finished = newPhase { setup.reloadRecentRecordings() }
+            if case .finished = newPhase {
+                setup.reloadRecentRecordings()
+                // 録画中は loadProducts を飛ばしていたため、録画が終わった時点で
+                // 商品を取り直す (録画中に開いたポップオーバーでも «アプリを応援»
+                // が出るようにする — cubic レビュー指摘)
+                Task { await tips.loadProducts() }
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .kildePopoverDidShow)) { _ in
             // macOS 15 以降、画面収録権限は一度許可しても定期的に再確認されて失効しうる
