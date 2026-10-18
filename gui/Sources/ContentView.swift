@@ -11,10 +11,13 @@ struct ContentView: View {
     @ObservedObject var recording: RecordingController
     @ObservedObject var permissions: PermissionsModel
     @ObservedObject var updater: UpdaterCoordinator
+    /// 文字起こしの状態 (issue #146)。実体は AppDelegate が持つ — このビューは表示だけ
     @ObservedObject var transcription: TranscriptionCoordinator
     /// 会議の自動録画。実体は AppDelegate が持つ — このビューは設定と表示だけ
     @ObservedObject var meetingAutoRecorder: MeetingAutoRecorder
-    /// 文字起こしの状態 (issue #146)。実体は AppDelegate が持つ — このビューは表示だけ
+    /// チップの購入 (issue #171)。実体は AppDelegate が持つ。App Store 配布ビルドの
+    /// み «アプリを応援» セクションを出す (直接配布版ではスタブで商品が空 = 非表示)
+    @ObservedObject var tips: TipCoordinator
 
     private enum Mode: Hashable {
         case display, window, audioOnly
@@ -83,13 +86,22 @@ struct ContentView: View {
             if !recording.isActive {
                 setup.reload()
                 setup.reloadRecentRecordings()
+                // チップの商品一覧 (issue #171)。取れていれば no-op、取れていなければ
+                // この表示で取りに行く (失敗時は次回の表示で再試行)
+                Task { await tips.loadProducts() }
             }
         }
         // 録画が終わった瞬間に一覧を取り直す。ポップオーバーを開いたまま録画を終えると、
         // onAppear も kildePopoverDidShow も発火しないので、閉じて開き直すまで
-        // 出来たばかりのファイルが «最近の録画» に出てこない
+        // 出たばかりのファイルが «最近の録画» に出てこない
         .onChange(of: recording.phase) { _, newPhase in
-            if case .finished = newPhase { setup.reloadRecentRecordings() }
+            if case .finished = newPhase {
+                setup.reloadRecentRecordings()
+                // 録画中は loadProducts を飛ばしていたため、録画が終わった時点で
+                // 商品を取り直す (録画中に開いたポップオーバーでも «アプリを応援»
+                // が出るようにする — cubic レビュー指摘)
+                Task { await tips.loadProducts() }
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .kildePopoverDidShow)) { _ in
             // macOS 15 以降、画面収録権限は一度許可しても定期的に再確認されて失効しうる
@@ -101,6 +113,10 @@ struct ContentView: View {
                 // onAppear だけでは再表示を拾えない (この通知を足した理由そのもの)。
                 // 閉じている間に終わった録画を一覧に出すため、ここでも取り直す
                 setup.reloadRecentRecordings()
+                // チップの商品一覧 (issue #171)。初回取得に失敗したままだと再起動まで
+                // «アプリを応援» が出ないため、再表示でも再試行する (既に取れていれば
+                // loadProducts は no-op、二重取得は Coordinator 側で防ぐ)
+                Task { await tips.loadProducts() }
             }
         }
     }
@@ -200,8 +216,60 @@ struct ContentView: View {
                 updateRow
             }
 #endif
+            // チップ (issue #171)。パネルの最下部 («控えめに置く» が issue の方針) で、
+            // 商品一覧が取れないときはセクションごと出さない。MAS 版のみ —
+            // 直接配布版の導線は GitHub Sponsors の予定 (参加後 — issue #171 の残り)
+#if APPSTORE
+            if !tips.isUnavailable {
+                section("アプリを応援") {
+                    tipSection
+                }
+            }
+#endif
         }
     }
+
+#if APPSTORE
+    /// チップ 3 段階のボタンと、購入の状態を示す補助行 (issue #171)。
+    /// ボタンの見出し・金額は StoreKit の displayName / displayPrice (ASC 側の
+    /// ローカライズ) そのものを出す — UI 側で文言を組み立て直さない
+    private var tipSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                ForEach(tips.items) { item in
+                    Button {
+                        Task { await tips.purchase(item) }
+                    } label: {
+                        VStack(spacing: 1) {
+                            Text(item.title)
+                            Text(item.price)
+                                .foregroundStyle(.secondary)
+                        }
+                        .font(.caption)
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(tips.isPurchasing)
+                }
+            }
+            // 状態は 1 行だけ («控えめ» 方針)。成功は数秒で消え、キャンセルは
+            // 何も出さない。失敗は再試行を促す短文のみ
+            if tips.isPurchasing {
+                ProgressView()
+                    .controlSize(.small)
+            } else if tips.lastPurchasedID != nil {
+                Text("ありがとう!kilde の開発を応援しています")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if tips.purchaseFailed {
+                Text("購入を開始できませんでした。しばらくしてからもう一度お試しください")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+#endif
 
     /// 現在のバージョンと「アップデートを確認」ボタン (issue #122)。
     /// Sparkle 標準の更新ウィンドウが出る。録画中に適用した場合はファイナライズ完了後に

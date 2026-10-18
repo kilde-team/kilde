@@ -69,6 +69,20 @@ responsibility to inform participants that the session is being recorded. For
 your review test, please speak into the microphone or use any sample audio —
 no real meeting is required.
 
+**In-app purchase — tips (added in v0.18.0):**
+
+The panel has an optional "Support this app" section at the bottom, offering
+three consumable tip products (kilde.tip.small / kilde.tip.medium /
+kilde.tip.large). Tapping a tip starts a standard StoreKit purchase that the
+system confirmation sheet completes. The section appears only after the
+product list has been fetched from the App Store — nothing is gated behind it,
+and every recording or transcription feature is fully available without any
+purchase. To review the tips, tap any tip button in the section and confirm
+with your sandbox Apple ID. If you do not see the section, the products are
+not yet available in your environment — it is hidden by design and **no
+feature is missing**; please review the tips from a device signed in to the
+sandbox with the products attached to this app version.
+
 ---
 
 ## 日本語 (参考訳 — 提出は英語版)
@@ -126,6 +140,20 @@ kilde は進行中の会議を検知して自動で録画できます (オプシ
 ユーザーの責務です。レビューではマイクに話しかける、または任意のサンプル音声を
 お使いください — 実在の会議は不要です。
 
+**アプリ内課金 — チップ (v0.18.0 で追加):**
+
+パネルの最下部に «アプリを応援» セクションがあり、消耗型のチップ商品
+(kilde.tip.small / kilde.tip.medium / kilde.tip.large) を 3 段階で送れます。
+タップで標準の StoreKit 購入が始まり、システムの確認シートで完了します。
+セクションは App Store から商品一覧を取得できたときにのみ表示され、
+録画・文字起こしのすべての機能は購入なしで完全に利用できます。
+チップをレビューする場合はセクション内のボタンをタップし、
+サンドボックスの Apple ID で承認してください。セクションが見えない場合は
+レビュー環境に商品がまだ届いていないもので、設計どおりの非表示です —
+**機能が欠けているわけではありません**。本 IAP はこのバージョン
+(0.18.0) に添付して提出するため、審査中にはサンドボックスでも
+商品が取得できるようになります。
+
 ---
 
 ## 根拠 (開発者向けメモ — ASC には書かない)
@@ -148,3 +176,9 @@ kilde は進行中の会議を検知して自動で録画できます (オプシ
   (TranscriptionCoordinator.installModelAsset) は必要言語のモデルが無いときに
   取得し、PRIVACY.md も「未使用のモデルはシステムが削除することがあるため、
   再び起こることがある」と申告している。英語本文はこの事実に合わせた言い方にする
+- **チップ (issue #171) のレビューノート**: «セクションは商品一覧の取得後のみ
+  表示» と «すべての機能は購入なしで利用可能» を明示する — レビュー環境で商品
+  (初回審査中の IAP) が取得できずセクションが出ないときに «機能が欠けている»
+  と誤解されるのを防ぐ。Guideline 3.1.1 の消耗型 IAP で、外部決済・外部リンクは
+  直接配布版にも出さない (GitHub Sponsors 導線は issue #171 の残りスコープで、
+  MAS 版には一切出さない)

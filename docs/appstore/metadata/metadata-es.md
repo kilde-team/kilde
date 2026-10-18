@@ -278,3 +278,24 @@ no cambia).
 ```text
 El origen de captura (pantalla o solo audio) elegido al comenzar una grabación desde el panel o el atajo global ahora se guarda en el mismo archivo de configuración que los demás ajustes de grabación. El momento del guardado no cambia (al comenzar la grabación) y el comportamiento de grabación tampoco.
 ```
+
+## Novedades (0.18.0)
+
+Propinas (la parte MAS del issue #171). Tres productos IAP consumibles
+(kilde.tip.small / kilde.tip.medium / kilde.tip.large) se pueden comprar
+desde la sección "Apoya esta app" en la parte inferior del panel. La política
+del issue de «no degradar la experiencia gratuita» se refleja en la UI: la
+sección se oculta por completo cuando no se puede obtener la lista de
+productos, y una compra cancelada no muestra nada y una fallida muestra una sola línea de
+texto; en ningún caso se muestra una alerta. Los importes siguen la propuesta del issue
+(¥160 / ¥480 / ¥1,200; niveles de precio 1 / 3 / 8 en ASC). La compilación de
+distribución directa (DMG) no muestra nada — la parte de «enlace a Sponsors»
+del issue queda sin implementar hasta completar la solicitud de GitHub
+Sponsors (configuración bancaria) y se añadirá por separado más adelante
+(issue #171 se acota aquí a «que las propinas de la versión MAS pasen la
+revisión»). Las novedades indican explícitamente que todas las funciones
+siguen siendo gratuitas.
+
+```text
+Se añadió una sección "Apoya esta app" en la parte inferior del panel donde puedes enviar una propina en tres importes (solo en la versión distribuida por la tienda). Todas las funciones de grabación y transcripción siguen siendo gratuitas.
+```

@@ -74,6 +74,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private(set) lazy var updater = UpdaterCoordinator(
         recording: recording,
         startUpdater: Self.updaterStartsAtLaunch(env: ProcessInfo.processInfo.environment))
+    /// チップの購入 (issue #171)。App Store 配布ビルドのみ実体を持ち
+    /// (TipCoordinator の実装は APPSTORE 側)、直接配布版ではスタブになる。
+    /// セルフテストでは商品を取りにいかない — ASC へのネットワークアクセスを
+    /// 録画系の検証に持ち込まない (updaterStartsAtLaunch と同じ配慮)
+    private(set) lazy var tips = TipCoordinator(enabled: !SelfTest.isActive)
     private var cancellables: Set<AnyCancellable> = []
     /// グローバルホットキー (issue #20)。CLI と同じ `HotkeyMonitor` / `HotkeySettings` を使い、
     /// 設定 (~/.kilde/config.json の `hotkey`) も CLI と共有する。
@@ -214,7 +219,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         p.contentViewController = NSHostingController(
             rootView: ContentView(
                 setup: setup, recording: recording, permissions: permissions, updater: updater,
-                transcription: transcription, meetingAutoRecorder: meetingAutoRecorder))
+                transcription: transcription, meetingAutoRecorder: meetingAutoRecorder,
+                tips: tips))
         popover = p
         item.button?.target = self
         item.button?.action = #selector(togglePopover)
