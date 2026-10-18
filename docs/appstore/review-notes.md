@@ -74,12 +74,11 @@ no real meeting is required.
 The panel has an optional "Support this app" section at the bottom with
 three consumable tip products (kilde.tip.small / kilde.tip.medium /
 kilde.tip.large); tapping one starts a standard StoreKit purchase confirmed
-by the system sheet. The section shows up only after the product list is
-fetched from the App Store — nothing is gated behind it and every feature
-stays free. To review the tips, tap a tip button and confirm with your
-sandbox Apple ID (IAPs ship with this version). If the section does not show
-up, the products are not yet available in your environment — hidden by
-design, no feature is missing.
+by the system sheet. The section appears only once the product list is
+fetched; nothing is gated behind it and every feature stays free. To review
+the tips, tap a tip button and confirm with your sandbox Apple ID (IAPs ship
+with this version). If it does not show up, the products are not yet
+available in your environment — hidden by design, no feature is missing.
 
 ---
 
