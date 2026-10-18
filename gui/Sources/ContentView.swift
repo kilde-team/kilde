@@ -107,6 +107,10 @@ struct ContentView: View {
                 // onAppear だけでは再表示を拾えない (この通知を足した理由そのもの)。
                 // 閉じている間に終わった録画を一覧に出すため、ここでも取り直す
                 setup.reloadRecentRecordings()
+                // チップの商品一覧 (issue #171)。初回取得に失敗したままだと再起動まで
+                // «アプリを応援» が出ないため、再表示でも再試行する (既に取れていれば
+                // loadProducts は no-op、二重取得は Coordinator 側で防ぐ)
+                Task { await tips.loadProducts() }
             }
         }
     }

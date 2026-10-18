@@ -34,12 +34,37 @@ final class TipCoordinator: ObservableObject {
     /// false の場合は商品を取りにいかない (セルフテスト向け — loadsProductsAtLaunch)
     private let enabled: Bool
 
+    /// Transaction.updates の listen タスク。startListening が 1 回だけ始める
+    private var updatesTask: Task<Void, Never>?
+
     /// loadProducts の二重発火 (onAppear と kildePopoverDidShow が連続する) を
     /// 吸収するためのフラグ
     private var isLoading = false
 
     init(enabled: Bool) {
         self.enabled = enabled
+        // 購入フローの外で完了・未完了になったトランザクション (.pending の承認待ちが
+        // 後から承認された、アプリ停止中に残った未 finish など) を回収する。
+        // このアプリの IAP はチップのみなので、ここで finish するのはすべてチップの
+        // トランザクション (エンタイトルメントの保持は不要 — 消耗型のため finish のみ)
+        startListening()
+    }
+
+    /// Transaction.updates を listen し続ける。init から 1 回だけ始める
+    private func startListening() {
+        guard enabled, updatesTask == nil else { return }
+        updatesTask = Task { [weak self] in
+            for await update in Transaction.updates {
+                guard let self else { return }
+                do {
+                    let transaction = try Self.checkVerified(update)
+                    await transaction.finish()
+                } catch {
+                    // 検証に通らなかったトランザクションは finish しない
+                    // (StoreKit が次回起動時に再検証する)
+                }
+            }
+        }
     }
 
     /// ポップオーバーを開くたびに呼ぶ (onAppear / kildePopoverDidShow)。
