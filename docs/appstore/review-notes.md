@@ -69,19 +69,16 @@ responsibility to inform participants that the session is being recorded. For
 your review test, please speak into the microphone or use any sample audio —
 no real meeting is required.
 
-**In-app purchase — tips (added in v0.18.0):**
+**In-app purchase — tips (v0.18.0):**
 
-The panel has an optional "Support this app" section at the bottom, offering
+The panel has an optional "Support this app" section at the bottom with
 three consumable tip products (kilde.tip.small / kilde.tip.medium /
-kilde.tip.large). Tapping a tip starts a standard StoreKit purchase that the
-system confirmation sheet completes. The section appears only after the
-product list has been fetched from the App Store — nothing is gated behind it,
-and every recording or transcription feature is fully available without any
-purchase. To review the tips, tap any tip button in the section and confirm
-with your sandbox Apple ID. If you do not see the section, the products are
-not yet available in your environment — it is hidden by design and **no
-feature is missing**; please review the tips from a device signed in to the
-sandbox with the products attached to this app version.
+kilde.tip.large); tapping one starts a standard StoreKit purchase confirmed
+by the system sheet. The section appears only once the product list is
+fetched; nothing is gated behind it and every feature stays free. To review
+the tips, tap a tip button and confirm with your sandbox Apple ID (IAPs ship
+with this version). If it does not show up, the products are not yet
+available in your environment — hidden by design, no feature missing.
 
 ---
 
