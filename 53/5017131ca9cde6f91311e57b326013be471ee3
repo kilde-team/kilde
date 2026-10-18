@@ -1,0 +1,30 @@
+docs/appstore/metadata/metadata-en.md
+  h_864205080385bc 279-281,290
+docs/appstore/metadata/metadata-es.md
+  h_864205080385bc 289-290,300
+docs/appstore/metadata/metadata-ja.md
+  h_864205080385bc 290,299
+docs/appstore/metadata/metadata-ko.md
+  h_864205080385bc 256,259
+docs/appstore/metadata/metadata-zh-Hans.md
+  h_864205080385bc 239,242
+docs/appstore/review-notes.md
+  h_864205080385bc 81-84,151-155
+gui/Sources/AppDelegate.swift
+  h_864205080385bc 81
+gui/Sources/ContentView.swift
+  h_864205080385bc 14
+gui/Sources/TipCoordinatorAppStore.swift
+  h_864205080385bc 34,74-77,99-109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "535017131ca9cde6f91311e57b326013be471ee3",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
