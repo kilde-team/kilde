@@ -1,0 +1,19 @@
+docs/appstore/metadata/metrics.md
+  s_c31add42515534::t_4a10fa59e91905 77-93,144-145,161,173,182-194,203-212
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1bf59e3d35417f39508e5508bd8dedda8dfb65d7",
+  "prompts": {},
+  "sessions": {
+    "s_c31add42515534": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "73212d05-4802-4198-a3be-0deea0c765d5",
+        "model": "auto"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
