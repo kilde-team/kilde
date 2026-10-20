@@ -312,5 +312,5 @@ procesando la grabación de la carpeta anterior. En Mac no compatibles
 (anteriores a macOS 26) la acción no aparece.
 
 ```text
-Se añadió la acción "Transcripción" a la notificación de grabación completada. Empieza a transcribir una grabación terminada directamente desde la notificación.
+Se añadió la acción "Transcripción" a la notificación de grabación completada. Empieza a transcribir una grabación terminada directamente desde la notificación (la transcripción requiere macOS 26 o posterior y los datos de voz de tu idioma).
 ```

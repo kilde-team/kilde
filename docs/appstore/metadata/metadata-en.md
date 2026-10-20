@@ -301,5 +301,5 @@ changing the destination and relaunching still processes the old folder's
 recording. Unsupported Macs (below macOS 26) do not get the action at all.
 
 ```text
-Added a "Transcription" action to the recording-completed notification. Start transcribing a finished recording right from the notification.
+Added a "Transcription" action to the recording-completed notification. Start transcribing a finished recording right from the notification (transcription requires macOS 26 or later and the speech data for your language).
 ```
