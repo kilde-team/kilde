@@ -1,0 +1,18 @@
+gui/Sources/AppDelegate.swift
+  h_864205080385bc 188-191,201-202
+gui/Sources/RecordingNotifier.swift
+  h_864205080385bc 32-37,62-66,181-191,356,374
+gui/Sources/TranscriptionCoordinator.swift
+  h_864205080385bc 42-44,149-153,156-159,442-445
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7b5482e1483aa7f5183582d723738a4f76d672b2",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
