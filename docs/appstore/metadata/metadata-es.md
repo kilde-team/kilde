@@ -299,3 +299,18 @@ siguen siendo gratuitas.
 ```text
 Se añadió una sección "Apoya esta app" en la parte inferior del panel donde puedes enviar una propina en tres importes (solo en la versión distribuida por la tienda). Todas las funciones de grabación y transcripción siguen siendo gratuitas.
 ```
+
+## Novedades (0.19.0)
+
+La acción "Transcripción" en la notificación de grabación completada
+(issue #392): un acceso de un toque desde el momento del éxito, que pone el
+trabajo en cola con los ajustes del momento (formato / idioma; sin resumen).
+Las grabaciones ya transcritas abren el archivo existente en lugar de crear
+un duplicado «-2». La notificación lleva un bookmark con ámbito de
+seguridad, así que tocar tras cambiar el destino y reiniciar sigue
+procesando la grabación de la carpeta anterior. En Mac no compatibles
+(anteriores a macOS 26) la acción no aparece.
+
+```text
+Se añadió la acción "Transcripción" a la notificación de grabación completada. Empieza a transcribir una grabación terminada directamente desde la notificación.
+```
