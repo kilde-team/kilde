@@ -435,7 +435,9 @@ def notification(lang):
 
 
 def endcard(lang, with_url):
-    consent = f'<div class="consent">{CONSENT[lang]}</div>' if with_url else ""
+    # 同意の注意は URL の有無に関係なく常に出す — どちらの版も会議録画を勧める
+    # 文面を含むため (docs/launch/README.md の文面ルール)
+    consent = f'<div class="consent">{CONSENT[lang]}</div>'
     url = '<div class="url" id="ec-url">kilde.site</div>' if with_url else ""
     tag = SUBTITLE[lang] if not with_url else TAGLINE[lang]
     return f'''<div class="endcard" id="endcard">
@@ -599,18 +601,22 @@ function setFrame(t) {{
     const started = tau >= 1.4;
     el("mb-rec").style.display = started ? "flex" : "none";
     el("mb-icon").style.display = started ? "none" : "flex";
-    const T = Math.max(0, tau - 1.4);
-    el("rec-elapsed").textContent = fmt(3 + T);
-    el("mb-elapsed").textContent = fmt(3 + T);
-    el("rec-size").textContent = (12.4 + T * 0.8).toFixed(1) + " MB";
-    meters(0.36 + 0.14*Math.sin(T*2.2), 0.5 + 0.16*Math.sin(T*1.8 + 2));
+    // 録画開始直後は実時間で少しだけ進め (3 → 4 秒)、次の recording シーンの
+    // タイムラプス (4 → 492 秒) に連続で接続する — 境界でタイマーが戻らないため
+    const prog = Math.max(0, tau - 1.4) / Math.max(0.1, L - 1.4);
+    el("rec-elapsed").textContent = fmt(3 + prog);
+    el("mb-elapsed").textContent = fmt(3 + prog);
+    el("rec-size").textContent = (12.4 + 0.6 * prog).toFixed(1) + " MB";
+    meters(0.36 + 0.14*Math.sin(prog*2.2), 0.5 + 0.16*Math.sin(prog*1.8 + 2));
   }}
   else if (key === "recording") {{
-    // タイムラプス: ショット内の 8 秒で 8 分強が経つ (通知 «8:12» と整合)
-    const T = 3 + 61.5 * tau;
+    // タイムラプス: 00:00:04 (start シーンの終わり) → 00:08:12 へ線形に進める。
+    // 完了通知 «8:12 · 214.6 MB» と画面が完全に整合し、30 秒版でも録画終了時に
+    // タイマーがジャンプしない (開始値・終了値は start シーンと対にしている)
+    const T = 4 + 488 * (tau / L);
     el("rec-elapsed").textContent = fmt(T);
     el("mb-elapsed").textContent = fmt(T);
-    el("rec-size").textContent = (12.4 + 25.3 * tau).toFixed(1) + " MB";
+    el("rec-size").textContent = (13.0 + 201.6 * (tau / L)).toFixed(1) + " MB";
     meters(0.44 + 0.30 * Math.sin(T*0.9) * Math.sin(T*0.37),
            0.56 + 0.26 * Math.sin(T*0.8 + 2.1) * Math.sin(T*0.29));
     el("mb-rec").style.display = "flex";
@@ -639,7 +645,8 @@ function setFrame(t) {{
     el("notif").style.opacity = np;
     el("notif").style.transform = "translateX(" + ((1-np)*340) + "px)";
     if (tau > 1.15) {{ el("mb-rec").style.display = "none"; el("mb-icon").style.display = "flex"; }}
-    el("rec-elapsed").textContent = fmt(495);
+    el("rec-elapsed").textContent = fmt(492);
+    el("rec-size").textContent = "214.6 MB";
   }}
   else if (key === "transcript") {{
     // 画面を .md エディタへ切替、話者ラベル行が順に現れる
