@@ -26,6 +26,15 @@ final class RecordingNotifier: NSObject {
     /// `nonisolated` なデリゲートメソッドから読むので隔離しない
     /// (@MainActor 隔離のままだと Swift 6 言語モードでエラーになる)
     nonisolated static let urlKey = "kilde.outputPath"
+    /// 録画完了通知の userInfo に入れる実収録時間 (秒) のキー (issue #392)。
+    /// «文字起こし» アクションの計測パラメータに使う。Double で入る
+    nonisolated static let durationKey = "kilde.recordingElapsed"
+    /// 録画完了通知の userInfo に入れる security-scoped bookmark (Data) のキー
+    /// (issue #392)。«文字起こし» アクションはジョブの実行にそのフォルダへの
+    /// アクセスが要るため、**録画完了時点** (アクセスが生きている間) に作って
+    /// 通知に持たせる — 保存先を変えて再起動した後のタップでは作り直せない。
+    /// 非サンドボックスと既定の ~/Movies では nil (入らない)
+    nonisolated static let bookmarkKey = "kilde.recordingDirectoryBookmark"
 
     /// 文字起こし完了通知のカテゴリ (issue #147)。«開く» / «Finder で表示» の 2 アクションを
     /// 持つ。id は固定文字列 — 登録済みカテゴリと content.categoryIdentifier の突き合わせに
@@ -36,14 +45,32 @@ final class RecordingNotifier: NSObject {
     /// «Finder で表示» のアクション id。録画完了通知と同じ選択表示にする
     private nonisolated static let transcriptRevealActionID = "kilde.transcript.reveal"
 
+    /// 録画完了通知のカテゴリ (issue #392)。«文字起こし» / «Finder で表示» を持つ —
+    /// 録画の直後に人がパネルを開いているとは限らないので、«成功の瞬間» の通知から
+    /// 1 タップで文字起こしに移れるようにする
+    nonisolated static let recordingCategoryID = "kilde.recording.completed"
+    /// «文字起こし» のアクション id。その録画を TranscriptionCoordinator に投入する
+    private nonisolated static let recordingTranscribeActionID = "kilde.recording.transcribe"
+    /// «Finder で表示» のアクション id。文言は文字起こし完了通知と共有する
+    private nonisolated static let recordingRevealActionID = "kilde.recording.reveal"
+
     private let center = UNUserNotificationCenter.current()
+
+    /// «文字起こし» アクションで実行する処理 (AppDelegate が配線する)。その録画を
+    /// パネルと同じ TranscriptionCoordinator へ投入する。Coordinator は
+    /// UserNotifications を知らない (RecordingController.notifier と同じ依存の向き)。
+    /// 第 2 引数は通知が知っている実収録時間 (秒)、第 3 引数は録画フォルダの
+    /// security-scoped bookmark (録画完了時点で作ったもの。nil は非サンドボックス /
+    /// 既定の ~/Movies / 作成失敗)。後から文字起こしする経路は長さを知り得ないため
+    /// nil を許す — 計測 (issue #153) の区分だけに使われる
+    var onTranscribe: ((URL, TimeInterval?, Data?) -> Void)?
 
     /// アプリ起動時に 1 回呼ぶ。許可ダイアログはここで出る。
     /// 拒否されても録画機能は完全に動くので、エラーにはしない
     func start() {
         center.delegate = self
         center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
-        // 文字起こし完了通知のカテゴリ (issue #147)。**ここで 1 回だけ登録する** —
+        // 通知のカテゴリ (issue #147 / #392)。**ここで 1 回だけ登録する** —
         // 通知を出すたびに setNotificationCategories を投げると、登録の反映を待たずに
         // add した通知がアクション無しのバナーになる競合を作る。起動直後の登録は
         // 最初の文字起こし完了 (数分以上先) より十分早い
@@ -63,6 +90,30 @@ final class RecordingNotifier: NSObject {
                         title: String(localized: "Finder で表示"),
                         options: []),
                 ],
+                intentIdentifiers: []),
+            // «文字起こし» (issue #392) は SpeechAnalyzer が使える Mac だけで登録する —
+            // パネルは同じ条件で操作を無効化しており、対応していない Mac の通知に
+            // «押しても何も起きない» アクションを出さない (cubic レビュー指摘)。
+            // 非対応の Mac では «Finder で表示» だけが残る
+            UNNotificationCategory(
+                identifier: Self.recordingCategoryID,
+                actions: Transcriber.isSupported
+                    ? [
+                        UNNotificationAction(
+                            identifier: Self.recordingTranscribeActionID,
+                            title: String(localized: "文字起こし"),
+                            options: []),
+                        UNNotificationAction(
+                            identifier: Self.recordingRevealActionID,
+                            title: String(localized: "Finder で表示"),
+                            options: []),
+                    ]
+                    : [
+                        UNNotificationAction(
+                            identifier: Self.recordingRevealActionID,
+                            title: String(localized: "Finder で表示"),
+                            options: []),
+                    ],
                 intentIdentifiers: [])
         ])
     }
@@ -90,11 +141,32 @@ final class RecordingNotifier: NSObject {
     /// その完了を待てず 1 が壊れる**。1 は issue #20 の目的そのもの (他アプリで
     /// 作業している人に結果を伝える) なので、**3 を捨てる**。
     /// 短い録画でサイズが 0 になるが、通知が届かないことに比べれば軽い
+    ///
+    /// issue #392 の bookmark も同じ括り: I/O なので **MainActor の外**で作る
+    /// (2 の方針を守る。cubic レビュー指摘)。await するのはこの関数内の
+    /// Task だけでメインスレッドは塞がらず、**遅いボリュームでも
+    /// `notifyThenEndSession` のタイムアウトが上限になる** (1 を壊さない)
     func notifyCompleted(url: URL, elapsed: TimeInterval, bytes: Int64,
                          interruptionReason: String? = nil,
                          recoveredRestarts: Int = 0,
                          completion: @escaping () -> Void = {}) {
         let identifier = UUID().uuidString
+        Task { @MainActor in
+            await self.deliverCompletedNotification(
+                url: url, elapsed: elapsed, bytes: bytes,
+                interruptionReason: interruptionReason,
+                recoveredRestarts: recoveredRestarts,
+                identifier: identifier, completion: completion)
+        }
+    }
+
+    /// notifyCompleted の本体 (bookmark 作成を MainActor の外へ逃がすための
+    /// 分離。上のコメント参照)
+    private func deliverCompletedNotification(
+        url: URL, elapsed: TimeInterval, bytes: Int64,
+        interruptionReason: String?, recoveredRestarts: Int,
+        identifier: String, completion: @escaping () -> Void
+    ) async {
         let content = UNMutableNotificationContent()
         // 中断 (issue #298) のときは «保存しました» ではなく «中断された» を先に言う —
         // 利用者は「最後まで録れている」前提でいるので、通常の完了通知の文面だと
@@ -130,9 +202,26 @@ final class RecordingNotifier: NSObject {
             content.body += "\n" + String(localized: "キャプチャの中断から自動で再開し、最後まで録画しました")
         }
         content.sound = .default
+        // «文字起こし» アクションを持つカテゴリ (issue #392)。既定クリック / «Finder で
+        // 表示» の挙動は変えない — 新しい導線を足すだけで既存の使い方を壊さない
+        content.categoryIdentifier = Self.recordingCategoryID
         // 通知は macOS 側に残るので、**アプリを終了して起動し直した後にクリックされうる**。
-        // メモリ上の対応表だけだと復元できないので、パスを通知自身に持たせる
-        content.userInfo = [Self.urlKey: url.path]
+        // メモリ上の対応表だけだと復元できないので、パスを通知自身に持たせる。
+        // 実収録時間 («文字起こし» の計測) と、録画フォルダの security-scoped bookmark
+        // («文字起こし» の実行に要るアクセス — 作れるのは録画完了時点のこの瞬間だけ。
+        // 保存先を変えて再起動した後のタップでは作り直せない) も持たせる。
+        // bookmark の作成は **detached で MainActor の外** (上のコメント)。
+        // TranscriptionCoordinator への依存はこの静的ヘルパー 1 関数のみ
+        // (Coordinator が UserNotifications を知らない向きは保ったまま)
+        var userInfo: [String: Any] = [Self.urlKey: url.path, Self.durationKey: elapsed]
+        let directory = url.deletingLastPathComponent()
+        let bookmark = await Task.detached(priority: .userInitiated) {
+            TranscriptionCoordinator.directoryBookmarkData(forDirectory: directory)
+        }.value
+        if let bookmark {
+            userInfo[Self.bookmarkKey] = bookmark
+        }
+        content.userInfo = userInfo
 
         remember(identifier: identifier, url: url)
         post(identifier: identifier, content: content, completion: completion)
@@ -281,7 +370,9 @@ extension RecordingNotifier: UNUserNotificationCenterDelegate {
 
     /// 通知をクリックしたら Finder で選択表示する (issue #20 の受け入れ条件)。
     /// 文字起こし完了通知 (issue #147) は «開く» / 既定クリックでファイルを開き、
-    /// «Finder で表示» で選択表示する
+    /// «Finder で表示» で選択表示する。録画完了通知 (issue #392) は «文字起こし» で
+    /// TranscriptionCoordinator への投入 (onTranscribe — AppDelegate が配線)、
+    /// 既定クリック / «Finder で表示» で選択表示する (従来動作のまま)
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
@@ -291,13 +382,44 @@ extension RecordingNotifier: UNUserNotificationCenterDelegate {
         // 再起動後は対応表が空なので、通知自身が持つパスを使う
         let carried = (response.notification.request.content.userInfo[Self.urlKey] as? String)
             .map { URL(fileURLWithPath: $0) }
-        let isTranscript = response.notification.request.content.categoryIdentifier
-            == Self.transcriptCategoryID
+        // 実収録時間は録画完了通知だけが持つ。NSNumber 経由で来るので
+        // Double への復元に失敗したら «不明» (nil) に倒す — 計測の区分を送らないだけ
+        let carriedElapsed = (response.notification.request.content.userInfo[Self.durationKey] as? NSNumber)
+            .map { $0.doubleValue }
+        let carriedBookmark = response.notification.request.content.userInfo[Self.bookmarkKey] as? Data
+        let category = response.notification.request.content.categoryIdentifier
+        let isTranscript = category == Self.transcriptCategoryID
+        let isRecording = category == Self.recordingCategoryID
         let action = response.actionIdentifier
         Task { @MainActor [weak self] in
             defer { completionHandler() }
             guard let self else { return }
             guard let url = self.take(identifier: identifier) ?? carried else { return }
+            if isRecording, action == Self.recordingTranscribeActionID {
+                // «文字起こし» (issue #392)。既にサイドカーがあれば (自動文字起こし済み、
+                // 古い通知からの押下など) それを開く — ライブラリの «文字起こしを開く»
+                // (#147) と同じで、再実行で `-2` の重複サイドカーを作らない。
+                // なければジョブを投入する。**押した瞬間に画面は変わらない** —
+                // フィードバックは完了通知 («文字起こしを保存しました»。失敗は
+                // パネルとライブラリに表示) が担う
+                // 既存サイドカーの探索は MainActor の外 (existingSidecar の
+                // コメント参照)
+                let sidecar = await Task.detached(priority: .userInitiated) {
+                    TranscriptionCoordinator.existingSidecar(
+                        for: url, directoryBookmark: carriedBookmark)
+                }.value
+                if let sidecar {
+                    NSWorkspace.shared.open(sidecar)
+                    return
+                }
+                if let onTranscribe = self.onTranscribe {
+                    // onTranscribe が未配線のときは何もしない — 配線の持ち主
+                    // (AppDelegate) が立っていない状態で押せる経路は無いが、
+                    // 潰すより黙って何もしない方が安全 (情報は通知に残る)
+                    onTranscribe(url, carriedElapsed, carriedBookmark)
+                }
+                return
+            }
             // LSUIElement のアプリは通知クリックでもアクティブにならないことがあり、
             // 開いた Finder / テキストエディタが他のウィンドウの後ろに出る場合がある
             NSApp.activate(ignoringOtherApps: true)

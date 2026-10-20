@@ -39,7 +39,9 @@ final class TranscriptionCoordinator: ObservableObject {
         /// 値そのものは送らない (UsageAnalytics が区分にしてから送る)
         let recordingDuration: TimeInterval?
         /// 保存先フォルダ (recordingURL の親ディレクトリ) の security-scoped
-        /// bookmark データ。**enqueue() が設定する** — 呼び出し側は渡さない。
+        /// bookmark データ。**通常は enqueue() が設定する** — 呼び出し側は渡さない。
+        /// 唯一の例外は録画完了通知の «文字起こし» (issue #392) で、録画完了時点の
+        /// bookmark を通知が運び、呼び出し側が先に設定する。
         /// nil は «非サンドボックスビルド» «既定の ~/Movies (movies entitlement で
         /// 担保)» «bookmark 作成に失敗し、録画開始時の先取りも無かった» のどれかで、
         /// その場合は実行時にフォルダへ従来どおり直接アクセスする (issue #192、
@@ -144,10 +146,17 @@ final class TranscriptionCoordinator: ObservableObject {
         // 録画開始時に先取りした bookmark (holdDestinationForRecording) を使う。
         // 先取りが無い (録画開始後に文字起こしをオフにした等) 場合は従来どおり
         // 失敗通知で可視化される
+        //
+        // **録画完了通知の «文字起こし» アクション (issue #392)** は、録画完了時点で
+        // 作った bookmark を Job に先に載せてくる — 保存先を変えてアプリを再起動した
+        // 後のタップでは enqueue のこの時点で旧フォルダへのアクセスが無く、
+        // 下の作成は失敗するため。先に載っているものを壊さない
         var job = job
         let directory = job.recordingURL.deletingLastPathComponent()
-        job.directoryBookmark = Self.directoryBookmarkData(forDirectory: directory)
-            ?? preheldBookmark(matching: directory)
+        if job.directoryBookmark == nil {
+            job.directoryBookmark = Self.directoryBookmarkData(forDirectory: directory)
+                ?? preheldBookmark(matching: directory)
+        }
         queue.append(job)
         pump()
     }
@@ -430,7 +439,13 @@ final class TranscriptionCoordinator: ObservableObject {
     /// (com.apple.security.assets.movies.read-write) で常に担保されるので、
     /// bookmark を取っても取り直す機会がないだけでなく不要 — nil にして
     /// «bookmark の保持は panel 選択フォルダだけ» に絞る
-    private static func directoryBookmarkData(forDirectory directory: URL) -> Data? {
+    /// internal なのは録画完了通知の «文字起こし» アクション (issue #392) が
+    /// **録画完了時点** (アクセスが生きている間) の bookmark を通知に持たせるため。
+    /// それ以外の呼び出しは Coordinator 内部にとどめる。
+    /// `nonisolated` なのは通知側が **MainActor の外** (RecordingNotifier の
+    /// «MainActor を塞がない» 方針) で呼ぶため — 中身は引数の URL だけで決まる
+    /// 純粋な処理で、Coordinator の状態に触れない
+    nonisolated static func directoryBookmarkData(forDirectory directory: URL) -> Data? {
         #if APPSTORE
         // 保存先の正規化 (SandboxSupport.userVisibleMoviesDirectory) は symlink を
         // 解決した実パスを返すので、比較側も解決して揃える。path 文字列で比べるのは
@@ -451,6 +466,42 @@ final class TranscriptionCoordinator: ObservableObject {
         #else
         return nil
         #endif
+    }
+
+    /// 録画完了通知の «文字起こし» アクション (issue #392) 用: この録画に
+    /// **既にサイドカーがあれば**返す。ライブラリの «文字起こしを開く» (#147) と同じ
+    /// 判定で、既存の文字起こしを再実行して `-2` の重複サイドカーを作らない。
+    /// bookmark があれば security scope を開いてから探す — 保存先を変えて
+    /// 再起動した後のタップでは、これが旧フォルダを覗く唯一の経路
+    /// `nonisolated` なのは録画完了通知の応答ハンドラが **MainActor の外**
+    /// (RecordingNotifier の «MainActor を塞がない» 方針。cubic レビュー指摘 —
+    /// 遅いボリューム・大きいフォルダで UI を止めない) で呼ぶため。中身は
+    /// 引数とファイルシステムだけで決まり、Coordinator の状態に触れない
+    nonisolated static func existingSidecar(for recording: URL, directoryBookmark: Data?) -> URL? {
+        let directory = recording.deletingLastPathComponent()
+        var scoped: URL?
+        if let data = directoryBookmark ?? directoryBookmarkData(forDirectory: directory) {
+            // 解決と scope 開始は run 経路 (issue #192) と同じ形。一時的な走査なので
+            // 探索が終わったらすぐ解放する
+            var stale = false
+            if let resolved = try? URL(
+                resolvingBookmarkData: data,
+                options: .withSecurityScope,
+                relativeTo: nil,
+                bookmarkDataIsStale: &stale),
+                resolved.startAccessingSecurityScopedResource() {
+                scoped = resolved
+            }
+        }
+        defer { scoped?.stopAccessingSecurityScopedResource() }
+        // 候補は **サイドカーの拡張子だけ** に絞る — 絞らないと録画ファイル自身が
+        // 同じ stem の候補になり、«既存サイドカー» として録画本体を返してしまう
+        // (cubic レビュー指摘。RecordingSetup.reloadRecentRecordings と同じ絞り込み)
+        let candidates = ((try? FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants])) ?? [])
+            .filter { RecordingSetup.transcriptSidecarExtensions.contains($0.pathExtension.lowercased()) }
+        return RecordingSetup.transcriptSidecar(for: recording, among: candidates)
     }
 
     /// 実行の冒頭で、Job が保持する bookmark から保存先フォルダへのアクセスを
