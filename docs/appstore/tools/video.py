@@ -61,6 +61,14 @@ CAPTIONS = {
     "export": dict(ja=hl('議事録は指定フォルダへ<hl>自動書き出し</hl>。'),
                    en='Minutes <span class="hl">auto-export</span> to your folder.'),
 }
+# 条件付き機能のキャプションには小さめの注記行を添える — 大きな字幕に OS バージョンを
+# 織り込むと読みにくくなるため (cubic レビュー指摘への対応)
+CAPTION_NOTES = {
+    "transcript": dict(ja="文字起こしには macOS 26 以降が必要です",
+                       en="Transcription requires macOS 26 or later"),
+    "summary": dict(ja="要約には Apple Intelligence が有効な Mac が必要です",
+                    en="Summaries need Apple Intelligence"),
+}
 TAGLINE = dict(ja="会議を録って、議事録まで。", en="Record the meeting. Keep the minutes.")
 # App Store 版エンドカードの文言は製品ページのサブタイトルと同一にする (訴求の統一)
 SUBTITLE = dict(ja="システム音声ごと録って文字起こし", en="Record & transcribe meetings")
@@ -85,6 +93,9 @@ MD_LINES = {
            ("自分", "Great, thanks everyone.")],
 }
 SPK = {"相手": "them", "自分": "me"}
+# 話者ラベルの表示文言は言語ごとに変える (en 版で日本語ラベルが残らないように —
+# cubic レビュー指摘)。色分け (them/me クラス) は ja/en 共通
+SPK_TEXT = {"ja": {"相手": "相手", "自分": "自分"}, "en": {"相手": "Them", "自分": "Me"}}
 MD_SUMMARY = {
     "ja": ["収集フローの切り替えを今週中に完了する", "切り替え後にログを確認する",
            "次のマイルストーンは来週のレビュー"],
@@ -94,6 +105,8 @@ MD_SUMMARY = {
 }
 MD_ONDEVICE = dict(ja="この処理は端末内だけで行われます (macOS 26 以降)",
                    en="Processed on this Mac only (macOS 26 or later)")
+# 要約の前提 (Apple Intelligence) はバッジではなく字幕下の注記行で伝える —
+# バッジに全条件を詰めると 1 行に収まらず折り返して読みにくくなるため
 
 # --- パネルの文言 (ja / en) -------------------------------------------------
 # panel.py のモックは日本語固定のため、動画では言語切り替え可能な版をここに持つ
@@ -211,6 +224,8 @@ html,body { width: 1440px; height: 810px; overflow: hidden;
 h1 { font-size: 42px; line-height: 1.42; color: #F5F7FA; font-weight: 700; letter-spacing:-.01em;
   word-break: keep-all; line-break: strict; }
 h1 .hl { color: #FF6259; }
+.subline { margin-top: 18px; font-size: 15px; line-height: 1.7; color: #98A0AC;
+  word-break: keep-all; line-break: strict; }
 
 /* --- Mac 画面のモック ----------------------------------------------------- */
 .mac { position:absolute; left: 640px; top: 112px; width: 740px; height: 586px;
@@ -391,7 +406,7 @@ def meeting_window(lang):
 def doc_window(lang):
     lines = ""
     for i, (sp, tx) in enumerate(MD_LINES[lang]):
-        lines += (f'<div class="tl-line" id="tl{i}"><span class="sp {SPK[sp]}">{sp}</span>'
+        lines += (f'<div class="tl-line" id="tl{i}"><span class="sp {SPK[sp]}">{SPK_TEXT[lang][sp]}</span>'
                   f'<span>{tx}</span></div>')
     sums = "".join(f'<div class="sum-li" id="sum{i}">{s}</div>' for i, s in enumerate(MD_SUMMARY[lang]))
     tr = "文字起こし" if lang == "ja" else "Transcript"
@@ -464,6 +479,7 @@ def build_html(timeline, lang, icon_uri):
   <div class="copy" id="copy">
     <div class="eyebrow"><img id="eb-icon" alt="">KILDE for macOS</div>
     <h1 id="cap-h1"></h1>
+    <p class="subline" id="cap-sub"></p>
   </div>
   <div class="mac" id="mac">
     <div class="menubar"><span class="mb-app">{m["finder"]}</span><span>{m["m_file"]}</span><span>{m["m_edit"]}</span><span>{m["m_view"]}</span>
@@ -487,6 +503,9 @@ def build_html(timeline, lang, icon_uri):
 const META = {json.dumps(meta)};
 // CAPTIONS は「シーン → 言語ごとの文言」の入れ子 — この言語で平坦化しておく
 const CAPS = Object.fromEntries(Object.entries({json.dumps(CAPTIONS, ensure_ascii=False)})
+  .map(([k, v]) => [k, v[META.lang]]));
+// 条件付き機能の注記行 (無いシーンは空文字) — CAPTIONS と同じ入れ子なので平坦化する
+const CAPNOTES = Object.fromEntries(Object.entries({json.dumps(CAPTION_NOTES, ensure_ascii=False)})
   .map(([k, v]) => [k, v[META.lang]]));
 const el = id => document.getElementById(id);
 const clamp01 = x => Math.max(0, Math.min(1, x));
@@ -563,8 +582,10 @@ function setFrame(t) {{
   setPopH(PH.setup);
   for (let i = 0; i < 3; i++) el("tile" + i).classList.remove("speaking");
 
-  // キャプション (各シーン冒頭 0.6 秒でフェードイン)
+  // キャプション (各シーン冒頭 0.6 秒でフェードイン)。条件付き機能の注記行も
+  // 大きな字幕の直下に小さく添える (CAPTION_NOTES)
   el("cap-h1").innerHTML = CAPS[key] || "";
+  el("cap-sub").innerHTML = CAPNOTES[key] || "";
   const cin = easeOut(tau / 0.6);
   el("copy").style.opacity = cin;
   el("copy").style.transform = "translateY(" + ((1-cin)*26) + "px)";
@@ -736,6 +757,15 @@ async def render_one(pw, cut, lang, timeline, icon_uri, outdir, stills_only=Fals
                                   device_scale_factor=2)
     await page.set_content(build_html(timeline, lang, icon_uri))
     await page.wait_for_timeout(250)
+    # build.py と同じ理由でフォント差を検査する — 字幅が変わると字幕の折り返しと
+    # パネルのレイアウトが変わるため (黙って別物を作らない。cubic レビュー指摘)
+    probe = ('(async () => {'
+             '  try { await new FontFace("ProbeJP", \'local("Noto Sans JP")\').load(); return true; }'
+             '  catch (e) { return false; }'
+             '})()')
+    if not await page.evaluate(probe):
+        print(f"[{label}] warning: \"Noto Sans JP\" が見つかりません — 字形と折り返しが"
+              "この環境の成果物と変わります", file=sys.stderr)
 
     if stills_only:
         # 各シーンの中間地点 1 フレーム (OCR 検証・目視確認用。動画は作らない)
@@ -772,13 +802,18 @@ async def render_one(pw, cut, lang, timeline, icon_uri, outdir, stills_only=Fals
         cmd = ["ffmpeg", "-y", "-v", "error", "-framerate", str(FPS), "-i", str(frames_dir / "f_%05d.jpg"),
                "-vf", vf, "-c:v", "libx264", "-preset", "slow", "-crf", "21",
                "-movflags", "+faststart", "-an", str(out_mp4)]
-    subprocess.run(cmd, check=True)
+    # 同期 subprocess のまま呼ぶと asyncio.gather のもう一方のレンダリングまで
+    # ブロックする (実質直列になる) ので、スレッドに逃がす (cubic レビュー指摘)
+    await asyncio.to_thread(subprocess.run, cmd, check=True)
     if not keep:
         for f in frames_dir.glob("f_*.jpg"):
             f.unlink()
-    probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
-                            "format=duration,size:stream=codec_name,width,height,avg_frame_rate",
-                            "-of", "json", str(out_mp4)], capture_output=True, text=True, check=True)
+    probe = await asyncio.to_thread(
+        subprocess.run,
+        ["ffprobe", "-v", "error", "-show_entries",
+         "format=duration,size:stream=codec_name,width,height,avg_frame_rate",
+         "-of", "json", str(out_mp4)],
+        capture_output=True, text=True, check=True)
     j = json.loads(probe.stdout)
     print(f"[{label}] {out_mp4.name}: {j['format']['duration']}s "
           f"{int(j['format']['size'])/1e6:.1f}MB " +
