@@ -465,6 +465,33 @@ final class TranscriptionCoordinator: ObservableObject {
         #endif
     }
 
+    /// 録画完了通知の «文字起こし» アクション (issue #392) 用: この録画に
+    /// **既にサイドカーがあれば**返す。ライブラリの «文字起こしを開く» (#147) と同じ
+    /// 判定で、既存の文字起こしを再実行して `-2` の重複サイドカーを作らない。
+    /// bookmark があれば security scope を開いてから探す — 保存先を変えて
+    /// 再起動した後のタップでは、これが旧フォルダを覗く唯一の経路
+    static func existingSidecar(for recording: URL, directoryBookmark: Data?) -> URL? {
+        let directory = recording.deletingLastPathComponent()
+        var scoped: URL?
+        if let data = directoryBookmark ?? directoryBookmarkData(forDirectory: directory) {
+            // 解決と scope 開始は run 経路 (issue #192) と同じ形。一時的な走査なので
+            // 探索が終わったらすぐ解放する
+            var stale = false
+            if let resolved = try? URL(
+                resolvingBookmarkData: data,
+                options: .withSecurityScope,
+                relativeTo: nil,
+                bookmarkDataIsStale: &stale),
+                resolved.startAccessingSecurityScopedResource() {
+                scoped = resolved
+            }
+        }
+        defer { scoped?.stopAccessingSecurityScopedResource() }
+        let candidates = (try? FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
+        return RecordingSetup.transcriptSidecar(for: recording, among: candidates)
+    }
+
     /// 実行の冒頭で、Job が保持する bookmark から保存先フォルダへのアクセスを
     /// 開始する (issue #192)。Job は enqueue 時 (アクセスが生きている間) に
     /// bookmark を作っているので、保存先変更で extension を解放された旧フォルダでも

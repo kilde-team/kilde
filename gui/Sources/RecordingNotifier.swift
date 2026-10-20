@@ -91,21 +91,29 @@ final class RecordingNotifier: NSObject {
                         options: []),
                 ],
                 intentIdentifiers: []),
+            // «文字起こし» (issue #392) は SpeechAnalyzer が使える Mac だけで登録する —
+            // パネルは同じ条件で操作を無効化しており、対応していない Mac の通知に
+            // «押しても何も起きない» アクションを出さない (cubic レビュー指摘)。
+            // 非対応の Mac では «Finder で表示» だけが残る
             UNNotificationCategory(
                 identifier: Self.recordingCategoryID,
-                actions: [
-                    // «文字起こし» も .foreground: ジョブはパネルを開かなくても
-                    // 処理されるが、準備・進捗はポップオーバーとライブラリで見る
-                    // ため、押した人の目の届く位置に状態を持っていく
-                    UNNotificationAction(
-                        identifier: Self.recordingTranscribeActionID,
-                        title: String(localized: "文字起こし"),
-                        options: [.foreground]),
-                    UNNotificationAction(
-                        identifier: Self.recordingRevealActionID,
-                        title: String(localized: "Finder で表示"),
-                        options: []),
-                ],
+                actions: Transcriber.isSupported
+                    ? [
+                        UNNotificationAction(
+                            identifier: Self.recordingTranscribeActionID,
+                            title: String(localized: "文字起こし"),
+                            options: []),
+                        UNNotificationAction(
+                            identifier: Self.recordingRevealActionID,
+                            title: String(localized: "Finder で表示"),
+                            options: []),
+                    ]
+                    : [
+                        UNNotificationAction(
+                            identifier: Self.recordingRevealActionID,
+                            title: String(localized: "Finder で表示"),
+                            options: []),
+                    ],
                 intentIdentifiers: [])
         ])
     }
@@ -179,7 +187,7 @@ final class RecordingNotifier: NSObject {
         // 通知は macOS 側に残るので、**アプリを終了して起動し直した後にクリックされうる**。
         // メモリ上の対応表だけだと復元できないので、パスを通知自身に持たせる。
         // 実収録時間 («文字起こし» の計測) と、録画フォルダの security-scoped bookmark
-        // («文字こし» の実行に要るアクセス — 作れるのは録画完了時点のこの瞬間だけ。
+        // («文字起こし» の実行に要るアクセス — 作れるのは録画完了時点のこの瞬間だけ。
         // 保存先を変えて再起動した後のタップでは作り直せない) も持たせる。
         // TranscriptionCoordinator への依存はこの静的ヘルパー 1 関数のみ
         // (Coordinator が UserNotifications を知らない向きは保ったまま)
@@ -363,14 +371,21 @@ extension RecordingNotifier: UNUserNotificationCenterDelegate {
             guard let self else { return }
             guard let url = self.take(identifier: identifier) ?? carried else { return }
             if isRecording, action == Self.recordingTranscribeActionID {
-                // «文字起こし» (issue #392)。Finder を開く代わりにジョブを投入する。
-                // onTranscribe が未配線のときは何もしない — 配線の持ち主
-                // (AppDelegate) が立っていない状態で押せる経路は無いが、
-                // 潰すより黙って何もしない方が安全 (情報は通知に残る)
+                // «文字起こし» (issue #392)。既にサイドカーがあれば (自動文字起こし済み、
+                // 古い通知からの押下など) それを開く — ライブラリの «文字起こしを開く»
+                // (#147) と同じで、再実行で `-2` の重複サイドカーを作らない。
+                // なければジョブを投入する。**押した瞬間に画面は変わらない** —
+                // フィードバックは完了通知 («文字起こしを保存しました»。失敗は
+                // パネルとライブラリに表示) が担う
+                if let sidecar = TranscriptionCoordinator.existingSidecar(
+                    for: url, directoryBookmark: carriedBookmark) {
+                    NSWorkspace.shared.open(sidecar)
+                    return
+                }
                 if let onTranscribe = self.onTranscribe {
-                    // 通知クリックでもアクティブにならないことがあるのは他と同じ。
-                    // 押したことが画面上で分かるようにアプリは前面にする
-                    NSApp.activate(ignoringOtherApps: true)
+                    // onTranscribe が未配線のときは何もしない — 配線の持ち主
+                    // (AppDelegate) が立っていない状態で押せる経路は無いが、
+                    // 潰すより黙って何もしない方が安全 (情報は通知に残る)
                     onTranscribe(url, carriedElapsed, carriedBookmark)
                 }
                 return
