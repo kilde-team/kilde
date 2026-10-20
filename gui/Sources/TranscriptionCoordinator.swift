@@ -473,7 +473,11 @@ final class TranscriptionCoordinator: ObservableObject {
     /// 判定で、既存の文字起こしを再実行して `-2` の重複サイドカーを作らない。
     /// bookmark があれば security scope を開いてから探す — 保存先を変えて
     /// 再起動した後のタップでは、これが旧フォルダを覗く唯一の経路
-    static func existingSidecar(for recording: URL, directoryBookmark: Data?) -> URL? {
+    /// `nonisolated` なのは録画完了通知の応答ハンドラが **MainActor の外**
+    /// (RecordingNotifier の «MainActor を塞がない» 方針。cubic レビュー指摘 —
+    /// 遅いボリューム・大きいフォルダで UI を止めない) で呼ぶため。中身は
+    /// 引数とファイルシステムだけで決まり、Coordinator の状態に触れない
+    nonisolated static func existingSidecar(for recording: URL, directoryBookmark: Data?) -> URL? {
         let directory = recording.deletingLastPathComponent()
         var scoped: URL?
         if let data = directoryBookmark ?? directoryBookmarkData(forDirectory: directory) {
@@ -490,8 +494,13 @@ final class TranscriptionCoordinator: ObservableObject {
             }
         }
         defer { scoped?.stopAccessingSecurityScopedResource() }
-        let candidates = (try? FileManager.default.contentsOfDirectory(
-            at: directory, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
+        // 候補は **サイドカーの拡張子だけ** に絞る — 絞らないと録画ファイル自身が
+        // 同じ stem の候補になり、«既存サイドカー» として録画本体を返してしまう
+        // (cubic レビュー指摘。RecordingSetup.reloadRecentRecordings と同じ絞り込み)
+        let candidates = ((try? FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants])) ?? [])
+            .filter { RecordingSetup.transcriptSidecarExtensions.contains($0.pathExtension.lowercased()) }
         return RecordingSetup.transcriptSidecar(for: recording, among: candidates)
     }
 

@@ -402,8 +402,13 @@ extension RecordingNotifier: UNUserNotificationCenterDelegate {
                 // なければジョブを投入する。**押した瞬間に画面は変わらない** —
                 // フィードバックは完了通知 («文字起こしを保存しました»。失敗は
                 // パネルとライブラリに表示) が担う
-                if let sidecar = TranscriptionCoordinator.existingSidecar(
-                    for: url, directoryBookmark: carriedBookmark) {
+                // 既存サイドカーの探索は MainActor の外 (existingSidecar の
+                // コメント参照)
+                let sidecar = await Task.detached(priority: .userInitiated) {
+                    TranscriptionCoordinator.existingSidecar(
+                        for: url, directoryBookmark: carriedBookmark)
+                }.value
+                if let sidecar {
                     NSWorkspace.shared.open(sidecar)
                     return
                 }
