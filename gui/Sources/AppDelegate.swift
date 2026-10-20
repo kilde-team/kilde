@@ -185,8 +185,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // スナップショットは通知の側に無いため、**押した時点の setup 値**を使う —
         // ライブラリの «後から文字起こし» (issue #321) がライブラリ側の設定で
         // 確定するのと同じ位置づけ。要約は運ばない («文字起こし» という文言の
-        // とおりの最小動作。要約はパネルのトグル経路で明示的に選ぶ)
-        notifier.onTranscribe = { [weak self] url, elapsed in
+        // とおりの最小動作。要約はパネルのトグル経路で明示的に選ぶ)。
+        // bookmark は通知が録画完了時点で作って運んでいるもの — 保存先変更後の
+        // 再起動ではここで作り直せないので、nil のときだけ Coordinator に任せる
+        notifier.onTranscribe = { [weak self] url, elapsed, bookmark in
             guard let self else { return }
             guard self.setup.transcriptionAvailable else { return }
             self.transcription.enqueue(TranscriptionCoordinator.Job(
@@ -196,7 +198,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 localeID: self.setup.transcriptLocale,
                 // 通知が持っていた実収録時間 (再起動後のクリックでも userInfo から
                 // 復元される)。nil の扱いは «後から文字起こし» と同じ — 区分だけ送る
-                recordingDuration: elapsed))
+                recordingDuration: elapsed,
+                directoryBookmark: bookmark))
         }
         // 文字起こしの完了 → 通知 (issue #147)。Coordinator は UserNotifications を
         // 知らない (RecordingController.notifier と同じ依存の向き) — 配線の持ち主は

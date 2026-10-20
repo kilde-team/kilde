@@ -29,6 +29,12 @@ final class RecordingNotifier: NSObject {
     /// 録画完了通知の userInfo に入れる実収録時間 (秒) のキー (issue #392)。
     /// «文字起こし» アクションの計測パラメータに使う。Double で入る
     nonisolated static let durationKey = "kilde.recordingElapsed"
+    /// 録画完了通知の userInfo に入れる security-scoped bookmark (Data) のキー
+    /// (issue #392)。«文字起こし» アクションはジョブの実行にそのフォルダへの
+    /// アクセスが要るため、**録画完了時点** (アクセスが生きている間) に作って
+    /// 通知に持たせる — 保存先を変えて再起動した後のタップでは作り直せない。
+    /// 非サンドボックスと既定の ~/Movies では nil (入らない)
+    nonisolated static let bookmarkKey = "kilde.recordingDirectoryBookmark"
 
     /// 文字起こし完了通知のカテゴリ (issue #147)。«開く» / «Finder で表示» の 2 アクションを
     /// 持つ。id は固定文字列 — 登録済みカテゴリと content.categoryIdentifier の突き合わせに
@@ -53,9 +59,11 @@ final class RecordingNotifier: NSObject {
     /// «文字起こし» アクションで実行する処理 (AppDelegate が配線する)。その録画を
     /// パネルと同じ TranscriptionCoordinator へ投入する。Coordinator は
     /// UserNotifications を知らない (RecordingController.notifier と同じ依存の向き)。
-    /// 第 2 引数は通知が知っている実収録時間 (秒)。後から文字起こしする経路は
-    /// 長さを知り得ないため nil を許す — 計測 (issue #153) の区分だけに使われる
-    var onTranscribe: ((URL, TimeInterval?) -> Void)?
+    /// 第 2 引数は通知が知っている実収録時間 (秒)、第 3 引数は録画フォルダの
+    /// security-scoped bookmark (録画完了時点で作ったもの。nil は非サンドボックス /
+    /// 既定の ~/Movies / 作成失敗)。後から文字起こしする経路は長さを知り得ないため
+    /// nil を許す — 計測 (issue #153) の区分だけに使われる
+    var onTranscribe: ((URL, TimeInterval?, Data?) -> Void)?
 
     /// アプリ起動時に 1 回呼ぶ。許可ダイアログはここで出る。
     /// 拒否されても録画機能は完全に動くので、エラーにはしない
@@ -170,9 +178,17 @@ final class RecordingNotifier: NSObject {
         content.categoryIdentifier = Self.recordingCategoryID
         // 通知は macOS 側に残るので、**アプリを終了して起動し直した後にクリックされうる**。
         // メモリ上の対応表だけだと復元できないので、パスを通知自身に持たせる。
-        // 実収録時間も «文字起こし» アクションの計測 (issue #153) のために持たせる —
-        // 再起動後のクリックでは対応表 (remember) が空でも elapsed を復元できる
-        content.userInfo = [Self.urlKey: url.path, Self.durationKey: elapsed]
+        // 実収録時間 («文字起こし» の計測) と、録画フォルダの security-scoped bookmark
+        // («文字こし» の実行に要るアクセス — 作れるのは録画完了時点のこの瞬間だけ。
+        // 保存先を変えて再起動した後のタップでは作り直せない) も持たせる。
+        // TranscriptionCoordinator への依存はこの静的ヘルパー 1 関数のみ
+        // (Coordinator が UserNotifications を知らない向きは保ったまま)
+        var userInfo: [String: Any] = [Self.urlKey: url.path, Self.durationKey: elapsed]
+        if let bookmark = TranscriptionCoordinator.directoryBookmarkData(
+            forDirectory: url.deletingLastPathComponent()) {
+            userInfo[Self.bookmarkKey] = bookmark
+        }
+        content.userInfo = userInfo
 
         remember(identifier: identifier, url: url)
         post(identifier: identifier, content: content, completion: completion)
@@ -337,6 +353,7 @@ extension RecordingNotifier: UNUserNotificationCenterDelegate {
         // Double への復元に失敗したら «不明» (nil) に倒す — 計測の区分を送らないだけ
         let carriedElapsed = (response.notification.request.content.userInfo[Self.durationKey] as? NSNumber)
             .map { $0.doubleValue }
+        let carriedBookmark = response.notification.request.content.userInfo[Self.bookmarkKey] as? Data
         let category = response.notification.request.content.categoryIdentifier
         let isTranscript = category == Self.transcriptCategoryID
         let isRecording = category == Self.recordingCategoryID
@@ -354,7 +371,7 @@ extension RecordingNotifier: UNUserNotificationCenterDelegate {
                     // 通知クリックでもアクティブにならないことがあるのは他と同じ。
                     // 押したことが画面上で分かるようにアプリは前面にする
                     NSApp.activate(ignoringOtherApps: true)
-                    onTranscribe(url, carriedElapsed)
+                    onTranscribe(url, carriedElapsed, carriedBookmark)
                 }
                 return
             }

@@ -39,7 +39,9 @@ final class TranscriptionCoordinator: ObservableObject {
         /// 値そのものは送らない (UsageAnalytics が区分にしてから送る)
         let recordingDuration: TimeInterval?
         /// 保存先フォルダ (recordingURL の親ディレクトリ) の security-scoped
-        /// bookmark データ。**enqueue() が設定する** — 呼び出し側は渡さない。
+        /// bookmark データ。**通常は enqueue() が設定する** — 呼び出し側は渡さない。
+        /// 唯一の例外は録画完了通知の «文字起こし» (issue #392) で、録画完了時点の
+        /// bookmark を通知が運び、呼び出し側が先に設定する。
         /// nil は «非サンドボックスビルド» «既定の ~/Movies (movies entitlement で
         /// 担保)» «bookmark 作成に失敗し、録画開始時の先取りも無かった» のどれかで、
         /// その場合は実行時にフォルダへ従来どおり直接アクセスする (issue #192、
@@ -144,10 +146,17 @@ final class TranscriptionCoordinator: ObservableObject {
         // 録画開始時に先取りした bookmark (holdDestinationForRecording) を使う。
         // 先取りが無い (録画開始後に文字起こしをオフにした等) 場合は従来どおり
         // 失敗通知で可視化される
+        //
+        // **録画完了通知の «文字起こし» アクション (issue #392)** は、録画完了時点で
+        // 作った bookmark を Job に先に載せてくる — 保存先を変えてアプリを再起動した
+        // 後のタップでは enqueue のこの時点で旧フォルダへのアクセスが無く、
+        // 下の作成は失敗するため。先に載っているものを壊さない
         var job = job
         let directory = job.recordingURL.deletingLastPathComponent()
-        job.directoryBookmark = Self.directoryBookmarkData(forDirectory: directory)
-            ?? preheldBookmark(matching: directory)
+        if job.directoryBookmark == nil {
+            job.directoryBookmark = Self.directoryBookmarkData(forDirectory: directory)
+                ?? preheldBookmark(matching: directory)
+        }
         queue.append(job)
         pump()
     }
@@ -430,7 +439,10 @@ final class TranscriptionCoordinator: ObservableObject {
     /// (com.apple.security.assets.movies.read-write) で常に担保されるので、
     /// bookmark を取っても取り直す機会がないだけでなく不要 — nil にして
     /// «bookmark の保持は panel 選択フォルダだけ» に絞る
-    private static func directoryBookmarkData(forDirectory directory: URL) -> Data? {
+    /// internal なのは録画完了通知の «文字起こし» アクション (issue #392) が
+    /// **録画完了時点** (アクセスが生きている間) の bookmark を通知に持たせるため。
+    /// それ以外の呼び出しは Coordinator 内部にとどめる
+    static func directoryBookmarkData(forDirectory directory: URL) -> Data? {
         #if APPSTORE
         // 保存先の正規化 (SandboxSupport.userVisibleMoviesDirectory) は symlink を
         // 解決した実パスを返すので、比較側も解決して揃える。path 文字列で比べるのは
