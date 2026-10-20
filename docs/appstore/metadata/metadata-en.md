@@ -289,3 +289,17 @@ review"). The What's New states explicitly that every feature stays free
 ```text
 Added a "Support this app" section at the bottom of the panel where you can send a tip in three amounts (store version only). All recording and transcription features remain free of charge.
 ```
+
+## What's New (0.19.0)
+
+The Transcribe action on the recording-completed notification (issue #392):
+a one-tap path from the success moment, enqueueing with the settings as of
+the tap (format / locale; no summary). Recordings that were already
+transcribed open the existing sidecar instead of creating a `-2` duplicate.
+The notification carries a security-scoped bookmark, so tapping after
+changing the destination and relaunching still processes the old folder's
+recording. Unsupported Macs (below macOS 26) do not get the action at all.
+
+```text
+Added a "Transcription" action to the recording-completed notification. Start transcribing a finished recording right from the notification (transcription requires macOS 26 or later and the speech data for your language).
+```
