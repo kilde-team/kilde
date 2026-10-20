@@ -441,8 +441,11 @@ final class TranscriptionCoordinator: ObservableObject {
     /// «bookmark の保持は panel 選択フォルダだけ» に絞る
     /// internal なのは録画完了通知の «文字起こし» アクション (issue #392) が
     /// **録画完了時点** (アクセスが生きている間) の bookmark を通知に持たせるため。
-    /// それ以外の呼び出しは Coordinator 内部にとどめる
-    static func directoryBookmarkData(forDirectory directory: URL) -> Data? {
+    /// それ以外の呼び出しは Coordinator 内部にとどめる。
+    /// `nonisolated` なのは通知側が **MainActor の外** (RecordingNotifier の
+    /// «MainActor を塞がない» 方針) で呼ぶため — 中身は引数の URL だけで決まる
+    /// 純粋な処理で、Coordinator の状態に触れない
+    nonisolated static func directoryBookmarkData(forDirectory directory: URL) -> Data? {
         #if APPSTORE
         // 保存先の正規化 (SandboxSupport.userVisibleMoviesDirectory) は symlink を
         // 解決した実パスを返すので、比較側も解決して揃える。path 文字列で比べるのは

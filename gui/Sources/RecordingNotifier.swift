@@ -141,11 +141,32 @@ final class RecordingNotifier: NSObject {
     /// その完了を待てず 1 が壊れる**。1 は issue #20 の目的そのもの (他アプリで
     /// 作業している人に結果を伝える) なので、**3 を捨てる**。
     /// 短い録画でサイズが 0 になるが、通知が届かないことに比べれば軽い
+    ///
+    /// issue #392 の bookmark も同じ括り: I/O なので **MainActor の外**で作る
+    /// (2 の方針を守る。cubic レビュー指摘)。await するのはこの関数内の
+    /// Task だけでメインスレッドは塞がらず、**遅いボリュームでも
+    /// `notifyThenEndSession` のタイムアウトが上限になる** (1 を壊さない)
     func notifyCompleted(url: URL, elapsed: TimeInterval, bytes: Int64,
                          interruptionReason: String? = nil,
                          recoveredRestarts: Int = 0,
                          completion: @escaping () -> Void = {}) {
         let identifier = UUID().uuidString
+        Task { @MainActor in
+            await self.deliverCompletedNotification(
+                url: url, elapsed: elapsed, bytes: bytes,
+                interruptionReason: interruptionReason,
+                recoveredRestarts: recoveredRestarts,
+                identifier: identifier, completion: completion)
+        }
+    }
+
+    /// notifyCompleted の本体 (bookmark 作成を MainActor の外へ逃がすための
+    /// 分離。上のコメント参照)
+    private func deliverCompletedNotification(
+        url: URL, elapsed: TimeInterval, bytes: Int64,
+        interruptionReason: String?, recoveredRestarts: Int,
+        identifier: String, completion: @escaping () -> Void
+    ) async {
         let content = UNMutableNotificationContent()
         // 中断 (issue #298) のときは «保存しました» ではなく «中断された» を先に言う —
         // 利用者は「最後まで録れている」前提でいるので、通常の完了通知の文面だと
@@ -189,11 +210,15 @@ final class RecordingNotifier: NSObject {
         // 実収録時間 («文字起こし» の計測) と、録画フォルダの security-scoped bookmark
         // («文字起こし» の実行に要るアクセス — 作れるのは録画完了時点のこの瞬間だけ。
         // 保存先を変えて再起動した後のタップでは作り直せない) も持たせる。
+        // bookmark の作成は **detached で MainActor の外** (上のコメント)。
         // TranscriptionCoordinator への依存はこの静的ヘルパー 1 関数のみ
         // (Coordinator が UserNotifications を知らない向きは保ったまま)
         var userInfo: [String: Any] = [Self.urlKey: url.path, Self.durationKey: elapsed]
-        if let bookmark = TranscriptionCoordinator.directoryBookmarkData(
-            forDirectory: url.deletingLastPathComponent()) {
+        let directory = url.deletingLastPathComponent()
+        let bookmark = await Task.detached(priority: .userInitiated) {
+            TranscriptionCoordinator.directoryBookmarkData(forDirectory: directory)
+        }.value
+        if let bookmark {
             userInfo[Self.bookmarkKey] = bookmark
         }
         content.userInfo = userInfo
