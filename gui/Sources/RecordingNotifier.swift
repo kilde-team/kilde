@@ -26,6 +26,9 @@ final class RecordingNotifier: NSObject {
     /// `nonisolated` なデリゲートメソッドから読むので隔離しない
     /// (@MainActor 隔離のままだと Swift 6 言語モードでエラーになる)
     nonisolated static let urlKey = "kilde.outputPath"
+    /// 録画完了通知の userInfo に入れる実収録時間 (秒) のキー (issue #392)。
+    /// «文字起こし» アクションの計測パラメータに使う。Double で入る
+    nonisolated static let durationKey = "kilde.recordingElapsed"
 
     /// 文字起こし完了通知のカテゴリ (issue #147)。«開く» / «Finder で表示» の 2 アクションを
     /// 持つ。id は固定文字列 — 登録済みカテゴリと content.categoryIdentifier の突き合わせに
@@ -36,14 +39,30 @@ final class RecordingNotifier: NSObject {
     /// «Finder で表示» のアクション id。録画完了通知と同じ選択表示にする
     private nonisolated static let transcriptRevealActionID = "kilde.transcript.reveal"
 
+    /// 録画完了通知のカテゴリ (issue #392)。«文字起こし» / «Finder で表示» を持つ —
+    /// 録画の直後に人がパネルを開いているとは限らないので、«成功の瞬間» の通知から
+    /// 1 タップで文字起こしに移れるようにする
+    nonisolated static let recordingCategoryID = "kilde.recording.completed"
+    /// «文字起こし» のアクション id。その録画を TranscriptionCoordinator に投入する
+    private nonisolated static let recordingTranscribeActionID = "kilde.recording.transcribe"
+    /// «Finder で表示» のアクション id。文言は文字起こし完了通知と共有する
+    private nonisolated static let recordingRevealActionID = "kilde.recording.reveal"
+
     private let center = UNUserNotificationCenter.current()
+
+    /// «文字起こし» アクションで実行する処理 (AppDelegate が配線する)。その録画を
+    /// パネルと同じ TranscriptionCoordinator へ投入する。Coordinator は
+    /// UserNotifications を知らない (RecordingController.notifier と同じ依存の向き)。
+    /// 第 2 引数は通知が知っている実収録時間 (秒)。後から文字起こしする経路は
+    /// 長さを知り得ないため nil を許す — 計測 (issue #153) の区分だけに使われる
+    var onTranscribe: ((URL, TimeInterval?) -> Void)?
 
     /// アプリ起動時に 1 回呼ぶ。許可ダイアログはここで出る。
     /// 拒否されても録画機能は完全に動くので、エラーにはしない
     func start() {
         center.delegate = self
         center.requestAuthorization(options: [.alert, .sound]) { _, _ in }
-        // 文字起こし完了通知のカテゴリ (issue #147)。**ここで 1 回だけ登録する** —
+        // 通知のカテゴリ (issue #147 / #392)。**ここで 1 回だけ登録する** —
         // 通知を出すたびに setNotificationCategories を投げると、登録の反映を待たずに
         // add した通知がアクション無しのバナーになる競合を作る。起動直後の登録は
         // 最初の文字起こし完了 (数分以上先) より十分早い
@@ -60,6 +79,22 @@ final class RecordingNotifier: NSObject {
                         options: [.foreground]),
                     UNNotificationAction(
                         identifier: Self.transcriptRevealActionID,
+                        title: String(localized: "Finder で表示"),
+                        options: []),
+                ],
+                intentIdentifiers: []),
+            UNNotificationCategory(
+                identifier: Self.recordingCategoryID,
+                actions: [
+                    // «文字起こし» も .foreground: ジョブはパネルを開かなくても
+                    // 処理されるが、準備・進捗はポップオーバーとライブラリで見る
+                    // ため、押した人の目の届く位置に状態を持っていく
+                    UNNotificationAction(
+                        identifier: Self.recordingTranscribeActionID,
+                        title: String(localized: "文字起こし"),
+                        options: [.foreground]),
+                    UNNotificationAction(
+                        identifier: Self.recordingRevealActionID,
                         title: String(localized: "Finder で表示"),
                         options: []),
                 ],
@@ -130,9 +165,14 @@ final class RecordingNotifier: NSObject {
             content.body += "\n" + String(localized: "キャプチャの中断から自動で再開し、最後まで録画しました")
         }
         content.sound = .default
+        // «文字起こし» アクションを持つカテゴリ (issue #392)。既定クリック / «Finder で
+        // 表示» の挙動は変えない — 新しい導線を足すだけで既存の使い方を壊さない
+        content.categoryIdentifier = Self.recordingCategoryID
         // 通知は macOS 側に残るので、**アプリを終了して起動し直した後にクリックされうる**。
-        // メモリ上の対応表だけだと復元できないので、パスを通知自身に持たせる
-        content.userInfo = [Self.urlKey: url.path]
+        // メモリ上の対応表だけだと復元できないので、パスを通知自身に持たせる。
+        // 実収録時間も «文字起こし» アクションの計測 (issue #153) のために持たせる —
+        // 再起動後のクリックでは対応表 (remember) が空でも elapsed を復元できる
+        content.userInfo = [Self.urlKey: url.path, Self.durationKey: elapsed]
 
         remember(identifier: identifier, url: url)
         post(identifier: identifier, content: content, completion: completion)
@@ -281,7 +321,9 @@ extension RecordingNotifier: UNUserNotificationCenterDelegate {
 
     /// 通知をクリックしたら Finder で選択表示する (issue #20 の受け入れ条件)。
     /// 文字起こし完了通知 (issue #147) は «開く» / 既定クリックでファイルを開き、
-    /// «Finder で表示» で選択表示する
+    /// «Finder で表示» で選択表示する。録画完了通知 (issue #392) は «文字起こし» で
+    /// TranscriptionCoordinator への投入 (onTranscribe — AppDelegate が配線)、
+    /// 既定クリック / «Finder で表示» で選択表示する (従来動作のまま)
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
@@ -291,13 +333,31 @@ extension RecordingNotifier: UNUserNotificationCenterDelegate {
         // 再起動後は対応表が空なので、通知自身が持つパスを使う
         let carried = (response.notification.request.content.userInfo[Self.urlKey] as? String)
             .map { URL(fileURLWithPath: $0) }
-        let isTranscript = response.notification.request.content.categoryIdentifier
-            == Self.transcriptCategoryID
+        // 実収録時間は録画完了通知だけが持つ。NSNumber 経由で来るので
+        // Double への復元に失敗したら «不明» (nil) に倒す — 計測の区分を送らないだけ
+        let carriedElapsed = (response.notification.request.content.userInfo[Self.durationKey] as? NSNumber)
+            .map { $0.doubleValue }
+        let category = response.notification.request.content.categoryIdentifier
+        let isTranscript = category == Self.transcriptCategoryID
+        let isRecording = category == Self.recordingCategoryID
         let action = response.actionIdentifier
         Task { @MainActor [weak self] in
             defer { completionHandler() }
             guard let self else { return }
             guard let url = self.take(identifier: identifier) ?? carried else { return }
+            if isRecording, action == Self.recordingTranscribeActionID {
+                // «文字起こし» (issue #392)。Finder を開く代わりにジョブを投入する。
+                // onTranscribe が未配線のときは何もしない — 配線の持ち主
+                // (AppDelegate) が立っていない状態で押せる経路は無いが、
+                // 潰すより黙って何もしない方が安全 (情報は通知に残る)
+                if let onTranscribe = self.onTranscribe {
+                    // 通知クリックでもアクティブにならないことがあるのは他と同じ。
+                    // 押したことが画面上で分かるようにアプリは前面にする
+                    NSApp.activate(ignoringOtherApps: true)
+                    onTranscribe(url, carriedElapsed)
+                }
+                return
+            }
             // LSUIElement のアプリは通知クリックでもアクティブにならないことがあり、
             // 開いた Finder / テキストエディタが他のウィンドウの後ろに出る場合がある
             NSApp.activate(ignoringOtherApps: true)
