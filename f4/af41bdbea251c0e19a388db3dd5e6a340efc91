@@ -1,0 +1,16 @@
+docs/appstore/tools/video.py
+  h_864205080385bc 438-440,604-610,613-616,619,648-649
+docs/launch/demo-video.md
+  h_864205080385bc 19-20,33,36,38,50-52,87,92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f4af41bdbea251c0e19a388db3dd5e6a340efc91",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
