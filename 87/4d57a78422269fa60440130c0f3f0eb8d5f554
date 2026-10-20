@@ -1,0 +1,14 @@
+docs/release-notes/v0.19.0.md
+  h_864205080385bc 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "874d57a78422269fa60440130c0f3f0eb8d5f554",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
