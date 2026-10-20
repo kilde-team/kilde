@@ -93,7 +93,7 @@ jobs:
           # この workflow の経路は変えない
           # タグではなくコミット SHA に固定する (タグ移動で異なるコードが走るのを防ぐ —
           # CodeRabbit セキュリティ指摘)。SHA は v0.4.0 を指す
-          ref: 360712f12d2b8089132cbd5889130ba1523f0b83 # v0.4.0 + PR 9〜12 + 終端 state の提出を未提出扱いにしない・余りの DELETE 403 を許容 (asc-submit PR 15) + cancel を PATCH submitted:false に切替 (PR 16) + 残置下書きの掃除手順案内 (PR 17 / issue 14)
+          ref: 360712f12d2b8089132cbd5889130ba1523f0b83 # v0.4.0 ベースに asc-submit main の修正を含むコミット (PR 9〜12 + 終端 state の提出を未提出扱いにしない・余りの DELETE 403 を許容 (PR 15) + cancel を PATCH submitted:false に切替 (PR 16) + 残置下書きの掃除手順案内 (PR 17 / issue 14))
           path: asc-submit
           persist-credentials: false
 
