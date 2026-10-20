@@ -95,6 +95,7 @@ python3 icon.py ../icon          # SVG を書き出す (3 バリアント)
 python3 render.py                # SVG -> PNG (16〜1024px)
 python3 sync_appicon.py          # PNG -> gui/Resources/.../AppIcon.appiconset (§1)
 python3 build.py                 # スクリーンショット 6 枚 (2880x1800) を screenshots/ へ
+python3 video.py                 # プロモ動画 4 本 (60s ja/en + App Store 30s ja/en)
 ```
 
 - `build.py` は **"Noto Sans CJK JP" が無い環境では警告を出す**。フォントが変わると
@@ -104,6 +105,10 @@ python3 build.py                 # スクリーンショット 6 枚 (2880x1800)
 - `png/` と `icon.py` が書き出す `icon-*.svg` は中間成果物 (コミットしない。
   `png/` は `.gitignore` 済み — `git add -A` で紛れ込まないようにするため)。
   コミットされている `icon/kilde-icon-*.svg` は納品物の別名コピー (§1)
+- `video.py` の出力 (`docs/appstore/video/` の mp4 とフレーム jpg) もコミットしない
+  (`.gitignore` 済み)。タイムライン・文言・検証は [launch/demo-video.md](../launch/demo-video.md)
+  が正本。成果物は kilde-site 側で管理し、App Store 版は次に編集可能なバージョンで
+  登録する (§4)
 - **スクリーンショットをコミットするときは 256 色に最適化する**
   (`pngquant --force --ext .png --strip *.png` を `screenshots/` で実行。
   **`--ext .png` が要る** — `--force` だけでは元を置き換えず `*-fs8.png` を別に作る
@@ -147,7 +152,10 @@ kilde.site の両方を更新すること。
 (他社商標の除去を含む。効果計測の台帳は [metadata/metrics.md](metadata/metrics.md))。
 ASC 側で直接編集せず、まずここのファイルを更新してから転記する。
 スクリーンショットは現状 ja のみで、未登録ロケールは ASC がフォールバック表示する
-(§metadata README の注意)。プレビュー動画は未登録 (kilde-site#1 の素材待ち)。
+(§metadata README の注意)。プレビュー動画は生成済み (`tools/video.py`、#399:
+1920×1080・29.9 秒・ja/en)。**編集可能なバージョンが存在する間にしか登録できない**
+ため、次のバージョン作成時に ja / en とも App Preview へ登録する (仕様は
+[launch/demo-video.md](../launch/demo-video.md) の制約を参照)。
 
 ## 5. 審査の履歴
 

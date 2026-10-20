@@ -27,3 +27,6 @@ docs/appstore/icon/icon-*.svg
 
 # Python (appstore-spec.py / docs/appstore/tools の中間成果物)
 __pycache__/
+
+# プロモ動画の生成成果物 (素材は kilde-site 側で管理 — docs/launch/demo-video.md)
+docs/appstore/video/
