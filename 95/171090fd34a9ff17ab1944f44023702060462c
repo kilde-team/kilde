@@ -1,0 +1,16 @@
+gui/Sources/RecordingNotifier.swift
+  h_864205080385bc 405-411
+gui/Sources/TranscriptionCoordinator.swift
+  h_864205080385bc 476-480,497-503
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "95171090fd34a9ff17ab1944f44023702060462c",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
