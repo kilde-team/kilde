@@ -59,8 +59,8 @@ GUI アプリ (直接配布版・Mac App Store 版の両方) は、アプリが�
   «どのアプリがマイクを使っているか» とウィンドウのタイトルを数秒おきに
   **あなたの Mac 上で**確認します。これらの情報は保存も送信もされません
 - **カレンダーからの会議名 (既定はオフ)**: «カレンダーから会議名を使う» を有効に
-  すると、検知した会議と時間帯が重なるカレンダーの予定の題名を、録画ファイル名と
-  議事録の見出しに使うために読みます。macOS が付与する許可は読み書きを含みますが、
+  すると、検知した会議と時間帯が重なるカレンダーの予定の題名を、録画ファイル名・
+  録画開始通知・議事録の見出しに使うために読みます。macOS が付与する許可は読み書きを含みますが、
   アプリは読み取りだけを行い、予定の作成・変更・招待はしません。カレンダーの内容
   (予定の題名・日時以外も含む) がネットワークへ送信されることはありません
 - 会議などを録画する場合は、参加者の同意を得るなど、お住まいの地域の法令に
@@ -73,7 +73,7 @@ GUI アプリ (直接配布版・Mac App Store 版の両方) は、アプリが�
 | 画面収録 | 画面・ウィンドウの映像とシステム音声を録るため |
 | マイク | 選んだマイク・入力デバイス (内蔵マイク、外部マイク、BlackHole などの仮想デバイスを含む) の音声を録るため。入力デバイスを 1 つ以上選んだときだけ要求します |
 | ファイルとフォルダ (保存先) | 録画ファイルを指定の場所に書き込むため |
-| カレンダー | «カレンダーから会議名を使う» を有効にしたとき、検知した会議に重なる予定の題名を録画ファイル名に使うため。macOS の許可は読み書きを含みますが、アプリは読み取りだけを行い、予定の作成・変更・招待はしません。設定で明示的に有効にしたときだけ要求します |
+| カレンダー | «カレンダーから会議名を使う» を有効にしたとき、検知した会議に重なる予定の題名を録画ファイル名・録画開始通知・議事録の見出しに使うため。macOS の許可は読み書きを含みますが、アプリは読み取りだけを行い、予定の作成・変更・招待はしません。設定で明示的に有効にしたときだけ要求します |
 
 これらの権限で得たデータは、上記「録画・録音したデータ」のとおりローカルの
 ファイルにのみ保存されます。
@@ -203,8 +203,8 @@ only to fix bugs. The `kilde` command-line tool sends no crash reports.
   or sent anywhere
 - **Meeting names from your calendar (off by default)**: when "Use calendar event
   names" is enabled, the app accesses your calendar to find an event overlapping
-  the detected meeting and uses its title for the recording file name and the
-  transcript heading. The permission macOS grants covers read-write access, but
+  the detected meeting and uses its title for the recording file name, the
+  recording-started notification, and the transcript heading. The permission macOS grants covers read-write access, but
   the app only reads events — it never creates, edits, or sends invitations for
   them. Nothing from your calendar (including event titles and times) is ever
   sent over the network
@@ -221,7 +221,7 @@ only to fix bugs. The `kilde` command-line tool sends no crash reports.
 | Screen Recording | To capture screen or window video and system audio |
 | Microphone | To record audio from the input devices you select — a built-in or external microphone, or a virtual device such as BlackHole. Requested only when you select at least one input device |
 | Files and folders (save location) | To write recordings to the location you choose |
-| Calendars | When "Use calendar event names" is enabled, to read the title of the event overlapping the detected meeting and use it in the recording file name. The macOS permission includes read-write access, but the app only reads events and never creates, edits, or sends invitations. Requested only when you explicitly enable it in settings |
+| Calendars | When "Use calendar event names" is enabled, to read the title of the event overlapping the detected meeting and use it in the recording file name, the recording-started notification, and the transcript heading. The macOS permission includes read-write access, but the app only reads events and never creates, edits, or sends invitations. Requested only when you explicitly enable it in settings |
 
 Data obtained through these permissions is stored only in local files, as
 described above.
