@@ -1,0 +1,28 @@
+PRIVACY.md
+  h_864205080385bc 63-65,76,205-210,224
+docs/appstore/review-notes.md
+  h_864205080385bc 68-75
+gui/Resources/Info.plist
+  h_864205080385bc 65,69
+gui/Resources/KildeGUI-AppStore.entitlements
+  h_864205080385bc 24-27
+gui/Resources/KildeGUI.entitlements
+  h_864205080385bc 9-14
+gui/Sources/CalendarMeetingTitles.swift
+  h_864205080385bc 76-81
+gui/Sources/MeetingAutoRecorder.swift
+  h_864205080385bc 143-146,149-151,267,271-281,283-284
+scripts/release/entitlements.plist
+  h_864205080385bc 7-12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9f29f4464a6a226fed5413fc12dfbdcd62de9b3d",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
