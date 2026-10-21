@@ -1,0 +1,46 @@
+.github/workflows/release.yml
+  h_864205080385bc 54-57
+PRIVACY.md
+  h_864205080385bc 3,61-65,76,204-209,223
+docs/DESIGN.md
+  h_864205080385bc 805-827
+docs/DEVELOPMENT.md
+  h_864205080385bc 432-433
+docs/appstore/review-notes.md
+  h_864205080385bc 66-78
+gui/Resources/Info.plist
+  h_864205080385bc 60-63
+gui/Resources/KildeGUI-AppStore.entitlements
+  h_864205080385bc 24-28
+gui/Resources/Localizable.xcstrings
+  h_864205080385bc 4962-5106
+gui/Sources/AppDelegate.swift
+  h_864205080385bc 48-50,54-55
+gui/Sources/CalendarMeetingTitles.swift
+  h_864205080385bc 1-157
+gui/Sources/ContentView.swift
+  h_864205080385bc 637,645-684
+gui/Sources/LibraryIndex.swift
+  h_864205080385bc 396-399
+gui/Sources/MeetingAutoRecorder.swift
+  h_864205080385bc 36-37,64-79,87,107-113,117-118,123,125-129,142-152,239-241,248-271,274,289-291,306,364-365
+gui/Sources/RecordingNotifier.swift
+  h_864205080385bc 271-273,275,279-284
+gui/Sources/SelfTestMeeting.swift
+  h_864205080385bc 118-120,141-239
+gui/Sources/TranscriptionCoordinator.swift
+  h_864205080385bc 342-345,349,511-534
+gui/project.yml
+  h_864205080385bc 82-85
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "551e0b8d38e343fc58f6b644f7261c5dcad589bb",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
