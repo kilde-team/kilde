@@ -140,9 +140,15 @@ final class MeetingAutoRecorder: ObservableObject {
     }
 
     /// 設定パネルを開いたときの権限状態の読み直し (システム設定で許可を変えた後の反映。
-    /// EventKit は許可の変化を通知しないため、表示のタイミングで引き直す)
+    /// EventKit は許可の変化を通知しないため、表示のタイミングで引き直す)。
+    /// トグルがオンのまま権限が未回答 (ダイアログを Esc で閉じた等) のときは、ここで
+    /// 要求をやり直す — did onChanged 経路の要求はトグル操作時にしか走らず、放置すると
+    /// «オンなのに許可ダイアログが二度と出ない» 状態になる (cubic レビュー指摘)
     func refreshCalendarStatus() {
         calendar.refreshStatus()
+        if usesCalendarTitles, calendarStatus == .notDetermined {
+            Task { await calendar.requestAccess() }
+        }
     }
 
     /// カレンダー権限のシステム設定を開く (拒否されているときの案内)
@@ -258,16 +264,24 @@ final class MeetingAutoRecorder: ObservableObject {
         pendingCalendarTitle = nil
         Task { [weak self] in
             let title = await self?.calendar.meetingTitle(at: Date())
-            // 検索の間に候補が別の会議に移っていても、windowID で紐付けて保存する
-            // (start が別の会議の題名を使わない。task の(self が死んだ後の)結果は捨てられる)
-            self?.pendingCalendarTitle = (windowID, title)
+            self?.storeLookupResult(windowID: windowID, title: title)
         }
     }
 
-    /// 開始する会議に紐付いたカレンダーの題名。先行検索の結果がまだ無い・別の
-    /// 会議のものなら nil (題名なし = 既定名)
+    /// 先行検索の結果の保存。**保存時点で候補が別の会議に移っていたら捨てる** —
+    /// 遅れて届いた古い会議の結果が新しい会議の結果を上書きし、«題名が付かない»
+    /// 状態を作るのを防ぐ (cubic レビュー指摘)。読み出し側 (calendarTitle(for:)) の
+    /// windowID 検査と合わせて、別の会議の題名が使われる経路を二重に塞ぐ
+    private func storeLookupResult(windowID: UInt32, title: String?) {
+        guard candidate?.windowID == windowID else { return }
+        pendingCalendarTitle = (windowID, title)
+    }
+
+    /// 開始する会議に紐付いたカレンダーの題名。先行検索の結果がまだ無い・別の会議の
+    /// もの・**検索の後にトグルがオフにされた**ときは nil (題名なし = 既定名)
     private func calendarTitle(for meeting: MeetingDetector.DetectedMeeting) -> String? {
-        guard pendingCalendarTitle?.windowID == meeting.windowID else { return nil }
+        guard usesCalendarTitles,
+              pendingCalendarTitle?.windowID == meeting.windowID else { return nil }
         return pendingCalendarTitle?.title
     }
 

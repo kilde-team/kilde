@@ -6,6 +6,12 @@
 	     欠けるとクラッシュもエラーもなく無音のトラックになる (issue #17 の project.yml コメント参照) -->
 	<key>com.apple.security.device.audio-input</key>
 	<true/>
+	<!-- カレンダー (issue #393)。非サンドボックスでも、最近の macOS ではこの
+	     エンタイトルメントが無いと EventKit への TCC 許可が黙って拒否される実例が
+	     あるため、Hardened Runtime の直接配布ビルドにも付ける (App Sandbox は無しのまま。
+	     アプリは読み取りだけを行い、予定の作成・変更はしない) -->
+	<key>com.apple.security.personal-information.calendars</key>
+	<true/>
 	<!-- ローカル開発ビルド専用 (issue #212)。kilde-dev のような自己署名証明書には Team ID が
 	     無く、Hardened Runtime のライブラリ検証が埋め込みフレームワーク (Sparkle.framework 等)
 	     を「Team ID 不一致」で拒否して dyld が起動直後に落とす。同じ kilde-dev で署名し直しても

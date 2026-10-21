@@ -4,5 +4,11 @@
 <dict>
 	<key>com.apple.security.device.audio-input</key>
 	<true/>
+	<!-- カレンダー (kilde#393)。非サンドボックスの Developer ID ビルドでも、最近の
+	     macOS ではこのエンタイトルメントが無いと EventKit への TCC 許可が黙って拒否
+	     される実例があるため付ける (App Sandbox は無しのまま。アプリは読み取りだけを
+	     行い、予定の作成・変更はしない。gui/Resources/KildeGUI.entitlements と同じ理由) -->
+	<key>com.apple.security.personal-information.calendars</key>
+	<true/>
 </dict>
 </plist>

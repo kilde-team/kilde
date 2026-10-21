@@ -73,10 +73,12 @@ final class CalendarTitles: ObservableObject {
     /// EKEventStore の初期化は同期的で時間がかかることがあり、起動経路に置かない
     private var store: EKEventStore?
 
-    /// 検索窓。実行中の長い予定 (立案・勉強会など) も拾えるよう、検知時刻から
-    /// 6 時間前までに始まった予定までを見る。これより前から続いている予定は
-    /// 「今の会議」とは呼べないため割り切る。nonisolated: 検索は MainActor の外で
-    /// 動くため (fetchTitle)
+    /// 検索窓。predicateForEvents はこの窓と **重なる** 予定を返す — 6 時間前に
+    /// 始まってまだ続いている長い予定 (立案・勉強会など) も候補に入る (引き続き
+    /// 実行中なら «今の会議» の候補として正しい)。窓の役割は、**終わって已久しい
+    /// 予定を候補から外すこと** (6 時間より前に終わった予定は突き合わせの
+    /// overrunTolerance でも拾わないため、窓の外に出すだけで挙動は同じ)。
+    /// nonisolated: 検索は MainActor の外で動くため (fetchTitle)
     nonisolated private static let fetchLookback: TimeInterval = 6 * 60 * 60
     nonisolated private static let fetchLookahead: TimeInterval = 60 * 60
 
