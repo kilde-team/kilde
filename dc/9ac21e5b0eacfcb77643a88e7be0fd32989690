@@ -1,0 +1,20 @@
+docs/DESIGN.md
+  h_864205080385bc 815-820,822-826
+gui/Resources/Info.plist
+  h_864205080385bc 60-67,69
+gui/Sources/CalendarMeetingTitles.swift
+  h_864205080385bc 57-58,65,95,97-101,118-122,133-135
+gui/Sources/ContentView.swift
+  h_864205080385bc 110-113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dc9ac21e5b0eacfcb77643a88e7be0fd32989690",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
