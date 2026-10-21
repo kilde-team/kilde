@@ -115,6 +115,9 @@ extension SelfTest {
                   + "expected=\(expected) got=\(got)")
         }
 
+        failures += reportCalendarMatching()
+        failures += reportRecordingTitleRoundTrip()
+
         // 実機の観測 (合否に含めない)
         print("selftest: meeting supported=\(MeetingDetector.isSupported)")
         let liveAudio = MeetingDetector.probeAudio()
@@ -134,5 +137,104 @@ extension SelfTest {
         print("selftest: meeting failures=\(failures)")
         fflush(stdout)
         exit(failures == 0 ? 0 : 1)
+    }
+
+    /// カレンダーの予定と検知時刻の突き合わせ (issue #393) の純関数テスト。
+    /// EventKit に触れない合成データで «どの予定を会議名に使うか» を機械的に縛る
+    @MainActor
+    private static func reportCalendarMatching() -> Int {
+        typealias E = CalendarEventMatcher.Candidate
+        func event(_ title: String, _ start: TimeInterval, _ end: TimeInterval,
+                   allDay: Bool = false, cancelled: Bool = false) -> E {
+            E(title: title, start: Date(timeIntervalSince1970: start),
+              end: Date(timeIntervalSince1970: end), isAllDay: allDay, isCancelled: cancelled)
+        }
+        // 基準: 予定 10:00-11:00 の日時 (秒)
+        let start: TimeInterval = 1_700_000_000
+        let end = start + 3600
+        struct Case {
+            let name: String
+            let events: [E]
+            let at: TimeInterval
+            let expected: String?
+        }
+        let cases: [Case] = [
+            Case(name: "予定の途中に検知すれば予定名",
+                 events: [event("週次定例", start, end)], at: start + 600, expected: "週次定例"),
+            Case(name: "予定の開始前 (早めの入室) でも許容範囲なら予定名",
+                 events: [event("週次定例", start, end)], at: start - 300, expected: "週次定例"),
+            Case(name: "許容範囲より前に検知したら予定名なし",
+                 events: [event("週次定例", start, end)], at: start - 1200, expected: nil),
+            Case(name: "予定の終了後 (延長された会議) でも猶予内なら予定名",
+                 events: [event("週次定例", start, end)], at: end + 600, expected: "週次定例"),
+            Case(name: "猶予を過ぎたら予定名なし",
+                 events: [event("週次定例", start, end)], at: end + 3600, expected: nil),
+            Case(name: "終日の予定は会議名にしない",
+                 events: [event("社外研修", start, end, allDay: true)], at: start + 600, expected: nil),
+            Case(name: "キャンセル済みの予定は会議名にしない",
+                 events: [event("週次定例", start, end, cancelled: true)], at: start + 600, expected: nil),
+            Case(name: "重なるときは最も遅く始まった予定",
+                 events: [event("朝会", start - 3600, end), event("週次定例", start, end)],
+                 at: start + 600, expected: "週次定例"),
+            Case(name: "該当する予定が無ければ予定名なし",
+                 events: [event("週次定例", start, end)], at: start + 86400, expected: nil),
+            Case(name: "題名が空白だけの予定は使わない",
+                 events: [event("  ", start, end)], at: start + 600, expected: nil),
+        ]
+        var failures = 0
+        for c in cases {
+            let got = CalendarEventMatcher.title(
+                matching: c.events, at: Date(timeIntervalSince1970: c.at))
+            let ok = got == c.expected
+            if !ok { failures += 1 }
+            print("selftest: meeting calendar [\(ok ? "PASS" : "FAIL")] \(c.name) "
+                  + "expected=\(c.expected ?? "nil") got=\(got ?? "nil")")
+        }
+        return failures
+    }
+
+    /// 録画ファイル名 `kilde-<時刻>-<題名>` (issue #393) と議事録見出しの題名の復元、
+    /// ライブラリの録画日時解析のラウンドトリップ
+    @MainActor
+    private static func reportRecordingTitleRoundTrip() -> Int {
+        struct Case {
+            let name: String
+            let fileName: String
+            let expected: String?
+        }
+        let cases: [Case] = [
+            Case(name: "題名付きの既定名から題名を復元",
+                 fileName: "kilde-20261022-103000-週次定例.mp4", expected: "週次定例"),
+            Case(name: "題名にハイフンが入っていても全て題名",
+                 fileName: "kilde-20261022-103000-第2回-レビュー会.mp4", expected: "第2回-レビュー会"),
+            Case(name: "従来の既定名は題名なし",
+                 fileName: "kilde-20261022-103000.mp4", expected: nil),
+            Case(name: "kilde- で始まる手作り名は題名なし",
+                 fileName: "kilde-手作り.mp4", expected: nil),
+            Case(name: "kilde- 以外の名前は題名なし",
+                 fileName: "review-session.mp4", expected: nil),
+        ]
+        var failures = 0
+        for c in cases {
+            let url = URL(fileURLWithPath: "/tmp/\(c.fileName)")
+            let got = TranscriptionCoordinator.meetingTitle(fromRecordingName: url)
+            let ok = got == c.expected
+            if !ok { failures += 1 }
+            print("selftest: meeting title [\(ok ? "PASS" : "FAIL")] \(c.name) "
+                  + "expected=\(c.expected ?? "nil") got=\(got ?? "nil")")
+        }
+        // ライブラリの録画日時: 題名付きの名前でもタイムスタンプ部から解析できる
+        let titled = URL(fileURLWithPath: "/tmp/kilde-20261022-103000-週次定例.mp4")
+        let date = LibraryStore.recordedAt(of: titled, fallback: .distantPast)
+        let calendar = Calendar(identifier: .gregorian)
+        let components = calendar.dateComponents(
+            [.year, .month, .day, .hour, .minute, .second], from: date)
+        let roundTripOK = components.year == 2026 && components.month == 10 && components.day == 22
+            && components.hour == 10 && components.minute == 30 && components.second == 0
+        if !roundTripOK { failures += 1 }
+        print("selftest: meeting title [\(roundTripOK ? "PASS" : "FAIL")] "
+              + "ライブラリの録画日時が題名付きの名前から解析できる "
+              + "got=\(date)")
+        return failures
     }
 }

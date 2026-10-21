@@ -339,10 +339,14 @@ final class TranscriptionCoordinator: ObservableObject {
                 // TranscriptWriter.write は **最後に 1 回だけ原子的に書く**
                 // (一時ファイル + rename)。キャンセルでここへ届かなければサイドカーは
                 // 残らない — «キャンセルで出力ファイルが残らない» の根拠。
-                // 要約ありのときは出力を .md に強制する (要約は Markdown の先頭側に載る)
+                // 要約ありのときは出力を .md に強制する (要約は Markdown の先頭側に載る)。
+                // 見出しの題名 (issue #393) は録画ファイル名から復元する — サイドカーの
+                // 名前も見出しも同じ stem 由来なので、経路 (パネル・通知・ライブラリ) に
+                // 依らずファイル名だけで決まる
                 let outputFormat = job.summaryTemplate != nil ? .markdown : job.format
                 let writtenURL = try TranscriptWriter.write(
                     segments, as: outputFormat, besideRecording: job.recordingURL,
+                    title: Self.meetingTitle(fromRecordingName: job.recordingURL),
                     summary: summary)
                 self.finish(job: job, sidecarURL: writtenURL,
                             summary: summary, summaryNote: summaryNote)
@@ -502,6 +506,30 @@ final class TranscriptionCoordinator: ObservableObject {
             options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants])) ?? [])
             .filter { RecordingSetup.transcriptSidecarExtensions.contains($0.pathExtension.lowercased()) }
         return RecordingSetup.transcriptSidecar(for: recording, among: candidates)
+    }
+
+    /// 録画ファイル名 `kilde-yyyyMMdd-HHmmss-<題名>.<ext>` (issue #393 のカレンダー連携が
+    /// 付けた接尾辞) から題名を復元する。議事録の見出し (TranscriptWriter.write の title) に
+    /// 使う — 見出しを stem 全体 (`kilde-20261022-103000-週次定例`) にすると長くて読めない
+    /// ため。接尾辞の無い既定名・`-o` の別名録画は nil (TranscriptWriter が既定の stem を
+    /// 見出しにする — 従来挙動)
+    /// 純関数 (引数だけで決まる) なのでセルフテスト (SelfTestMeeting) が機械的に確かめる
+    nonisolated static func meetingTitle(fromRecordingName recording: URL) -> String? {
+        let stem = recording.deletingPathExtension().lastPathComponent
+        guard stem.hasPrefix("kilde-") else { return nil }
+        let afterPrefix = stem.dropFirst("kilde-".count)
+        // タイムスタンプ部 (yyyyMMdd-HHmmss = 15 文字) と区切りの `-` を検証する —
+        // `kilde-別名` のような手作り名を題名扱いにしない (数字の並びで判別する)
+        let stamp = afterPrefix.prefix("yyyyMMdd-HHmmss".count)
+        guard stamp.count == "yyyyMMdd-HHmmss".count else { return nil }
+        let parts = stamp.split(separator: "-", omittingEmptySubsequences: false)
+        guard parts.count == 2, parts[0].count == 8, parts[1].count == 6,
+              parts.allSatisfy({ $0.allSatisfy(\.isNumber) }) else { return nil }
+        let rest = afterPrefix.dropFirst("yyyyMMdd-HHmmss".count)
+        // 区切り `-` の後に続きが無ければ接尾辞は無い
+        guard rest.first == "-" else { return nil }
+        let title = String(rest.dropFirst())
+        return title.isEmpty ? nil : title
     }
 
     /// 実行の冒頭で、Job が保持する bookmark から保存先フォルダへのアクセスを

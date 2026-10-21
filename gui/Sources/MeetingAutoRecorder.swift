@@ -33,6 +33,8 @@ final class MeetingAutoRecorder: ObservableObject {
     /// 設定ファイルは CLI (kilde-cli-swift の KildeConfig) と共有のスキーマなので、
     /// キーを足すにはエンジン側の変更が要る
     static let enabledDefaultsKey = "autoRecordMeetings"
+    /// «カレンダーから会議名を使う» のキー (issue #393)。enabled と同じく UserDefaults
+    static let calendarTitlesDefaultsKey = "meetingTitleFromCalendar"
 
     /// 監視の周期。CoreAudio のプロパティ読み出しと CGWindowList は数 ms で終わる
     private static let pollInterval: TimeInterval = 2
@@ -59,6 +61,22 @@ final class MeetingAutoRecorder: ObservableObject {
     /// 自動で始めた録画の対象 (自動録画中だけ非 nil)。パネルの表示に使う
     @Published private(set) var activeMeeting: MeetingDetector.DetectedMeeting?
 
+    /// «カレンダーから会議名を使う» (issue #393。既定はオフ — カレンダーの読み取りは
+    /// 明示的に許可してもらう)。オンにした瞬間だけ権限を要求する
+    /// (CalendarTitles.requestAccess のクラスコメント参照)
+    @Published var usesCalendarTitles: Bool {
+        didSet {
+            guard usesCalendarTitles != oldValue else { return }
+            UserDefaults.standard.set(usesCalendarTitles, forKey: Self.calendarTitlesDefaultsKey)
+            if usesCalendarTitles {
+                Task { await calendar.requestAccess() }
+            }
+        }
+    }
+
+    /// カレンダー権限の状態 (設定パネルの案内分けに使う。CalendarTitles から転送)
+    @Published private(set) var calendarStatus: CalendarTitles.AccessStatus = .notDetermined
+
     /// この OS で使えるか (CoreAudio のプロセス単位の状態は macOS 14.2+)
     var isSupported: Bool { MeetingDetector.isSupported }
 
@@ -66,6 +84,7 @@ final class MeetingAutoRecorder: ObservableObject {
     private let recording: RecordingController
     private let permissions: PermissionsModel
     private let notifier: RecordingNotifier
+    private let calendar: CalendarTitles
 
     private var timer: Timer?
     private var tickInFlight = false
@@ -85,16 +104,29 @@ final class MeetingAutoRecorder: ObservableObject {
     /// 開始通知の保留。**実際に収録が始まった (.recording) ときに出す** —
     /// start() を呼んだ時点ではまだ準備中で、デバイス解決などで失敗しうる。
     /// 先に出すと «開始しました» の直後に «失敗しました» が届く (CodeRabbit レビュー指摘)
-    private var pendingStartNotice: (meeting: MeetingDetector.DetectedMeeting, micIncluded: Bool)?
+    private var pendingStartNotice:
+        (meeting: MeetingDetector.DetectedMeeting, micIncluded: Bool, calendarTitle: String?)?
+    /// カレンダーの題名の先行検索の結果 (issue #393)。検知の候補ができた時点で
+    /// 検索を始め、開始時点で結果があれば使う — **録画の開始をカレンダーの検索に
+    /// 待たせない** (EventKit の同期呼び出しはキャンセルできず、開始経路で待つと
+    /// 応答が遅いときに録り逃しになる。beginCalendarLookup のコメント参照)
+    private var pendingCalendarTitle: (windowID: UInt32, title: String?)?
     private var cancellables: Set<AnyCancellable> = []
 
     init(setup: RecordingSetup, recording: RecordingController,
-         permissions: PermissionsModel, notifier: RecordingNotifier) {
+         permissions: PermissionsModel, notifier: RecordingNotifier,
+         calendar: CalendarTitles) {
         self.setup = setup
         self.recording = recording
         self.permissions = permissions
         self.notifier = notifier
+        self.calendar = calendar
         enabled = UserDefaults.standard.bool(forKey: Self.enabledDefaultsKey)
+        usesCalendarTitles = UserDefaults.standard.bool(forKey: Self.calendarTitlesDefaultsKey)
+        // カレンダー権限の状態を転送する (設定パネルの案内分けのため)
+        calendar.$status
+            .sink { [weak self] status in self?.calendarStatus = status }
+            .store(in: &cancellables)
         // @Published は willSet で新しい値を流す。ここでは値そのものしか使わない
         recording.$phase
             .sink { [weak self] phase in self?.phaseChanged(phase) }
@@ -105,6 +137,17 @@ final class MeetingAutoRecorder: ObservableObject {
     /// セルフテスト中は呼ばない — 検証中に実際の会議で録画が始まると検証が壊れる
     func activate() {
         updateTimer()
+    }
+
+    /// 設定パネルを開いたときの権限状態の読み直し (システム設定で許可を変えた後の反映。
+    /// EventKit は許可の変化を通知しないため、表示のタイミングで引き直す)
+    func refreshCalendarStatus() {
+        calendar.refreshStatus()
+    }
+
+    /// カレンダー権限のシステム設定を開く (拒否されているときの案内)
+    func openCalendarSettings() {
+        calendar.openSettings()
     }
 
     // MARK: - 監視
@@ -193,16 +236,42 @@ final class MeetingAutoRecorder: ObservableObject {
         }
         let count = candidate?.windowID == detected.windowID ? (candidate?.count ?? 0) + 1 : 1
         candidate = (detected.windowID, count)
+        // 候補が (再) 成立した時点でカレンダーの題名を先行検索する (issue #393)。
+        // confirmTicks の間 (約 2〜4 秒) に検索を済ませておく
+        if count == 1 { beginCalendarLookup(for: detected.windowID) }
         guard count >= Self.confirmTicks else { return }
         // SCK の列挙 (パネルの一覧更新) と録画開始を重ねない — 両方が無期限に止まる
         // (issue #70)。開始ボタン・ホットキーと同じ条件。次の周期で再試行する
         // (candidate は残すので、列挙が終わればすぐ始まる)
         if setup.loading || setup.enumerationsRunning > 0 { return }
         candidate = nil
-        start(detected)
+        start(detected, calendarTitle: calendarTitle(for: detected))
     }
 
-    private func start(_ meeting: MeetingDetector.DetectedMeeting) {
+    /// 検知の候補が (再) 成立した時点でカレンダーの題名の検索を始める (issue #393)。
+    /// 会議はこの後 confirmTicks (約 2〜4 秒) かけて確定するので、検索 (ローカルの
+    /// EventKit クエリ。通常は一瞬) はその間に済む。**結果の到着を開始が待つことは
+    /// ない** — 開始時点で結果が無ければ題名なし (既定名) で始める。検索が伸びても
+    /// 影響は «題名が付かなかった» だけ
+    private func beginCalendarLookup(for windowID: UInt32) {
+        guard usesCalendarTitles, pendingCalendarTitle?.windowID != windowID else { return }
+        pendingCalendarTitle = nil
+        Task { [weak self] in
+            let title = await self?.calendar.meetingTitle(at: Date())
+            // 検索の間に候補が別の会議に移っていても、windowID で紐付けて保存する
+            // (start が別の会議の題名を使わない。task の(self が死んだ後の)結果は捨てられる)
+            self?.pendingCalendarTitle = (windowID, title)
+        }
+    }
+
+    /// 開始する会議に紐付いたカレンダーの題名。先行検索の結果がまだ無い・別の
+    /// 会議のものなら nil (題名なし = 既定名)
+    private func calendarTitle(for meeting: MeetingDetector.DetectedMeeting) -> String? {
+        guard pendingCalendarTitle?.windowID == meeting.windowID else { return nil }
+        return pendingCalendarTitle?.title
+    }
+
+    private func start(_ meeting: MeetingDetector.DetectedMeeting, calendarTitle: String?) {
         // 成功しても失敗しても、この会議ウィンドウでは再試行しない。
         // 失敗を繰り返す構成 (保存先が無い等) で 2 秒おきに失敗通知を出さないため
         suppressed.insert(meeting.windowID)
@@ -217,6 +286,9 @@ final class MeetingAutoRecorder: ObservableObject {
         // 出ると会議の操作を邪魔する。未許可ならシステム音声だけで録り、通知で伝える
         request.captureMic = permissions.micStatus == .authorized
         request.inputDevices = []
+        // カレンダーの予定名 (issue #393)。サニタイズと既定名への反映はエンジン側
+        // (RecordRequest.outputTitle)。nil なら従来どおり kilde-<時刻> のまま
+        request.outputTitle = calendarTitle
         guard permissions.missing(for: request).isEmpty else {
             notifier.notifyFailed(message: String(
                 localized: "会議を検知しましたが、画面収録の権限が無いため録画できません"))
@@ -231,7 +303,7 @@ final class MeetingAutoRecorder: ObservableObject {
             missingCount = 0
             silentSince = nil
             activeMeeting = meeting
-            pendingStartNotice = (meeting, request.captureMic)
+            pendingStartNotice = (meeting, request.captureMic, calendarTitle)
             updateTimer()
             recording.start(options)
         } catch {
@@ -289,7 +361,8 @@ final class MeetingAutoRecorder: ObservableObject {
                 pendingStartNotice = nil
                 notifier.notifyAutoRecordingStarted(
                     appName: notice.meeting.appName, title: notice.meeting.title,
-                    micIncluded: notice.micIncluded)
+                    micIncluded: notice.micIncluded,
+                    calendarTitle: notice.calendarTitle)
             }
         case .starting, .paused, .finalizing:
             break

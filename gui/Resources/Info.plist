@@ -57,6 +57,10 @@
 	     通常の Info.plist で権限の説明を宣言する -->
 	<key>NSMicrophoneUsageDescription</key>
 	<string>会議の自分の声を録音するためにマイクへアクセスします。</string>
+	<!-- 会議のカレンダー連携 (issue #393)。読み取り専用 — 予定の題名を自動録画の
+	     ファイル名に使うためだけに読む。カレンダーの内容が端末外へ送信されることはない -->
+	<key>NSCalendarsUsageDescription</key>
+	<string>検知した会議に重なる予定の題名を録画ファイル名に使うため、カレンダーを読み取り専用でアクセスします。カレンダーの内容がネットワークに送信されることはありません。</string>
 	<!-- macOS 15+ で画面収録権限ダイアログ/システム設定に表示される説明文字列。
 	     キー名は NSScreenCaptureUsageDescription (ScreenCaptureKit の公式キー) -->
 	<key>NSScreenCaptureUsageDescription</key>

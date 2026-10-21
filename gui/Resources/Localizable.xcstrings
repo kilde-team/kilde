@@ -4959,6 +4959,151 @@
           }
         }
       }
+    },
+    "カレンダーの予定名を録画ファイル名に使う": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use calendar event names for recording file names"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usar los nombres de los eventos del calendario para los nombres de archivo"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "캘린더 일정 이름을 녹화 파일 이름에 사용"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用日历日程名称作为录制文件名"
+          }
+        }
+      }
+    },
+    "検知した会議と時間帯が重なるカレンダーの予定があるとき、その予定名を録画ファイル名と議事録の見出しに使います。カレンダーの内容は端末内でだけ使われ、ネットワークには送信されません": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When a calendar event overlaps the detected meeting, its title is used for the recording file name and the transcript heading. Calendar content is used only on this device and never sent over the network"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cuando un evento del calendario coincide con la reunión detectada, su título se usa para el nombre del archivo de grabación y el encabezado de la minuta. El contenido del calendario se usa solo en este dispositivo y nunca se envía por la red"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "감지된 회의와 시간이 겹치는 캘린더 일정이 있으면 해당 일정 이름을 녹화 파일 이름과 회의록 제목에 사용합니다. 캘린더 내용은 기기 내에서만 사용되며 네트워크로 전송되지 않습니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当日历日程与检测到的会议时间重叠时，其名称将用于录制文件名和会议记录标题。日历内容仅在设备内使用，不会通过网络发送"
+          }
+        }
+      }
+    },
+    "カレンダーの予定名を使うには、表示されたダイアログでカレンダーへのアクセスを許可してください": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To use calendar event names, allow calendar access in the dialog shown"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Para usar los nombres de los eventos, permite el acceso al calendario en el diálogo mostrado"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "캘린더 일정 이름을 사용하려면 표시된 대화상자에서 캘린더 접근을 허용하세요"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要使用日历日程名称，请在弹出的对话框中允许访问日历"
+          }
+        }
+      }
+    },
+    "カレンダーへのアクセスが許可されていないため、予定名は使われません (録画は通常どおり動きます)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Event names are not used because calendar access is not allowed (recording works as usual)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se usan los nombres de los eventos porque el acceso al calendario no está permitido (la grabación funciona con normalidad)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "캘린더 접근이 허용되지 않아 일정 이름을 사용하지 않습니다 (녹화는 평소처럼 동작합니다)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "由于未允许访问日历，不会使用日程名称（录制功能不受影响）"
+          }
+        }
+      }
+    },
+    "システム設定で許可する…": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Allow in System Settings…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permitir en Ajustes del Sistema…"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "시스템 설정에서 허용…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在系统设置中允许…"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

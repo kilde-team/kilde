@@ -393,7 +393,10 @@ final class LibraryStore: ObservableObject {
     nonisolated static func recordedAt(of url: URL, fallback: Date) -> Date {
         let stem = url.deletingPathExtension().lastPathComponent
         guard stem.hasPrefix("kilde-") else { return fallback }
-        let stamp = String(stem.dropFirst("kilde-".count))
+        // カレンダー連携 (issue #393) の題名接尾辞 `kilde-<時刻>-<題名>` にも対応する —
+        // タイムスタンプ部 (15 文字) だけを取り出す。取り出した部分が日付として
+        // 解析できなければ (別名録画 `-o` 等) 従来どおり更新日時で代用する
+        let stamp = String(stem.dropFirst("kilde-".count).prefix("yyyyMMdd-HHmmss".count))
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyyMMdd-HHmmss"
