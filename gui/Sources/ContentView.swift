@@ -107,6 +107,10 @@ struct ContentView: View {
             // macOS 15 以降、画面収録権限は一度許可しても定期的に再確認されて失効しうる
             // (DESIGN.md F4)。開くたびに取り直して、失効していれば案内を出す
             permissions.refresh()
+            // カレンダー権限 (issue #393) も開くたびに取り直す — EventKit は許可の変化を
+            // 通知しないため、システム設定で許可した直後の再表示で案内を更新する
+            // (子ビューの onAppear は初回しか走らない、この通知を足した理由と同じ)
+            meetingAutoRecorder.refreshCalendarStatus()
             // 録画中は選択肢を出さないので列挙しない (SCK の列挙を録画と並走させない)
             if !recording.isActive {
                 setup.reload()
@@ -642,9 +646,6 @@ struct ContentView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        // システム設定でカレンダー権限を変えた後の反映。EventKit は許可の変化を
-        // 通知しないため、パネルを開くタイミングで読み直す
-        .onAppear { meetingAutoRecorder.refreshCalendarStatus() }
     }
 
     /// «カレンダーから会議名を使う» のオン/オフ (issue #393)。値は UserDefaults

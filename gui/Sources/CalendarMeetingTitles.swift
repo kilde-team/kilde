@@ -54,15 +54,15 @@ enum CalendarEventMatcher {
 @MainActor
 final class CalendarTitles: ObservableObject {
 
-    /// macOS の EventKit 権限は notDetermined / restricted / denied / authorized の
-    /// 4 状態 (読み取り専用を分ける iOS 17 の .readOnly / .fullAccess は macOS には無い)
+    /// macOS の EventKit 権限。macOS 14 で .authorized は .fullAccess / .writeOnly に
+    /// 分裂した (「読み取り専用」は iOS 17 の .readOnly のみで macOS には無い)
     enum AccessStatus: Equatable {
         case notDetermined
         case authorized
         case denied
         case restricted
 
-        /// 予定の読み取りができる状態か
+        /// 予定の読み取りができる状態か (書き込み専用の許可ではイベントを読めない)
         var canRead: Bool { self == .authorized }
     }
 
@@ -92,7 +92,13 @@ final class CalendarTitles: ObservableObject {
     private static func status(from raw: EKAuthorizationStatus) -> AccessStatus {
         switch raw {
         case .notDetermined: return .notDetermined
+        // macOS 14 未満で許可された既存ユーザー (レガシー値)
         case .authorized: return .authorized
+        // macOS 14+ の要求 (requestFullAccessToEvents) で許可された状態
+        case .fullAccess: return .authorized
+        // 書き込み専用の許可ではイベントを読めない (このアプリは書き込まないので
+        // 「使えない」と同じ扱い)
+        case .writeOnly: return .denied
         case .denied: return .denied
         case .restricted: return .restricted
         @unknown default: return .denied
@@ -109,10 +115,11 @@ final class CalendarTitles: ObservableObject {
         let store = self.store ?? EKEventStore()
         self.store = store
         // macOS の EventKit には iOS 17 の読み取り専用 API (requestReadAccessToEvents)
-        // が無く、requestAccess(to: .event) しかない。この許可は API 上は読み書きを
-        // 含むが、**アプリは読み取りだけを行う** (作成・変更・招待はしない)。
-        // «読み取り専用» の保証はコードと PRIVACY.md・UI 文言で担保する
-        _ = try? await store.requestAccess(to: .event)
+        // が無い。macOS 14+ の要求 API は full / writeOnly の 2 択で、読み取りには
+        // full を要求するしかない。**アプリは許可されても読み取りだけを行い**、
+        // 作成・変更・招待はしない — «読み取り専用» の保証はコードと PRIVACY.md・
+        // UI 文言で担保する (案内文は NSCalendarsFullAccessUsageDescription)
+        _ = try? await store.requestFullAccessToEvents()
         refreshStatus()
     }
 
@@ -123,6 +130,9 @@ final class CalendarTitles: ObservableObject {
     /// (MeetingAutoRecorder は検知の候補ができた時点で先行して呼び、開始時点で
     /// 結果があれば使う — MeetingAutoRecorder.beginCalendarLookup のコメント)
     func meetingTitle(at date: Date) async -> String? {
+        // システム設定で許可が変わった直後の初回でも拾えるように、問い合わせの前に
+        // 権限を読み直す (EventKit は許可の変化を通知しない)
+        refreshStatus()
         guard status.canRead else { return nil }
         let store = self.store ?? EKEventStore()
         self.store = store

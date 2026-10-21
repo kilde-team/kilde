@@ -57,10 +57,16 @@
 	     通常の Info.plist で権限の説明を宣言する -->
 	<key>NSMicrophoneUsageDescription</key>
 	<string>会議の自分の声を録音するためにマイクへアクセスします。</string>
-	<!-- 会議のカレンダー連携 (issue #393)。読み取り専用 — 予定の題名を自動録画の
-	     ファイル名に使うためだけに読む。カレンダーの内容が端末外へ送信されることはない -->
+	<!-- 会議のカレンダー連携 (issue #393)。macOS 14+ では requestFullAccessToEvents が
+	     NSCalendarsFullAccessUsageDescription を読む (読み取り専用を指定する API が
+	     macOS には無い)。kilde は許可されても読み取りだけを行い、予定の作成・変更は
+	     しない。カレンダーの内容が端末外へ送信されることはない -->
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>検知した会議に重なる予定の題名を録画ファイル名に使うため、カレンダーへアクセスします。kilde は予定の読み取りだけを行い、作成・変更はせず、カレンダーの内容がネットワークに送信されることもありません。</string>
+	<!-- macOS 14 未満 (レガシー要求経路) 用のフォールバック。デプロイ対象は 14.0
+	     だが、OS が読むキーの判定を挟まないために残す -->
 	<key>NSCalendarsUsageDescription</key>
-	<string>検知した会議に重なる予定の題名を録画ファイル名に使うため、カレンダーを読み取り専用でアクセスします。カレンダーの内容がネットワークに送信されることはありません。</string>
+	<string>検知した会議に重なる予定の題名を録画ファイル名に使うため、カレンダーへアクセスします。kilde は予定の読み取りだけを行い、作成・変更はせず、カレンダーの内容がネットワークに送信されることもありません。</string>
 	<!-- macOS 15+ で画面収録権限ダイアログ/システム設定に表示される説明文字列。
 	     キー名は NSScreenCaptureUsageDescription (ScreenCaptureKit の公式キー) -->
 	<key>NSScreenCaptureUsageDescription</key>
