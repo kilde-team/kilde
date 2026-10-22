@@ -1,0 +1,26 @@
+docs/appstore/metadata/metadata-en.md
+  h_864205080385bc 306-320
+docs/appstore/metadata/metadata-es.md
+  h_864205080385bc 317-330
+docs/appstore/metadata/metadata-ja.md
+  h_864205080385bc 314-325
+docs/appstore/metadata/metadata-ko.md
+  h_864205080385bc 274-284
+docs/appstore/metadata/metadata-zh-Hans.md
+  h_864205080385bc 252-261
+docs/appstore/review-notes.md
+  h_864205080385bc 16-20,25-31,35-39,41-45,50-53,57-67,71-75,129-137
+docs/release-notes/v0.20.0.md
+  h_864205080385bc 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7eeb9990641ad43e9d7f4af7233097f9f25ae451",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
