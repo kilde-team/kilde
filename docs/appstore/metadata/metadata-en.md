@@ -303,3 +303,18 @@ recording. Unsupported Macs (below macOS 26) do not get the action at all.
 ```text
 Added a "Transcription" action to the recording-completed notification. Start transcribing a finished recording right from the notification (transcription requires macOS 26 or later and the speech data for your language).
 ```
+## What's New (0.20.0)
+
+Calendar meeting names (issue #393): an opt-in sub-setting of meeting
+auto-recording looks up the calendar ahead of the start and names the
+recording `kilde-<timestamp>-<event title>` (engine kilde-cli-swift#132,
+`RecordRequest.outputTitle`). The title is also used in the recording-started
+notification and the transcript heading. Permission is requested only when the
+toggle is turned on (macOS has no read-only calendar grant, so the request is
+for full access, but the app only reads events). Denied permission, no
+overlapping event, or a lookup that has not finished all fall back to the
+default file name.
+
+```text
+Meetings detected by auto-recording can now be named after your calendar events. Enable "Use calendar event names for recording file names" and the overlapping event's title is used for the recording file name, the recording-started notification, and the transcript heading. The calendar is only read for this feature on-device and nothing is ever sent over the network (off by default).
+```
