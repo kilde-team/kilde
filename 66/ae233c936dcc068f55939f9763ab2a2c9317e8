@@ -1,0 +1,28 @@
+docs/appstore/metadata/metadata-en.md
+  h_864205080385bc 312-317,320
+docs/appstore/metadata/metadata-es.md
+  h_864205080385bc 323-328,331
+docs/appstore/metadata/metadata-ja.md
+  h_864205080385bc 319-322,325
+docs/appstore/metadata/metadata-ko.md
+  h_864205080385bc 278-282,285
+docs/appstore/metadata/metadata-zh-Hans.md
+  h_864205080385bc 256-259,262
+docs/appstore/review-notes.md
+  h_864205080385bc 16-21,39-40,58-66,122-123,135-142
+docs/release-notes/v0.20.0.md
+  h_864205080385bc 4-5
+gui/Sources/MeetingAutoRecorder.swift
+  h_864205080385bc 65-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "66ae233c936dcc068f55939f9763ab2a2c9317e8",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
