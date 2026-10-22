@@ -51,10 +51,10 @@ jobs:
           repository: kilde-team/kilde-cli-swift
           # GUI (gui/project.yml) と同じ pin。リリース成果物が「どのコミットで
           # ビルドされたか」を追跡可能にするため。更新時は GUI 側と揃える。
-          # v0.17.0 は KildeConfig に収録対象のキー defaultTarget が追加された版
-          # (kilde-cli-swift#123 — GUI の収録対象の既定値の保存先を config.json へ
-          # 移行するのに使う。kilde#372)。
-          ref: v0.17.0
+          # v0.18.0 は RecordRequest に既定名へ題名接尾辞を付ける outputTitle が
+          # 増えた版 (kilde-cli-swift#132 — GUI のカレンダー連携 kilde#393 が、
+          # 予定の題名を kilde-yyyyMMdd-HHmmss-<題名> のファイル名に使うために消費)。
+          ref: v0.18.0
           # private リポジトリ: GITHUB_TOKEN は他リポジトリを読めないため
           # fine-grained PAT (contents:read) を使う
           token: ${{ secrets.KILDE_CLI_SWIFT_TOKEN }}

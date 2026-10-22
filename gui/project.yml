@@ -79,7 +79,10 @@ packages:
     # savingDefaults が書き出す (window は persistedValue が nil を返すため書かない)。
     # 値の語彙 (display:<n> / audioOnly) は GUI の lastCaptureTarget と同じで、
     # GUI の保存経路を config.json へ移行するのに使う (kilde#372 が消費)
-    exactVersion: 0.17.0
+    # v0.18.0: RecordRequest に既定名へ題名接尾辞を付ける outputTitle が増えた
+    # (kilde-cli-swift#132 — GUI のカレンダー連携 kilde#393 が、予定の題名を
+    # kilde-yyyyMMdd-HHmmss-<題名> のファイル名に使うために消費)
+    exactVersion: 0.18.0
   # GUI の自動更新 (issue #122)。Sparkle 2 のバイナリターゲット (macOS 12+) で、
   # リンクすると Sparkle.framework が Contents/Frameworks に埋め込まれる。
   # バージョンを固定する理由は kilde-cli-swift と同じ: 浮動参照だと上流の push が

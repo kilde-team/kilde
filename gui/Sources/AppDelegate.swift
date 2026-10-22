@@ -45,10 +45,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// App Store の評価依頼 (issue #156)。MAS ビルドでのみ動く — 直接配布版は
     /// 何もしない置き換えに差し替わる (ReviewPromptCoordinator.swift)
     private let reviewPrompt = ReviewPromptCoordinator()
+    /// カレンダー (EventKit) の読み取り (issue #393)。会議の自動録画と同じく
+    /// AppDelegate が持つ — 予定の題名の検索は録画開始の経路でパネルと無関係に走るため
+    private let calendarTitles = CalendarTitles()
     /// 会議の自動録画。録画 (RecordingController) と同じく AppDelegate が持つ —
     /// パネルを閉じている間 (会議中のほとんどの時間) も監視を続けるため
     private lazy var meetingAutoRecorder = MeetingAutoRecorder(
-        setup: setup, recording: recording, permissions: permissions, notifier: notifier)
+        setup: setup, recording: recording, permissions: permissions, notifier: notifier,
+        calendar: calendarTitles)
     /// 録画ライブラリのウィンドウ (issue #165)。録画と同じく AppDelegate が持つ —
     /// パネルを閉じてもウィンドウを生かすため。
     /// «後から文字起こし» の投入にパネルと同じ TranscriptionCoordinator を渡し (issue #321)、

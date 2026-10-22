@@ -268,11 +268,20 @@ final class RecordingNotifier: NSObject {
     /// 会議の自動録画を始めたことを知らせる。
     /// **自動で録画が始まったことは必ず知らせる** — 本人の操作なしに会議 (他人の声) の
     /// 録画が始まるので、気づかないまま録られている状態を作らない
+    /// `calendarTitle` は検知した会議に紐付いたカレンダーの予定名 (issue #393)。
+    /// 有るときは 1 行目を予定名にする — ウィンドウのタイトル ("Meet - abc-defg" 等) より
+    /// «どの会議か» が伝わる
     func notifyAutoRecordingStarted(appName: String, title: String, micIncluded: Bool,
+                                    calendarTitle: String? = nil,
                                     completion: @escaping () -> Void = {}) {
         let content = UNMutableNotificationContent()
         content.title = String(localized: "会議の録画を開始しました")
-        let target = title.isEmpty ? appName : "\(appName) — \(title)"
+        let target: String
+        if let calendarTitle {
+            target = "\(calendarTitle) — \(appName)"
+        } else {
+            target = title.isEmpty ? appName : "\(appName) — \(title)"
+        }
         let detail = micIncluded
             ? String(localized: "会議ウィンドウを閉じると自動で停止します")
             : String(localized: "マイクの権限が無いため、相手の声 (システム音声) だけを録音します")

@@ -107,6 +107,10 @@ struct ContentView: View {
             // macOS 15 以降、画面収録権限は一度許可しても定期的に再確認されて失効しうる
             // (DESIGN.md F4)。開くたびに取り直して、失効していれば案内を出す
             permissions.refresh()
+            // カレンダー権限 (issue #393) も開くたびに取り直す — EventKit は許可の変化を
+            // 通知しないため、システム設定で許可した直後の再表示で案内を更新する
+            // (子ビューの onAppear は初回しか走らない、この通知を足した理由と同じ)
+            meetingAutoRecorder.refreshCalendarStatus()
             // 録画中は選択肢を出さないので列挙しない (SCK の列挙を録画と並走させない)
             if !recording.isActive {
                 setup.reload()
@@ -634,6 +638,7 @@ struct ContentView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                calendarTitleToggle
             } else {
                 Text("この機能は macOS 14.2 以降で利用できます")
                     .font(.caption)
@@ -641,6 +646,43 @@ struct ContentView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+
+    /// «カレンダーから会議名を使う» のオン/オフ (issue #393)。値は UserDefaults
+    /// (自動録画のトグルと同じ)。オンにした瞬間だけ読み取り専用の権限を要求する
+    /// (MeetingAutoRecorder.usesCalendarTitles の didSet)
+    private var calendarTitleToggle: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle("カレンダーの予定名を録画ファイル名に使う", isOn: $meetingAutoRecorder.usesCalendarTitles)
+                .toggleStyle(.checkbox)
+                // 自動録画が無いと使われない (予定名は自動録画の開始経路でだけ
+                // ファイル名に付く) — 無効でも OFF への変更は許す (自動録画トグルと同じ理由)
+                .disabled(!meetingAutoRecorder.enabled && !meetingAutoRecorder.usesCalendarTitles)
+            if meetingAutoRecorder.usesCalendarTitles {
+                if meetingAutoRecorder.calendarStatus.canRead {
+                    Text("検知した会議と時間帯が重なるカレンダーの予定があるとき、その予定名を録画ファイル名と議事録の見出しに使います。カレンダーの内容は端末内でだけ使われ、ネットワークには送信されません")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if meetingAutoRecorder.calendarStatus == .notDetermined {
+                    Text("カレンダーの予定名を使うには、表示されたダイアログでカレンダーへのアクセスを許可してください")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text("カレンダーへのアクセスが許可されていないため、予定名は使われません (録画は通常どおり動きます)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button("システム設定で許可する…") {
+                        meetingAutoRecorder.openCalendarSettings()
+                    }
+                    .buttonStyle(.link)
+                    .font(.caption)
+                }
+            }
+        }
+        .padding(.leading, 8)
     }
 
     // MARK: - 録音の告知文 (issue #166)

@@ -63,6 +63,19 @@ feature is **off by default** — it never starts or stops a recording unless
 the user has enabled "Record meeting windows automatically" in the panel, and
 recordings started manually are never stopped automatically.
 
+**Calendar meeting names (off by default, v0.20.0):**
+
+A second, separate opt-in ("Use calendar event names") lets Kilde find a
+calendar event overlapping the detected meeting and use its title in the
+recording file name and the transcript heading. macOS offers no read-only
+calendar permission, so the permission request (and the entitlement in this
+build) is for full calendar access — but **the app only reads events**; it
+never creates, edits, or sends invitations for events. Calendar data is used
+on-device only and is never sent over the network (the network connections
+listed above do not carry any calendar content). If you decline the calendar
+permission during testing, auto-recording and everything else continue to
+work normally — recordings simply use the default file name.
+
 **Recording-consent note for reviewers:** Kilde records system audio, which can
 include other meeting participants' voices. During normal use it is the user's
 responsibility to inform participants that the session is being recorded. For

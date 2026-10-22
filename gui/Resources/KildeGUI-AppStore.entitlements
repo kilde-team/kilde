@@ -21,6 +21,12 @@
 	     欠けるとエラーもクラッシュもなく無音のトラックになる -->
 	<key>com.apple.security.device.audio-input</key>
 	<true/>
+	<!-- カレンダー (issue #393)。サンドボックス下で EventKit にアクセスするにはこの
+	     エンタイトルメントが必須。macOS に読み取り専用の許可が無いため要求は
+	     requestFullAccessToEvents (full access) になるが、アプリは読み取りだけを
+	     行い、予定の作成・変更・招待はしない -->
+	<key>com.apple.security.personal-information.calendars</key>
+	<true/>
 	<!-- 録画の保存先の既定 (~/Movies)。これが無いとサンドボックス下では
 	     アプリコンテナ内にしか書けず、ユーザーが QuickTime 等と同じ場所に
 	     録画を保存できない -->
