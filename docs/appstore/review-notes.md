@@ -63,7 +63,9 @@ permission, so the request — `requestFullAccessToEvents` (macOS 14+) — and t
 entitlement are for full access, but **the app only reads events**; it never
 creates, edits, or invites. Calendar data stays on-device (the connections
 above never carry calendar content). If you decline it, everything still
-works — recordings just use the default file name.
+works. Even with the permission granted, a lookup that has not finished by
+the time recording starts falls back to the default file name (the lookup
+runs a few seconds ahead, so this is rare).
 
 **Recording-consent note:** system audio can include other participants'
 voices; informing them is the user's responsibility. For your test, any sample
@@ -138,8 +140,9 @@ kilde は進行中の会議を検知して自動で録画できます (オプシ
 カレンダー権限は無いため、要求 (`requestFullAccessToEvents` (macOS 14+)) と
 エンタイトルメントはフルアクセスになりますが、**アプリは予定の読み取りだけを
 行い**、作成・変更・招待はしません。カレンダーの内容は端末内だけで使われ、
-上記の通信に含まれることはありません。拒否しても他の機能は通常どおり動きます
-(録画は既定名で保存)。
+上記の通信に含まれることはありません。拒否しても他の機能は通常どおり動きます。
+許可済みでも、録画開始時点で検索が未完了の場合はカレンダー名なしの既定名に
+なります (検索は数秒前に先行するため、実際にはまれです)。
 
 **収録同意について (レビュアー向け):** Kilde はシステム音声を録るため、
 会議の他の参加者の声が入る可能性があります。実際の利用では録画の告知は
