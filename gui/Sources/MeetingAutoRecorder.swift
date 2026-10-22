@@ -62,7 +62,8 @@ final class MeetingAutoRecorder: ObservableObject {
     @Published private(set) var activeMeeting: MeetingDetector.DetectedMeeting?
 
     /// «カレンダーから会議名を使う» (issue #393。既定はオフ — カレンダーの読み取りは
-    /// 明示的に許可してもらう)。オンにした瞬間だけ権限を要求する
+    /// 明示的に許可してもらう)。権限の要求はトグルをオンにしたときと、オンのまま
+    /// 権限が未回答の状態でパネルを開いたとき (refreshCalendarStatus) に行う
     /// (CalendarTitles.requestAccess のクラスコメント参照)
     @Published var usesCalendarTitles: Bool {
         didSet {

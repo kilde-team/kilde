@@ -13,11 +13,12 @@ microphone, with optional on-device transcription of finished recordings.
 
 **Permissions requested during review testing:**
 
-- **Screen Recording**: required to capture the screen. After granting it in
-  System Settings, please **restart the app** — macOS activates this permission
-  only after a relaunch.
-- **Microphone**: required to mix your voice in. You can decline it for a basic
-  test; recording still works (video + system audio).
+- **Screen Recording**: required to capture the screen **and system audio
+  (which can include other participants' voices in a meeting)**. After
+  granting it in System Settings, please **restart the app** — macOS activates
+  this permission only after a relaunch.
+- **Microphone**: required to record **your own voice**. You can decline it
+  for a basic test; recording still works (video + system audio).
 
 **How to test:**
 
@@ -35,8 +36,8 @@ microphone, with optional on-device transcription of finished recordings.
 - Transcription runs **entirely on this device** (Apple SpeechAnalyzer /
   SpeechTranscriber). No audio or transcript is sent anywhere (Kilde operates
   no servers). If the speech language model is not on the device, it is
-  downloaded from Apple's servers (a standard OS asset); otherwise it works
-  offline.
+  downloaded from Apple's servers (a standard OS asset; as with any network
+  request, your IP address reaches Apple); otherwise it works offline.
 - The app uses the App Sandbox. Recordings and transcripts are written to
   `~/Movies` or a user-picked folder (security-scoped bookmark), never inside
   the sandbox container.
@@ -54,13 +55,15 @@ automatically", and manual recordings are never stopped automatically.
 
 **Calendar meeting names (off by default, v0.20.0):**
 
-A separate opt-in ("Use calendar event names") uses the title of a calendar
-event overlapping the detected meeting for the recording file name and the
-transcript heading. macOS offers no read-only calendar permission, so the
-request (and the entitlement) is for full access — but **the app only reads
-events**; it never creates, edits, or invites. Calendar data stays on-device
-(the connections above never carry calendar content). If you decline it,
-everything still works — recordings just use the default file name.
+A separate opt-in ("Use calendar event names"), effective only while meeting
+auto-recording is also enabled, uses the title of a calendar event overlapping
+the detected meeting for the recording file name, the recording-started
+notification, and the transcript heading. macOS offers no read-only calendar
+permission, so the request — `requestFullAccessToEvents` (macOS 14+) — and the
+entitlement are for full access, but **the app only reads events**; it never
+creates, edits, or invites. Calendar data stays on-device (the connections
+above never carry calendar content). If you decline it, everything still
+works — recordings just use the default file name.
 
 **Recording-consent note:** system audio can include other participants'
 voices; informing them is the user's responsibility. For your test, any sample
@@ -116,7 +119,8 @@ Kilde はメニューバーから使う画面録画アプリで、システム�
   に書き込まれます。**アプリのサンドボックスコンテナ内に置かれることはありません**。
 - 外向き接続は (a) 利用統計 (Firebase Analytics)、(b) クラッシュした次の起動時に
   送るクラッシュレポート (Firebase Crashlytics)、(c) 上記の言語モデル取得です。
-  いずれも音声データを含みません。
+  いずれも音声データを含みません (言語モデルの取得では、任意のネットワーク通信と
+  同様に IP アドレスが Apple へ届きます)。
 
 **会議の自動録画 (既定ではオフ):**
 
@@ -128,12 +132,14 @@ kilde は進行中の会議を検知して自動で録画できます (オプシ
 
 **カレンダーの会議名 (既定ではオフ、v0.20.0 で追加):**
 
-«カレンダーの予定名を録画ファイル名に使う» を有効にすると、検知した会議と
-時間帯が重なるカレンダーの予定の題名を録画ファイル名と議事録の見出しに使います。
-macOS に読み取り専用のカレンダー権限は無いため、要求 (とエンタイトルメント) は
-フルアクセスになりますが、**アプリは予定の読み取りだけを行い**、作成・変更・
-招待はしません。カレンダーの内容は端末内だけで使われ、上記の通信に含まれる
-ことはありません。拒否しても他の機能は通常どおり動きます (録画は既定名で保存)。
+«カレンダーの予定名を録画ファイル名に使う» は、«会議の自動録画» も有効な
+ときにだけ働く設定で、検知した会議と時間帯が重なるカレンダーの予定の題名を
+録画ファイル名・録画開始通知・議事録の見出しに使います。macOS に読み取り専用の
+カレンダー権限は無いため、要求 (`requestFullAccessToEvents` (macOS 14+)) と
+エンタイトルメントはフルアクセスになりますが、**アプリは予定の読み取りだけを
+行い**、作成・変更・招待はしません。カレンダーの内容は端末内だけで使われ、
+上記の通信に含まれることはありません。拒否しても他の機能は通常どおり動きます
+(録画は既定名で保存)。
 
 **収録同意について (レビュアー向け):** Kilde はシステム音声を録るため、
 会議の他の参加者の声が入る可能性があります。実際の利用では録画の告知は
