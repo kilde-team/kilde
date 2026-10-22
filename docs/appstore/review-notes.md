@@ -13,85 +13,71 @@ microphone, with optional on-device transcription of finished recordings.
 
 **Permissions requested during review testing:**
 
-- **Screen Recording**: Required to capture the screen. Kilde shows a permission
-  onboarding screen and takes you to System Settings. After you grant it, please
-  **restart the app** — macOS activates screen capture permission only after a
-  process relaunch. Kilde re-checks the permission when the menu bar panel opens
-  and right before recording starts.
-- **Microphone**: Required to mix your voice into the recording. If you test
-  screen recording only, you can decline the microphone; recording still works
-  (video + system audio).
+- **Screen Recording**: required to capture the screen **and system audio
+  (which can include other participants' voices in a meeting)**. After
+  granting it in System Settings, please **restart the app** — macOS activates
+  this permission only after a relaunch.
+- **Microphone**: required to record **your own voice**. You can decline it
+  for a basic test; recording still works (video + system audio).
 
 **How to test:**
 
 1. Open Kilde from the menu bar icon.
-2. Choose a display (or window), audio sources, and a destination. The default
-   destination is `~/Movies`.
-3. Press Record, wait a few seconds, press Stop. The recording appears in the
-   chosen destination and in "Recent recordings".
-4. (Optional, requires **macOS 26 or later**) To test transcription: enable
-   "Transcribe after recording" in the panel before recording, record a short
-   clip with speech, then press Stop. After the recording finishes, a Markdown
-   transcript (`.md`) is written **next to the recording file**. On versions
-   earlier than macOS 26 the Transcribe option is disabled in the panel.
+2. Choose a display (or window), audio sources, and a destination (default
+   `~/Movies`). Press Record, wait a few seconds, press Stop — the recording
+   appears in the destination and in "Recent recordings".
+3. (Optional, **macOS 26+**) To test transcription: enable "Transcribe after
+   recording", record a short clip with speech, press Stop. A Markdown
+   transcript is written **next to the recording file**. On earlier versions
+   the option is disabled.
 
 **Transcription and data handling:**
 
-- Transcription runs **entirely on this device** using Apple's SpeechAnalyzer /
-  SpeechTranscriber APIs. No audio or transcript is sent to Kilde's servers or
-  any third-party service (Kilde operates none).
-- When the language model for the requested language is not already on the
-  device, the app downloads a **speech recognition language model** from
-  Apple's servers (a standard OS asset, several hundred MB). With a model
-  present, transcription works entirely offline. The OS may remove unused
-  models, in which case the model is downloaded again on next use.
+- Transcription runs **entirely on this device** (Apple SpeechAnalyzer /
+  SpeechTranscriber). No audio or transcript is sent anywhere (Kilde operates
+  no servers). If the speech language model is not on the device, it is
+  downloaded from Apple's servers (a standard OS asset; as with any network
+  request, your IP address reaches Apple); otherwise it works offline.
 - The app uses the App Sandbox. Recordings and transcripts are written to
-  `~/Movies` or to a folder the user picks in the open panel (persisted via a
-  security-scoped bookmark). Files are never placed inside the app's sandbox
-  container.
-- The app makes outbound network connections for: (a) usage analytics
-  (Firebase Analytics), (b) crash reports sent on the next launch after a crash
-  (Firebase Crashlytics), and (c) the language-model downloads described above.
-  None of them carries audio content.
+  `~/Movies` or a user-picked folder (security-scoped bookmark), never inside
+  the sandbox container.
+- Outbound network connections: (a) usage analytics (Firebase Analytics),
+  (b) crash reports after a crash (Firebase Crashlytics), (c) the
+  language-model downloads above. None carries audio content.
 
 **Meeting auto-recording (off by default):**
 
 Kilde can optionally detect an ongoing meeting and record it automatically.
-Detection looks at which process is using the microphone and which windows are
-on screen; it runs locally on the device and sends nothing anywhere. The
-feature is **off by default** — it never starts or stops a recording unless
-the user has enabled "Record meeting windows automatically" in the panel, and
-recordings started manually are never stopped automatically.
+Detection (which process uses the microphone, which windows are on screen) runs
+locally and sends nothing anywhere. **Off by default** — it never starts or
+stops a recording unless the user enabled "Record meeting windows
+automatically", and manual recordings are never stopped automatically.
 
 **Calendar meeting names (off by default, v0.20.0):**
 
-A second, separate opt-in ("Use calendar event names") lets Kilde find a
-calendar event overlapping the detected meeting and use its title in the
-recording file name and the transcript heading. macOS offers no read-only
-calendar permission, so the permission request (and the entitlement in this
-build) is for full calendar access — but **the app only reads events**; it
-never creates, edits, or sends invitations for events. Calendar data is used
-on-device only and is never sent over the network (the network connections
-listed above do not carry any calendar content). If you decline the calendar
-permission during testing, auto-recording and everything else continue to
-work normally — recordings simply use the default file name.
+A separate opt-in ("Use calendar event names"), effective only while meeting
+auto-recording is also enabled, uses the title of a calendar event overlapping
+the detected meeting for the recording file name, the recording-started
+notification, and the transcript heading. macOS offers no read-only calendar
+permission, so the request — `requestFullAccessToEvents` (macOS 14+) — and the
+entitlement are for full access, but **the app only reads events**; it never
+creates, edits, or invites. Calendar data stays on-device (the connections
+above never carry calendar content). If you decline it, everything still
+works. Even with the permission granted, a lookup that has not finished by
+the time recording starts falls back to the default file name (the lookup
+runs a few seconds ahead, so this is rare).
 
-**Recording-consent note for reviewers:** Kilde records system audio, which can
-include other meeting participants' voices. During normal use it is the user's
-responsibility to inform participants that the session is being recorded. For
-your review test, please speak into the microphone or use any sample audio —
-no real meeting is required.
+**Recording-consent note:** system audio can include other participants'
+voices; informing them is the user's responsibility. For your test, any sample
+audio works — no real meeting is required.
 
 **In-app purchase — tips (v0.18.0):**
 
-The panel has an optional "Support this app" section at the bottom with
-three consumable tip products (kilde.tip.small / kilde.tip.medium /
-kilde.tip.large); tapping one starts a standard StoreKit purchase confirmed
-by the system sheet. The section appears only once the product list is
-fetched; nothing is gated behind it and every feature stays free. To review
-the tips, tap a tip button and confirm with your sandbox Apple ID (IAPs ship
-with this version). If it does not show up, the products are not yet
-available in your environment — hidden by design, no feature missing.
+The panel has an optional "Support this app" section with three consumable
+tips (kilde.tip.small/medium/large); tapping one starts a standard StoreKit
+purchase (confirm with your sandbox Apple ID). Nothing is gated behind it —
+every feature stays free. If the section does not appear, the products are
+not yet available in your environment; no feature is missing.
 
 ---
 
@@ -135,7 +121,8 @@ Kilde はメニューバーから使う画面録画アプリで、システム�
   に書き込まれます。**アプリのサンドボックスコンテナ内に置かれることはありません**。
 - 外向き接続は (a) 利用統計 (Firebase Analytics)、(b) クラッシュした次の起動時に
   送るクラッシュレポート (Firebase Crashlytics)、(c) 上記の言語モデル取得です。
-  いずれも音声データを含みません。
+  いずれも音声データを含みません (言語モデルの取得では、任意のネットワーク通信と
+  同様に IP アドレスが Apple へ届きます)。
 
 **会議の自動録画 (既定ではオフ):**
 
@@ -144,6 +131,18 @@ kilde は進行中の会議を検知して自動で録画できます (オプシ
 外部へ何も送信しません。この機能は **既定でオフ** で、パネルの
 「会議を検知したら会議ウィンドウを自動で録画する」を有効にした場合にのみ
 動作します。手動で開始した録画が自動で停止されることはありません。
+
+**カレンダーの会議名 (既定ではオフ、v0.20.0 で追加):**
+
+«カレンダーの予定名を録画ファイル名に使う» は、«会議の自動録画» も有効な
+ときにだけ働く設定で、検知した会議と時間帯が重なるカレンダーの予定の題名を
+録画ファイル名・録画開始通知・議事録の見出しに使います。macOS に読み取り専用の
+カレンダー権限は無いため、要求 (`requestFullAccessToEvents` (macOS 14+)) と
+エンタイトルメントはフルアクセスになりますが、**アプリは予定の読み取りだけを
+行い**、作成・変更・招待はしません。カレンダーの内容は端末内だけで使われ、
+上記の通信に含まれることはありません。拒否しても他の機能は通常どおり動きます。
+許可済みでも、録画開始時点で検索が未完了の場合はカレンダー名なしの既定名に
+なります (検索は数秒前に先行するため、実際にはまれです)。
 
 **収録同意について (レビュアー向け):** Kilde はシステム音声を録るため、
 会議の他の参加者の声が入る可能性があります。実際の利用では録画の告知は

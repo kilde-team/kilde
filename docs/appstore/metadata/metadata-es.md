@@ -314,3 +314,19 @@ procesando la grabación de la carpeta anterior. En Mac no compatibles
 ```text
 Se añadió la acción "Transcripción" a la notificación de grabación completada. Empieza a transcribir una grabación terminada directamente desde la notificación (la transcripción requiere macOS 26 o posterior y los datos de voz de tu idioma).
 ```
+## Novedades (0.20.0)
+
+Nombres de reunión desde el calendario (issue #393): un ajuste opcional de la
+grabación automática de reuniones consulta el calendario antes de comenzar y
+nombra la grabación `kilde-<fecha>-<título del evento>`. El título también se
+usa en la notificación de inicio y en el encabezado de la minuta. El permiso se
+solicita al activar el ajuste, y de nuevo al abrir el panel con el ajuste
+activo y el permiso sin responder (`requestFullAccessToEvents`, macOS 14+ —
+macOS no ofrece un permiso de solo lectura, por lo que se solicita acceso
+completo, pero la aplicación solo lee eventos). Permiso denegado, sin evento
+superpuesto o búsqueda sin terminar: se usa el nombre de archivo
+predeterminado.
+
+```text
+Las reuniones detectadas por la grabación automática ahora pueden llevar el nombre de tus eventos del calendario. Activa «Usar los nombres de los eventos del calendario para los nombres de archivo» y el título del evento superpuesto se usará para el nombre del archivo, la notificación de inicio y el encabezado de la minuta. El calendario se lee solo para esta función en este dispositivo y su contenido nunca se envía por la red (desactivado de forma predeterminada).
+```
