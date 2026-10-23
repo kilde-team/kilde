@@ -1,0 +1,38 @@
+README.es.md
+  h_864205080385bc 230-234,269-270
+README.ja.md
+  h_864205080385bc 140-141
+README.ko.md
+  h_864205080385bc 210-213,244
+README.md
+  h_864205080385bc 224-225,262-263
+README.zh-CN.md
+  h_864205080385bc 200-202,231
+docs/DESIGN.md
+  h_864205080385bc 295
+docs/appstore/metadata/metadata-en.md
+  h_864205080385bc 337
+docs/appstore/metadata/metadata-es.md
+  h_864205080385bc 348
+docs/appstore/metadata/metadata-ja.md
+  h_864205080385bc 343
+docs/appstore/metadata/metadata-ko.md
+  h_864205080385bc 299
+docs/appstore/metadata/metadata-zh-Hans.md
+  h_864205080385bc 274
+docs/appstore/review-notes.md
+  h_864205080385bc 21
+docs/release-notes/v0.21.0.md
+  h_864205080385bc 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d2319f0d96cf128c1e1ad61d47b502aa679efcbb",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
