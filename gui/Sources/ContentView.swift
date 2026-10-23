@@ -891,8 +891,12 @@ struct ContentView: View {
     private var transcriptLocaleBinding: Binding<String?> {
         Binding(
             get: { setup.transcriptLocale },
-            set: {
-                setup.transcriptLocale = $0
+            set: { value in
+                // «自動» の値は大小無視で "auto" に正規化して保持する — 手編集の
+                // config.json に "AUTO" 等が入っていても、ピッカーの選択行
+                // (tag "auto") と一致し、実行時の判定 (Coordinator の lowercased
+                // 比較) とも揃う
+                setup.transcriptLocale = value?.lowercased() == "auto" ? "auto" : value
                 setup.saveTranscriptionSetting(.locale)
             })
     }

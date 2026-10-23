@@ -210,7 +210,8 @@ kilde rec --transcribe --preset meeting meeting.mov
 `--locale ja-JP`로 언어를 지정하고 `--locale auto`는 녹화 초반 30초에서 오디오
 트랙마다 언어를 감지합니다 (후보: 기기 언어, 일본어, 영어. 감지하지 못한 트랙은
 기기 언어로 폴백. 잘못 감지될 때는 `--locale ja-JP` 등으로 고정해 다시 실행할 수
-있습니다). `--no-video --audio-tracks separate`
+있습니다. 후보 언어의 모델이 없으면 Apple에서 내려받으며, 일반 네트워크 통신과
+마찬가지로 이때 IP 주소가 Apple에 전달됩니다). `--no-video --audio-tracks separate`
 녹화에서는 두 오디오 트랙이 화자 레이블과 함께 전사됩니다 (시스템 사운드 트랙 =
 "相手", 마이크 트랙 = "自分"). 기존 녹화 파일은 `kilde transcribe FILE`로 전사할
 수도 있습니다.

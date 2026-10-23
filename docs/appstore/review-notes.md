@@ -14,9 +14,9 @@ microphone, with optional on-device transcription of finished recordings.
 **Permissions requested during review testing:**
 
 - **Screen Recording**: required to capture the screen **and system audio
-  (which can include other participants' voices)**. After granting it in
-  System Settings, please **restart the app** — macOS activates this
-  permission only after a relaunch.
+  (which can include other participants' voices)**. After granting it,
+  please **restart the app** — macOS activates this permission only after
+  a relaunch.
 - **Microphone**: required to record **your own voice**. You can decline it;
   recording still works (video + system audio).
 
@@ -68,8 +68,8 @@ the detected meeting for the recording file name, the recording-started
 notification, and the transcript heading. macOS offers no read-only calendar
 permission, so the request — `requestFullAccessToEvents` (macOS 14+) — and the
 entitlement are for full access, but **the app only reads events**; it never
-creates, edits, or invites. Calendar data stays on-device; if you decline,
-everything still works. A lookup not finished by the time recording starts
+creates, edits, or invites. Calendar data stays on-device; if declined,
+recordings continue with the default file name. A lookup not finished by the time recording starts
 falls back to the default file name.
 
 **Recording-consent note:** system audio can include other participants'

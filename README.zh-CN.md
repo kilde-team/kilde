@@ -199,7 +199,8 @@ kilde rec --transcribe --preset meeting meeting.mov
 要求的。`--transcript-format md|srt|vtt|txt|json` 选择 sidecar 格式，
 `--locale ja-JP` 选择语言，`--locale auto` 则从录制开头 30 秒起按音频轨道自动检测
 （候选：设备语言、日语、英语；无法判定的轨道回退到设备语言；检测错误时可以用
-`--locale ja-JP` 等固定后重新运行）。在 `--no-video --audio-tracks separate` 的录制中，
+`--locale ja-JP` 等固定后重新运行。候选语言的模型缺失时会从 Apple 下载，
+与一般网络请求相同，下载时 IP 地址会送达 Apple）。在 `--no-video --audio-tracks separate` 的录制中，
 两条音轨会带说话人标签转写（系统声音轨 = "相手"，麦克风轨 = "自分"）。也可以
 用 `kilde transcribe FILE` 转写已有的录制文件。
 
