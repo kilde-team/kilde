@@ -18,7 +18,7 @@ microphone, with optional on-device transcription of finished recordings.
   System Settings, please **restart the app** — macOS activates this
   permission only after a relaunch.
 - **Microphone**: required to record **your own voice**. You can decline it;
-recording still works (video + system audio).
+  recording still works (video + system audio).
 
 **How to test:**
 

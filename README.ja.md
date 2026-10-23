@@ -137,7 +137,8 @@ kilde rec --hotkey cmd+shift+r 会議.mov
 #   ダウンロード失敗など) は明示的に要求しているので終了コード 1
 #   --transcript-format md|srt|vtt|txt|json で形式、--locale ja-JP で言語を指定
 #   (--locale auto で録音の冒頭 30 秒から音声トラックごとに自動判定。
-#    候補は端末の言語・日本語・英語。判定できないトラックは端末の言語にフォールバック)
+#    候補は端末の言語・日本語・英語。判定できないトラックは端末の言語にフォールバック。
+#    判定を誤ったときは --locale ja-JP 等で固定して再実行できます)
 #   --no-video --audio-tracks separate の 2 トラック録音では話者ラベル付き
 #   (システム音声側 = 相手、マイク側 = 自分)
 kilde rec --transcribe --preset meeting 会議.mov

@@ -227,7 +227,11 @@ la transcripción — el archivo de grabación permanece en el disco y el códig
 salida sigue siendo `0`. Un *fallo* de la transcripción (por ejemplo un entorno
 o idioma no admitido, o un fallo al descargar el modelo) sale con código `1`,
 porque lo pediste explícitamente. `--transcript-format md|srt|vtt|txt|json`
-elige el formato del sidecar y `--locale ja-JP` elige el idioma. En una
+elige el formato del sidecar, `--locale ja-JP` elige el idioma y
+`--locale auto` lo detecta por pista de audio desde los primeros 30 segundos
+de la grabación (candidatos: idioma del dispositivo, japonés, inglés; las
+pistas sin decisión vuelven al idioma del dispositivo; una detección errónea
+se puede corregir fijando p. ej. `--locale ja-JP`). En una
 grabación `--no-video --audio-tracks separate`, las dos pistas de audio se
 transcriben con etiquetas de hablante («相手» para la pista del audio del
 sistema, «自分» para la del micrófono). También puedes transcribir una
@@ -262,7 +266,8 @@ Entre las opciones habituales:
   retrocede a `mov`)
 - `--cursor` o `--no-cursor`, `--countdown SECONDS`, `--preset meeting` y
   `--hotkey SHORTCUT`
-- `--transcribe` (con `--transcript-format` y `--locale`) para transcribir la
+- `--transcribe` (con `--transcript-format` y `--locale`, incluido
+  `--locale auto`) para transcribir la
   grabación a un archivo sidecar una vez finalizada (macOS 26+)
 - `-o PATH` o `--output PATH` como alternativa a la ruta de salida posicional
 

@@ -221,7 +221,8 @@ model download failure) exits `1`, because you explicitly asked for it.
 `--locale ja-JP` picks the language and `--locale auto` detects it per audio
 track from the first 30 seconds of the recording (candidates: device
 language, Japanese, English; undecided tracks fall back to the device
-language). In a `--no-video --audio-tracks separate`
+language; a wrong detection can be overridden by pinning e.g.
+`--locale ja-JP`). In a `--no-video --audio-tracks separate`
 recording, the two audio tracks are transcribed with speaker labels
 ("相手" for the system-audio track, "自分" for the mic track). You can also
 transcribe an existing recording with `kilde transcribe FILE`.
@@ -258,7 +259,8 @@ Common options include:
   falls back to `mov`)
 - `--cursor` or `--no-cursor`, `--countdown SECONDS`, `--preset meeting`, and
   `--hotkey SHORTCUT`
-- `--transcribe` (with `--transcript-format` and `--locale`) to transcribe the
+- `--transcribe` (with `--transcript-format` and `--locale`, including
+  `--locale auto`) to transcribe the
   recording into a sidecar file once it is finalized (macOS 26+)
 - `-o PATH` or `--output PATH` as an alternative to the positional output path
 
