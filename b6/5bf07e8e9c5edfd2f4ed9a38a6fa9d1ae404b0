@@ -1,0 +1,38 @@
+.github/workflows/release.yml
+  h_864205080385bc 56-59
+README.ja.md
+  h_864205080385bc 139-140
+README.md
+  h_864205080385bc 222-223
+docs/DESIGN.md
+  h_864205080385bc 295,307,472
+docs/appstore/metadata/metadata-en.md
+  h_864205080385bc 332-334,337
+docs/appstore/metadata/metadata-es.md
+  h_864205080385bc 343-345,348
+docs/appstore/metadata/metadata-ja.md
+  h_864205080385bc 337-340,343
+docs/appstore/metadata/metadata-ko.md
+  h_864205080385bc 289-290,294-296,299
+docs/appstore/metadata/metadata-zh-Hans.md
+  h_864205080385bc 270-271,274
+docs/appstore/review-notes.md
+  h_864205080385bc 17-21,52-54,135-137
+docs/release-notes/v0.21.0.md
+  h_864205080385bc 8-10,14-15
+gui/Sources/ContentView.swift
+  h_864205080385bc 749-750,752-753
+gui/Sources/TranscriptionCoordinator.swift
+  h_864205080385bc 35,37,317-320,432-439
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b65bf07e8e9c5edfd2f4ed9a38a6fa9d1ae404b0",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
