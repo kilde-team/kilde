@@ -1,0 +1,44 @@
+.github/workflows/release.yml
+  h_864205080385bc 56-59
+README.ja.md
+  h_864205080385bc 139
+README.md
+  h_864205080385bc 221-223
+docs/appstore/metadata/metadata-en.md
+  h_864205080385bc 322-339
+docs/appstore/metadata/metadata-es.md
+  h_864205080385bc 333-350
+docs/appstore/metadata/metadata-ja.md
+  h_864205080385bc 327-343
+docs/appstore/metadata/metadata-ko.md
+  h_864205080385bc 287-301
+docs/appstore/metadata/metadata-zh-Hans.md
+  h_864205080385bc 264-276
+docs/appstore/review-notes.md
+  h_864205080385bc 48-53,57,69-71,130-135
+docs/release-notes/v0.21.0.md
+  h_864205080385bc 1-16
+gui/Resources/Localizable.xcstrings
+  h_864205080385bc 5078-5164
+gui/Sources/ContentView.swift
+  h_864205080385bc 741-744,750,997-1000,1017-1018
+gui/Sources/LibraryWindow.swift
+  h_864205080385bc 568-569,591-594
+gui/Sources/SelfTest.swift
+  h_864205080385bc 1326-1327
+gui/Sources/TranscriptionCoordinator.swift
+  h_864205080385bc 1,35-39,61-63,303-309,317-331,336-337,391-393,395-396,414-415,423-425,427-452,465-477,487-515
+gui/project.yml
+  h_864205080385bc 85-90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "380b8e493819a9a1c4cac4f4cd98fd323f84ec00",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
