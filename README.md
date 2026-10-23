@@ -222,7 +222,9 @@ model download failure) exits `1`, because you explicitly asked for it.
 track from the first 30 seconds of the recording (candidates: device
 language, Japanese, English; undecided tracks fall back to the device
 language; a wrong detection can be overridden by pinning e.g.
-`--locale ja-JP`). In a `--no-video --audio-tracks separate`
+`--locale ja-JP`; missing language models for the candidates download from
+Apple, which reaches Apple with your IP address as any network request
+would). In a `--no-video --audio-tracks separate`
 recording, the two audio tracks are transcribed with speaker labels
 ("相手" for the system-audio track, "自分" for the mic track). You can also
 transcribe an existing recording with `kilde transcribe FILE`.

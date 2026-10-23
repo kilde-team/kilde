@@ -231,7 +231,9 @@ elige el formato del sidecar, `--locale ja-JP` elige el idioma y
 `--locale auto` lo detecta por pista de audio desde los primeros 30 segundos
 de la grabación (candidatos: idioma del dispositivo, japonés, inglés; las
 pistas sin decisión vuelven al idioma del dispositivo; una detección errónea
-se puede corregir fijando p. ej. `--locale ja-JP`). En una
+se puede corregir fijando p. ej. `--locale ja-JP`; los modelos de idioma que
+falten de los candidatos se descargan de Apple, y esa descarga llega a Apple
+con tu dirección IP, como cualquier petición de red). En una
 grabación `--no-video --audio-tracks separate`, las dos pistas de audio se
 transcriben con etiquetas de hablante («相手» para la pista del audio del
 sistema, «自分» para la del micrófono). También puedes transcribir una

@@ -209,7 +209,7 @@ kilde rec --transcribe --preset meeting meeting.mov
 때문입니다. `--transcript-format md|srt|vtt|txt|json`으로 사이드카 형식을,
 `--locale ja-JP`로 언어를 지정하고 `--locale auto`는 녹화 초반 30초에서 오디오
 트랙마다 언어를 감지합니다 (후보: 기기 언어, 일본어, 영어. 감지하지 못한 트랙은
-기기 언어으로 폴백. 잘못 감지될 때는 `--locale ja-JP` 등으로 고정해 다시 실행할 수
+기기 언어로 폴백. 잘못 감지될 때는 `--locale ja-JP` 등으로 고정해 다시 실행할 수
 있습니다). `--no-video --audio-tracks separate`
 녹화에서는 두 오디오 트랙이 화자 레이블과 함께 전사됩니다 (시스템 사운드 트랙 =
 "相手", 마이크 트랙 = "自分"). 기존 녹화 파일은 `kilde transcribe FILE`로 전사할
@@ -241,7 +241,7 @@ BlackHole이 필요한 것은 monitor 모드처럼 녹음하면서 같은 소리
   ProRes는 MP4에 담을 수 없으므로 단독 `--codec prores`는 `mov`로 폴백)
 - `--cursor` 또는 `--no-cursor`, `--countdown SECONDS`, `--preset meeting`,
   `--hotkey SHORTCUT`
-- `--transcribe` (`--transcript-format` 및 `--locale`, `--locale auto` 포함) 과 함께): 녹화 파일이
+- `--transcribe` (`--transcript-format` 및 `--locale` — `--locale auto` 포함 — 와 함께): 녹화 파일이
   완성된 후 사이드카 파일로 전사 (macOS 26+)
 - `-o PATH` 또는 `--output PATH`: 위치 인자 출력 경로의 대안
 
