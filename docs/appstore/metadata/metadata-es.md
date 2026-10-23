@@ -330,3 +330,21 @@ predeterminado.
 ```text
 Las reuniones detectadas por la grabación automática ahora pueden llevar el nombre de tus eventos del calendario. Activa «Usar los nombres de los eventos del calendario para los nombres de archivo» y el título del evento superpuesto se usará para el nombre del archivo, la notificación de inicio y el encabezado de la minuta. El calendario se lee solo para esta función en este dispositivo y su contenido nunca se envía por la red (desactivado de forma predeterminada).
 ```
+## Novedades (0.21.0)
+
+Detección automática del idioma de transcripción (issue #409, motor
+kilde-cli-swift#131; diseño en cli-swift SPIKE-NOTES F-Q). Añade
+«Automático (detectar de la grabación)» al ajuste de idioma de transcripción
+(el valor predeterminado sigue siendo «Idioma del dispositivo»). Al
+activarlo, los primeros 30 segundos de **cada pista de audio** se transcriben
+con los idiomas candidatos (idioma del dispositivo, japonés, inglés) y gana
+el de mayor confianza media ponderada. En grabaciones con pistas separadas,
+la pista del otro participante y la del propio micrófono se deciden por
+separado. Las pistas sin decisión vuelven al idioma del dispositivo, así que
+el modo automático nunca es peor que el predeterminado anterior. Todo en el
+dispositivo; sin permisos nuevos ni tráfico de red.
+
+```text
+El ajuste de idioma de transcripción incorpora «Automático (detectar de la grabación)». Detecta el idioma de la reunión desde el inicio de la grabación (candidatos: idioma del dispositivo, japonés e inglés) y transcribe en él. Con pistas de audio separadas, la pista del otro participante y la de tu micrófono se transcriben cada una en su idioma. Si no se puede decidir, se usa el idioma del dispositivo como antes (el valor predeterminado no cambia; todo se procesa en el dispositivo y el audio nunca se envía por la red).
+```
+

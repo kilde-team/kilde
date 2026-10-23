@@ -319,3 +319,21 @@ lookup that has not finished all fall back to the default file name.
 ```text
 Meetings detected by auto-recording can now be named after your calendar events. Enable "Use calendar event names for recording file names" and the overlapping event's title is used for the recording file name, the recording-started notification, and the transcript heading. The calendar is only read for this feature on-device and your calendar content is never sent over the network (off by default).
 ```
+## What's New (0.21.0)
+
+Automatic transcription language (issue #409, engine kilde-cli-swift#131;
+design in cli-swift SPIKE-NOTES F-Q). Adds "Automatic (detect from recording)"
+to the transcription language setting (the default stays "Device language").
+When selected, the first 30 seconds of **each audio track** are transcribed
+with the candidate locales (device language, Japanese, English) and the
+locale with the highest duration-weighted mean confidence wins. Separate-track
+recordings get e.g. the peer's track in English and your microphone track in
+Japanese. Undecided tracks (no speech in the head window / near tie) fall
+back to the device language, so automatic is never worse than the previous
+default. Entirely on-device (SpeechAnalyzer); no new permissions or network
+traffic.
+
+```text
+The transcription language setting gains "Automatic (detect from recording)". It detects the meeting language from the beginning of the recording (candidates: your device language, Japanese, English) and transcribes in it. With separated audio tracks, the peer's track and your own microphone track are each transcribed in their own language. When detection cannot decide, the device language is used as before (the default setting is unchanged; everything runs on-device and no audio is ever sent over the network).
+```
+

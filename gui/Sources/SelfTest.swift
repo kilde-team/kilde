@@ -1323,6 +1323,8 @@ enum SelfTest {
         switch phase {
         case .preparingModel(let progress):
             return "preparingModel(\(Int(progress * 100))%)"
+        case .detectingLocale:
+            return "detectingLocale"
         case .transcribing(let progress):
             return "transcribing(\(Int(progress * 100))%)"
         case .summarizing(let progress):

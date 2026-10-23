@@ -738,13 +738,16 @@ struct ContentView: View {
                 #endif
             if setup.transcriptionAvailable && setup.transcribeEnabled {
                 Picker("言語", selection: transcriptLocaleBinding) {
-                    Text("自動 (端末の言語設定)").tag(String?.none)
+                    Text("端末の言語設定").tag(String?.none)
+                    // 録音の冒頭から言語を自動判定 (kilde#409)。判定不能のトラックは
+                    // 端末の言語設定にフォールバックする (kilde-cli-swift#131)
+                    Text("自動 (録音から判定)").tag(String?.some("auto"))
                     Text("日本語 (ja-JP)").tag(String?.some("ja-JP"))
                     Text("英語 (en-US)").tag(String?.some("en-US"))
                     // 手で編集した config.json に他の言語が入っているときは、
                     // 選択を壊さないようにその値も選択肢に出す
                     if let custom = setup.transcriptLocale,
-                       custom != "ja-JP", custom != "en-US" {
+                       custom != "ja-JP", custom != "en-US", custom != "auto" {
                         Text(custom).tag(String?.some(custom))
                     }
                 }
@@ -991,6 +994,10 @@ struct ContentView: View {
                 ProgressView()
                     .progressViewStyle(.linear)
             }
+        case .detectingLocale:
+            // 判定は数秒で終わるので不定長表示 (kilde#409)
+            ProgressView()
+                .progressViewStyle(.linear)
         case .transcribing(let progress):
             ProgressView(value: progress)
         case .summarizing(let progress):
@@ -1007,6 +1014,8 @@ struct ContentView: View {
             return progress > 0
                 ? String(localized: "言語モデルを取得中… \(Int(progress * 100))%")
                 : String(localized: "言語モデルを準備中…")
+        case .detectingLocale:
+            return String(localized: "言語を自動判定中…")
         case .transcribing(let progress):
             return String(localized: "文字起こし中… \(Int(progress * 100))%")
         case .summarizing(let progress):

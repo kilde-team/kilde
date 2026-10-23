@@ -218,7 +218,9 @@ transcription — the recording file stays on disk and the exit status is still
 `0`. A transcription *failure* (such as an unsupported environment, locale, or
 model download failure) exits `1`, because you explicitly asked for it.
 `--transcript-format md|srt|vtt|txt|json` picks the sidecar format and
-`--locale ja-JP` picks the language. In a `--no-video --audio-tracks separate`
+`--locale ja-JP` picks the language and `--locale auto` detects it per audio
+track from the beginning of the recording (falls back to the device
+language). In a `--no-video --audio-tracks separate`
 recording, the two audio tracks are transcribed with speaker labels
 ("相手" for the system-audio track, "自分" for the mic track). You can also
 transcribe an existing recording with `kilde transcribe FILE`.

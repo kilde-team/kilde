@@ -45,11 +45,16 @@ microphone, with optional on-device transcription of finished recordings.
   (b) crash reports after a crash (Firebase Crashlytics), (c) the
   language-model downloads above. None carries audio content.
 
+**Automatic transcription language (v0.21.0, opt-in):** The transcription
+language setting gains "Automatic (detect from recording)" (default
+unchanged). It picks the language per audio track from the first 30 seconds
+(candidates: device language, Japanese, English; undecided tracks fall back
+to the device language). On-device only; no new permissions or traffic.
+
 **Meeting auto-recording (off by default):**
 
 Kilde can optionally detect an ongoing meeting and record it automatically.
-Detection (which process uses the microphone, which windows are on screen) runs
-locally and sends nothing anywhere. **Off by default** — it never starts or
+Detection runs locally and sends nothing anywhere. **Off by default** — it never starts or
 stops a recording unless the user enabled "Record meeting windows
 automatically", and manual recordings are never stopped automatically.
 
@@ -61,11 +66,9 @@ the detected meeting for the recording file name, the recording-started
 notification, and the transcript heading. macOS offers no read-only calendar
 permission, so the request — `requestFullAccessToEvents` (macOS 14+) — and the
 entitlement are for full access, but **the app only reads events**; it never
-creates, edits, or invites. Calendar data stays on-device (the connections
-above never carry calendar content). If you decline it, everything still
-works. Even with the permission granted, a lookup that has not finished by
-the time recording starts falls back to the default file name (the lookup
-runs a few seconds ahead, so this is rare).
+creates, edits, or invites. Calendar data stays on-device; if you decline,
+everything still works. A lookup not finished by the time recording starts
+falls back to the default file name.
 
 **Recording-consent note:** system audio can include other participants'
 voices; informing them is the user's responsibility. For your test, any sample
@@ -123,6 +126,12 @@ Kilde はメニューバーから使う画面録画アプリで、システム�
   送るクラッシュレポート (Firebase Crashlytics)、(c) 上記の言語モデル取得です。
   いずれも音声データを含みません (言語モデルの取得では、任意のネットワーク通信と
   同様に IP アドレスが Apple へ届きます)。
+
+**文字起こし言語の自動判定 (v0.21.0、オプトイン):** 文字起こしの言語設定に
+«自動 (録音から判定)» が増えます (既定は端末の言語のまま)。選ぶと録音の冒頭
+30 秒から音声トラックごとに言語を決めます (候補は端末の言語・日本語・英語。
+判定できないトラックは端末の言語にフォールバック)。処理は端内のみで、
+新しい権限・通信はありません。
 
 **会議の自動録画 (既定ではオフ):**
 
