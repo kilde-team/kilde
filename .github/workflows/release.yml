@@ -51,11 +51,12 @@ jobs:
           repository: kilde-team/kilde-cli-swift
           # GUI (gui/project.yml) と同じ pin。リリース成果物が「どのコミットで
           # ビルドされたか」を追跡可能にするため。更新時は GUI 側と揃える。
-          # v0.18.0 は RecordRequest に既定名へ題名接尾辞を付ける outputTitle が
-          # 増えた版 (kilde-cli-swift#132 — GUI のカレンダー連携 kilde#393 が、
           # v0.19.0: 文字起こし言語の自動判定 (kilde-cli-swift#131 — GUI の
           # «自動 (録音から判定)» kilde#409 が消費。LocaleAutoDetector と
-          # transcribeWithSpeakers のトラックごとのロケール指定を含む)
+          # transcribeWithSpeakers のトラックごとのロケール指定を含む。
+          # v0.18.0: RecordRequest.outputTitle (kilde-cli-swift#132 — GUI の
+          # カレンダー連携 kilde#393 が、予定の題名を
+          # kilde-yyyyMMdd-HHmmss-<題名> のファイル名に使うために消費)
           ref: v0.19.0
           # private リポジトリ: GITHUB_TOKEN は他リポジトリを読めないため
           # fine-grained PAT (contents:read) を使う

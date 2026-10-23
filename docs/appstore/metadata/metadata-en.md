@@ -329,11 +329,11 @@ with the candidate locales (device language, Japanese, English) and the
 locale with the highest duration-weighted mean confidence wins. Separate-track
 recordings get e.g. the peer's track in English and your microphone track in
 Japanese. Undecided tracks (no speech in the head window / near tie) fall
-back to the device language, so automatic is never worse than the previous
-default. Entirely on-device (SpeechAnalyzer); no new permissions or network
-traffic.
+back to the device language. No new permissions; audio and transcripts
+never leave the device (missing language models are downloaded from Apple,
+as with fixed languages).
 
 ```text
-The transcription language setting gains "Automatic (detect from recording)". It detects the meeting language from the beginning of the recording (candidates: your device language, Japanese, English) and transcribes in it. With separated audio tracks, the peer's track and your own microphone track are each transcribed in their own language. When detection cannot decide, the device language is used as before (the default setting is unchanged; everything runs on-device and no audio is ever sent over the network).
+The transcription language setting gains "Automatic (detect from recording)". It detects the meeting language from the first 30 seconds of the recording (candidates: your device language, Japanese, English) and transcribes in it; with separated audio tracks, the peer's track and your own microphone track are transcribed each in their own language. When detection cannot decide, the device language is used as before. Transcription requires "Transcribe after recording" to be enabled and macOS 26 or later with the speech data (language model) for the language (the default setting is unchanged; audio and transcripts are never sent over the network — missing language models are downloaded from Apple).
 ```
 

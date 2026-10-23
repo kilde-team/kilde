@@ -32,9 +32,9 @@ final class TranscriptionCoordinator: ObservableObject {
         /// (要約は Markdown の先頭側に載る — TranscriptWriter の契約)。
         /// 録画完了時点の選択 (RecordingSetup) をスナップショットして入れる
         let summaryTemplate: MeetingTemplate?
-        /// nil は «端末の言語設定«。実行時に CLI と同じ `.bcp47` 表記へ解決する
+        /// nil は «端末の言語設定»。実行時に CLI と同じ `.bcp47` 表記へ解決する
         /// (kilde-cli-swift の TranscribeCommand.swift と同じ規約)。
-        /// «auto» は録音からの自動判定 (kilde#409 — 設定 UI の «自動 (録音から判定)«)。
+        /// «auto» は録音からの自動判定 (kilde#409 — 設定 UI の «自動 (録音から判定)»)。
         /// トラックごとに解決したロケールで書き起こし、判定不能トラックは端末
         /// ロケールにフォールバックする (kilde-cli-swift#131 と同じ契約)
         let localeID: String?
@@ -314,8 +314,10 @@ final class TranscriptionCoordinator: ObservableObject {
             // 保持で寿命が変わることはない (cancelAll の hung 観測 Task と同じ流儀)
             guard let self else { return }
             do {
-                // ロケール自動判定 (kilde#409)。トラックごとに解決し、再試行でも
-                // 同じロケール列を使う (音声は変わらないので判定し直さない)。
+                // ロケール自動判定 (kilde#409)。トラックごとに解決する。断続失敗の自動再試行
+                // (runRecognition) は同じロケール列を使う。利用者による «再試行« (execute の
+                // やり直し) は判定からやり直す — 同一音声への判定は決定論的で、やり直しの
+                // コストは数秒のため)
                 // resolve は throw しない設計 (判定不能はフォールバックに解決される)
                 let perTrackLocales: [String?]?
                 if localeAuto {
@@ -427,7 +429,14 @@ final class TranscriptionCoordinator: ObservableObject {
         // 先に分かりやすいエラーにするため (CLI と同じ順序)。自動判定のときは
         // トラックごとのロケールの重複除去分を確認する (CLI の TranscriptionRun
         // と同じ形)
-        let localesToCheck = Self.orderedUnique((perTrackLocales ?? [localeID]).compactMap { $0 })
+        // nil 要素は «そのトラックを localeID (フォールバック) で書き起こす» ので、
+        // 1 つでも nil があればフォールバックのモデルも確認対象に含める —
+        // 含めないとフォールバック時にモデル未取得で文字起こしが落ちる
+        var localesToCheck = (perTrackLocales ?? [localeID]).compactMap { $0 }
+        if let perTrackLocales, localesToCheck.count < perTrackLocales.count {
+            localesToCheck.append(localeID)
+        }
+        localesToCheck = Self.orderedUnique(localesToCheck)
         for localeToCheck in localesToCheck {
             let status = try await Transcriber.modelAssetStatus(localeIdentifier: localeToCheck)
             if !status.installed {

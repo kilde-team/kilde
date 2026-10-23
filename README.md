@@ -219,7 +219,8 @@ transcription — the recording file stays on disk and the exit status is still
 model download failure) exits `1`, because you explicitly asked for it.
 `--transcript-format md|srt|vtt|txt|json` picks the sidecar format and
 `--locale ja-JP` picks the language and `--locale auto` detects it per audio
-track from the beginning of the recording (falls back to the device
+track from the first 30 seconds of the recording (candidates: device
+language, Japanese, English; undecided tracks fall back to the device
 language). In a `--no-video --audio-tracks separate`
 recording, the two audio tracks are transcribed with speaker labels
 ("相手" for the system-audio track, "自分" for the mic track). You can also

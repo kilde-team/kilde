@@ -292,7 +292,7 @@ kilde config [show|set|unset|path]        設定ファイル ~/.kilde/config.jso
 | `--hotkey <key>` | なし (設定 `hotkey`) | `cmd+shift+r` 形式のグローバルホットキーで開始 / 停止。指定時は録画ファイルを作らず待機し、待機中の Ctrl+C は成功 (0) で終了する。録画開始後のホットキーと Ctrl+C はどちらも `Recorder.stop()` で安全に停止する。`--countdown` との併用不可 (上記参照)。他のプロセス (常駐した GUI など) が同じキーを先に登録していると登録できず、**明示した `--hotkey` は終了コード 1 で失敗する**。設定 `hotkey` 由来のときだけ警告のうえ即時録画へ縮退する (ただし可否判定のプローブがキーを解除できなかった場合は縮退せず失敗する — キーを握ったまま録画しないため)。**`--duration` とは併用できる** — 待機の解除後から数える (issue #97)。詳細は下の「ホットキーの排他」「`--duration` と待機モード」参照 |
 | `--transcribe` / `--no-transcribe` | off (設定 `transcribe`) | 停止後に録音・録画ファイルを文字起こししてサイドカーに出力する (kilde-cli-swift#38。macOS 26 以上。それ未満では文字起こしのみ終了コード 1)。**文字起こしは録画ファイルのファイナライズ完了後に始める**ので、失敗・中止が録画ファイルに影響することはない。**文字起こし中の Ctrl+C / SIGTERM / SIGHUP は文字起こしだけを中断し、録画ファイルは残したまま終了コード 0** (`kilde transcribe` と同じ契約)。`--audio-tracks separate` で録った 2 トラック録音はトラック順に「相手」「自分」の話者ラベル付き (kilde-cli-swift#35)。**`--no-video` と `--audio-tracks separate` の組合せで話者ラベル付きになる**。ホットキー待機経路 (`--hotkey`) でも停止後に実行する |
 | `--transcript-format <md\|srt\|vtt\|txt\|json>` | `md` (設定 `transcriptFormat`) | `--transcribe` のサイドカー出力形式。不正値は引数検証エラー (終了コード 64)。**`--transcribe` (または設定 `transcribe=true`) が無いと効果がない** — 無効なまま指定すると実行時に `⚠` を出す (設定 `transcribe=false` で打ち消された場合も含む) |
-| `--locale <BCP 47>` | 端末の言語設定 (設定 `locale`) | `--transcribe` の書き起こし言語 (`ja-JP`。`ja_JP` も受ける。空文字は引数検証エラー 64)。対応外ロケール・未取得モデルの扱いは `kilde transcribe` と同じ (`kilde doctor` で対応ロケールを確認できる)。文字起こしが無効なときの指定は黙って無視せず `⚠` を出す |
+| `--locale <BCP 47\|auto>` | 端末の言語設定 (設定 `locale`) | `--transcribe` の書き起こし言語 (`ja-JP`。`ja_JP` も受ける。空文字は引数検証エラー 64)。**`auto` は録音の音声トラックごとに冒頭 30 秒から自動判定** (候補は端末ロケール + ja-JP + en-US、判定不能トラックは端末ロケールへフォールバック — 正本は cli-swift DESIGN.md §6)。対応外ロケール・未取得モデルの扱いは `kilde transcribe` と同じ (`kilde doctor` で対応ロケールを確認できる)。文字起こしが無効なときの指定は黙って無視せず `⚠` を出す |
 
 ### `kilde transcribe` オプション (kilde-cli-swift#37)
 
@@ -304,7 +304,7 @@ Speech recognition 権限は不要。
 | オプション | 既定 | 説明 |
 |-----------|------|------|
 | `<file>` | (必須) | 文字起こしする録音・録画ファイル。存在しなければ終了コード 1 |
-| `--locale <BCP 47>` | 端末の言語設定 | 書き起こし言語 (`ja-JP`。`ja_JP` も受ける)。対応外ロケールは終了コード 1 (`kilde doctor` の [transcribe] で対応ロケールと取得状況を確認できる) |
+| `--locale <BCP 47\|auto>` | 端末の言語設定 | 書き起こし言語 (`ja-JP`。`ja_JP` も受ける)。**`auto` は録音の音声トラックごとに冒頭 30 秒から自動判定** (候補は端末ロケール + ja-JP + en-US、判定不能トラックは端末ロケールへフォールバック)。対応外ロケールは終了コード 1 (`kilde doctor` の [transcribe] で対応ロケールと取得状況を確認できる) |
 | `--format <md\|srt\|vtt\|txt\|json>` | `md` | 出力形式。**優先順位は `--format` > `--output` の拡張子 > md**。不正値は引数検証エラー (終了コード 64) |
 | `--output, -o <path>` | 入力ファイルの隣のサイドカー | 出力先のベースパス。実際の拡張子は形式に揃うため、`--output out.txt --format md` のような不一致では `⚠` を 1 行出して `out.md` に書き出す。同名ファイルは上書きせず `-2`, `-3` … に退避する (既存録画を壊さないため) |
 
@@ -469,7 +469,7 @@ cubic レビュー指摘)。値は CLI 引数と同じ文字列表現。
 | `hotkey` | `cmd+shift+r` 形式の文字列 | `--hotkey`。cmd / shift / opt / ctrl と英数字、F1〜F12、主要キーに対応 (fn はハードウェアにインターセプトされるため不可) |
 | `transcribe` | 真偽値 | `--transcribe` / `--no-transcribe` (kilde-cli-swift#38)。**GUI (kilde#145) も同じキーを使う** — キー名は kilde-cli-swift#38 が定義する |
 | `transcriptFormat` | `md` / `srt` / `vtt` / `txt` / `json` | `--transcript-format`。小文字へ正規化して保存する (`--format` と同じ) |
-| `locale` | BCP 47 の文字列 (`ja-JP`) | `--locale`。実在性は録画後の実行時に判定する (対応外ロケールは終了コード 1) |
+| `locale` | BCP 47 の文字列 (`ja-JP`)、または `auto` | `--locale`。`auto` は録音の音声トラックごとの自動判定 (cli-swift #131)。実在性は録画後の実行時に判定する (対応外ロケールは終了コード 1) |
 
 - 優先順位: **CLI 引数 > `--preset` > 環境変数 > 設定ファイル > 既定値**。
   **この鎖に入る環境変数は `KILDE_OUTPUT_DIR` (録画の保存先) だけ**で、設定

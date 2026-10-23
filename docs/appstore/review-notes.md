@@ -14,11 +14,11 @@ microphone, with optional on-device transcription of finished recordings.
 **Permissions requested during review testing:**
 
 - **Screen Recording**: required to capture the screen **and system audio
-  (which can include other participants' voices in a meeting)**. After
-  granting it in System Settings, please **restart the app** — macOS activates
-  this permission only after a relaunch.
-- **Microphone**: required to record **your own voice**. You can decline it
-  for a basic test; recording still works (video + system audio).
+  (which can include other participants' voices)**. After granting it in
+  System Settings, please **restart the app** — macOS activates this
+  permission only after a relaunch.
+- **Microphone**: required to record **your own voice**. You can decline it;
+recording still works (video + system audio).
 
 **How to test:**
 
@@ -49,7 +49,9 @@ microphone, with optional on-device transcription of finished recordings.
 language setting gains "Automatic (detect from recording)" (default
 unchanged). It picks the language per audio track from the first 30 seconds
 (candidates: device language, Japanese, English; undecided tracks fall back
-to the device language). On-device only; no new permissions or traffic.
+to the device language). No new permissions. Audio and transcripts never
+leave the device; missing language models download from Apple as noted
+above.
 
 **Meeting auto-recording (off by default):**
 
@@ -130,8 +132,9 @@ Kilde はメニューバーから使う画面録画アプリで、システム�
 **文字起こし言語の自動判定 (v0.21.0、オプトイン):** 文字起こしの言語設定に
 «自動 (録音から判定)» が増えます (既定は端末の言語のまま)。選ぶと録音の冒頭
 30 秒から音声トラックごとに言語を決めます (候補は端末の言語・日本語・英語。
-判定できないトラックは端末の言語にフォールバック)。処理は端内のみで、
-新しい権限・通信はありません。
+判定できないトラックは端末の言語にフォールバック)。新しい権限は不要です。
+録音・書き起こしの内容が端末外へ送られることはありません (言語モデルが未取得の
+場合は上記のとおり Apple から取得されます)。
 
 **会議の自動録画 (既定ではオフ):**
 

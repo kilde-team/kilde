@@ -746,8 +746,11 @@ struct ContentView: View {
                     Text("英語 (en-US)").tag(String?.some("en-US"))
                     // 手で編集した config.json に他の言語が入っているときは、
                     // 選択を壊さないようにその値も選択肢に出す
+                    // 判定は実行時 (Coordinator) と同じく大小無視 — 手編集の config.json
+                    // に "AUTO" 等が入っていても «自動« 選択肢と重複して出さない
                     if let custom = setup.transcriptLocale,
-                       custom != "ja-JP", custom != "en-US", custom != "auto" {
+                       custom != "ja-JP", custom != "en-US",
+                       custom.lowercased() != "auto" {
                         Text(custom).tag(String?.some(custom))
                     }
                 }

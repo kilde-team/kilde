@@ -340,11 +340,11 @@ activarlo, los primeros 30 segundos de **cada pista de audio** se transcriben
 con los idiomas candidatos (idioma del dispositivo, japonés, inglés) y gana
 el de mayor confianza media ponderada. En grabaciones con pistas separadas,
 la pista del otro participante y la del propio micrófono se deciden por
-separado. Las pistas sin decisión vuelven al idioma del dispositivo, así que
-el modo automático nunca es peor que el predeterminado anterior. Todo en el
-dispositivo; sin permisos nuevos ni tráfico de red.
+separado. Las pistas sin decisión vuelven al idioma del dispositivo. Sin permisos
+nuevos; grabaciones y transcripciones no salen del dispositivo (los modelos
+de idioma que falten se descargan de Apple, igual que con idiomas fijos).
 
 ```text
-El ajuste de idioma de transcripción incorpora «Automático (detectar de la grabación)». Detecta el idioma de la reunión desde el inicio de la grabación (candidatos: idioma del dispositivo, japonés e inglés) y transcribe en él. Con pistas de audio separadas, la pista del otro participante y la de tu micrófono se transcriben cada una en su idioma. Si no se puede decidir, se usa el idioma del dispositivo como antes (el valor predeterminado no cambia; todo se procesa en el dispositivo y el audio nunca se envía por la red).
+El ajuste de idioma de transcripción incorpora "Automático (detectar de la grabación)". Detecta el idioma de la reunión desde los primeros 30 segundos de la grabación (candidatos: idioma del dispositivo, japonés e inglés) y transcribe en él; con pistas de audio separadas, la pista del otro participante y la de tu micrófono se transcriben cada una en su idioma. Si no se puede decidir, se usa el idioma del dispositivo como antes. La transcripción requiere activar "Transcribir tras la grabación" y macOS 26 o posterior con los datos de voz (modelo de idioma) del idioma (el valor predeterminado no cambia; las grabaciones y transcripciones nunca se envían por la red, aunque los modelos de idioma que falten se descargan de Apple).
 ```
 
