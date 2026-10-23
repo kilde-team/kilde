@@ -14,9 +14,9 @@ microphone, with optional on-device transcription of finished recordings.
 **Permissions requested during review testing:**
 
 - **Screen Recording**: required to capture the screen **and system audio
-  (which can include other participants' voices)**. After granting it,
-  please **restart the app** — macOS activates this permission only after
-  a relaunch.
+  (which can include other participants' voices)**. After granting it in
+  System Settings, please **restart the app** — macOS activates it only
+  after a relaunch.
 - **Microphone**: required to record **your own voice**. You can decline it;
   recording still works (video + system audio).
 
