@@ -1,0 +1,24 @@
+README.ja.md
+  h_864205080385bc 141-143
+README.ko.md
+  h_864205080385bc 213-214
+README.zh-CN.md
+  h_864205080385bc 202-203
+docs/appstore/review-notes.md
+  h_864205080385bc 17-19,71-72
+docs/release-notes/v0.21.0.md
+  h_864205080385bc 6
+gui/Sources/ContentView.swift
+  h_864205080385bc 894-899
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a4b07ca2d971f3d9d4a243f3185093820fa0ea8e",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
