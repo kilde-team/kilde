@@ -319,3 +319,21 @@ lookup that has not finished all fall back to the default file name.
 ```text
 Meetings detected by auto-recording can now be named after your calendar events. Enable "Use calendar event names for recording file names" and the overlapping event's title is used for the recording file name, the recording-started notification, and the transcript heading. The calendar is only read for this feature on-device and your calendar content is never sent over the network (off by default).
 ```
+## What's New (0.21.0)
+
+Automatic transcription language (issue #409, engine kilde-cli-swift#131;
+design in cli-swift SPIKE-NOTES F-Q). Adds "Automatic (detect from recording)"
+to the transcription language setting (the default stays "Device language").
+When selected, the first 30 seconds of **each audio track** are transcribed
+with the candidate locales (device language, Japanese, English) and the
+locale with the highest duration-weighted mean confidence wins. Separate-track
+recordings get e.g. the peer's track in English and your microphone track in
+Japanese. Undecided tracks (no speech in the head window / near tie) fall
+back to the device language. No new permissions; audio and transcripts
+never leave the device (missing language models are downloaded from Apple,
+as with fixed languages).
+
+```text
+The transcription language setting gains "Automatic (detect from recording)". It detects the meeting language from the first 30 seconds of the recording (candidates: your device language, Japanese, English) and transcribes in it; with separated audio tracks, the peer's track and your own microphone track are transcribed each in their own language. When detection cannot decide, the device language is used as before. Transcription requires "Transcribe after recording" to be enabled and macOS 26 or later with the speech data (language model) for the language (the default setting is unchanged; audio and transcripts are never sent over the network — missing language models are downloaded from Apple — as with any network request, the download reaches Apple with your IP address).
+```
+

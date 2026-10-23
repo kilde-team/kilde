@@ -197,7 +197,10 @@ kilde rec --transcribe --preset meeting meeting.mov
 中按 Ctrl+C 只会中断转写 — 录制文件仍保留在磁盘上，退出码仍然是 `0`。转写
 *失败*（例如不支持的环境或语言、模型下载失败）则以 `1` 退出，因为这是你明确
 要求的。`--transcript-format md|srt|vtt|txt|json` 选择 sidecar 格式，
-`--locale ja-JP` 选择语言。在 `--no-video --audio-tracks separate` 的录制中，
+`--locale ja-JP` 选择语言，`--locale auto` 则从录制开头 30 秒起按音频轨道自动检测
+（候选：设备语言、日语、英语；无法判定的轨道回退到设备语言；检测错误时可以用
+`--locale ja-JP` 等固定后重新运行。候选语言的模型缺失时会从 Apple 下载，
+与一般网络请求相同，下载时 IP 地址会送达 Apple）。在 `--no-video --audio-tracks separate` 的录制中，
 两条音轨会带说话人标签转写（系统声音轨 = "相手"，麦克风轨 = "自分"）。也可以
 用 `kilde transcribe FILE` 转写已有的录制文件。
 
@@ -226,7 +229,7 @@ kilde 使用 ScreenCaptureKit 的原生系统声音采集，因此普通的屏�
   ProRes 不能封装进 MP4，因此单独的 `--codec prores` 会回退到 `mov`）
 - `--cursor` 或 `--no-cursor`、`--countdown SECONDS`、`--preset meeting`
   和 `--hotkey SHORTCUT`
-- `--transcribe`（与 `--transcript-format`、`--locale` 配合）：录制文件完成后
+- `--transcribe`（与 `--transcript-format`、`--locale`（含 `--locale auto`）配合）：录制文件完成后
   将其转写为 sidecar 文件 (macOS 26+)
 - `-o PATH` 或 `--output PATH`，位置参数输出路径的替代写法
 

@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import KildeCore
 import os
@@ -32,7 +33,10 @@ final class TranscriptionCoordinator: ObservableObject {
         /// 録画完了時点の選択 (RecordingSetup) をスナップショットして入れる
         let summaryTemplate: MeetingTemplate?
         /// nil は «端末の言語設定»。実行時に CLI と同じ `.bcp47` 表記へ解決する
-        /// (kilde-cli-swift の TranscribeCommand.swift と同じ規約)
+        /// (kilde-cli-swift の TranscribeCommand.swift と同じ規約)。
+        /// «auto» は録音からの自動判定 (kilde#409 — 設定 UI の «自動 (録音から判定)»)。
+        /// トラックごとに解決したロケールで書き起こし、判定不能トラックは端末
+        /// ロケールにフォールバックする (kilde-cli-swift#131 と同じ契約)
         let localeID: String?
         /// 録画の長さ (秒)。利用状況計測 (issue #153) の区分だけに使い、UI には出さない。
         /// nil は «不明» (セルフテストの直接 enqueue など) — 計測のパラメータを省略する。
@@ -54,6 +58,9 @@ final class TranscriptionCoordinator: ObservableObject {
     /// UI は不定長表示にする
     enum RunPhase: Equatable {
         case preparingModel(progress: Double)
+        /// ロケールの自動判定中 (kilde#409 — Job.localeID == "auto" のときのみ)。
+        /// 判定は数秒で終わるので進捗値は持たない (UI は不定長表示にする)
+        case detectingLocale
         case transcribing(progress: Double)
         /// 要約の生成中 (issue #163)。文字起こし完了後に走る
         case summarizing(progress: Double)
@@ -293,8 +300,13 @@ final class TranscriptionCoordinator: ObservableObject {
         // 失敗通知で可視化される
         startScopedAccess(for: job)
         // ロケールの解決は **enqueue 時ではなく実行時** に CLI と同じ
-        // `Locale.current.identifier(.bcp47)` で行う (TranscribeCommand.swift と同じ規約)
-        let localeID = job.localeID ?? Locale.current.identifier(.bcp47)
+        // `Locale.current.identifier(.bcp47)` で行う (TranscribeCommand.swift と同じ規約)。
+        // "auto" は録音からの自動判定 (kilde#409) — 下の Task でトラックごとに解決して
+        // から文字起こしに入る。フォールバック (= 端末ロケール) になるため
+        // 自動判定の失敗が従来挙動 «端末の言語設定« より悪くならない契約
+        let localeAuto = job.localeID?.lowercased() == "auto"
+        let localeID = (job.localeID != nil && !localeAuto)
+            ? job.localeID! : Locale.current.identifier(.bcp47)
         task = Task { [weak self] in
             // この Task は MainActor を引き継ぐので、await の後もメインスレッドで動く。
             // runRecognition の戻り値を受け取るために冒頭で強参照に昇格する —
@@ -302,11 +314,29 @@ final class TranscriptionCoordinator: ObservableObject {
             // 保持で寿命が変わることはない (cancelAll の hung 観測 Task と同じ流儀)
             guard let self else { return }
             do {
+                // ロケール自動判定 (kilde#409)。トラックごとに解決する。断続失敗の自動再試行
+                // (runRecognition) は同じロケール列を使う。利用者による «再試行« (execute の
+                // やり直し) は判定からやり直す — 同一音声への判定は決定論的で、やり直しの
+                // コストは数秒のため)
+                // resolve は throw しない設計 (判定不能はフォールバックに解決される)
+                let perTrackLocales: [String?]?
+                if localeAuto {
+                    self.setPhase(.detectingLocale, for: job)
+                    perTrackLocales = await Self.resolveAutoLocales(
+                        recordingURL: job.recordingURL, fallbackID: localeID)
+                    Self.logger.info(
+                        "locale auto-detection resolved: \(perTrackLocales?.compactMap { $0 }.joined(separator: ", ") ?? "-", privacy: .public)")
+                    // 判定中のキャンセルは resolve が握るのでここで明示的に中止にする
+                    try Task.checkCancellation()
+                } else {
+                    perTrackLocales = nil
+                }
                 // モデル状態の確認から文字起こしまでを 1 か所にまとめ、断続的な失敗の
                 // 自動再試行 (runRecognition) の対象にする。**要約とサイドカー書き出しは
                 // 対象外** — 要約は FoundationModels (Apple Intelligence)、書き出しは
                 // Cocoa のファイル I/O で Speech とは別のスタック。-12203 の観測は無い
-                let segments = try await self.runRecognition(job: job, localeID: localeID)
+                let segments = try await self.runRecognition(
+                    job: job, localeID: localeID, perTrackLocales: perTrackLocales)
                 // transcribeWithSpeakers は Task.cancel() を見て CancellationError で
                 // 中止するが、キャンセル直後に正常完了して返る狭いレースも排除できない。
                 // «中止» したのにサイドカーが書かれる経路を write の直前で閉じる
@@ -360,9 +390,12 @@ final class TranscriptionCoordinator: ObservableObject {
     /// **1 回だけ** 自動でやり直す — «まれに -12203 で失敗し、再実行で成功する»
     /// (issue #221) をユーザーの手を借りずに通すため。録り逃しに準ずる経験になる
     /// «断続的に失敗した文字起こし» を、既定で 1 回の再試行で回復させる
-    private func runRecognition(job: Job, localeID: String) async throws -> [TranscriptSegment] {
+    private func runRecognition(
+        job: Job, localeID: String, perTrackLocales: [String?]?
+    ) async throws -> [TranscriptSegment] {
         do {
-            return try await recognizeOnce(job: job, localeID: localeID)
+            return try await recognizeOnce(
+                job: job, localeID: localeID, perTrackLocales: perTrackLocales)
         } catch let error where !Task.isCancelled && Self.isTransientRetryable(error) {
             // 再試行の判定を通った失敗。**再試行の事実は統合ログと計測に残す** —
             // «自動で救われた» ことは UI に失敗表示を出さない以上、観測できる場所が
@@ -380,7 +413,8 @@ final class TranscriptionCoordinator: ObservableObject {
             // 2 回目の実行は進捗 0 から始まるので表示も戻す。«進捗が巻き戻る» は
             // «自動でやり直している» の証拠としてそのまま見せる (失敗通知は出さない)
             setPhase(.transcribing(progress: 0), for: job)
-            return try await recognizeOnce(job: job, localeID: localeID)
+            return try await recognizeOnce(
+                job: job, localeID: localeID, perTrackLocales: perTrackLocales)
         }
     }
 
@@ -388,29 +422,43 @@ final class TranscriptionCoordinator: ObservableObject {
     /// どの呼び出しも状態を持ち越さない (エンジンが実行ごとに新しい
     /// SpeechTranscriber / SpeechAnalyzer を作る) ので、再試行はこの関数を
     /// もう 1 回呼ぶだけで成立する
-    private func recognizeOnce(job: Job, localeID: String) async throws -> [TranscriptSegment] {
+    private func recognizeOnce(
+        job: Job, localeID: String, perTrackLocales: [String?]?
+    ) async throws -> [TranscriptSegment] {
         // モデル状態を先に確認する — unsupportedLocale を文字起こし本体より
-        // 先に分かりやすいエラーにするため (CLI と同じ順序)
-        let status = try await Transcriber.modelAssetStatus(localeIdentifier: localeID)
-        if !status.installed {
-            // .installed 以外は取得を試みる。**.unknown も未取得扱い** —
-            // エンジンの `installed` 計算プロパティ (TranscriberSync.swift) と
-            // 同じ判断 «取得を試みる側に倒す»
-            switch status {
-            case .unsupported:
-                // installModelAsset も最終的に unsupportedLocale を投げるが、
-                // ここで先に弾くことで «ダウンロードを試みて失敗» を避ける
-                throw TranscriptionError.unsupportedLocale(localeID)
-            default:
-                try await Transcriber.installModelAsset(
-                    localeIdentifier: localeID,
-                    onProgress: { [weak self] progress in
-                        // onProgress は @Sendable (別スレッド) から呼ばれるため
-                        // MainActor へ非同期で転送する。直接触ると競合になる
-                        Task { @MainActor in
-                            self?.setPhase(.preparingModel(progress: progress), for: job)
-                        }
-                    })
+        // 先に分かりやすいエラーにするため (CLI と同じ順序)。自動判定のときは
+        // トラックごとのロケールの重複除去分を確認する (CLI の TranscriptionRun
+        // と同じ形)
+        // nil 要素は «そのトラックを localeID (フォールバック) で書き起こす» ので、
+        // 1 つでも nil があればフォールバックのモデルも確認対象に含める —
+        // 含めないとフォールバック時にモデル未取得で文字起こしが落ちる
+        var localesToCheck = (perTrackLocales ?? [localeID]).compactMap { $0 }
+        if let perTrackLocales, localesToCheck.count < perTrackLocales.count {
+            localesToCheck.append(localeID)
+        }
+        localesToCheck = Self.orderedUnique(localesToCheck)
+        for localeToCheck in localesToCheck {
+            let status = try await Transcriber.modelAssetStatus(localeIdentifier: localeToCheck)
+            if !status.installed {
+                // .installed 以外は取得を試みる。**.unknown も未取得扱い** —
+                // エンジンの `installed` 計算プロパティ (TranscriberSync.swift) と
+                // 同じ判断 «取得を試みる側に倒す»
+                switch status {
+                case .unsupported:
+                    // installModelAsset も最終的に unsupportedLocale を投げるが、
+                    // ここで先に弾くことで «ダウンロードを試みて失敗» を避ける
+                    throw TranscriptionError.unsupportedLocale(localeToCheck)
+                default:
+                    try await Transcriber.installModelAsset(
+                        localeIdentifier: localeToCheck,
+                        onProgress: { [weak self] progress in
+                            // onProgress は @Sendable (別スレッド) から呼ばれるため
+                            // MainActor へ非同期で転送する。直接触ると競合になる
+                            Task { @MainActor in
+                                self?.setPhase(.preparingModel(progress: progress), for: job)
+                            }
+                        })
+                }
             }
         }
         setPhase(.transcribing(progress: 0), for: job)
@@ -423,7 +471,19 @@ final class TranscriptionCoordinator: ObservableObject {
         try Task.checkCancellation()
         let transcriber = Transcriber(localeIdentifier: localeID)
         // speakers: nil — トラック数からエンジン側が自動判定する
-        // (1 トラック / 合成 = ラベルなし、2 トラック (separate) = 0: 相手 / 1: 自分)
+        // (1 トラック / 合成 = ラベルなし、2 トラック (separate) = 0: 相手 / 1: 自分)。
+        // 自動判定 (kilde#409) のときはトラックごとのロケール列を渡す —
+        // nil のときは従来どおり単一ロケール (localeID) で全トラック
+        if let perTrackLocales {
+            return try await transcriber.transcribeWithSpeakers(
+                fileURL: job.recordingURL,
+                localeIdentifiers: perTrackLocales,
+                onProgress: { [weak self] progress in
+                    Task { @MainActor in
+                        self?.setPhase(.transcribing(progress: progress), for: job)
+                    }
+                })
+        }
         return try await transcriber.transcribeWithSpeakers(
             fileURL: job.recordingURL,
             onProgress: { [weak self] progress in
@@ -431,6 +491,35 @@ final class TranscriptionCoordinator: ObservableObject {
                     self?.setPhase(.transcribing(progress: progress), for: job)
                 }
             })
+    }
+
+    /// ロケール自動判定 (kilde#409): 録音ファイルの音声トラックごとに
+    /// `LocaleAutoDetector.resolve` (kilde-cli-swift#131) でロケールを確定する。
+    /// 判定不能・非対応環境・ファイル異常のどれもフォールバック (端末ロケール) に
+    /// 解決される — resolve は throw しない設計。音声トラックが読めないときは
+    /// フォールバック 1 要素を返し、以降の文字起こし本体が従来どおり
+    /// noAudioTrack で失敗を表示する
+    private static func resolveAutoLocales(recordingURL: URL, fallbackID: String) async -> [String?] {
+        let asset = AVURLAsset(url: recordingURL)
+        let trackCount = (try? await asset.loadTracks(withMediaType: .audio).count) ?? 0
+        guard trackCount > 0 else { return [fallbackID] }
+        var locales: [String?] = []
+        locales.reserveCapacity(trackCount)
+        for trackIndex in 0..<trackCount {
+            let resolution = await LocaleAutoDetector.resolve(
+                fileURL: recordingURL,
+                trackIndex: trackIndex,
+                deviceLocaleIdentifier: fallbackID)
+            locales.append(resolution.localeIdentifier)
+        }
+        return locales
+    }
+
+    /// 出現順を保持したまま重複を除く (モデル確認をロケールごとに 1 回にするため。
+    /// CLI の TranscriptionRun と同じ形)
+    private static func orderedUnique(_ identifiers: [String]) -> [String] {
+        var seen = Set<String>()
+        return identifiers.filter { seen.insert($0).inserted }
     }
 
     /// 実行する録画の保存先フォルダの security-scoped bookmark データ (issue #192)。

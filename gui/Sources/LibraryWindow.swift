@@ -565,6 +565,8 @@ private struct LibraryDetailView: View {
             return progress > 0
                 ? String(localized: "言語モデルを取得中… \(Int(progress * 100))%")
                 : String(localized: "言語モデルを準備中…")
+        case .detectingLocale:
+            return String(localized: "言語を自動判定中…")
         case .transcribing(let progress):
             return String(localized: "文字起こし中… \(Int(progress * 100))%")
         case .summarizing(let progress):
@@ -586,6 +588,10 @@ private struct LibraryDetailView: View {
                 ProgressView()
                     .progressViewStyle(.linear)
             }
+        case .detectingLocale:
+            // 判定は数秒で終わるので不定長表示 (kilde#409)
+            ProgressView()
+                .progressViewStyle(.linear)
         case .transcribing(let progress):
             ProgressView(value: progress)
         case .summarizing(let progress):
