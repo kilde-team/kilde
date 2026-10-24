@@ -531,8 +531,8 @@ KILDE_GUI_SELFTEST_LIBRARY_IMPORT=1 "$APP/Contents/MacOS/KildeGUI"
 あえて `temporaryDirectory` (`/var/folders/…`) で検証するのは、このパスが
 symlink 祖先を持つため «取り込みの戻り値 == 一覧の走査 (contentsOfDirectory) の
 URL» が表記の揺れ (`/var/…` と `/private/var/…`) で一致しなくなる環境だからです —
-取り込みと一覧の両方が `LibraryImport.canonicalFileURL` で URL を正規化している
-ことを実証します (揃っていないと取り込み直後の選択・処理中表示が一覧と噛み合わ
+取り込みが **走査結果の表記をそのまま使う** (`performImport` の listedDirectory —
+コピー先を一覧と同じ表記で組む) 設計であることを実証します (揃っていないと取り込み直後の選択・処理中表示が一覧と噛み合わ
 なくなります)。**NSOpenPanel とドロップの UI 経路は実機で確認します**
 (セルフテストは UI を出せないため): ライブラリで «ファイルを取り込む…» から
 適当な音声ファイルを選び、**コピー → «文字起こし中» → サイドカー出力 → 一覧・

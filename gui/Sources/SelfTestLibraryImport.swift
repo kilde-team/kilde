@@ -30,10 +30,11 @@ enum SelfTestLibraryImport {
         // 一時ディレクトリ (`/var/folders/…`) は **symlink 祖先を持つ** —
         // ライブラリの走査 (FileManager.contentsOfDirectory) は `/private/var/…` の
         // 実パス表記を返すのに対し、URL の組み立ては与えた表記を保つ。あえてこの
-        // 環境で検証するのは、取り込みと一覧の URL 正規化
-        // (LibraryImport.canonicalFileURL) が両側で揃っていることを実証するため —
-        // «取り込みの戻り値 == 一覧の entry.id» が symlink 環境でも一致しなければ
-        // ならない (揃っていないと取り込み直後の選択・処理中表示が一覧と噛み合わない)
+        // 環境で検証するのは、取り込みが **走査結果の表記をそのまま使う**
+        // (performImport の listedDirectory) 設計で «取り込みの戻り値 == 一覧の
+        // entry.id» が symlink 環境でも一致することを実証するため — URL を
+        // symlink 解決で書き換えるやり方は security-scoped bookmark の表記と
+        // 食うため採っていない (LibraryImport.isSameFile のコメント)
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("kilde-selftest-library-import-\(UUID().uuidString)")
         let destination = root.appendingPathComponent("保存先")
@@ -78,7 +79,8 @@ enum SelfTestLibraryImport {
     private static func checkSanitization() {
         check(LibraryImport.sanitizedStem("  会議メモ ") == "会議メモ", "前後の空白を落とす")
         check(LibraryImport.sanitizedStem(". hidden") == "hidden", "前後のドットを落とす")
-        check(LibraryImport.sanitizedStem("----") != "", "使えない題名は既定に置き換える")
+        check(LibraryImport.sanitizedStem("----") == String(localized: "ファイル"),
+              "使えない題名は既定 («ファイル») に置き換える")
         let long = String(repeating: "あ", count: 100)
         check(LibraryImport.sanitizedStem(long).count == 60, "60 文字に切り詰める")
         // 1 文字が 4 バイトになる絵文字 — 文字数上限だけでは 255 バイトのファイル名上限を
@@ -127,11 +129,14 @@ enum SelfTestLibraryImport {
         check(reimported != nil && reimported != imported,
               "内容が変わったファイルは別ファイルとして取り込む (実際 \(reimported?.lastPathComponent ?? "nil"))")
 
-        // 4. 保存先直下の kilde- ファイルはコピーしない (録画を再び文字起こす経路)
+        // 4. 保存先直下の kilde- ファイルはコピーしない (録画を再び文字起こす経路)。
+        //    戻り値は走査表記 (この環境では /private/var/…) なので、同一性は
+        //    isSameFile で確かめる (表記の違いで == は成立しない)
         let recording = destination.appendingPathComponent("kilde-20270101-000000.mov")
         FileManager.default.createFile(atPath: recording.path, contents: Data([1]))
         let inPlace = try? LibraryImport.performImport(of: recording, into: destination)
-        check(inPlace == recording, "保存先内の kilde- ファイルはコピーしない")
+        check(inPlace.map({ LibraryImport.isSameFile($0, recording) }) == true,
+              "保存先内の kilde- ファイルはコピーしない")
 
         // 5. 同名の別ファイルが既にあるときの退避 (-2)
         let collision = source.appendingPathComponent("衝突.m4a")
@@ -153,10 +158,16 @@ enum SelfTestLibraryImport {
         check(numberedFirst != nil && numberedAgain == numberedFirst,
               "数字で終わる名前の再取り込みも重複排除できる (実際 \(numberedAgain?.lastPathComponent ?? "nil"))")
 
-        // 7. 一覧の判定と取り込み対象の集合は同じ (片方だけ増えると «取り込んだのに
-        // 一覧に出ない» になる — 受け入れ条件の機械検証)
-        check(LibraryStore.recordingExtensions == LibraryImport.importableExtensions,
-              "一覧と取り込みの拡張子集合が一致する")
+        // 7. 一覧の判定と取り込み対象の集合は、必要な形式を過不足なく含むか
+        //    (同一の定数を比較するだけでは内容の回帰を見逃すため、期待する内容を
+        //    明示する — cubic 指摘)
+        let expected: Set<String> = [
+            "mov", "mp4", "m4a",  // エンジンが録る形式
+            "m4v", "mp3", "wav", "aif", "aiff", "caf", "aac",  // 取り込みで増えた形式
+        ]
+        check(LibraryStore.recordingExtensions == expected
+                  && LibraryImport.importableExtensions == expected,
+              "一覧と取り込みの拡張子集合が期待どおり (実際 \(LibraryStore.recordingExtensions.sorted()))")
 
         // 8. コピーの一時ファイルが残っていない (コピーは一時名 → rename なので、
         //    成功時は断片が保存先に残らない)。一時名はドット始まりで hidden 扱いに

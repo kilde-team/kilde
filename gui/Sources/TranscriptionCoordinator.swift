@@ -44,8 +44,10 @@ final class TranscriptionCoordinator: ObservableObject {
         let recordingDuration: TimeInterval?
         /// 保存先フォルダ (recordingURL の親ディレクトリ) の security-scoped
         /// bookmark データ。**通常は enqueue() が設定する** — 呼び出し側は渡さない。
-        /// 唯一の例外は録画完了通知の «文字起こし» (issue #392) で、録画完了時点の
-        /// bookmark を通知が運び、呼び出し側が先に設定する。
+        /// 先に設定する例外は 2 つ: 録画完了通知の «文字起こし» (issue #392 — 録画
+        /// 完了時点の bookmark を通知が運ぶ) と、ライブラリのファイル取り込み
+        /// (issue #416 — コピーの完了時点では旧保存先の sandbox extension が
+        /// 解放されていることがあるため、取り込み開始時に先取りする)。
         /// nil は «非サンドボックスビルド» «既定の ~/Movies (movies entitlement で
         /// 担保)» «bookmark 作成に失敗し、録画開始時の先取りも無かった» のどれかで、
         /// その場合は実行時にフォルダへ従来どおり直接アクセスする (issue #192、

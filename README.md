@@ -37,7 +37,8 @@ The project is split across two repositories (issue #115):
 - 📝 Transcribe recordings to markdown/SRT/VTT/text/JSON sidecar files,
   entirely on device (macOS 26+)
 - 📥 Import supported audio/video files into the library (button or drag &
-  drop) and transcribe them on device (GUI, macOS 26+)
+  drop) and transcribe them on device (GUI, macOS 26+, speech data for the
+  language required)
 
 ## Installation
 
@@ -357,8 +358,10 @@ does not stop the recording. Initial values are read from the same
 The library window can also **import existing audio/video files** with a
 button or drag & drop: the file is copied into the output folder as
 `kilde-<date>-<original name>` and transcribed on device — recordings made
-before kilde, or with other tools, become searchable transcripts. Supported
-formats: MOV, MP4, M4V, M4A, MP3, WAV, AIFF, CAF and AAC. A file whose name
+before kilde, or with other tools, become searchable transcripts (transcription
+requires the language's speech data — silent or unsupported-language files
+fail with the usual transcription error). Supported formats: MOV, MP4, M4V,
+M4A, MP3, WAV, AIF/AIFF, CAF and AAC. A file whose name
 and byte size match an existing import counts as already imported, so
 re-importing the same file does not create a duplicate copy.
 

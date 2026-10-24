@@ -39,7 +39,8 @@ El proyecto está dividido en dos repositorios (issue #115):
 - 📝 Transcribe grabaciones a archivos sidecar en markdown/SRT/VTT/texto/JSON,
   íntegramente en el dispositivo (macOS 26+)
 - 📥 Importa archivos de audio/vídeo compatibles a la biblioteca (botón o
-  arrastrar y soltar) y transcríbelos en el dispositivo (GUI, macOS 26+)
+  arrastrar y soltar) y transcríbelos en el dispositivo (GUI, macOS 26+, se
+  necesitan los datos de voz del idioma)
 
 ## Instalación
 
@@ -369,8 +370,9 @@ La ventana de biblioteca también puede **importar archivos de audio/vídeo
 existentes** con un botón o arrastrando y soltando: el archivo se copia a la
 carpeta de destino como `kilde-<fecha>-<nombre original>` y se transcribe en el
 dispositivo — las grabaciones anteriores a kilde, o hechas con otras
-herramientas, se convierten en transcripciones buscables. Formatos compatibles:
-MOV, MP4, M4V, M4A, MP3, WAV, AIFF, CAF y AAC. Un archivo cuyo nombre y tamaño
+herramientas, pasan a ser buscables (la transcripción necesita los datos de voz
+del idioma; los archivos sin voz o en un idioma no compatible fallan como
+siempre). Formatos compatibles: MOV, MP4, M4V, M4A, MP3, WAV, AIF/AIFF, CAF y AAC. Un archivo cuyo nombre y tamaño
 en bytes coinciden con una importación existente se considera ya importado, así
 que reimportar el mismo archivo no crea una copia duplicada.
 

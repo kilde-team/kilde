@@ -189,15 +189,20 @@ struct LibraryView: View {
                 .padding(.vertical, 6)
         }
         .frame(minWidth: 680, minHeight: 440)
-        // 既存の音声・動画ファイルのドロップ (issue #416)。許容する型は NSOpenPanel の
-        // allowedContentTypes と同じ (audio / movie) — 対応外の拡張子は importFiles が
-        // ステータス行に案内する
-        .onDrop(of: [UTType.audio, UTType.movie], isTargeted: nil) { providers in
-            // 設定の固定はドロップの受け付け時点 (startImport と同じ規約)
+        // 既存の音声・動画ファイルのドロップ (issue #416)。許容する型に
+        // UTType.fileURL を含める — Finder などは concrete な型 (public.mpeg-4-audio 等)
+        // を登録せず public.file-url だけを提供することがあり、audio / movie だけを
+        // 受け付けると onDrop 自体が呼ばれないため (cubic 指摘)。対応外の拡張子は
+        // importFiles がステータス行に案内する
+        .onDrop(of: [UTType.fileURL, UTType.audio, UTType.movie], isTargeted: nil) { providers in
+            // 設定と保存先の bookmark の固定はドロップの受け付け時点 (startImport と同じ規約)
             let snapshot = settings()
+            let bookmark = store.directory.flatMap {
+                TranscriptionCoordinator.directoryBookmarkData(forDirectory: $0)
+            }
             return importer.handleDrop(
                 providers, into: store.directory,
-                onImported: { enqueueImported($0, snapshot: snapshot) },
+                onImported: { enqueueImported($0, snapshot: snapshot, directoryBookmark: bookmark) },
                 onComplete: { finishImport() })
         }
         .onChange(of: query) { _, _ in recomputeResults() }
@@ -291,14 +296,17 @@ struct LibraryView: View {
 
     private func startImport(_ urls: [URL]) {
         guard let directory = store.directory else { return }
-        // 文字起こしの設定 (言語・形式) は **取り込みの開始時点** で固定する —
-        // GB 級ファイルのコピー中に設定パネルで変えても、取り込んだ分は
-        // «取り込んだときの設定» で処理される (cubic 指摘。「録画したときの設定»
-        // のスナップショットと同じ考え方)
+        // 文字起こしの設定 (言語・形式) と保存先フォルダの security-scoped bookmark は
+        // **取り込みの開始時点** で固定する — GB 級ファイルのコピー中に設定パネルや
+        // 保存先を変えても、取り込んだ分は «取り込んだときの設定・フォルダ» で処理される
+        // (cubic 指摘。「録画したときの設定» のスナップショットと同じ考え方。
+        // bookmark は録画完了通知の «文字起こし» アクション (#392) と同じ先取り —
+        // コピー完了時点では旧保存先の sandbox extension が解放されていることがある)
         let snapshot = settings()
+        let bookmark = TranscriptionCoordinator.directoryBookmarkData(forDirectory: directory)
         importer.importFiles(
             urls, into: directory,
-            onImported: { enqueueImported($0, snapshot: snapshot) },
+            onImported: { enqueueImported($0, snapshot: snapshot, directoryBookmark: bookmark) },
             onComplete: { finishImport() })
     }
 
@@ -306,14 +314,22 @@ struct LibraryView: View {
     /// 取り込みの開始時点の設定 (startImport のスナップショット — ライブラリの
     /// «文字起こしを作成» (#321) と同じ «押された時点» の契約)、要約は付けない —
     /// 要約が欲しいときは取り込み後に «議事録を作成» を使う (完了通知の
-    /// «文字起こし» アクション (#392) と同じ扱い)
-    private func enqueueImported(_ url: URL, snapshot: LibraryTranscriptionSettings) {
-        transcription.enqueue(TranscriptionCoordinator.Job(
-            recordingURL: url,
-            format: snapshot.format,
-            summaryTemplate: nil,
-            localeID: snapshot.localeID,
-            recordingDuration: nil))
+    /// «文字起こし» アクション (#392) と同じ扱い。Apple Intelligence が使える
+    /// 環境が必要 — 設定パネルと同じ条件)。
+    /// **このファイルに既にサイドカーがある場合は投入しない** — TranscriptWriter は
+    /// 上書きしないため、再取り込みで `-2` の重複サイドカーができる
+    /// (完了通知のアクションと同じ判定。既存のサイドカーは一覧の再走査で詳細に並ぶ)
+    private func enqueueImported(
+        _ url: URL, snapshot: LibraryTranscriptionSettings, directoryBookmark: Data?) {
+        if TranscriptionCoordinator.existingSidecar(for: url, directoryBookmark: directoryBookmark) == nil {
+            transcription.enqueue(TranscriptionCoordinator.Job(
+                recordingURL: url,
+                format: snapshot.format,
+                summaryTemplate: nil,
+                localeID: snapshot.localeID,
+                recordingDuration: nil,
+                directoryBookmark: directoryBookmark))
+        }
         // 取り込んだファイルを一覧で選んだ状態にする (reload で並んだ直後に詳細が出る)
         selectedEntryID = url
     }

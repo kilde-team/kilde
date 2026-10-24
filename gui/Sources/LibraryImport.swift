@@ -22,15 +22,16 @@ enum LibraryImport {
         importableExtensions.contains(url.pathExtension.lowercased())
     }
 
-    /// ライブラリまわりで URL を載せ替えるときの正規形 (symlink 解決 + 標準化)。
-    /// **取り込みの戻り値と一覧 (LibraryStore.scan) の entry.id を同じ形に揈える**
-    /// ために両方が使う — 揃えないと、保存先のパスに symlink が含まれる環境
-    /// (`/var/folders/…` と `/private/var/folders/…` のような表記の揺れ) で
-    /// «コピーは成功したのに一覧の選択・処理中表示が一致しない» になる。
-    /// URL.resolvingSymlinksInPath は /private を縮める方向にも働く
-    /// (システムディレクトリの特殊扱い) ため、両側を通すことで初めて一致する
-    static func canonicalFileURL(_ url: URL) -> URL {
-        url.resolvingSymlinksInPath().standardizedFileURL
+    /// 2 つの URL が同じファイル/ディレクトリか。**比較のためだけ** の純粋関数で、
+    /// I/O に使う URL は書き換えない — security-scoped bookmark が保持している表記を
+    /// 解決済みパスに置き換えると、サンドボックス下でアクセス権を失う経路がある
+    /// ため (cubic 指摘。URL.resolvingSymlinksInPath は `/private/var` を `/var` に
+    /// 縮める方向にも働く — システムディレクトリの特殊扱い)。
+    /// 取り込みと一覧の表記を揃えるのは «書き換え» ではなく、走査結果の表記を
+    /// そのまま使う (performImport の listedDirectory) ことで行う
+    static func isSameFile(_ lhs: URL, _ rhs: URL) -> Bool {
+        lhs.resolvingSymlinksInPath().standardizedFileURL.path
+            == rhs.resolvingSymlinksInPath().standardizedFileURL.path
     }
 
     /// ファイル名の接尾辞 (題名) として安全な形に整える。エンジンの
@@ -79,11 +80,10 @@ enum LibraryImport {
     /// 同じ体裁に乗せる — これにより録ったファイルと同じ規則で
     /// ライブラリの日時解析 (LibraryStore.recordedAt) と議事録見出しの題名復元
     /// (TranscriptionCoordinator.meetingTitle) がそのまま働く。
-    /// ディレクトリは canonicalFileURL で正規化する — 一覧の走査
-    /// (FileManager.contentsOfDirectory) は symlink 祖先を解決した実パス表記を
-    /// 返すため、戻り値 (取り込み直後の選択・処理中表示の id) と揃えるのに必要
+    /// ディレクトリは **与えられた表記をそのまま** 使う (symlink の解決はしない —
+    /// isSameFile のコメント参照)。一覧と表記を揃えるには、呼び出し側が走査結果
+    /// 由来のディレクトリ表記 (performImport の listedDirectory) を渡す
     static func destinationURL(for source: URL, in directory: URL, at date: Date) -> URL {
-        let directory = canonicalFileURL(directory)
         let formatter = DateFormatter()
         // 既定名のタイムスタンプはローカライズされない数値列 (CLI の defaultOutputName
         // と同じ) なので、環境の言語・時差に依存させない
@@ -94,10 +94,10 @@ enum LibraryImport {
         return directory.appendingPathComponent(name)
     }
 
-    /// 取り込み 1 件の本体。戻り値は «文字起こしの対象にする URL» (canonicalFileURL
-    /// の正規形) — 新しくコピーした先、既に取り込んであったファイル、または元の
-    /// ファイル (保存先内のとき)。throws はコピーの失敗 (読み取り不能・書き込み先の
-    /// 障害など)
+    /// 取り込み 1 件の本体。戻り値は «文字起こしの対象にする URL» (保存先の走査と
+    /// 同じ表記 — 一覧の entry.id と一致する) — 新しくコピーした先、既に取り込んで
+    /// あったファイル、または元のファイル (保存先内のとき)。throws はコピーの失敗
+    /// (読み取り不能・書き込み先の障害など)
     ///
     /// 判定の順序:
     /// 1. **元のファイルが保存先直下の kilde- ファイル** ならコピーしない — 既に
@@ -112,22 +112,23 @@ enum LibraryImport {
     ///    同じボリューム内なので置き換えは起こらない。同名の別ファイルがあるときは
     ///    `-2`, `-3`… と退避する (TranscriptWriter のサイドカーと同じ規則)
     static func performImport(of source: URL, into directory: URL, at date: Date = Date()) throws -> URL {
-        // path 文字列で比べるのは TranscriptionCoordinator.directoryBookmarkData と同じ —
-        // symlink 解決 (サンドボックスのコンテナ内 Movies が実 ~/Movies への symlink に
-        // なりうる) を先にしてから標準化する
-        let sourceDirectory = source.deletingLastPathComponent()
-            .resolvingSymlinksInPath().standardizedFileURL.path
-        let destinationDirectory = directory
-            .resolvingSymlinksInPath().standardizedFileURL.path
-        if sourceDirectory == destinationDirectory,
+        // 保存先の走査を 1 回だけ行い、以降の判定とコピー先の組立てに使う。
+        // **走査で返ってきた URL の表記をそのまま「正」とする** (listedDirectory) —
+        // FileManager.contentsOfDirectory は symlink 祖先を解決した実パス表記
+        // (`/private/var/…`) を返すため、この表記で組んだコピー先はライブラリの
+        // 走査 (LibraryStore.scan) が返す entry.id と自然に一致する。一方、与えられた
+        // directory の表記を symlink 解決で書き換えると security-scoped bookmark の
+        // 表記と食うため行わない (cubic 指摘)
+        let listing = Self.listRegularFiles(in: directory)
+        if Self.isSameFile(source.deletingLastPathComponent(), directory),
            source.lastPathComponent.hasPrefix("kilde-") {
-            // 戻り値も一覧の id と揃える (canonicalFileURL と同じ正規形)
-            return Self.canonicalFileURL(source)
+            // 保存先内の kilde- ファイルはコピーしない。戻り値も一覧の表記に揃える
+            // (対象ファイル自身が走査にあるので、その親の表記が «一覧の表記«)
+            let listedDirectory = listing.first?.deletingLastPathComponent() ?? directory
+            return listedDirectory.appendingPathComponent(source.lastPathComponent)
         }
-        if let existing = existingImport(of: source, in: directory) { return existing }
+        if let existing = existingImport(of: source, among: listing) { return existing }
 
-        let directory = canonicalFileURL(directory)
-        let preferred = destinationURL(for: source, in: directory, at: date)
         // 一時名はドット始まりで非表示にする (ライブラリ・最近の録画の走査は
         // skipsHiddenFiles なので、書き込み中の断片が一覧に露出しない)
         let temporary = directory.appendingPathComponent(
@@ -139,6 +140,12 @@ enum LibraryImport {
             try? FileManager.default.removeItem(at: temporary)
             throw error
         }
+        // コピー先の名前は **一時ファイル自身の走査表記** の下に組む —
+        // 保存先が空でも (走査結果が 0 件でも) «一覧が返す表記« が分かる。
+        // 与えられた directory の表記を symlink 解決で書き換えるやり方は
+        // security-scoped bookmark の表記と食うため採らない (上のコメント)
+        let listedDirectory = Self.listedParentDirectory(of: temporary) ?? directory
+        let preferred = destinationURL(for: source, in: listedDirectory, at: date)
         // rename の宛先が競ったら (この隙間に同名ファイルができたら) 次の退避番号へ。
         // 競合以外の失敗 (権限・ボリューム障害) で退避を試みても成功しないので、
         // その場合は断片を掃って元のエラーを投げる
@@ -190,16 +197,12 @@ enum LibraryImport {
     /// (取り込み済みかどうかは厳密には保証されない — 同じ題名・同じ容量の別ファイル
     /// は既存の取り込みと見なされる。UI の文言はこの条件を明示して述べる)。
     /// 題名が同じでも内容が変わった (サイズが違う) ファイルは別ファイルとして
-    /// 再取り込みする。
-    /// 戻り値は canonicalFileURL の正規形 (performImport の戻り値として使うため)
-    static func existingImport(of source: URL, in directory: URL) -> URL? {
+    /// 再取り込みする。候補は performImport が取った保存先の走査結果をそのまま
+    /// 受け取り、戻り値もその表記のまま (一覧の entry.id と一致させるため)
+    static func existingImport(of source: URL, among candidates: [URL]) -> URL? {
         let stem = sanitizedStem(source.deletingPathExtension().lastPathComponent)
         let ext = source.pathExtension.lowercased()
         guard let size = fileSize(of: source) else { return nil }
-        let candidates = ((try? FileManager.default.contentsOfDirectory(
-            at: directory, includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants])) ?? [])
-            .filter { (try? $0.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true }
         let matches = candidates
             .compactMap { url -> (url: URL, suffix: (raw: String, stripped: String))? in
                 guard url.pathExtension.lowercased() == ext,
@@ -226,7 +229,26 @@ enum LibraryImport {
                         .contentModificationDate ?? .distantPast)
             }
             .first
-            .map { canonicalFileURL($0.url) }
+            .map { $0.url }
+    }
+
+    /// ディレクトリ直下の通常ファイル列 (ドット始まりの隠しファイルを除く)。
+    /// performImport の判定とコピー先の表記揃えに使う
+    private static func listRegularFiles(in directory: URL) -> [URL] {
+        ((try? FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants])) ?? [])
+            .filter { (try? $0.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true }
+    }
+
+    /// ファイルの親ディレクトリの «走査表記« (contentsOfDirectory が返す表記 —
+    /// symlink 祖先を解決した実パス)。隠しファイルも含めて走査するので、
+    /// performImport が作った一時ファイルから «保存先が空のときでも« 表記を得られる
+    private static func listedParentDirectory(of file: URL) -> URL? {
+        let parent = file.deletingLastPathComponent()
+        let entries = (try? FileManager.default.contentsOfDirectory(
+            at: parent, includingPropertiesForKeys: nil)) ?? []
+        return entries.first?.deletingLastPathComponent()
     }
 
     /// 取り込みが作ったファイル名 `kilde-<時刻>-<題名>[-<退避番号>]` から題名部分を
@@ -302,12 +324,18 @@ final class LibraryImportCoordinator: ObservableObject {
             }
             return
         }
-        guard !isImporting else { return }
+        guard !isImporting else {
+            // コピー中の追加のドロップ/選択は投入しない (キューを作るとコピーの完了
+            // 表示が分かれにくくなるため)。黙って捨てないで案内する (cubic 指摘) —
+            // ボタンは無効化しているが、ドロップは UI を介さず届く
+            lastNotice = String(localized: "取り込み中です — 終わってからもう一度行ってください")
+            return
+        }
         isImporting = true
         importedDirectory = directory
-        if !skipped.isEmpty {
-            lastNotice = String(localized: "対応していない形式は除きました: \(skipped.map(\.lastPathComponent).joined(separator: ", "))")
-        }
+        // 前回の失敗案内を残したままにしない (cubic 指摘)。対応外の案内は上で上書き
+        lastNotice = skipped.isEmpty ? nil : String(
+            localized: "対応していない形式は除きました: \(skipped.map(\.lastPathComponent).joined(separator: ", "))")
         let work = Task.detached { () -> ([URL], [String]) in
             var imported: [URL] = []
             var failed: [String] = []

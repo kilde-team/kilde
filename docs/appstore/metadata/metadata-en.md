@@ -354,5 +354,5 @@ No new permissions; recording and transcription remain free (no purchases
 except the 0.18.0 tips).
 
 ```text
-The library can now import existing audio/video files (MOV, MP4, M4V, M4A, MP3, WAV, AIFF, CAF, AAC). Pick a file or drop it onto the library window — recordings made before kilde or with other tools are copied into the output folder and transcribed on device (the original file stays untouched; a file whose name and size match an existing import is not copied again). Imported recordings become searchable in the library (transcription requires macOS 26 or later plus the language's speech data). Also fixed: the menu bar panel could keep the compact height used during recording after the recording ended.
+The library can now import existing audio/video files (MOV, MP4, M4V, M4A, MP3, WAV, AIF/AIFF, CAF, AAC). Pick a file or drop it onto the library window — recordings made before kilde or with other tools are copied into the output folder and transcribed on device (the original file stays untouched; a file whose name and size match an existing import is not copied again). Imported recordings become searchable in the library. Importing and transcription require macOS 26 or later plus the language's speech data. Also fixed: the menu bar panel could keep the compact height used during recording after the recording ended.
 ```

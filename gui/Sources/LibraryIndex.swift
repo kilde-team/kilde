@@ -352,9 +352,10 @@ final class LibraryStore: ObservableObject {
     // (エンジンが録る形式 + 取り込み対象)。«最近の録画« (RecordingSetup) もこの集合を見る
     nonisolated static let recordingExtensions: Set<String> = LibraryImport.importableExtensions
 
-    /// 録画フォルダを走査して LibraryEntry 列を作る (新しい順)。
-    /// 録画の判定 (kilde- 接頭辞 + mov/mp4/m4a) とサイドカーの対応付けは
-    /// RecordingSetup.reloadRecentRecordings / transcriptSidecar と同じ規則に寄せる —
+    /// 保存先フォルダを走査して LibraryEntry 列を作る (新しい順)。
+    /// 一覧の対象は «kilde- 接頭辞 + LibraryImport.importableExtensions の拡張子»
+    /// (エンジンが録る mov/mp4/m4a に、取り込み (issue #416) の音声形式を足した
+    /// 集合)。サイドカーの対応付けは RecordingSetup.transcriptSidecar と同じ規則 —
     /// «最近の録画» に出るものは必ずライブラリにも出る
     nonisolated static func scan(directory: URL) -> [LibraryEntry] {
         let fileManager = FileManager.default
@@ -380,16 +381,14 @@ final class LibraryStore: ObservableObject {
             let segments = transcript.flatMap { LibraryTranscriptParser.parse($0) }
             let modified = (try? recording.resourceValues(forKeys: [.contentModificationDateKey]))?
                 .contentModificationDate ?? .distantPast
-            // URL は LibraryImport.canonicalFileURL の正規形で載せる (issue #416) —
-            // 取り込みの戻り値 (取り込み直後の選択・処理中表示) と同じ形に揃えないと、
-            // 保存先のパスに symlink が含まれる環境で «コピーは成功したのに一覧と
-            // 一致しない» になる (contentsOfDirectory は symlink 祖先を解決した表記を
-            // 返すのに対し、URL の組み立ては与えた表記を保つため)
-            let canonicalRecording = LibraryImport.canonicalFileURL(recording)
-            let canonicalTranscript = transcript.map { LibraryImport.canonicalFileURL($0) }
+            // URL は走査結果 (contentsOfDirectory) の表記をそのまま載せる (issue #416)。
+            // 取り込み (LibraryImport.performImport) もコピー先をこの表記で組むため、
+            // 取り込み直後の選択・処理中表示が entry.id と一致する。**symlink 解決で
+            // 表記を書き換えない** — security-scoped bookmark の表記と食うため
+            // (LibraryImport.isSameFile のコメント)
             results.append(LibraryEntry(
-                id: canonicalRecording, recordingURL: canonicalRecording,
-                transcriptURL: canonicalTranscript,
+                id: recording, recordingURL: recording,
+                transcriptURL: transcript,
                 recordedAt: recordedAt(of: recording, fallback: modified),
                 segments: segments))
         }
