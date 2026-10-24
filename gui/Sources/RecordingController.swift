@@ -69,7 +69,12 @@ final class RecordingController: ObservableObject {
     /// 「準備中…」のまま固まり、停止直後の再開が二重起動ガードに掛かり、
     /// ホットキーが「停止」側へ分岐する。終了を待たせたいのは
     /// `applicationShouldTerminate` だけなので、そこで個別に見る
-    var isActive: Bool {
+    var isActive: Bool { Self.isActive(phase) }
+
+    /// `isActive` の判定の正本。**引数の phase** から計算する — @Published の
+    /// willSet sink (AppDelegate) ではプロパティ `isActive` がまだ前の値を見るため、
+    /// 流れてきた値から判定したい呼び出し側のために公開している
+    static func isActive(_ phase: Phase) -> Bool {
         switch phase {
         case .starting, .recording, .paused, .finalizing: return true
         case .idle, .finished, .failed: return false
