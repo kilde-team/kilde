@@ -1,0 +1,46 @@
+README.es.md
+  h_864205080385bc 42-43,373-375
+README.ja.md
+  h_864205080385bc 36,216-218
+README.ko.md
+  h_864205080385bc 36,336-338
+README.md
+  h_864205080385bc 40-41,361-364
+README.zh-CN.md
+  h_864205080385bc 35,318-320
+docs/DEVELOPMENT.md
+  h_864205080385bc 534-535
+docs/appstore/metadata/metadata-en.md
+  h_864205080385bc 357
+docs/appstore/metadata/metadata-es.md
+  h_864205080385bc 368
+docs/appstore/metadata/metadata-ja.md
+  h_864205080385bc 361
+docs/appstore/metadata/metadata-ko.md
+  h_864205080385bc 315
+docs/appstore/metadata/metadata-zh-Hans.md
+  h_864205080385bc 289
+docs/release-notes/v0.22.0.md
+  h_864205080385bc 7-9
+gui/Sources/LibraryImport.swift
+  h_864205080385bc 25-34,83-85,97-100,115-123,125-128,130,143-148,200-202,232-251,327-333,336-338
+gui/Sources/LibraryIndex.swift
+  h_864205080385bc 355-358,384-388,390-391
+gui/Sources/LibraryWindow.swift
+  h_864205080385bc 192-198,200-202,205,299-304,306,309,317-332
+gui/Sources/SelfTestLibraryImport.swift
+  h_864205080385bc 33-37,82-83,132-134,138-139,161-170
+gui/Sources/TranscriptionCoordinator.swift
+  h_864205080385bc 47-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "dfcbbe58456d25389ebebe620cdae623bf755fc8",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
