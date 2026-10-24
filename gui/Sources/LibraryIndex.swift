@@ -347,8 +347,10 @@ final class LibraryStore: ObservableObject {
     }
 
     // nonisolated: LibraryStore は @MainActor だが、走査 (scan) は非分離で動くため。
-    // Set<String> は Sendable なので定数の共有は安全
-    nonisolated static let recordingExtensions: Set<String> = ["mov", "mp4", "m4a"]
+    // Set<String> は Sendable なので定数の共有は安全。
+    // 取り込み (issue #416) で増えた音声形式を含む — 正本は LibraryImport.importableExtensions
+    // (エンジンが録る形式 + 取り込み対象)。«最近の録画« (RecordingSetup) もこの集合を見る
+    nonisolated static let recordingExtensions: Set<String> = LibraryImport.importableExtensions
 
     /// 録画フォルダを走査して LibraryEntry 列を作る (新しい順)。
     /// 録画の判定 (kilde- 接頭辞 + mov/mp4/m4a) とサイドカーの対応付けは

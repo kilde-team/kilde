@@ -67,6 +67,14 @@ enum SelfTest {
             SelfTestLibraryExport.run()
             return
         }
+        // KILDE_GUI_SELFTEST_LIBRARY_IMPORT=1: ライブラリの «既存ファイルの取り込み»
+        // (issue #416) の検証。一時ディレクトリで «コピー → 同一ファイルの再取り込み →
+        // 一覧反映» を確かめる。ファイル選択パネル・ドロップは出さない — UI を伴う
+        // 経路は手動確認。実録画を伴わないため録画のスロットを占有しない
+        if env["KILDE_GUI_SELFTEST_LIBRARY_IMPORT"] == "1" {
+            SelfTestLibraryImport.run()
+            return
+        }
         // KILDE_GUI_SELFTEST_TRANSCRIBE: 文字起こし経路の検証。値で 2 つの経路を分ける。
         // 値 1 は録画なし版 (issue #146) — 入力音声を KILDE_GUI_SELFTEST_TRANSCRIBE_INPUT で
         // 渡し、実録画を伴わないため録画のスロット (権限・スピーカー) を占有しない。

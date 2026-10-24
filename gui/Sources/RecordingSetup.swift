@@ -1007,12 +1007,16 @@ final class RecordingSetup: ObservableObject {
     ///
     /// セッションの履歴を別に持たずファイル名で拾うのは、**CLI で録ったファイルも
     /// 同じ一覧に出る**ため。kilde の既定名 (`defaultOutputName`) は
-    /// `kilde-yyyyMMdd-HHmmss.{mov,mp4,m4a}` なので、この接頭辞と拡張子で絞る。
+    /// `kilde-yyyyMMdd-HHmmss.{mov,mp4,m4a}` なので、この接頭辞と拡張子で絞る
+    /// (取り込み (issue #416) が作る `kilde-<時刻>-<題名>.<音声拡張子>` も
+    /// 同じ接頭辞・拡張子の集合に乗る)。
     /// `-o` で別名を付けた録画は拾えないが、一覧は補助表示なので取りこぼしを許容する
     /// (取り違えて無関係なファイルを出すより良い)
     func reloadRecentRecordings() {
         let directory = request.outputDirectory
-        let extensions: Set<String> = ["mov", "mp4", "m4a"]
+        // ライブラリ (LibraryStore.recordingExtensions) と同じ集合 — 取り込み (issue #416)
+        // で入った音声ファイルも «最近の録画« に並ぶ。正本は LibraryImport.importableExtensions
+        let extensions: Set<String> = LibraryStore.recordingExtensions
         // サイドカーの拡張子は TranscriptOutputFormat が持つ値を使う —
         // 形式が増えたときにここが古いままだと、その形式のサイドカーだけ
         // «文字起こしなし» と表示される。ショートカットの文字起こし探索

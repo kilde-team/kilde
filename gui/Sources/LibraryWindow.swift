@@ -3,6 +3,7 @@ import SwiftUI
 import AVKit
 import Combine
 import KildeCore
+import UniformTypeIdentifiers
 
 /// ライブラリウィンドウが閉じたことを再生に知らせる。
 /// ウィンドウを閉じても LibraryView と player は生き続ける (isReleasedWhenClosed=false) ため、
@@ -163,6 +164,8 @@ struct LibraryView: View {
     @State private var hitCounts: [URL: Int] = [:]
     @State private var selectedEntryID: URL?
     @StateObject private var playback = LibraryPlayerController()
+    /// 既存ファイルの取り込み (issue #416)。コピーの進捗と案内の表示元
+    @StateObject private var importer = LibraryImportCoordinator()
 
     private var searching: Bool {
         !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -186,6 +189,15 @@ struct LibraryView: View {
                 .padding(.vertical, 6)
         }
         .frame(minWidth: 680, minHeight: 440)
+        // 既存の音声・動画ファイルのドロップ (issue #416)。許容する型は NSOpenPanel の
+        // allowedContentTypes と同じ (audio / movie) — 対応外の拡張子は importFiles が
+        // ステータス行に案内する
+        .onDrop(of: [UTType.audio, UTType.movie], isTargeted: nil) { providers in
+            importer.handleDrop(
+                providers, into: store.directory,
+                onImported: { enqueueImported($0) },
+                onComplete: { finishImport() })
+        }
         .onChange(of: query) { _, _ in recomputeResults() }
         .onChange(of: store.entries) { _, _ in recomputeResults() }
         // 文字起こしが完了したら一覧を作り直す (issue #321)。
@@ -206,9 +218,14 @@ struct LibraryView: View {
     /// 末尾 «/» を持つため URL 同士の等価では false になり、symlink 解決 (サンドボックス
     /// のコンテナ内 Movies が実 ~/Movies への symlink になりうる) を先にする
     static func recordingBelongsToDirectory(_ recording: URL, _ directory: URL) -> Bool {
-        recording.deletingLastPathComponent()
-            .resolvingSymlinksInPath().standardizedFileURL.path
-            == directory.resolvingSymlinksInPath().standardizedFileURL.path
+        isSameDirectory(recording.deletingLastPathComponent(), directory)
+    }
+
+    /// 2 つの URL が同じディレクトリか (取り込み (issue #416) の «コピー先は今の
+    /// 保存先のままか» の確認にも使う)。正規化は recordingBelongsToDirectory と同じ
+    static func isSameDirectory(_ lhs: URL, _ rhs: URL) -> Bool {
+        lhs.resolvingSymlinksInPath().standardizedFileURL.path
+            == rhs.resolvingSymlinksInPath().standardizedFileURL.path
     }
 
     private func recomputeResults() {
@@ -235,7 +252,73 @@ struct LibraryView: View {
                 .buttonStyle(.plain)
                 .help("検索をクリア")
             }
+            // 既存ファイルの取り込み (issue #416)。文字起こしが使えない環境では
+            // «文字起こしを作成« と同じ案内で無効化する (ドロップも coordinator が
+            // 同じ判定で案内する)
+            Button {
+                chooseFilesToImport()
+            } label: {
+                Label(String(localized: "ファイルを取り込む…"), systemImage: "doc.badge.plus")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            // 取り込みの実行中も無効化 — coordinator は実行中の再投入を無視するので、
+            // «押せるのに押しても何も起きない» を «押せない» にする (パネルの流儀と同じ)
+            .disabled(!Transcriber.isSupported || importer.isImporting)
+            .help(Transcriber.isSupported
+                ? String(localized: "既存の音声・動画ファイルを選んで保存先にコピーし、文字起こしします (元のファイルはそのままです)")
+                : String(localized: "文字起こしは macOS 26 以降で利用できます"))
         }
+    }
+
+    // MARK: 取り込み (issue #416)
+
+    /// NSOpenPanel でファイルを選んで取り込む。コピー先はライブラリが今見ている
+    /// 保存先。許容する型は audio / movie (エンジンが文字起こしできる対象と同じ)
+    private func chooseFilesToImport() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = true
+        panel.allowedContentTypes = [.audio, .movie]
+        panel.title = String(localized: "ファイルを取り込む")
+        panel.message = String(localized: "選んだファイルを保存先にコピーして文字起こします")
+        guard panel.runModal() == .OK else { return }
+        startImport(panel.urls)
+    }
+
+    private func startImport(_ urls: [URL]) {
+        guard let directory = store.directory else { return }
+        importer.importFiles(
+            urls, into: directory,
+            onImported: { enqueueImported($0) },
+            onComplete: { finishImport() })
+    }
+
+    /// 取り込みが済んだファイルをその場で文字起こしキューへ。言語・形式は
+    /// «押された時点の» 設定 (ライブラリの «文字起こしを作成» (#321) と同じ契約)、
+    /// 要約は付けない — 要約が欲しいときは取り込み後に «議事録を作成» を使う
+    /// (完了通知の «文字起こし» アクション (#392) と同じ扱い)
+    private func enqueueImported(_ url: URL) {
+        let snapshot = settings()
+        transcription.enqueue(TranscriptionCoordinator.Job(
+            recordingURL: url,
+            format: snapshot.format,
+            summaryTemplate: nil,
+            localeID: snapshot.localeID,
+            recordingDuration: nil))
+        // 取り込んだファイルを一覧で選んだ状態にする (reload で並んだ直後に詳細が出る)
+        selectedEntryID = url
+    }
+
+    /// 取り込みの完了。**ライブラリがまだ同じ保存先を見ているときだけ** 再走査する —
+    /// コピーの間に保存先を切り替えていたら、旧フォルダの一覧に差し替えてしまうため
+    /// (文字起こし完了時の再走査と同じ考え方)
+    private func finishImport() {
+        guard let directory = store.directory,
+              let importedInto = importer.importedDirectory,
+              Self.isSameDirectory(directory, importedInto) else { return }
+        store.reload(directory: directory)
     }
 
     // MARK: 録画一覧
@@ -291,6 +374,15 @@ struct LibraryView: View {
             } else {
                 let withTranscript = store.entries.count { $0.segments != nil }
                 Text("\(store.entries.count) 件の録画 · 文字起こし \(withTranscript) 件")
+            }
+            if importer.isImporting {
+                ProgressView()
+                    .controlSize(.small)
+                Text("取り込んでいます…")
+            } else if let notice = importer.lastNotice {
+                Text(notice)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
             if searching {
                 Text("検索: \(results.count) 件のセグメント")

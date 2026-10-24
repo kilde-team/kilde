@@ -513,6 +513,31 @@ KILDE_GUI_SELFTEST_LIBRARY_EXPORT=1 "$APP/Contents/MacOS/KildeGUI"
 あわせて **検索語を入れて絞り込んだ状態で書き出し、ヒットしていない行も含めて
 録画全体が書かれること** (書き出しは検索の影響を受けない) も確かめてください。
 
+### ライブラリの «既存ファイルの取り込み» を確かめる (issue #416)
+
+`KILDE_GUI_SELFTEST_LIBRARY_IMPORT=1` は録画せず、**取り込みの本体**
+(コピー先の名前組み立て → 保存先へのコピー → 同一ファイルの再取り込み →
+一覧への反映) を一時ディレクトリで検証し、終わります。
+**実録画・実文字起こしを伴わない**ため、録画のスロットを占有しません:
+
+```sh
+KILDE_GUI_SELFTEST_LIBRARY_IMPORT=1 "$APP/Contents/MacOS/KildeGUI"
+# → selftest: library-import OK: 再取り込みは既存のファイルを返す
+#   selftest: library-import OK: 同名の別ファイルがあるときは -2 に退避する
+#   …
+#   selftest: library-import failures=0 (exit 0)
+```
+
+一時ディレクトリに `temporaryDirectory` (`/var/folders/…`) を使わずホーム直下の
+隠しディレクトリを使うのは、`/var` の symlink 祖先のせいで «取り込みの戻り値 ==
+一覧の走査 (contentsOfDirectory) の URL» が同じファイルでも一致しなくなるためです
+(実運用の保存先に symlink 祖先はありません)。**NSOpenPanel とドロップの UI 経路は
+実機で確認します** (セルフテストは UI を出せないため): ライブラリで
+«ファイルを取り込む…» から適当な音声ファイルを選び、**コピー → «文字起こし中» →
+サイドカー出力 → 一覧・検索に出ること**、同じファイルをもう一度選んで
+**重複ができないこと**、ライブラリウィンドウへのドロップでも同じ結果になることを
+確かめてください。
+
 ### 設定の引き継ぎ (録画開始時の保存 → 次回起動時の復元) を確かめる (issue #345 / #372)
 
 `KILDE_GUI_SELFTEST_CONFIG_SAVE=1` は録画せず、**設定の引き継ぎ**を検証し、終わります。
