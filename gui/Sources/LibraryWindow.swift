@@ -193,9 +193,11 @@ struct LibraryView: View {
         // allowedContentTypes と同じ (audio / movie) — 対応外の拡張子は importFiles が
         // ステータス行に案内する
         .onDrop(of: [UTType.audio, UTType.movie], isTargeted: nil) { providers in
-            importer.handleDrop(
+            // 設定の固定はドロップの受け付け時点 (startImport と同じ規約)
+            let snapshot = settings()
+            return importer.handleDrop(
                 providers, into: store.directory,
-                onImported: { enqueueImported($0) },
+                onImported: { enqueueImported($0, snapshot: snapshot) },
                 onComplete: { finishImport() })
         }
         .onChange(of: query) { _, _ in recomputeResults() }
@@ -289,18 +291,23 @@ struct LibraryView: View {
 
     private func startImport(_ urls: [URL]) {
         guard let directory = store.directory else { return }
+        // 文字起こしの設定 (言語・形式) は **取り込みの開始時点** で固定する —
+        // GB 級ファイルのコピー中に設定パネルで変えても、取り込んだ分は
+        // «取り込んだときの設定» で処理される (cubic 指摘。「録画したときの設定»
+        // のスナップショットと同じ考え方)
+        let snapshot = settings()
         importer.importFiles(
             urls, into: directory,
-            onImported: { enqueueImported($0) },
+            onImported: { enqueueImported($0, snapshot: snapshot) },
             onComplete: { finishImport() })
     }
 
     /// 取り込みが済んだファイルをその場で文字起こしキューへ。言語・形式は
-    /// «押された時点の» 設定 (ライブラリの «文字起こしを作成» (#321) と同じ契約)、
-    /// 要約は付けない — 要約が欲しいときは取り込み後に «議事録を作成» を使う
-    /// (完了通知の «文字起こし» アクション (#392) と同じ扱い)
-    private func enqueueImported(_ url: URL) {
-        let snapshot = settings()
+    /// 取り込みの開始時点の設定 (startImport のスナップショット — ライブラリの
+    /// «文字起こしを作成» (#321) と同じ «押された時点» の契約)、要約は付けない —
+    /// 要約が欲しいときは取り込み後に «議事録を作成» を使う (完了通知の
+    /// «文字起こし» アクション (#392) と同じ扱い)
+    private func enqueueImported(_ url: URL, snapshot: LibraryTranscriptionSettings) {
         transcription.enqueue(TranscriptionCoordinator.Job(
             recordingURL: url,
             format: snapshot.format,

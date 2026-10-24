@@ -380,9 +380,16 @@ final class LibraryStore: ObservableObject {
             let segments = transcript.flatMap { LibraryTranscriptParser.parse($0) }
             let modified = (try? recording.resourceValues(forKeys: [.contentModificationDateKey]))?
                 .contentModificationDate ?? .distantPast
+            // URL は LibraryImport.canonicalFileURL の正規形で載せる (issue #416) —
+            // 取り込みの戻り値 (取り込み直後の選択・処理中表示) と同じ形に揃えないと、
+            // 保存先のパスに symlink が含まれる環境で «コピーは成功したのに一覧と
+            // 一致しない» になる (contentsOfDirectory は symlink 祖先を解決した表記を
+            // 返すのに対し、URL の組み立ては与えた表記を保つため)
+            let canonicalRecording = LibraryImport.canonicalFileURL(recording)
+            let canonicalTranscript = transcript.map { LibraryImport.canonicalFileURL($0) }
             results.append(LibraryEntry(
-                id: recording, recordingURL: recording,
-                transcriptURL: transcript,
+                id: canonicalRecording, recordingURL: canonicalRecording,
+                transcriptURL: canonicalTranscript,
                 recordedAt: recordedAt(of: recording, fallback: modified),
                 segments: segments))
         }

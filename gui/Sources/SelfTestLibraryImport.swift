@@ -27,15 +27,15 @@ enum SelfTestLibraryImport {
     }()
 
     static func run() {
-        // 一時ディレクトリに temporaryDirectory (`/var/folders/…`) を使わない —
-        // このパスは symlink 祖先を持ち、ライブラリの走査 (FileManager.contentsOfDirectory)
-        // が返す実パス表記 (`/private/var/…`) と URL の組み立て結果が «同じファイルなの
-        // に一致しない» になってしまう (URL.resolvingSymlinksInPath は逆に /private を
-        // 取る、システムディレクトリの特殊扱い)。実運用の保存先 (~/Movies・NSOpenPanel
-        // で選んだフォルダ) に symlink 祖先は無いため、ここはホーム直下の隠し
-        // ディレクトリで «取り込みの戻り値 == 一覧の URL» を厳密に検証する
-        let root = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".kilde-selftest-library-import-\(UUID().uuidString)")
+        // 一時ディレクトリ (`/var/folders/…`) は **symlink 祖先を持つ** —
+        // ライブラリの走査 (FileManager.contentsOfDirectory) は `/private/var/…` の
+        // 実パス表記を返すのに対し、URL の組み立ては与えた表記を保つ。あえてこの
+        // 環境で検証するのは、取り込みと一覧の URL 正規化
+        // (LibraryImport.canonicalFileURL) が両側で揃っていることを実証するため —
+        // «取り込みの戻り値 == 一覧の entry.id» が symlink 環境でも一致しなければ
+        // ならない (揃っていないと取り込み直後の選択・処理中表示が一覧と噛み合わない)
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("kilde-selftest-library-import-\(UUID().uuidString)")
         let destination = root.appendingPathComponent("保存先")
         let source = root.appendingPathComponent("元フォルダ")
         // defer で消さない — run() は必ず exit() で終わるため defer は一度も走らず、
@@ -74,13 +74,19 @@ enum SelfTestLibraryImport {
               "ファイル名から日時を解析できる")
     }
 
-    /// 題名の整え (長すぎる名前・前後の空白・使えない題名)
+    /// 題名の整え (長すぎる名前・前後の空白・使えない題名・バイト上限)
     private static func checkSanitization() {
         check(LibraryImport.sanitizedStem("  会議メモ ") == "会議メモ", "前後の空白を落とす")
         check(LibraryImport.sanitizedStem(". hidden") == "hidden", "前後のドットを落とす")
         check(LibraryImport.sanitizedStem("----") != "", "使えない題名は既定に置き換える")
         let long = String(repeating: "あ", count: 100)
         check(LibraryImport.sanitizedStem(long).count == 60, "60 文字に切り詰める")
+        // 1 文字が 4 バイトになる絵文字 — 文字数上限だけでは 255 バイトのファイル名上限を
+        // 超える (cubic 指摘)。バイト上限でも切り詰めること
+        let emoji = String(repeating: "🎧", count: 100)
+        let clipped = LibraryImport.sanitizedStem(emoji)
+        check(clipped.count <= 60 && clipped.utf8.count <= 200,
+              "バイト上限でも切り詰める (実際 \(clipped.count) 文字 / \(clipped.utf8.count) バイト)")
     }
 
     /// 取り込みの本体: コピー・同一ファイルの再取り込み・保存先内のファイル・退避
@@ -137,10 +143,28 @@ enum SelfTestLibraryImport {
         check(evacuated?.lastPathComponent == "kilde-20270102-030405-衝突-2.m4a",
               "同名の別ファイルがあるときは -2 に退避する (実際 \(evacuated?.lastPathComponent ?? "nil"))")
 
-        // 6. 一覧の判定と取り込み対象の集合は同じ (片方だけ増えると «取り込んだのに
+        // 6. 数字で終わる元のファイル名の再取り込み (cubic 指摘)。取り込み名
+        //    `kilde-…-report-2` から退避番号を単純に除くと `report` になって一致を
+        //    失う — 題名部分の完全一致を優先する照合で重複排除できなければならない
+        let numbered = source.appendingPathComponent("report-2.m4a")
+        FileManager.default.createFile(atPath: numbered.path, contents: Data(repeating: 5, count: 48))
+        let numberedFirst = try? LibraryImport.performImport(of: numbered, into: destination, at: fixedDate)
+        let numberedAgain = try? LibraryImport.performImport(of: numbered, into: destination, at: fixedDate.addingTimeInterval(90))
+        check(numberedFirst != nil && numberedAgain == numberedFirst,
+              "数字で終わる名前の再取り込みも重複排除できる (実際 \(numberedAgain?.lastPathComponent ?? "nil"))")
+
+        // 7. 一覧の判定と取り込み対象の集合は同じ (片方だけ増えると «取り込んだのに
         // 一覧に出ない» になる — 受け入れ条件の機械検証)
         check(LibraryStore.recordingExtensions == LibraryImport.importableExtensions,
               "一覧と取り込みの拡張子集合が一致する")
+
+        // 8. コピーの一時ファイルが残っていない (コピーは一時名 → rename なので、
+        //    成功時は断片が保存先に残らない)。一時名はドット始まりで hidden 扱いに
+        //    なるため、走査は skipsHiddenFiles を付けない
+        let allFiles = (try? FileManager.default.contentsOfDirectory(
+            at: destination, includingPropertiesForKeys: nil)) ?? []
+        check(!allFiles.contains { $0.lastPathComponent.hasPrefix(".kilde-import-") },
+              "コピーの一時ファイルが残っていない")
     }
 
     /// 取り込んだファイルがライブラリの一覧に出る (受け入れ条件)

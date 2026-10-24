@@ -346,12 +346,13 @@ files recorded before kilde — or with other tools — can be transcribed
 Files are **copied into the output folder** — under the App Store sandbox the
 app cannot write a sidecar next to an arbitrary user-selected file — as
 `kilde-<date>-<original name>`, then fed into the existing transcription
-queue (language/format follow the settings at the time, as with "Create
-Transcription"; no summary). A file with the same name and byte size already
-in the folder counts as imported, so re-importing does not duplicate.
+queue (language/format are snapshotted when the import starts; no summary).
+A file with the same name and byte size already in the folder counts as
+imported, so re-importing does not duplicate (a name+size heuristic — not a
+guaranteed content identity).
 No new permissions; recording and transcription remain free (no purchases
 except the 0.18.0 tips).
 
 ```text
-The library can now import existing audio/video files. Pick a file or drop it onto the library window — recordings made before kilde or with other tools are copied into the output folder and transcribed on device (the original file stays untouched; importing the same file again does not create a duplicate). Imported recordings become searchable in the library (transcription requires macOS 26 or later plus the language's speech data).
+The library can now import existing audio/video files (MOV, MP4, M4V, M4A, MP3, WAV, AIFF, CAF, AAC). Pick a file or drop it onto the library window — recordings made before kilde or with other tools are copied into the output folder and transcribed on device (the original file stays untouched; a file whose name and size match an existing import is not copied again). Imported recordings become searchable in the library (transcription requires macOS 26 or later plus the language's speech data). Also fixed: the menu bar panel could keep the compact height used during recording after the recording ended.
 ```

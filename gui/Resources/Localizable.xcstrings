@@ -5423,6 +5423,35 @@
           }
         }
       }
+    },
+    "ドロップされたファイルを読み込めませんでした": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not read the dropped files"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudieron leer los archivos soltados"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "놓은 파일을 읽을 수 없습니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法读取拖放的文件"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

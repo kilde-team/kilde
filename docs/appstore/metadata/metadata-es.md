@@ -365,5 +365,5 @@ permisos nuevos; grabar y transcribir siguen siendo gratuitos (sin compras
 salvo las propinas de 0.18.0).
 
 ```text
-La biblioteca ahora puede importar archivos de audio/vídeo existentes. Elige un archivo o suéltalo en la ventana de la biblioteca: las grabaciones hechas antes de kilde o con otras herramientas se copian en la carpeta de destino y se transcriben en el dispositivo (el archivo original no se modifica; importar el mismo archivo de nuevo no crea duplicados). Las grabaciones importadas se vuelven buscables en la biblioteca (la transcripción requiere macOS 26 o posterior y los datos de voz del idioma correspondiente).
+La biblioteca ahora puede importar archivos de audio/vídeo existentes (MOV, MP4, M4V, M4A, MP3, WAV, AIFF, CAF, AAC). Elige un archivo o suéltalo en la ventana de la biblioteca: las grabaciones hechas antes de kilde o con otras herramientas se copian en la carpeta de destino y se transcriben en el dispositivo (el archivo original no se modifica; un archivo cuyo nombre y tamaño coinciden con una importación existente no se vuelve a copiar). Las grabaciones importadas se vuelven buscables en la biblioteca (la transcripción requiere macOS 26 o posterior y los datos de voz del idioma correspondiente). También se corrigió: el panel de la barra de menús podía conservar la altura compacta de grabación tras terminar la grabación.
 ```

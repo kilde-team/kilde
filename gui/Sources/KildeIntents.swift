@@ -133,8 +133,11 @@ enum KildeIntentError: LocalizedError {
 nonisolated enum TranscriptLookup {
     /// 録画ファイルの拡張子。KildeCore は一覧を公開していないため GUI 側で持つ
     /// (既定名 kilde-yyyyMMdd-HHmmss.{mov,mp4,m4a} — DESIGN.md §6 の出力名契約)。
-    /// «最近の録画» (RecordingSetup.reloadRecentRecordings) と同じ集合
-    private static let recordingExtensions: Set<String> = ["mov", "mp4", "m4a"]
+    /// ライブラリ (LibraryStore.recordingExtensions) と同じ集合 — 取り込み
+    /// (issue #416) で増えた音声形式の正本は LibraryImport.importableExtensions。
+    /// ここも同じ集合を見る — そうしないと «取り込んだファイルの文字起こし» が
+    /// このフォールバック (最新の文字起こし) から見えなくなる (cubic 指摘)
+    private static let recordingExtensions: Set<String> = LibraryStore.recordingExtensions
 
     /// directory 内で録画に対応するサイドカーを探し、読めたテキストを返す。
     /// 対応するサイドカーが無い録画・読めない (空の) サイドカーは飛ばして古い録画の

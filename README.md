@@ -36,7 +36,7 @@ The project is split across two repositories (issue #115):
   only), stop, and fetch the latest transcript, for automation
 - 📝 Transcribe recordings to markdown/SRT/VTT/text/JSON sidecar files,
   entirely on device (macOS 26+)
-- 📥 Import existing audio/video files into the library (button or drag &
+- 📥 Import supported audio/video files into the library (button or drag &
   drop) and transcribe them on device (GUI, macOS 26+)
 
 ## Installation
@@ -354,11 +354,13 @@ elapsed time and the panel shows per-source level meters. Closing the panel
 does not stop the recording. Initial values are read from the same
 `~/.kilde/config.json` as the CLI.
 
-The library window can also **import existing audio/video files** with a button
-or drag & drop: the file is copied into the output folder as
+The library window can also **import existing audio/video files** with a
+button or drag & drop: the file is copied into the output folder as
 `kilde-<date>-<original name>` and transcribed on device — recordings made
-before kilde, or with other tools, become searchable transcripts. Importing
-the same file again does not create a duplicate.
+before kilde, or with other tools, become searchable transcripts. Supported
+formats: MOV, MP4, M4V, M4A, MP3, WAV, AIFF, CAF and AAC. A file whose name
+and byte size match an existing import counts as already imported, so
+re-importing the same file does not create a duplicate copy.
 
 When a recording finishes, a notification shows its name, length, and size;
 clicking it reveals the file in Finder. The panel also lists the five most
