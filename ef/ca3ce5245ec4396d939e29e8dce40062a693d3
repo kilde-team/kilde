@@ -1,0 +1,32 @@
+PRIVACY.md
+  h_864205080385bc 3,26-32,171-176,182-184
+docs/DEVELOPMENT.md
+  h_864205080385bc 456-477
+gui/Resources/Localizable.xcstrings
+  h_864205080385bc 4-61
+gui/Sources/ContentView.swift
+  h_864205080385bc 376-386,398-410
+gui/Sources/RecordingController.swift
+  h_864205080385bc 63-65,128-137,215-216
+gui/Sources/RecordingSetup.swift
+  h_864205080385bc 1220-1230
+gui/Sources/SelfTest.swift
+  h_864205080385bc 153-158
+gui/Sources/SelfTestWindowService.swift
+  h_864205080385bc 1-154
+gui/Sources/UsageAnalytics.swift
+  h_864205080385bc 122-130,133-134,242-243,249-251
+gui/Sources/WindowService.swift
+  h_864205080385bc 1-181
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "efca3ce5245ec4396d939e29e8dce40062a693d3",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
