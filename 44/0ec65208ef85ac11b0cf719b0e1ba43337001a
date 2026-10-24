@@ -1,0 +1,28 @@
+README.es.md
+  h_864205080385bc 40-42,228-231
+README.ja.md
+  h_864205080385bc 34-36,137-138
+README.ko.md
+  h_864205080385bc 34-36,209-211
+README.md
+  h_864205080385bc 38-40,219-222
+README.zh-CN.md
+  h_864205080385bc 33-34,199-200
+docs/appstore/metadata/metrics.md
+  h_864205080385bc 121
+gui/Sources/AppDelegate.swift
+  h_864205080385bc 105-115,252,272-284,632-634,671-672
+gui/Sources/RecordingController.swift
+  h_864205080385bc 72-77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "440ec65208ef85ac11b0cf719b0e1ba43337001a",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
