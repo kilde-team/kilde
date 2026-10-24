@@ -1,0 +1,14 @@
+gui/Resources/Localizable.xcstrings
+  h_864205080385bc 5165-5425
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a75c033180052e6eccfd2adc74748c86b03f04b4",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
