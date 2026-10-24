@@ -1217,7 +1217,17 @@ final class RecordingSetup: ObservableObject {
                         && window.bundleIdentifier != Self.ownBundleID
                         && window.frame.width >= 120 && window.frame.height >= 80
                 }
-                .sorted { $0.frame.width * $0.frame.height > $1.frame.width * $1.frame.height }
+                // 録画対象になりやすいウィンドウ (会議・動画 — WindowService のタグ) を
+                // 先頭に並べる (issue #429)。ウィンドウの数が多いときに «どれを選ぶべきか« が
+                // 分かりづらい、が発端。同じグループの中では従来どおり面積順
+                .sorted {
+                    let rankA = WindowService.classify(
+                        bundleIdentifier: $0.bundleIdentifier, title: $0.title).listRank
+                    let rankB = WindowService.classify(
+                        bundleIdentifier: $1.bundleIdentifier, title: $1.title).listRank
+                    if rankA != rankB { return rankA > rankB }
+                    return $0.frame.width * $0.frame.height > $1.frame.width * $1.frame.height
+                }
             // 選択中の対象が消えていたら (ウィンドウが閉じた、ディスプレイが外れた) ディスプレイ 0 に戻す
             switch request.target {
             case .window(let id) where !windows.contains(where: { $0.windowID == id }):

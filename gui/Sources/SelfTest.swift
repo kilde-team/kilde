@@ -150,6 +150,12 @@ enum SelfTest {
         if env["KILDE_GUI_SELFTEST_MEETING"] == "1" {
             reportMeetingDetection()
         }
+        // KILDE_GUI_SELFTEST_WINDOW_SERVICE=1: 収録対象ウィンドウの分類規則
+        // (WindowService — issue #429) と実機の観測を出して終わる。
+        // 実録画を伴わない (SelfTestWindowService.swift)
+        if env["KILDE_GUI_SELFTEST_WINDOW_SERVICE"] == "1" {
+            reportWindowServiceClassification()
+        }
         if env["KILDE_GUI_SELFTEST_PERMISSIONS"] == "1" {
             reportPermissions(setup: setup, permissions: permissions)
             exit(0)

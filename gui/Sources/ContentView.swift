@@ -373,8 +373,17 @@ struct ContentView: View {
                 } content: {
                     thumbnail(for: window)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(windowTitle(window))
-                            .lineLimit(1)
+                        HStack(spacing: 4) {
+                            Text(windowTitle(window))
+                                .lineLimit(1)
+                            // 一般的に録画対象になりやすいウィンドウのタグ (issue #429)。
+                            // 並び替え (RecordingSetup.apply) と同じ WindowService の判定
+                            if let tag = WindowService.classify(
+                                bundleIdentifier: window.bundleIdentifier,
+                                title: window.title).tag {
+                                serviceTag(tag)
+                            }
+                        }
                         Text(window.bundleIdentifier ?? "")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
@@ -384,6 +393,19 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    /// 会議・動画のタグ (issue #429)。ウィンドウの数が多いときに録画対象になりやすい
+    /// ウィンドウが一目で分かるようにする。色は区分の補助で、ラベルとセットで伝える
+    /// (色だけでの区別にしない)
+    private func serviceTag(_ tag: WindowService.Tag) -> some View {
+        let color: Color = tag == .meeting ? .orange : .purple
+        return Text(tag.label)
+            .font(.caption2.weight(.medium))
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(Capsule().fill(color.opacity(0.15)))
+            .foregroundStyle(color)
     }
 
     private func windowTitle(_ window: WindowInfo) -> String {

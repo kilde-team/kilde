@@ -453,6 +453,28 @@ KILDE_GUI_SELFTEST_MEETING=1 "$APP/Contents/MacOS/KildeGUI"
 パネルの「会議の自動録画」を有効にして会議に参加し、退出して確かめます
 (セルフテストの起動では監視を始めません — 検証中に実際の会議で録画が始まらないように)。
 
+### 収録対象ウィンドウの分類を確かめる (issue #429)
+
+`KILDE_GUI_SELFTEST_WINDOW_SERVICE=1` は録画せず、**ウィンドウ選択リストのタグと
+`recording_start` の `window_service` 区分の元になる分類規則** (WindowService) を
+合成データ (bundleID + タイトル) で検証し、続けて実機のウィンドウ一覧 (CGWindowList)
+の分類結果を出して終わります。合成データの全ケースが通れば終了コード 0、外れがあれば
+1 (実機の観測は合否に含めません):
+
+```sh
+KILDE_GUI_SELFTEST_WINDOW_SERVICE=1 "$APP/Contents/MacOS/KildeGUI"
+# → selftest: window service [PASS] Meet: Chrome のタブ (参加中) expected=google_meet got=google_meet
+#   …
+#   selftest: window service window=… bundle=com.google.Chrome title="Meet - …" service=google_meet   (実機の一覧)
+#   selftest: window service failures=0 (exit 0)
+```
+
+会議・動画再生のウィンドウを開いた状態で実行すると、**パネルに付くタグが正しいか** を
+そのまま確かめられます (会議 → 先頭、動画 → その次、に並び替えられることも
+パネルを開いて目視確認)。区分の語彙 (`zoom` / `google_meet` / … / `other`) は
+`WindowService` の列挙に閉じており、このセルフテストが «語彙が閉じていること»
+(小文字英数字と `_` のみ) も機械的に縛ります — PRIVACY.md «利用統計» との整合です。
+
 ### 録画ライブラリの検索を確かめる (issue #165)
 
 `KILDE_GUI_SELFTEST_LIBRARY_SEARCH=1` は録画せず、**録画ライブラリの索引構築と
