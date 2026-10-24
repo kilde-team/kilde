@@ -367,3 +367,19 @@ salvo las propinas de 0.18.0).
 ```text
 La biblioteca ahora puede importar archivos de audio/vídeo existentes (MOV, MP4, M4V, M4A, MP3, WAV, AIF/AIFF, CAF, AAC). Elige un archivo o suéltalo en la ventana de la biblioteca: las grabaciones hechas antes de kilde o con otras herramientas se copian en la carpeta de destino y se transcriben en el dispositivo (el archivo original no se modifica; un archivo cuyo nombre y tamaño coinciden con una importación existente no se vuelve a copiar). Las grabaciones importadas se vuelven buscables en la biblioteca. Importar y transcribir requieren macOS 26 o posterior y los datos de voz del idioma correspondiente. También se corrigió: el panel de la barra de menús podía conservar la altura compacta de grabación tras terminar la grabación.
 ```
+
+## Novedades (0.23.0)
+
+Versión de mantenimiento sin cambios funcionales (issue #426). Su propósito es
+registrar los vídeos de vista previa del App Store (ja / en, generados en
+kilde#399 y verificados a 1920×1080 / H.264 / 29,9 s): los recursos de una
+versión quedan bloqueados mientras está en revisión o publicada, así que crear
+la 0.23.0 (PREPARE_FOR_SUBMISSION) es la primera oportunidad para adjuntarlos
+(ver el comentario del 2026-10-24 en el issue #160). Todo lo fusionado desde
+v0.22.0 es refuerzo del selftest (issue #424), sin cambios visibles para el
+usuario. Siguiendo el precedente de 0.9.0, el texto de Novedades dice
+llanamente que es una versión de mantenimiento.
+
+```text
+Esta versión es de mantenimiento: no hay cambios en la grabación ni en la transcripción. Se publica junto con el nuevo vídeo de vista previa de la aplicación en la página del App Store.
+```

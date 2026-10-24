@@ -356,3 +356,18 @@ except the 0.18.0 tips).
 ```text
 The library can now import existing audio/video files (MOV, MP4, M4V, M4A, MP3, WAV, AIF/AIFF, CAF, AAC). Pick a file or drop it onto the library window — recordings made before kilde or with other tools are copied into the output folder and transcribed on device (the original file stays untouched; a file whose name and size match an existing import is not copied again). Imported recordings become searchable in the library. Importing and transcription require macOS 26 or later plus the language's speech data. Also fixed: the menu bar panel could keep the compact height used during recording after the recording ended.
 ```
+
+## What's New (0.23.0)
+
+Maintenance release with no functional change (issue #426). Its purpose is to
+register the App Store preview videos (ja / en, generated in kilde#399 and
+measured at 1920×1080 / H.264 / 29.9 s) — version assets are locked while a
+version is in review or released, so creating 0.23.0 (PREPARE_FOR_SUBMISSION)
+is the first opportunity to attach them (see the 2026-10-24 comment on
+issue #160). Everything merged since v0.22.0 is selftest hardening
+(issue #424) with no user-visible change. Following the 0.9.0 precedent, the
+What's New copy states plainly that this is a maintenance release.
+
+```text
+This is a maintenance release with no changes to recording or transcription. It ships alongside the new app preview video on the App Store product page.
+```
