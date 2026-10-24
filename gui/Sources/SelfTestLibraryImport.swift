@@ -72,6 +72,13 @@ enum SelfTestLibraryImport {
     /// 実際のドラッグ操作は出せないが、NSItemProvider を直接与えることで
     /// «provider の収集 → 対応判定 → 取り込み → 案内» までを確かめられる
     private static func checkDropPath(destination: URL, source: URL) async {
+        // 取り込み (importFiles) は文字起こしが使える環境でしか動かないため、
+        // ドロップ経路の検証もそこで意味がある — 非対応環境では理由を出して
+        // スキップする (ハングしてタイムアウト待ちの失敗にしない。cubic 指摘)
+        guard Transcriber.isSupported else {
+            print("selftest: library-import SKIP: ドロップ経路 (文字起こし非対応環境 — importFiles が実行されないため)")
+            return
+        }
         // onImported / onComplete は非同期で MainActor に届くので、受け取り先は
         // 参照型の箱にまとめる (クロージャが captures して書き戻す)
         final class DropOutcome {
