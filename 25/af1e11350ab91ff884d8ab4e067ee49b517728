@@ -1,0 +1,14 @@
+gui/Sources/AppDelegate.swift
+  h_864205080385bc 105-123,260,280-292,640-642,679
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "25af1e11350ab91ff884d8ab4e067ee49b517728",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
