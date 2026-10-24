@@ -1,0 +1,14 @@
+gui/Sources/SelfTestLibraryImport.swift
+  h_864205080385bc 75-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "68fbfebc9228d8bd33f17522b6cc3f4f6b3bf1a9",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
