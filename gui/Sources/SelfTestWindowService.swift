@@ -85,16 +85,16 @@ extension SelfTest {
         }
 
         // 計測 (recording_start の window_service) に送る語彙が列挙に閉じていることを
-        // 縛る — 大文字・空白・記号を含む値が増えると GA4 側の集計 (カスタム ディメンション)
-        // が «別の値» として分裂するため、機械的に弾く
+        // 縛る — 大文字・空白・記号・非 ASCII を含む値が増えると GA4 側の集計
+        // (カスタム ディメンション) が «別の値» として分裂するため、機械的に弾く
         let vocabularyOK = WindowService.allCases.allSatisfy { service in
             let raw = service.rawValue
             return !raw.isEmpty
-                && raw.allSatisfy { $0.isLowercase || $0.isNumber || $0 == "_" }
+                && raw.allSatisfy { ("a"..."z").contains($0) || ("0"..."9").contains($0) || $0 == "_" }
         }
         if !vocabularyOK { failures += 1 }
         print("selftest: window service [\(vocabularyOK ? "PASS" : "FAIL")] "
-              + "語彙が列挙に閉じている (小文字英数字と _ のみ) "
+              + "語彙が列挙に閉じている (半角小文字英数字と _ のみ) "
               + "vocabulary=\(WindowService.allCases.map(\.rawValue))")
 
         // タグの対応 (会議 / 動画) — 並び替え (listRank) とタグ表示の元になる対応の縛り

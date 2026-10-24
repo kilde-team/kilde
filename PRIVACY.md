@@ -24,12 +24,12 @@ Google のサーバーに送信され、取り扱いは
 録画の利用状況 (録画が完了した回数、録音の長さの区分、お使いの版の別
 — Mac App Store 版か直接配布版か —、端末内で数えた累計の録画完了回数の区分、
 録画の開始時に «アプリ別の音声収録を使った構成か» の 2 値の属性、
-ウィンドウを収録対象にした録画での «収録対象ウィンドウの種別« —
-Zoom / Google Meet / Microsoft Teams / Webex / Slack の会議、YouTube または
-その他の動画配信、その他のブラウザ、その他のアプリ、の事前に定めた区分の
-いずれか 1 つ) も同じ利用統計に含まれます。
+ウィンドウを収録対象にした録画での «収録対象ウィンドウの種別» —
+種別を識別できたときに限り、Zoom / Google Meet / Microsoft Teams / Webex /
+Slack の会議、YouTube またはその他の動画配信、その他のブラウザ、
+その他のアプリ、の事前に定めた区分のいずれか 1 つ) も同じ利用統計に含まれます。
 **«アプリ別の音声収録» で選んだアプリの名前や bundleID、収録対象ウィンドウの
-タイトルは含まれません。**
+bundleID やタイトルは含まれません。**
 文字起こし機能 (macOS 26 以降) の利用状況 (開始・完了・失敗・キャンセルの回数、
 処理時間と録音の長さの区分、失敗の種別) も同じ利用統計に含まれます。
 **書き起こしたテキストや、録画・サイドカーのファイル名・保存先は含まれません。**
@@ -170,7 +170,7 @@ completed recordings, coarse buckets for recording length, which version you
 use (Mac App Store or direct download), a coarse bucket for the lifetime
 count of completed recordings counted on your Mac, a yes/no attribute of
 whether a recording start used app-specific audio capture, and, when the
-capture target is a window, the kind of the captured window (exactly one of a
+capture target is a window and its kind is recognized, that kind (one of a
 predefined list: a Zoom, Google Meet, Microsoft Teams, Webex, or Slack
 meeting; YouTube or another video streaming service; another browser window;
 or another app window) — is part of the same
@@ -180,7 +180,8 @@ and automatic retries, coarse buckets for processing time and recording length,
 and the kind of failure — is part of the same usage statistics. **It never
 includes transcript text or the names or locations of recording or sidecar
 files, which app was picked for app-specific audio capture (no app names or
-bundle IDs), or the titles of captured windows.** The `kilde` command-line
+bundle IDs), or the bundle IDs or titles of captured windows.** The `kilde`
+command-line
 tool does no
 analytics.
 

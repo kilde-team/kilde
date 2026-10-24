@@ -93,7 +93,11 @@ enum WindowService: String, CaseIterable {
     /// Slack の bundleID 接頭辞。**タイトルでハドルかを見る必要があるため**、
     /// meetingAppPrefixes とは別に持つ
     private static let slackPrefix = "com.tinyspeck.slackmacgap"
-    /// Slack のハドルらしいタイトル (MeetingDetector の Slack 規則と同じ語彙)
+    /// Slack のハドルらしいタイトル (MeetingDetector の Slack 規則と同じ語彙)。
+    /// 部分一致はチャンネル名に "huddle" 等を含む通常ウィンドウを誤タグしうるが、
+    /// 誤りは «タグが付くだけ» で実害が小さい。逆に判定を厳しくする (単語境界等) のは
+    /// 実機のハドルのウィンドウ名を検証せずに取りこぼしを作りうるため、既存の
+    /// 会議検知 (MeetingDetector) と同じ精度に揃えている
     private static let slackHuddleContains = ["Huddle", "ハドル", "허들"]
 
     /// ブラウザの bundleID 接頭辞 (MeetingDetector.apps の Meet 規則に出てくるものと同じ)。
@@ -105,10 +109,11 @@ enum WindowService: String, CaseIterable {
         "org.mozilla.firefox", "com.apple.Safari",
     ]
 
-    /// Google Meet のタブタイトル (MeetingDetector.meetPrefixes と同じ。
-    /// 言語によって en dash が変わる)
-    private static let meetPrefixes = ["Meet - ", "Meet – "]
-    private static let meetContains = ["Google Meet"]
+    /// Google Meet のタブタイトルの判定は **MeetingDetector の定数をそのまま使う** —
+    /// «Meet のタイトル» という同じ事実を 2 箇所に持つと、片方だけ更新されて
+    /// 会議の自動検知とタグ付けがずれるため (cubic レビュー指摘)
+    private static let meetPrefixes = MeetingDetector.meetPrefixes
+    private static let meetContains = MeetingDetector.meetContains
 
     /// 動画配信サービスのタイトルに含まれる語。**ブラウザのタイトル判定にだけ使う** —
     /// 「YouTube 活用術.key」のような (ブラウザ以外の) タイトルを動画扱いにしないため

@@ -473,7 +473,10 @@ KILDE_GUI_SELFTEST_WINDOW_SERVICE=1 "$APP/Contents/MacOS/KildeGUI"
 そのまま確かめられます (会議 → 先頭、動画 → その次、に並び替えられることも
 パネルを開いて目視確認)。区分の語彙 (`zoom` / `google_meet` / … / `other`) は
 `WindowService` の列挙に閉じており、このセルフテストが «語彙が閉じていること»
-(小文字英数字と `_` のみ) も機械的に縛ります — PRIVACY.md «利用統計» との整合です。
+(半角小文字英数字と `_` のみ) も機械的に縛ります — PRIVACY.md «利用統計» との整合です。
+なお **画面収録の権限が無いと CGWindowList のタイトルが空になり**、Meet・YouTube・
+動画配信のタグは付きません (Zoom / Teams / Webex は bundleID だけで付きます) —
+会議の自動録画の節と同じ注意です。
 
 ### 録画ライブラリの検索を確かめる (issue #165)
 

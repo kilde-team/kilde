@@ -326,9 +326,14 @@ struct ContentView: View {
                 case .display:
                     setup.request.target = .display(index: 0)
                 case .window:
-                    // 面積が最大のウィンドウを仮選択する (一覧は面積の降順)
-                    if let first = setup.windows.first {
-                        setup.request.target = .window(id: first.windowID)
+                    // 仮選択は **面積が最大のウィンドウ** を明示的に選ぶ。一覧は録画対象に
+                    // なりやすい順 (会議 → 動画 → その他、issue #429) に並び替えられて
+                    // いるため、first を取ると並び替えに仮選択が引きずられて既存の挙動が
+                    // 変わってしまう (cubic レビュー指摘)
+                    if let largest = setup.windows.max(by: {
+                        $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height
+                    }) {
+                        setup.request.target = .window(id: largest.windowID)
                     } else {
                         setup.notice = String(
                             localized: "収録できるウィンドウが見つかりません (更新ボタンで一覧を取り直せます)")
