@@ -1,0 +1,14 @@
+docs/DEVELOPMENT.md
+  h_864205080385bc 538-543
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "afd5cdc563412954a94b4b6bdec58e0ccd4e86a0",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
