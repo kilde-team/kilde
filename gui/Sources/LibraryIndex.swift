@@ -347,12 +347,15 @@ final class LibraryStore: ObservableObject {
     }
 
     // nonisolated: LibraryStore は @MainActor だが、走査 (scan) は非分離で動くため。
-    // Set<String> は Sendable なので定数の共有は安全
-    nonisolated static let recordingExtensions: Set<String> = ["mov", "mp4", "m4a"]
+    // Set<String> は Sendable なので定数の共有は安全。
+    // 取り込み (issue #416) で増えた音声形式を含む — 正本は LibraryImport.importableExtensions
+    // (エンジンが録る形式 + 取り込み対象)。«最近の録画« (RecordingSetup) もこの集合を見る
+    nonisolated static let recordingExtensions: Set<String> = LibraryImport.importableExtensions
 
-    /// 録画フォルダを走査して LibraryEntry 列を作る (新しい順)。
-    /// 録画の判定 (kilde- 接頭辞 + mov/mp4/m4a) とサイドカーの対応付けは
-    /// RecordingSetup.reloadRecentRecordings / transcriptSidecar と同じ規則に寄せる —
+    /// 保存先フォルダを走査して LibraryEntry 列を作る (新しい順)。
+    /// 一覧の対象は «kilde- 接頭辞 + LibraryImport.importableExtensions の拡張子»
+    /// (エンジンが録る mov/mp4/m4a に、取り込み (issue #416) の音声形式を足した
+    /// 集合)。サイドカーの対応付けは RecordingSetup.transcriptSidecar と同じ規則 —
     /// «最近の録画» に出るものは必ずライブラリにも出る
     nonisolated static func scan(directory: URL) -> [LibraryEntry] {
         let fileManager = FileManager.default
@@ -378,6 +381,11 @@ final class LibraryStore: ObservableObject {
             let segments = transcript.flatMap { LibraryTranscriptParser.parse($0) }
             let modified = (try? recording.resourceValues(forKeys: [.contentModificationDateKey]))?
                 .contentModificationDate ?? .distantPast
+            // URL は走査結果 (contentsOfDirectory) の表記をそのまま載せる (issue #416)。
+            // 取り込み (LibraryImport.performImport) もコピー先をこの表記で組むため、
+            // 取り込み直後の選択・処理中表示が entry.id と一致する。**symlink 解決で
+            // 表記を書き換えない** — security-scoped bookmark の表記と食うため
+            // (LibraryImport.isSameFile のコメント)
             results.append(LibraryEntry(
                 id: recording, recordingURL: recording,
                 transcriptURL: transcript,

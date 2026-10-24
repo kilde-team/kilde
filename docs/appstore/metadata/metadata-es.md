@@ -348,3 +348,22 @@ de idioma que falten se descargan de Apple, igual que con idiomas fijos).
 El ajuste de idioma de transcripción incorpora "Automático (detectar de la grabación)". Detecta el idioma de la reunión desde los primeros 30 segundos de la grabación (candidatos: idioma del dispositivo, japonés e inglés) y transcribe en él; con pistas de audio separadas, la pista del otro participante y la de tu micrófono se transcriben cada una en su idioma. Si no se puede decidir, se usa el idioma del dispositivo como antes. La transcripción requiere activar "Transcribir tras la grabación" y macOS 26 o posterior con los datos de voz (modelo de idioma) del idioma (el valor predeterminado no cambia; las grabaciones y transcripciones nunca se envían por la red, aunque los modelos de idioma que falten se descargan de Apple — como en cualquier petición de red, la descarga llega a Apple con tu dirección IP).
 ```
 
+
+## Novedades (0.22.0)
+Importación de archivos existentes (issue #416). La ventana de biblioteca
+añade un selector «Importar archivos…» (selección múltiple) y arrastrar y
+soltar, para poder transcribir archivos de audio/vídeo grabados antes de
+kilde o con otras herramientas (el equivalente en GUI de `kilde transcribe`;
+**la transcripción sigue siendo gratuita**). Los archivos se **copian a la
+carpeta de destino** — bajo el sandbox de la App Store la app no puede
+escribir un sidecar junto a un archivo cualquiera elegido por el usuario —
+como `kilde-<fecha>-<nombre original>` y pasan a la cola de transcripción
+existente (idioma y formato según los ajustes del momento, igual que
+«Crear transcripción»; sin resumen). Un archivo con el mismo nombre y tamaño
+ya presente cuenta como importado, así que reimportar no duplica. Sin
+permisos nuevos; grabar y transcribir siguen siendo gratuitos (sin compras
+salvo las propinas de 0.18.0).
+
+```text
+La biblioteca ahora puede importar archivos de audio/vídeo existentes (MOV, MP4, M4V, M4A, MP3, WAV, AIF/AIFF, CAF, AAC). Elige un archivo o suéltalo en la ventana de la biblioteca: las grabaciones hechas antes de kilde o con otras herramientas se copian en la carpeta de destino y se transcriben en el dispositivo (el archivo original no se modifica; un archivo cuyo nombre y tamaño coinciden con una importación existente no se vuelve a copiar). Las grabaciones importadas se vuelven buscables en la biblioteca. Importar y transcribir requieren macOS 26 o posterior y los datos de voz del idioma correspondiente. También se corrigió: el panel de la barra de menús podía conservar la altura compacta de grabación tras terminar la grabación.
+```

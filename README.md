@@ -38,6 +38,9 @@ The project is split across two repositories (issue #115):
   on device — the audio and transcript text are never sent anywhere, though
   missing language models download from Apple (your IP address reaches Apple,
   as with any network request) (macOS 26+)
+- 📥 Import supported audio/video files into the library (button or drag &
+  drop) and transcribe them on device (GUI, macOS 26+, speech data for the
+  language required)
 
 ## Installation
 
@@ -356,6 +359,16 @@ directory, then start recording. While recording, the menu bar shows the
 elapsed time and the panel shows per-source level meters. Closing the panel
 does not stop the recording. Initial values are read from the same
 `~/.kilde/config.json` as the CLI.
+
+The library window can also **import existing audio/video files** with a
+button or drag & drop: the file is copied into the output folder as
+`kilde-<date>-<original name>` and transcribed on device — recordings made
+before kilde, or with other tools, become searchable transcripts (transcription
+requires the language's speech data — silent or unsupported-language files
+fail with the usual transcription error). Supported formats: MOV, MP4, M4V,
+M4A, MP3, WAV, AIF/AIFF, CAF and AAC. A file whose name
+and byte size match an existing import counts as already imported, so
+re-importing the same file does not create a duplicate copy.
 
 When a recording finishes, a notification shows its name, length, and size;
 clicking it reveals the file in Finder. The panel also lists the five most

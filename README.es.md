@@ -40,6 +40,9 @@ El proyecto está dividido en dos repositorios (issue #115):
   en el dispositivo — ni el audio ni el texto se envían a ningún sitio, aunque
   los modelos de idioma que falten se descargan de Apple (tu dirección IP
   llega a Apple, como en cualquier petición de red) (macOS 26+)
+- 📥 Importa archivos de audio/vídeo compatibles a la biblioteca (botón o
+  arrastrar y soltar) y transcríbelos en el dispositivo (GUI, macOS 26+, se
+  necesitan los datos de voz del idioma)
 
 ## Instalación
 
@@ -367,6 +370,16 @@ el directorio de salida, y empieza a grabar. Durante la grabación, la barra de
 menús muestra el tiempo transcurrido y el panel muestra medidores de nivel por
 fuente. Cerrar el panel no detiene la grabación. Los valores iniciales se leen
 del mismo `~/.kilde/config.json` que el CLI.
+
+La ventana de biblioteca también puede **importar archivos de audio/vídeo
+existentes** con un botón o arrastrando y soltando: el archivo se copia a la
+carpeta de destino como `kilde-<fecha>-<nombre original>` y se transcribe en el
+dispositivo — las grabaciones anteriores a kilde, o hechas con otras
+herramientas, pasan a ser buscables (la transcripción necesita los datos de voz
+del idioma; los archivos sin voz o en un idioma no compatible fallan como
+siempre). Formatos compatibles: MOV, MP4, M4V, M4A, MP3, WAV, AIF/AIFF, CAF y AAC. Un archivo cuyo nombre y tamaño
+en bytes coinciden con una importación existente se considera ya importado, así
+que reimportar el mismo archivo no crea una copia duplicada.
 
 Cuando termina una grabación, una notificación muestra su nombre, duración y
 tamaño; al hacer clic, el archivo se revela en el Finder. El panel también
