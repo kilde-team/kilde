@@ -1,0 +1,19 @@
+docs/appstore/metadata/metadata-ja.md
+  s_8be8c6a88898e1::t_125efbf635fa92 375
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "988fa9306398193b35ecc4044de70f80eb3a1e00",
+  "prompts": {},
+  "sessions": {
+    "s_8be8c6a88898e1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5c719daa-af58-44df-b0a0-2e5b0c6a1517",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
