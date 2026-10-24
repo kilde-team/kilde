@@ -1,0 +1,24 @@
+PRIVACY.md
+  h_864205080385bc 27-30,32,173,183-184
+docs/DEVELOPMENT.md
+  h_864205080385bc 476-479
+gui/Sources/ContentView.swift
+  h_864205080385bc 329-336
+gui/Sources/MeetingDetector.swift
+  h_864205080385bc 101-106
+gui/Sources/SelfTestWindowService.swift
+  h_864205080385bc 88-89,93,97
+gui/Sources/WindowService.swift
+  h_864205080385bc 96-100,112-116
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e5dd360e12429d566c74aca96171539f09e5cc5c",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
