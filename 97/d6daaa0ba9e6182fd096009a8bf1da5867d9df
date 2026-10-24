@@ -1,0 +1,22 @@
+README.es.md
+  h_864205080385bc 40-42,225-227
+README.ja.md
+  h_864205080385bc 34-36,135-136
+README.ko.md
+  h_864205080385bc 34-35,206-208
+README.md
+  h_864205080385bc 38-40,216-219
+README.zh-CN.md
+  h_864205080385bc 33-34,197-198
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "97d6daaa0ba9e6182fd096009a8bf1da5867d9df",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
