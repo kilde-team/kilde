@@ -1,0 +1,16 @@
+gui/Sources/AppDelegate.swift
+  h_864205080385bc 105-108,279,671-672
+gui/Sources/RecordingController.swift
+  h_864205080385bc 72-77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9c08265b12ac6960bfe93a385755dd2b83166646",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
