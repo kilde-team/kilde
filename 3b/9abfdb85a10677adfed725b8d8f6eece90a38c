@@ -1,0 +1,38 @@
+README.es.md
+  h_864205080385bc 41-42,368-374
+README.ja.md
+  h_864205080385bc 35-36,213-217
+README.ko.md
+  h_864205080385bc 35-36,333-338
+README.md
+  h_864205080385bc 39-40,357-362
+README.zh-CN.md
+  h_864205080385bc 34-35,316-320
+docs/DESIGN.md
+  h_864205080385bc 831-862
+docs/DEVELOPMENT.md
+  h_864205080385bc 516-540
+gui/Sources/LibraryImport.swift
+  h_864205080385bc 1-288
+gui/Sources/LibraryIndex.swift
+  h_864205080385bc 350-353
+gui/Sources/LibraryWindow.swift
+  h_864205080385bc 6,167-168,192-200,221-228,255-270,274-323,378-386
+gui/Sources/RecordingSetup.swift
+  h_864205080385bc 1010-1012,1017-1019
+gui/Sources/SelfTest.swift
+  h_864205080385bc 70-77
+gui/Sources/SelfTestLibraryImport.swift
+  h_864205080385bc 1-175
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3b9abfdb85a10677adfed725b8d8f6eece90a38c",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
