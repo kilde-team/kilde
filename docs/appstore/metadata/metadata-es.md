@@ -381,5 +381,5 @@ usuario. Siguiendo el precedente de 0.9.0, el texto de Novedades dice
 llanamente que es una versión de mantenimiento.
 
 ```text
-Esta versión es de mantenimiento: no hay cambios en la grabación ni en la transcripción. Estamos preparando un vídeo de vista previa de la aplicación para la página del App Store.
+Esta versión es de mantenimiento: no hay cambios en la grabación ni en la transcripción. Se publica junto con el nuevo vídeo de vista previa de la aplicación en la página del App Store.
 ```

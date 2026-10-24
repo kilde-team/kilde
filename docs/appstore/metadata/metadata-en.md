@@ -369,5 +369,5 @@ issue #160). Everything merged since v0.22.0 is selftest hardening
 What's New copy states plainly that this is a maintenance release.
 
 ```text
-This is a maintenance release with no changes to recording or transcription. We are preparing an app preview video for the App Store product page.
+This is a maintenance release with no changes to recording or transcription. It ships alongside the new app preview video on the App Store product page.
 ```
