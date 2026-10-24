@@ -1,0 +1,16 @@
+docs/DEVELOPMENT.md
+  h_864205080385bc 520-523,530-531
+gui/Sources/SelfTestLibraryImport.swift
+  h_864205080385bc 6-10,59-140
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a12c72909209bacea8c2da38c62217c2287e2d51",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
