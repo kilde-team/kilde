@@ -3,10 +3,11 @@ import KildeCore
 
 /// ライブラリの «既存ファイルの取り込み» (issue #416) の UI 無し検証。
 /// 一時ディレクトリに «保存先» と «取り込み元» を分けて作り、
-/// 「取り込み先の名前組み立て → コピー → 同一ファイルの再取り込み → 一覧反映」を
-/// 確かめる。NSOpenPanel・ドロップは出さない (UI を伴う経路は手動確認) —
-/// パネル/ドロップから先は LibraryImport.performImport に集約されており、
-/// ここではその本体と一覧の連携を検証する。
+/// 「取り込み先の名前組み立て → コピー → 同一ファイルの再取り込み → 一覧反映」に
+/// 加え、**ドロップの収集経路 (LibraryImportCoordinator.handleDrop)** を
+/// NSItemProvider との直接呼び出しで確かめる (issue #424)。NSOpenPanel と
+/// 実ドラッグの権限 (サンドボックスの drag-and-drop) は実機確認の対象 —
+/// そこから先 (performImport・収集・案内) はここで機械検証する。
 /// 実録画・実文字起こしを伴わないため、録画のスロット (画面収録・マイクの権限、
 /// スピーカー) を占有しない
 ///
@@ -55,9 +56,95 @@ enum SelfTestLibraryImport {
         performImportChecks(destination: destination, source: source)
         checkListing(destination: destination)
 
-        try? FileManager.default.removeItem(at: root)
-        print("selftest: library-import failures=\(failures)")
-        exit(failures == 0 ? 0 : 1)
+        // ドロップ経路の検証は MainActor の Task の完了を待つ必要がある —
+        // RunLoop.main.run(until:) では Swift Concurrency の main executor が
+        // 進まないため (SelfTest.swift の reportNotifyTargets と同じ知見)。
+        // 従来の同期検査の後に回して、終わったところでまとめて掃除・集計・exit する
+        Task { @MainActor in
+            await checkDropPath(destination: destination, source: source)
+            try? FileManager.default.removeItem(at: root)
+            print("selftest: library-import failures=\(failures)")
+            exit(failures == 0 ? 0 : 1)
+        }
+    }
+
+    /// ドロップの収集経路 (LibraryImportCoordinator.handleDrop) の検証 (issue #424)。
+    /// 実際のドラッグ操作は出せないが、NSItemProvider を直接与えることで
+    /// «provider の収集 → 対応判定 → 取り込み → 案内» までを確かめられる
+    private static func checkDropPath(destination: URL, source: URL) async {
+        // 取り込み (importFiles) は文字起こしが使える環境でしか動かないため、
+        // ドロップ経路の検証もそこで意味がある — 非対応環境では理由を出して
+        // スキップする (ハングしてタイムアウト待ちの失敗にしない。cubic 指摘)
+        guard Transcriber.isSupported else {
+            print("selftest: library-import SKIP: ドロップ経路 (文字起こし非対応環境 — importFiles が実行されないため)")
+            return
+        }
+        // onImported / onComplete は非同期で MainActor に届くので、受け取り先は
+        // 参照型の箱にまとめる (クロージャが captures して書き戻す)
+        final class DropOutcome {
+            var imported: [URL] = []
+            var done = false
+        }
+        let coordinator = LibraryImportCoordinator()
+
+        // 1. 対応 2 件 (m4a / wav) + 非対応 1 件 (txt) のドロップ
+        let m4a = source.appendingPathComponent("ドロップ会議.m4a")
+        let wav = source.appendingPathComponent("ドロップ録音.wav")
+        let text = source.appendingPathComponent("説明.txt")
+        FileManager.default.createFile(atPath: m4a.path, contents: Data(repeating: 1, count: 64))
+        FileManager.default.createFile(atPath: wav.path, contents: Data(repeating: 2, count: 48))
+        FileManager.default.createFile(atPath: text.path, contents: Data("説明".utf8))
+        var providers: [NSItemProvider] = []
+        for url in [m4a, wav, text] {
+            guard let provider = NSItemProvider(contentsOf: url) else {
+                check(false, "NSItemProvider を作れる (\(url.lastPathComponent))")
+                return
+            }
+            providers.append(provider)
+        }
+        let outcome = DropOutcome()
+        _ = coordinator.handleDrop(
+            providers, into: destination,
+            onImported: { outcome.imported.append($0) },
+            onComplete: { outcome.done = true })
+        await wait(until: { outcome.done }, timeout: 30, label: "混在ドロップの完了")
+        check(outcome.imported.count == 2,
+              "対応形式 2 件だけを取り込む (実際 \(outcome.imported.count) 件)")
+        let names = outcome.imported.map { $0.lastPathComponent }
+        check(names.contains(where: { $0.hasSuffix("ドロップ会議.m4a") })
+                  && names.contains(where: { $0.hasSuffix("ドロップ録音.wav") }),
+              "取り込んだファイルの名前 (実際 \(names.joined(separator: ", ")))")
+        check(!coordinator.isImporting, "完了後に «取り込んでいます» の表示が戻る")
+        check(coordinator.lastNotice?.contains("対応していない形式は除きました") == true,
+              "対応外の形式の案内が出る (実際 \(coordinator.lastNotice ?? "nil"))")
+
+        // 2. URL を 1 件も取得できないドロップ — 黙って何も起きない、に終わらないこと
+        // (provider が file-url を返せないケース。実 UI では SwiftUI の受け付け型で
+        // 大半は届かないが、UTType.fileURL を受けるようにしたため防御の意味もある)
+        let expectedNotice = String(localized: "ドロップされたファイルを読み込めませんでした")
+        let unnoticeable = DropOutcome()
+        _ = coordinator.handleDrop(
+            [NSItemProvider()], into: destination,
+            onImported: { _ in unnoticeable.done = true },
+            onComplete: { unnoticeable.done = true })
+        await wait(until: { coordinator.lastNotice == expectedNotice }, timeout: 30,
+                   label: "読み込み失敗の案内")
+        check(coordinator.lastNotice == expectedNotice,
+              "1 件も読めないドロップの案内が出る (実際 \(coordinator.lastNotice ?? "nil"))")
+        check(!unnoticeable.done, "読めないドロップでは取り込みが始まらない")
+    }
+
+    /// 条件が成立するまで待つ (Swift Concurrency の完了待ち — RunLoop では観測
+    /// できないため await のループにする)。タイムアウトしたら検査 1 件の失敗として
+    /// 数える (続く検査も失敗になるが、二重計上より «止まった« ことが分かる方が大事)
+    private static func wait(until condition: () -> Bool, timeout: TimeInterval, label: String) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !condition(), Date() < deadline {
+            try? await Task.sleep(nanoseconds: 200_000_000)
+        }
+        if !condition() {
+            check(false, "\(label) が \(Int(timeout)) 秒で確定しなかった")
+        }
     }
 
     /// コピー先の名前組み立て (受け入れ条件: `kilde-<時刻>-<元の stem>.<拡張子>`)

@@ -517,13 +517,18 @@ KILDE_GUI_SELFTEST_LIBRARY_EXPORT=1 "$APP/Contents/MacOS/KildeGUI"
 
 `KILDE_GUI_SELFTEST_LIBRARY_IMPORT=1` は録画せず、**取り込みの本体**
 (コピー先の名前組み立て → 保存先へのコピー → 同一ファイルの再取り込み →
-一覧への反映) を一時ディレクトリで検証し、終わります。
+一覧への反映) と **ドロップの収集経路** (`LibraryImportCoordinator.handleDrop`
+への NSItemProvider 直接呼び出し — 対応形式の混在ドロップと、1 件も読めない
+ドロップの案内まで。実ドラッグの権限は実機確認) を一時ディレクトリで検証し、
+終わります。
 **実録画・実文字起こしを伴わない**ため、録画のスロットを占有しません:
 
 ```sh
 KILDE_GUI_SELFTEST_LIBRARY_IMPORT=1 "$APP/Contents/MacOS/KildeGUI"
 # → selftest: library-import OK: 再取り込みは既存のファイルを返す
 #   selftest: library-import OK: 同名の別ファイルがあるときは -2 に退避する
+#   selftest: library-import OK: 対応形式 2 件だけを取り込む (実際 2 件)
+#   selftest: library-import OK: 1 件も読めないドロップの案内が出る
 #   …
 #   selftest: library-import failures=0 (exit 0)
 ```
