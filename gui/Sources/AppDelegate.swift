@@ -102,6 +102,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// ホットキーの解決に使ったものと同一インスタンスかを確かめる
     func debugUsesSameSetup(_ other: RecordingSetup) -> Bool { setup === other }
 
+    /// ポップオーバーの既定サイズ。幅 404 は ContentView の外幅 380 (padding 12×2
+    /// 込み — `.padding(12)` が `.frame(width: 380)` の内側) より 24pt 広い、
+    /// 初回実装 (issue #18) からの既存値。高さは待機中レイアウトの固定高
+    /// (ScrollView の maxHeight 420 + その外の行)。
+    /// **開くたびにリセットする** — 録画中はコンパクト表示 (sessionView) に合わせて
+    /// NSPopover が自動で縮み、その contentSize がポップオーバーに記憶される。
+    /// 縮んだまま開き直すと、待機中レイアウトの ScrollView (maxHeight は上限で
+    /// 下限ではない) が狭い高さに圧縮されて元に戻らず、設定領域が使い物にならない
+    /// (issue #417)
+    static let panelContentSize = NSSize(width: 404, height: 600)
+
     /// Sparkle の更新確認を起動時に始めるか。
     /// - KILDE_GUI_SELFTEST_UPDATE=1: 更新の配線検証なので起動する
     /// - それ以外のセルフテスト (録画・通知・権限): ネットワークアクセスと更新
@@ -238,7 +249,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updateStatusItem(phase: .idle, elapsed: 0)
 
         let p = NSPopover()
-        p.contentSize = NSSize(width: 404, height: 600)
+        p.contentSize = Self.panelContentSize
         // パネル外のクリックで閉じる (メニューバーアプリの標準挙動)。閉じても録画は止まらない
         p.behavior = .transient
         p.contentViewController = NSHostingController(
@@ -255,6 +266,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         recording.$phase.combineLatest(recording.$elapsed)
             .sink { [weak self] phase, elapsed in
                 self?.updateStatusItem(phase: phase, elapsed: elapsed)
+            }
+            .store(in: &cancellables)
+
+        // 録画が終わった瞬間にパネルを開いたままでも既定サイズへ戻す (issue #417)。
+        // 開き直しの経路は showPopover のリセットで拾えるが、開いている間に
+        // sessionView (コンパクト) → 待機中レイアウトへ切り替わるこの経路では
+        // リセットが走らないまま、縮んだ高さで ScrollView が圧縮されてしまう。
+        // 表示中の contentSize 変更はアニメーションされるので、切替のちらつきも無い
+        recording.$phase
+            .sink { [weak self] phase in
+                if !RecordingController.isActive(phase), let popover = self?.popover, popover.isShown {
+                    popover.contentSize = Self.panelContentSize
+                }
             }
             .store(in: &cancellables)
 
@@ -605,6 +629,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showPopover() {
         guard let button = statusItem?.button, let popover, !popover.isShown else { return }
+        // 開くたびに既定サイズへ戻す (panelContentSize のコメント参照 — issue #417)。
+        // 前回開いたときのサイズ (録画中に縮んだまま閉じた等) を引き継がない
+        popover.contentSize = Self.panelContentSize
         // setup は起動時に 1 回だけ生成され、パネルの再オープンでは init が走らない。
         // 開いている間に CLI 側で変更された文字起こし設定を古い表示が握り続けると、
         // このままトグルを触ったとき古い値が保存される — 開くたびに config から
@@ -641,11 +668,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // まだ前の値を見る。録画が .finished になった瞬間 (willSet) に isActive は
         // まだ true なので «録画終了 → 文字起こし表示» への切替がこの後一切
         // 駆動されず、«文字起こし中» が永続的に欠落する
-        let recordingActive: Bool
-        switch phase {
-        case .starting, .recording, .paused, .finalizing: recordingActive = true
-        case .idle, .finished, .failed: recordingActive = false
-        }
+        // (正本は RecordingController.isActive(_:) — willSet でも安全な引数版)
+        let recordingActive = RecordingController.isActive(phase)
         if !recordingActive, transcription.isBusy {
             symbol = "waveform"
             tint = .systemPurple
