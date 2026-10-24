@@ -1,0 +1,23 @@
+README.es.md
+  s_8e88198c7d90ec::t_f6ceb2de6d0f0e 41-42,226-228
+README.ko.md
+  s_8e88198c7d90ec::t_772544288d40c0 35-36,207
+README.md
+  s_8e88198c7d90ec::t_a5bd2fbd0aaa2c 39-40,216-219
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "371f7af8c339a4f5f03c004a309bab46aeaece50",
+  "prompts": {},
+  "sessions": {
+    "s_8e88198c7d90ec": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9c4ed0ef-654a-461c-a5d8-f084b8d5e58c",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
