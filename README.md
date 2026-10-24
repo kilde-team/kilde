@@ -36,8 +36,8 @@ The project is split across two repositories (issue #115):
   only), stop, and fetch the latest transcript, for automation
 - 📝 Transcribe recordings to markdown/SRT/VTT/text/JSON sidecar files,
   on device — the audio and transcript text are never sent anywhere, though
-  missing language models download from Apple as any network request would
-  (macOS 26+)
+  missing language models download from Apple (your IP address reaches Apple,
+  as with any network request) (macOS 26+)
 
 ## Installation
 
@@ -213,10 +213,10 @@ kilde rec --transcribe --preset meeting meeting.mov
 ```
 
 Transcription runs entirely on your Mac (on device) — neither the audio nor
-the transcript text is ever sent anywhere. The only network traffic is the
-one-time fetch of a missing language model from Apple (as with any network
-request, your IP address reaches Apple; unused models can be removed by the
-system and downloaded again — see PRIVACY.md). It starts only after the recording
+the transcript text is ever sent anywhere. The only network traffic for
+transcription is the fetch of a missing language model from Apple (as with any
+network request, your IP address reaches Apple; unused models can be removed
+by the system and downloaded again — see PRIVACY.md). It starts only after the recording
 file is complete, so a failure or interruption never touches the recording
 itself. Pressing Ctrl+C while the transcription is running interrupts just the
 transcription — the recording file stays on disk and the exit status is still

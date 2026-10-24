@@ -38,8 +38,8 @@ El proyecto está dividido en dos repositorios (issue #115):
   audio), detener y obtener la última transcripción, para automatización
 - 📝 Transcribe grabaciones a archivos sidecar en markdown/SRT/VTT/texto/JSON,
   en el dispositivo — ni el audio ni el texto se envían a ningún sitio, aunque
-  los idiomas cuyo modelo falta se descargan de Apple como cualquier petición
-  de red (macOS 26+)
+  los modelos de idioma que falten se descargan de Apple (tu dirección IP
+  llega a Apple, como en cualquier petición de red) (macOS 26+)
 
 ## Instalación
 
@@ -223,8 +223,9 @@ kilde rec --transcribe --preset meeting meeting.mov
 
 La transcripción se ejecuta íntegramente en tu Mac (en el dispositivo) — ni el
 audio ni el texto transcrito se envían a ningún sitio. El único tráfico de red
-es la descarga puntual de un modelo de idioma que falte desde Apple (como en
-cualquier petición de red, tu dirección IP llega a Apple; véase PRIVACY.md). Empieza solo cuando el
+relacionado con la transcripción es la descarga de un modelo de idioma que
+falte desde Apple (como en cualquier petición de red, tu dirección IP llega a
+Apple; véase PRIVACY.md). Empieza solo cuando el
 archivo de grabación está completo, así que un fallo o una interrupción nunca
 tocan la grabación en sí. Pulsar Ctrl+C mientras se transcribe interrumpe solo
 la transcripción — el archivo de grabación permanece en el disco y el código de
