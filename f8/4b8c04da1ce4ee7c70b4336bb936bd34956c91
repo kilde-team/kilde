@@ -1,0 +1,34 @@
+CLAUDE.md
+  h_864205080385bc 68-71
+PRIVACY.md
+  h_864205080385bc 47-53,206-213
+docs/DEVELOPMENT.md
+  h_864205080385bc 624-659
+docs/launch/faq.md
+  h_864205080385bc 46-60
+gui/Resources/Localizable.xcstrings
+  h_864205080385bc 5513-5599
+gui/Sources/AppDelegate.swift
+  h_864205080385bc 139-142,153,157-221,231-232,237
+gui/Sources/ContentView.swift
+  h_864205080385bc 21-24,220-224,749-775
+gui/Sources/SelfTest.swift
+  h_864205080385bc 55-62
+gui/Sources/SelfTestTelemetry.swift
+  h_864205080385bc 1-109
+gui/Sources/TelemetryPreferences.swift
+  h_864205080385bc 1-67
+gui/Sources/UsageAnalytics.swift
+  h_864205080385bc 22-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f84b8c04da1ce4ee7c70b4336bb936bd34956c91",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
