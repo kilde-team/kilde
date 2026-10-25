@@ -43,18 +43,21 @@ Show HN / r/macapps / Product Hunt のコメント欄で想定される質問と
 
 言われたときの追い質問 «Can I turn it off?»:
 
-> There's no opt-out switch in the app today — honest answer. The GUI's
-> telemetry is two kinds: aggregate usage stats (never content, filenames,
-> or paths) and, when it crashes, a crash report with a stack trace. The
-> other outbound connections — the update check (direct download only) and
-> speech-model downloads from Apple — don't carry usage data; everything is
-> listed in the privacy policy. The CLI, which sends no telemetry, covers
-> scripted and automation use. If enough people want a toggle we'll
-> consider it.
+> Yes. In the menu bar panel, under "Privacy", uncheck "Send app usage
+> statistics and crash reports" — that stops both immediately (and deletes
+> any crash reports still queued on your Mac), and the next launch doesn't
+> even initialize the analytics SDK. The remaining outbound connections —
+> the update check (direct download only) and speech-model downloads from
+> Apple — don't carry usage data; everything is listed in the privacy policy.
+> The CLI sends no telemetry at all.
 
-補足 (日本語注記): «オプトアウトは現状無し» が事実 (gui/Sources/UsageAnalytics.swift —
-isEnabled は Firebase の設定有無のみ)。«consider it» は約束しない言い方。
-要望が多いようならオプトアウト検討の issue を起票する。
+補足 (日本語注記): オプトアウトは 0.24.0 で追加 (issue #435 —
+gui/Sources/TelemetryPreferences.swift)。«immediately» は実装どおり
+(`setAnalyticsCollectionEnabled(false)` + `setCrashlyticsCollectionEnabled(false)` +
+`deleteUnsentReports()` をその場で呼び、オフで起動したときは `FirebaseApp.configure()`
+自体を呼ばない)。既定はオン — «opt-in ではないのか» と突かれたら «既定はオンで、
+告知済みの集計統計。オプトアウトは 1 クリックで即時» と事実で返す (既定オフにしない
+理由はフェーズ 2 の KPI 計測 — issue #435 のスコープ外に明記)。
 
 ## 3. 対応 OS は?
 

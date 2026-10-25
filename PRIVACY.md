@@ -44,6 +44,13 @@ GUI アプリ (直接配布版・Mac App Store 版の両方) は、アプリが�
 送信され、取り扱いは Google のプライバシーポリシーに従います。開発者は不具合の修正の
 ためにのみ利用します。`kilde` コマンドラインはクラッシュレポートを送信しません。
 
+**利用統計とクラッシュレポートの送信は、アプリの設定で止められます** (0.24.0 以降)。
+メニューバーのパネルの «プライバシー» にある «アプリの利用統計とクラッシュレポートを
+送信する» をオフにすると、その場で両方の送信を止め、端末に残っている未送信の
+クラッシュレポートを削除します。オフのまま起動したときは、解析とクラッシュ報告の
+仕組み (Firebase) を初期化しません。オンに戻すと再開します。この設定も他の設定と
+同じくあなたの Mac 上にだけ保存されます。
+
 ### 録画・録音したデータ
 
 - 画面の映像、システム音声、マイクの音声は、あなたの Mac 上で処理され、
@@ -195,6 +202,14 @@ includes the content of your recordings, file names, save locations, or your
 settings.** The report is sent to Google's servers the next time you launch
 the app and is handled under Google's privacy policy. The developer uses it
 only to fix bugs. The `kilde` command-line tool sends no crash reports.
+
+**You can turn off usage statistics and crash reports in the app's settings**
+(0.24.0 or later). In the menu bar panel, under "Privacy", turn off "Send app
+usage statistics and crash reports": both stop immediately, and any crash
+reports still waiting on your Mac are deleted. When the app is launched with
+this setting off, the analytics and crash-reporting SDK (Firebase) is not
+initialized at all. Turning it back on resumes sending. Like every other
+setting, this choice is stored only on your Mac.
 
 ### Your recordings
 

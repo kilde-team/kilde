@@ -19,11 +19,16 @@ import FirebaseCore
 /// «利用統計» の枠にとどまる (App Privacy ラベル «製品の操作» も変えない)。
 enum UsageAnalytics {
 
-    /// Firebase が初期化済みのときだけ送る。**セルフテストと Debug 構成は configure
-    /// しない** (AppDelegate.sendsUsageToFirebase 参照) ので、ここで跳ねる。
-    /// 未初期化のまま logEvent しても送信は起こらないが、明示しておくと
-    /// «セルフテスト・Debug では何も送っていない» が読み取れる
-    private static var isEnabled: Bool { FirebaseApp.app() != nil }
+    /// Firebase が初期化済みで、かつユーザーが設定でオフにしていないときだけ送る。
+    /// **セルフテストと Debug 構成は configure しない**、**設定オフでは起動時に
+    /// configure しない** (AppDelegate.sendsUsageToFirebase 参照) ので、どちらも
+    /// ここで跳ねる。未初期化のまま logEvent しても送信は起こらないが、明示して
+    /// おくと «セルフテスト・Debug・設定オフでは何も送っていない» が読み取れる。
+    /// 実行中にオフへ切替えた直後の呼び出しもここで跳ねる (Firebase 側の収集停止に
+    /// 加えての二重のガード — TelemetryPreferences.applyToFirebase 参照)
+    private static var isEnabled: Bool {
+        FirebaseApp.app() != nil && TelemetryPreferences.isEnabled()
+    }
 
     /// 完了した録画の生涯累計。**区分に変換した値だけを送る** ので生の回数が
     /// Google へ出ることはないが、数え続ける台帳として端末の UserDefaults に置く。

@@ -65,6 +65,10 @@ gui/                           メニューバー GUI (XcodeGen: project.yml が
                                ファイル全体が `#if !APPSTORE` — MAS ビルドでは
                                UpdaterCoordinatorAppStore.swift のスタブに差し替わる
   Sources/SandboxSupport.swift サンドボックス下 (MAS) でのみ必要な支援。全体が `#if APPSTORE`
+  Sources/UsageAnalytics.swift 利用統計 (Firebase Analytics) の窓口。送るのは件数・区分のみ
+  Sources/TelemetryPreferences.swift  利用統計・クラッシュレポートのオプトアウト (issue #435)。
+                               既定オン・キーが無ければオン・オフは即時。起動時のゲートは
+                               AppDelegate.sendsUsageToFirebase (オフなら configure() を呼ばない)
   Resources/Info.plist         LSUIElement・権限説明文字列・SUFeedURL/SUPublicEDKey (バンドル用)
   Resources/KildeGUI.entitlements  audio-input (Hardened Runtime 下のマイクに必須)
   Resources/KildeGUI-AppStore.entitlements  App Sandbox + マイク + Movies + bookmark (MAS 版用)

@@ -18,6 +18,10 @@ struct ContentView: View {
     /// チップの購入 (issue #171)。実体は AppDelegate が持つ。App Store 配布ビルドの
     /// み «アプリを応援» セクションを出す (直接配布版ではスタブで商品が空 = 非表示)
     @ObservedObject var tips: TipCoordinator
+    /// 利用統計・クラッシュレポートの送信設定 (issue #435)。正本は UserDefaults
+    /// (TelemetryPreferences) で、この @State はチェックボックスの表示を追従させる
+    /// ための写し。切替は setTelemetryEnabled で保存 → AppDelegate が Firebase へ反映
+    @State private var telemetryEnabled = TelemetryPreferences.isEnabled()
 
     private enum Mode: Hashable {
         case display, window, audioOnly
@@ -212,6 +216,11 @@ struct ContentView: View {
             }
             section("録音の告知文") {
                 noticeSection
+            }
+            // 利用統計・クラッシュレポートのオプトアウト (issue #435)。両ターゲット共通 —
+            // Firebase は直接配布 / MAS の両方でリンクしている (UsageAnalytics のコメント)
+            section("プライバシー") {
+                privacySection
             }
             // App Store ビルドには更新項目を出さない (issue #126)。MAS では配信が
             // App Store に一本化されるため「アップデートを確認」の手段自体が無い
@@ -735,6 +744,33 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    // MARK: - プライバシー (issue #435)
+
+    /// 利用統計 (Firebase Analytics) とクラッシュレポート (Firebase Crashlytics) の
+    /// オプトアウト。1 つのチェックボックスで両方を制御する (TelemetryPreferences の
+    /// コメント)。切替は即時 — «次回起動から» にしない。補足は «何が送られないか» を
+    /// 先に言う (ユーザーが知りたいのはそこ)。収集内容の全文は PRIVACY.md
+    private var privacySection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle("アプリの利用統計とクラッシュレポートを送信する", isOn: Binding(
+                get: { telemetryEnabled },
+                set: { setTelemetryEnabled($0) }))
+                .toggleStyle(.checkbox)
+            Text("アプリの改善に使う利用統計と、不具合修正に使うクラッシュレポートです。録画や文字起こしの内容・ファイル名は含まれません。オフにするとすぐに送信を止めます")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// 保存してから Firebase へ反映する。順序は固定 — AppDelegate.telemetryPreferenceDidChange
+    /// は UserDefaults の値を読んで判定するため、先に保存しないと古い値で反映される
+    private func setTelemetryEnabled(_ enabled: Bool) {
+        telemetryEnabled = enabled
+        TelemetryPreferences.setEnabled(enabled)
+        AppDelegate.shared?.telemetryPreferenceDidChange()
     }
 
     // MARK: - 文字起こし (issue #145)

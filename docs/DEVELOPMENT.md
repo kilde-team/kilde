@@ -621,6 +621,42 @@ KILDE_GUI_SELFTEST_CONFIG_SAVE=1 "$APP/Contents/MacOS/KildeGUI"
 パネルが開くこと** を確かめてください。保存先は MAS 版が bookmark 経由、
 直接配布版は «既定値として保存» ボタンで復元されます。
 
+### 利用統計・クラッシュレポートのオプトアウト設定を確かめる (issue #435)
+
+`KILDE_GUI_SELFTEST_TELEMETRY=1` は録画せず、**«アプリの利用統計とクラッシュレポートを
+送信する» の設定**を検証し、終わります。**実録画を伴わない**ため、録画のスロット
+(権限・スピーカー) を占有しません。**実設定には触れない隔離テスト**です —
+設定の保存先 (`UserDefaults` のキー `usageTelemetryEnabled`) は**別スイートを注入**して
+検証するため、実 `UserDefaults.standard` は読み書きしません。Firebase は初期化しません
+(セルフテスト起動では `AppDelegate.sendsUsageToFirebase` が常に false)。
+
+```sh
+KILDE_GUI_SELFTEST_TELEMETRY=1 "$APP/Contents/MacOS/KildeGUI"
+# → selftest: telemetry OK: キーが無ければオン (既定)
+#   selftest: telemetry OK: セルフテスト中は設定に依らずゲートが閉じる
+#   selftest: telemetry OK: 設定オフでゲートが閉じる (次回起動で configure() を呼ばない条件)
+#   selftest: telemetry OK: 再読込でもオフが残る (永続化)
+#   selftest: telemetry OK: applyToFirebase は未初期化の Firebase を初期化しない
+#   …
+#   selftest: telemetry failures=0 (exit 0)
+```
+
+検証しているのは、`TelemetryPreferences` の «キーが無ければオン» (既存ユーザーが
+アップデート直後にオフ扱いにならないこと)、オフ / オンの保存と再読込、起動時のゲート
+`AppDelegate.usageReportingPermitted` が設定オフとセルフテストの両方で閉じること、
+Firebase 未初期化で `applyToFirebase` が何もせず落ちないこと (`Crashlytics.crashlytics()`
+を `configure()` 前に呼ばないガード) です。
+
+**このセルフテストで「通った」にできないもの**: Release 構成で実際に `FirebaseApp.configure()`
+が抑止されること (Debug では `sendsUsageToFirebase` が常に false のため、純関数部分
+`usageReportingPermitted` で代替)、および初期化済み Firebase に対する
+`setAnalyticsCollectionEnabled` / `setCrashlyticsCollectionEnabled` /
+`deleteUnsentReports` の呼び出し。実機では Release ビルド (sign.sh / appstore-archive.sh の
+成果物) でパネルの «プライバシー» をオフにし、Console.app で `FirebaseAnalytics` の
+サブシステムに «Analytics collection disabled» 相当のログが出ること、オフのまま再起動して
+Firebase の起動ログ (`Firebase Analytics enabled` / `Crashlytics`) が**出ない**ことを
+確かめてください。
+
 ### 検証時の環境の注意
 
 > 画面がロックされている、または**ディスプレイが消灯している**間は
