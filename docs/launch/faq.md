@@ -59,8 +59,9 @@ Analytics の `setAnalyticsCollectionEnabled` は即時、Crashlytics の
 FIRCrashlytics.h)。«オフの間に記録された報告は削除« は、オンに戻す経路で
 configure 直後 (自動収集が永続化 «オフ« の窓) に `deleteUnsentReports()` を呼ぶ
 実装による。既定はオン — «opt-in ではないのか» と突かれたら «既定はオンで、告知済みの
-集計統計。オプトアウトは 1 クリック» と事実で返す (既定オフにしない理由はフェーズ 2 の
-KPI 計測 — issue #435 のスコープ外に明記)。
+集計統計。オプトアウトは 1 クリック (利用統計は即時、クラッシュレポートは次の起動から)» と
+事実で返す (既定オフにしない理由はフェーズ 2 の KPI 計測 (#159 / #161) —
+gui/Sources/TelemetryPreferences.swift の設計コメント参照)。
 
 ## 3. 対応 OS は?
 

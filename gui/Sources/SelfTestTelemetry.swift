@@ -14,7 +14,8 @@ import FirebaseCore
 /// 代わりに専用スイートを注入し、終わりにドメインごと消す。
 ///
 /// 自動で確かめられるのはここまで、という線引き:
-/// - **確かめられる**: 既定オン / オフの保存と再読込 (再起動後の init と同じ経路) /
+/// - **確かめられる**: 既定オン / オフの保存と再読込 (同一プロセス内での再オープン —
+///   再起動後の永続化は実機確認) /
 ///   ゲートがオフで閉じること / セルフテスト中はゲートが設定に依らず閉じること /
 ///   Firebase 未初期化で applyToFirebase が安全なこと
 /// - **確かめられない**: Release 構成で実際に `FirebaseApp.configure()` が呼ばれない
@@ -66,15 +67,18 @@ enum SelfTestTelemetry {
         check(!AppDelegate.usageReportingPermitted(isSelfTest: false, defaults: suite),
               "設定オフでゲートが閉じる (次回起動で configure() を呼ばない条件)")
 
-        // 3) «再起動»: 同じスイート名で UserDefaults を作り直して読む (永続化の確認)。
-        //    同一プロセス内では同じインスタンスが返りうるため synchronize で書き出しを確定
-        suite.synchronize()
+        // 3) «再起動» に近い形: 同じスイート名で UserDefaults を作り直して読む。
+        //    同一プロセス内では同じインスタンスが返るため、これは永続化そのものの証明には
+        //    ならない (再起動後の読み出しは実機確認) — «設定の読み出し経路がキーを
+        //    見る» ことの確認にとどめる (cubic レビュー指摘)。synchronize は非推奨で
+        //    効果も保証されないため呼ばない
         guard let reopened = UserDefaults(suiteName: suiteName) else {
             cleanup()
             print("selftest: telemetry FAIL: スイートを開き直せない")
             exit(1)
         }
-        check(!TelemetryPreferences.isEnabled(reopened), "再読込でもオフが残る (永続化)")
+        check(!TelemetryPreferences.isEnabled(reopened),
+              "スイートを作り直して読んでもオフが残る (同一プロセス内。再起動後の永続化は実機確認)")
 
         // 4) オンに戻す → 即時に読める + ゲートが開く
         TelemetryPreferences.setEnabled(true, defaults: suite)

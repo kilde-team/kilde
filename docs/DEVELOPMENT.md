@@ -654,9 +654,9 @@ Firebase 未初期化で `applyToFirebase` が何もせず落ちないこと (`C
 «オンに戻す» 経路 (AppDelegate.startUsageReporting の isLaunch == false) での
 `deleteUnsentReports()`。実機では Release ビルド (sign.sh / appstore-archive.sh の
 成果物) でパネルの «プライバシー» をオフにし、Console.app で `FirebaseAnalytics` の
-サブシステムに «Analytics collection disabled» 相当のログが出ること、オフのまま再起動して
-Firebase の起動ログ (`Firebase Analytics enabled` / `Crashlytics`) が**出ない**ことを
-確かめてください (Crashlytics の収集停止は SDK の仕様で**次回の起動から** —
+サブシステムに Analytics の収集停止を示すログが出ることを確かめてください (文言は SDK の
+バージョンで変わるため、実機で観測した文言をここに追記する)。オフのまま再起動して、
+`FirebaseApp.configure()` 由来の Firebase の初期化ログが**出ない**ことを確かめてください (Crashlytics の収集停止は SDK の仕様で**次回の起動から** —
 `setCrashlyticsCollectionEnabled` の効き方の非対称は TelemetryPreferences のコメント)。
 
 ### 検証時の環境の注意
