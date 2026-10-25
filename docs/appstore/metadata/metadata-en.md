@@ -371,3 +371,19 @@ What's New copy states plainly that this is a maintenance release.
 ```text
 This is a maintenance release with no changes to recording or transcription. It ships alongside the new app preview video on the App Store product page.
 ```
+
+## What's New (0.24.0)
+
+Opt-out for usage statistics and crash reports (issue #435). A new "Privacy"
+section in the panel settings; unchecking "Send app usage statistics and crash
+reports" stops both Firebase Analytics and Crashlytics **immediately** and
+deletes unsent crash reports. When launched with the setting off the app never
+calls `FirebaseApp.configure()`. **On by default** (what is collected does not
+change — what changes is that it can be stopped). This is the release that lets
+docs/launch/faq.md §2 ("Can I turn it off?") answer "Yes" before the launch
+posts (#157). No engine change (pin v0.19.0). The measured elements
+(description / keywords / subtitle / screenshots) are unchanged.
+
+```text
+New "Privacy" setting. Uncheck "Send app usage statistics and crash reports" to stop both right away — the usage statistics that help improve the app and the crash reports that help fix bugs — and to delete any crash reports still queued on your Mac. When launched with the setting off, the app does not initialize the analytics SDK at all. It is on by default and nothing new is collected; your recordings, transcripts, and file names are never sent, whatever the setting.
+```
