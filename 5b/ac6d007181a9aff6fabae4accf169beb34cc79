@@ -1,0 +1,38 @@
+PRIVACY.md
+  h_864205080385bc 49-53,209-215
+docs/DEVELOPMENT.md
+  h_864205080385bc 653-655,659-660
+docs/appstore/metadata/metadata-en.md
+  h_864205080385bc 379-380,388
+docs/appstore/metadata/metadata-es.md
+  h_864205080385bc 391-393,400
+docs/appstore/metadata/metadata-ja.md
+  h_864205080385bc 382-383,389
+docs/appstore/metadata/metadata-ko.md
+  h_864205080385bc 336-337,343
+docs/appstore/metadata/metadata-zh-Hans.md
+  h_864205080385bc 308,313
+docs/launch/faq.md
+  h_864205080385bc 47-53,56-63
+docs/release-notes/v0.24.0.md
+  h_864205080385bc 5
+gui/Resources/Localizable.xcstrings
+  h_864205080385bc 5572,5578,5584,5590,5596
+gui/Sources/AppDelegate.swift
+  h_864205080385bc 168-170,191-201
+gui/Sources/ContentView.swift
+  h_864205080385bc 753-755,762
+gui/Sources/TelemetryPreferences.swift
+  h_864205080385bc 49-56,63-66,70
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5bac6d007181a9aff6fabae4accf169beb34cc79",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
