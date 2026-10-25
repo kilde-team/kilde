@@ -658,6 +658,14 @@ Firebase 未初期化で `applyToFirebase` が何もせず落ちないこと (`C
 バージョンで変わるため、実機で観測した文言をここに追記する)。オフのまま再起動して、
 `FirebaseApp.configure()` 由来の Firebase の初期化ログが**出ない**ことを確かめてください (Crashlytics の収集停止は SDK の仕様で**次回の起動から** —
 `setCrashlyticsCollectionEnabled` の効き方の非対称は TelemetryPreferences のコメント)。
+最後に **«オンに戻す» 経路** (この PR で最も壊れやすい `deleteUnsentReports()` の実行
+条件 — 起動時オフ → 再起動せずにオンへ戻した場合のみ削除) を確かめてください:
+設定オフのまま起動 → パネルでオンに戻す → Firebase の初期化が走ること、かつ
+オフの間に残った未送信のクラッシュ報告が削除されること (Crashlytics の
+`checkForUnsentReports` で未送信が無くなる、または Firebase コンソールに届かない)。
+同一セッション内で オフ → オン と切り替えた場合は削除されない点にも注意してください
+(そのセッションの起動時に自動収集が有効だったため — AppDelegate.startUsageReporting
+のコメント)。
 
 ### 検証時の環境の注意
 

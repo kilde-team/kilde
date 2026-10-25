@@ -188,7 +188,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 呼ぶ前に sendsUsageToFirebase で可否を判定していること (ここでは判定しない)
     private func startUsageReporting(isLaunch: Bool) {
         FirebaseApp.configure()
-        // «オンに戻す« 経路 (isLaunch == false) では、configure() の直後は Crashlytics
+        // «オンに戻す» 経路 (isLaunch == false) では、configure() の直後は Crashlytics
         // の自動収集が «前回オフにした» 設定 (永続化) のまま無効なため、
         // deleteUnsentReports の «自動収集が無効のときだけ効く» 適用条件を満たす。
         // ここで **オフの期間に記録された未送信のクラッシュレポートを削除する** —

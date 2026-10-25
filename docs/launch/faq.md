@@ -56,8 +56,8 @@ Show HN / r/macapps / Product Hunt のコメント欄で想定される質問と
 gui/Sources/TelemetryPreferences.swift)。効き方の非対称は Firebase SDK の仕様:
 Analytics の `setAnalyticsCollectionEnabled` は即時、Crashlytics の
 `setCrashlyticsCollectionEnabled` は «次回の起動から» (firebase-ios-sdk 12.19.2
-FIRCrashlytics.h)。«オフの間に記録された報告は削除« は、オンに戻す経路で
-configure 直後 (自動収集が永続化 «オフ« の窓) に `deleteUnsentReports()` を呼ぶ
+FIRCrashlytics.h)。«オフの間に記録された報告は削除» は、オンに戻す経路で
+configure 直後 (自動収集が永続化 «オフ» の窓) に `deleteUnsentReports()` を呼ぶ
 実装による。既定はオン — «opt-in ではないのか» と突かれたら «既定はオンで、告知済みの
 集計統計。オプトアウトは 1 クリック (利用統計は即時、クラッシュレポートは次の起動から)» と
 事実で返す (既定オフにしない理由はフェーズ 2 の KPI 計測 (#159 / #161) —
