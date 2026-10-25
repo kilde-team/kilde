@@ -1,6 +1,6 @@
 # プライバシーポリシー / Privacy Policy
 
-最終更新日 / Last updated: 2026-10-22
+最終更新日 / Last updated: 2026-10-25
 
 対象: kilde (macOS 用の画面・音声録画アプリ `Kilde` と `kilde` コマンドライン)
 
@@ -23,9 +23,13 @@ Google のサーバーに送信され、取り扱いは
 開発者が取得できるのは集計された利用統計のみです。
 録画の利用状況 (録画が完了した回数、録音の長さの区分、お使いの版の別
 — Mac App Store 版か直接配布版か —、端末内で数えた累計の録画完了回数の区分、
-録画の開始時に «アプリ別の音声収録を使った構成か» の 2 値の属性)
-も同じ利用統計に含まれます。**どのアプリを選んだか (アプリ名や bundleID) は
-含まれません**。
+録画の開始時に «アプリ別の音声収録を使った構成か» の 2 値の属性、
+ウィンドウを収録対象にした録画での «収録対象ウィンドウの種別» —
+種別を識別できたときに限り、Zoom / Google Meet / Microsoft Teams / Webex /
+Slack の会議、YouTube またはその他の動画配信、その他のブラウザ、
+その他のアプリ、の事前に定めた区分のいずれか 1 つ) も同じ利用統計に含まれます。
+**«アプリ別の音声収録» で選んだアプリの名前や bundleID、収録対象ウィンドウの
+bundleID やタイトルは含まれません。**
 文字起こし機能 (macOS 26 以降) の利用状況 (開始・完了・失敗・キャンセルの回数、
 処理時間と録音の長さの区分、失敗の種別) も同じ利用統計に含まれます。
 **書き起こしたテキストや、録画・サイドカーのファイル名・保存先は含まれません。**
@@ -164,15 +168,21 @@ are sent to Google's servers and handled under
 only sees aggregated usage statistics. Usage of recording — the count of
 completed recordings, coarse buckets for recording length, which version you
 use (Mac App Store or direct download), a coarse bucket for the lifetime
-count of completed recordings counted on your Mac, and a yes/no attribute of
-whether a recording start used app-specific audio capture — is part of the same
+count of completed recordings counted on your Mac, a yes/no attribute of
+whether a recording start used app-specific audio capture, and, when the
+capture target is a window and its kind is recognized, that kind (one of a
+predefined list: a Zoom, Google Meet, Microsoft Teams, Webex, or Slack
+meeting; YouTube or another video streaming service; another browser window;
+or another app window) — is part of the same
 usage statistics. Usage of the transcription feature
 (macOS 26 or later) — counts of starts, completions, failures, cancellations,
 and automatic retries, coarse buckets for processing time and recording length,
 and the kind of failure — is part of the same usage statistics. **It never
 includes transcript text or the names or locations of recording or sidecar
-files, or which app was picked for app-specific audio capture (no app names or
-bundle IDs).** The `kilde` command-line tool does no
+files, which app was picked for app-specific audio capture (no app names or
+bundle IDs), or the bundle IDs or titles of captured windows.** The `kilde`
+command-line
+tool does no
 analytics.
 
 When the GUI app (both the directly distributed and the Mac App Store version)

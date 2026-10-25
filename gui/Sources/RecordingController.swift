@@ -60,6 +60,9 @@ final class RecordingController: ObservableObject {
     /// 今のセッションが «アプリの音声» を使うか (issue #364)。start() の options から
     /// 確定させ、recording_start 計測に渡す (セッションごとの属性)
     private var usesAppAudio = false
+    /// 今のセッションの収録対象ウィンドウの区分 (issue #429)。start() の options から
+    /// 確定させ、recording_start の window_service に渡す。ウィンドウ収録でなければ nil
+    private var windowService: WindowService?
 
     /// 録画が進行中か。
     ///
@@ -122,6 +125,16 @@ final class RecordingController: ObservableObject {
             if case .app = source { return true }
             return false
         }
+        // 収録対象がウィンドウのとき、その区分 (会議サービス・動画サービス等) を確定させる
+        // (issue #429)。usesAppAudio と同じく «開始した構成» を計測に渡すため、ここで
+        // 確定させる。GUI の makeOptions は windowID 1 つだけを windowMatches に入れる
+        // (RecordRequest.makeOptions) ので、数字として読めない要素 (CLI の --window の
+        // タイトル指定を手編集 config で再現した場合) は «区分不明» としてパラメータを
+        // 省く。問い合わせは CGWindowList で、SCK の録画開始と競合しない
+        // (WindowService.classify(windowID:) のコメント)
+        windowService = sessionOptions.windowMatches.count == 1
+            ? UInt32(sessionOptions.windowMatches[0]).flatMap(WindowService.classify(windowID:))
+            : nil
         let recorder = Recorder(options: sessionOptions)
         self.recorder = recorder
         // **開始前に登録されたハンドラをこのセッションへ移す。** SelfTest は
@@ -199,7 +212,8 @@ final class RecordingController: ObservableObject {
                     // 録画開始の計測 (issue #343)。«試行 → 完了» のファネルの始点。
                     // Firebase が無い構成 (セルフテスト・Debug) では
                     // UsageAnalytics 内で跳ねるので、ここからは送信条件を気にしない
-                    UsageAnalytics.recordingStarted(usesAppAudio: usesAppAudio)
+                    UsageAnalytics.recordingStarted(
+                        usesAppAudio: usesAppAudio, windowService: windowService)
                 }
                 isPaused = state == .paused
                 phase = isPaused ? .paused : .recording

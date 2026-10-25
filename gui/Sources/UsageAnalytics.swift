@@ -119,10 +119,19 @@ enum UsageAnalytics {
     /// どれだけ使われるか» は «開始の構成» の属性であって別種の行為ではないため。
     /// 値は "yes" / "no" の 2 値で、**bundleID やアプリ名は絶対に送らない**
     /// (PRIVACY.md «利用統計» の枠 — «何のアプリか» は行動の計測に要らない)
-    static func recordingStarted(usesAppAudio: Bool) {
+    ///
+    /// `windowService`: 収録対象がウィンドウのときの区分 (issue #429)。
+    /// **語彙は WindowService の列挙に閉じる** (errorKind / ScreenName と同じ規約) —
+    /// 送るのは rawValue (zoom / google_meet / … / other) だけで、ウィンドウの
+    /// タイトルや bundleID は送らない。«どのようなサービスが録画されているか» は
+    /// 事前に定めたこの区分で十分測れる (PRIVACY.md に記載)。nil は
+    /// «ウィンドウ収録ではない (または対象ウィンドウが取れなかった)» で、
+    /// パラメータ自体を省略する
+    static func recordingStarted(usesAppAudio: Bool, windowService: WindowService?) {
         log("recording_start", recordingDuration: nil,
             processingTime: nil, channel: distributionChannel,
-            appAudio: usesAppAudio ? "yes" : "no")
+            appAudio: usesAppAudio ? "yes" : "no",
+            windowService: windowService?.rawValue)
     }
 
     /// 録画 1 件が完了した (issue #159)。«月間アクティブ (録画完了) ユーザー数» と
@@ -230,12 +239,16 @@ enum UsageAnalytics {
 
     private static func log(_ name: String, recordingDuration: TimeInterval?,
                             processingTime: TimeInterval?, errorKind: String? = nil,
-                            channel: String? = nil, appAudio: String? = nil) {
+                            channel: String? = nil, appAudio: String? = nil,
+                            windowService: String? = nil) {
         guard isEnabled else { return }
         var parameters: [String: String] = [:]
         if let errorKind { parameters["error_kind"] = errorKind }
         if let channel { parameters["channel"] = channel }
         if let appAudio { parameters["app_audio"] = appAudio }
+        // 値は呼び出し側で WindowService.rawValue に閉じたものだけが来る
+        // (recordingStarted のコメント)。ここでは追加の検証をしない
+        if let windowService { parameters["window_service"] = windowService }
         if let bucket = recordingLengthBucket(recordingDuration) {
             parameters["recording_length"] = bucket
         }

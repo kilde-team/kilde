@@ -326,9 +326,14 @@ struct ContentView: View {
                 case .display:
                     setup.request.target = .display(index: 0)
                 case .window:
-                    // 面積が最大のウィンドウを仮選択する (一覧は面積の降順)
-                    if let first = setup.windows.first {
-                        setup.request.target = .window(id: first.windowID)
+                    // 仮選択は **面積が最大のウィンドウ** を明示的に選ぶ。一覧は録画対象に
+                    // なりやすい順 (会議 → 動画 → その他、issue #429) に並び替えられて
+                    // いるため、first を取ると並び替えに仮選択が引きずられて既存の挙動が
+                    // 変わってしまう (cubic レビュー指摘)
+                    if let largest = setup.windows.max(by: {
+                        $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height
+                    }) {
+                        setup.request.target = .window(id: largest.windowID)
                     } else {
                         setup.notice = String(
                             localized: "収録できるウィンドウが見つかりません (更新ボタンで一覧を取り直せます)")
@@ -373,8 +378,17 @@ struct ContentView: View {
                 } content: {
                     thumbnail(for: window)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(windowTitle(window))
-                            .lineLimit(1)
+                        HStack(spacing: 4) {
+                            Text(windowTitle(window))
+                                .lineLimit(1)
+                            // 一般的に録画対象になりやすいウィンドウのタグ (issue #429)。
+                            // 並び替え (RecordingSetup.apply) と同じ WindowService の判定
+                            if let tag = WindowService.classify(
+                                bundleIdentifier: window.bundleIdentifier,
+                                title: window.title).tag {
+                                serviceTag(tag)
+                            }
+                        }
                         Text(window.bundleIdentifier ?? "")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
@@ -384,6 +398,19 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    /// 会議・動画のタグ (issue #429)。ウィンドウの数が多いときに録画対象になりやすい
+    /// ウィンドウが一目で分かるようにする。色は区分の補助で、ラベルとセットで伝える
+    /// (色だけでの区別にしない)
+    private func serviceTag(_ tag: WindowService.Tag) -> some View {
+        let color: Color = tag == .meeting ? .orange : .purple
+        return Text(tag.label)
+            .font(.caption2.weight(.medium))
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(Capsule().fill(color.opacity(0.15)))
+            .foregroundStyle(color)
     }
 
     private func windowTitle(_ window: WindowInfo) -> String {

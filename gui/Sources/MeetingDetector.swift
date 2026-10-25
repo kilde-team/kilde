@@ -98,9 +98,16 @@ enum MeetingDetector {
 
     /// Google Meet のタブタイトル。Chrome などは CG のウィンドウ名が «アクティブなタブの
     /// タイトル» になり、会議中は "Meet - abc-defg-hij" (言語によって en dash) になる。
-    /// PWA 版は "Google Meet"
-    private static let meetPrefixes = ["Meet - ", "Meet – "]
-    private static let meetContains = ["Google Meet"]
+    /// PWA 版は "Google Meet"。
+    /// **WindowService (ウィンドウ選択リストのタグ、issue #429) も同じ定数を参照する** —
+    /// «Meet のタイトル» という同じ事実を 2 箇所に書くと、片方だけ更新されて
+    /// 検知とタグがずれるため
+    static let meetPrefixes = ["Meet - ", "Meet – "]
+    static let meetContains = ["Google Meet"]
+
+    /// Slack のハドルらしいタイトル。**WindowService も同じ定数を参照する** —
+    /// Meet の語彙と同じ理由 (片方だけ更新されると検知とタグがずれるため)
+    static let slackHuddleTitles = ["Huddle", "ハドル", "허들"]
 
     private static func meet(_ browser: String, processes: [String], weak: [String] = [],
                              windows: [String]) -> MeetingApp {
@@ -145,7 +152,7 @@ enum MeetingDetector {
         MeetingApp(
             name: "Slack", processPrefixes: ["com.tinyspeck.slackmacgap"], weakProcessPrefixes: [],
             windowBundlePrefixes: ["com.tinyspeck.slackmacgap"], titlePrefixes: [],
-            titleContains: ["Huddle", "ハドル", "허들"],
+            titleContains: slackHuddleTitles,
             fallback: .frontmost),
         MeetingApp(
             name: "Webex", processPrefixes: ["Cisco-Systems.Spark", "com.webex.", "com.cisco.webex"],
