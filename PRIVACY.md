@@ -46,10 +46,11 @@ GUI アプリ (直接配布版・Mac App Store 版の両方) は、アプリが�
 
 **利用統計とクラッシュレポートの送信は、アプリの設定で止められます** (0.24.0 以降)。
 メニューバーのパネルの «プライバシー» にある «アプリの利用統計とクラッシュレポートを
-送信する» をオフにすると、その場で両方の送信を止め、端末に残っている未送信の
-クラッシュレポートを削除します。オフのまま起動したときは、解析とクラッシュ報告の
-仕組み (Firebase) を初期化しません。オンに戻すと再開します。この設定も他の設定と
-同じくあなたの Mac 上にだけ保存されます。
+送信する» をオフにすると、利用統計 (Firebase Analytics) の送信は**その場で**止まります。
+クラッシュレポート (Firebase Crashlytics) の収集は**次回の起動から**止まり、オフのまま
+起動したときは解析とクラッシュ報告の仕組み (Firebase) を初期化しません。オフの期間に
+記録されたクラッシュレポートは、オンに戻すときに端末から削除されるため送信されません。
+この設定も他の設定と同じくあなたの Mac 上にだけ保存されます。
 
 ### 録画・録音したデータ
 
@@ -205,11 +206,13 @@ only to fix bugs. The `kilde` command-line tool sends no crash reports.
 
 **You can turn off usage statistics and crash reports in the app's settings**
 (0.24.0 or later). In the menu bar panel, under "Privacy", turn off "Send app
-usage statistics and crash reports": both stop immediately, and any crash
-reports still waiting on your Mac are deleted. When the app is launched with
-this setting off, the analytics and crash-reporting SDK (Firebase) is not
-initialized at all. Turning it back on resumes sending. Like every other
-setting, this choice is stored only on your Mac.
+usage statistics and crash reports": usage statistics (Firebase Analytics) stop
+**immediately**, while crash-report collection (Firebase Crashlytics) stops
+**from the next launch** — and when the app is launched with the setting off,
+the analytics and crash-reporting SDK (Firebase) is not initialized at all.
+Any crash report recorded while the setting is off is deleted instead of sent
+when you turn it back on. Like every other setting, this choice is stored only
+on your Mac.
 
 ### Your recordings
 

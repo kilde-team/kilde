@@ -376,8 +376,8 @@ This is a maintenance release with no changes to recording or transcription. It 
 
 Opt-out for usage statistics and crash reports (issue #435). A new "Privacy"
 section in the panel settings; unchecking "Send app usage statistics and crash
-reports" stops both Firebase Analytics and Crashlytics **immediately** and
-deletes unsent crash reports. When launched with the setting off the app never
+reports" stops Analytics immediately and Crashlytics from the next launch (SDK
+behavior — FIRCrashlytics.h); reports recorded while off are deleted on re-enable. When launched with the setting off the app never
 calls `FirebaseApp.configure()`. **On by default** (what is collected does not
 change — what changes is that it can be stopped). This is the release that lets
 docs/launch/faq.md §2 ("Can I turn it off?") answer "Yes" before the launch
@@ -385,5 +385,5 @@ posts (#157). No engine change (pin v0.19.0). The measured elements
 (description / keywords / subtitle / screenshots) are unchanged.
 
 ```text
-New "Privacy" setting. Uncheck "Send app usage statistics and crash reports" to stop both right away — the usage statistics that help improve the app and the crash reports that help fix bugs — and to delete any crash reports still queued on your Mac. When launched with the setting off, the app does not initialize the analytics SDK at all. It is on by default and nothing new is collected; your recordings, transcripts, and file names are never sent, whatever the setting.
+New "Privacy" setting. Uncheck "Send app usage statistics and crash reports": usage statistics (Firebase Analytics) stop immediately, and crash reports (Firebase Crashlytics) are no longer collected from the next launch. When launched with the setting off, the app does not initialize the analytics SDK at all, and anything recorded while it was off is deleted rather than sent when you turn it back on. It is on by default and nothing new is collected; your recordings, transcripts, and file names are never sent, whatever the setting.
 ```

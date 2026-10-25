@@ -650,12 +650,14 @@ Firebase 未初期化で `applyToFirebase` が何もせず落ちないこと (`C
 **このセルフテストで「通った」にできないもの**: Release 構成で実際に `FirebaseApp.configure()`
 が抑止されること (Debug では `sendsUsageToFirebase` が常に false のため、純関数部分
 `usageReportingPermitted` で代替)、および初期化済み Firebase に対する
-`setAnalyticsCollectionEnabled` / `setCrashlyticsCollectionEnabled` /
-`deleteUnsentReports` の呼び出し。実機では Release ビルド (sign.sh / appstore-archive.sh の
+`setAnalyticsCollectionEnabled` / `setCrashlyticsCollectionEnabled` の呼び出しと、
+«オンに戻す» 経路 (AppDelegate.startUsageReporting の isLaunch == false) での
+`deleteUnsentReports()`。実機では Release ビルド (sign.sh / appstore-archive.sh の
 成果物) でパネルの «プライバシー» をオフにし、Console.app で `FirebaseAnalytics` の
 サブシステムに «Analytics collection disabled» 相当のログが出ること、オフのまま再起動して
 Firebase の起動ログ (`Firebase Analytics enabled` / `Crashlytics`) が**出ない**ことを
-確かめてください。
+確かめてください (Crashlytics の収集停止は SDK の仕様で**次回の起動から** —
+`setCrashlyticsCollectionEnabled` の効き方の非対称は TelemetryPreferences のコメント)。
 
 ### 検証時の環境の注意
 

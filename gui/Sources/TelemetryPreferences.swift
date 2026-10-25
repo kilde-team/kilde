@@ -46,22 +46,27 @@ enum TelemetryPreferences {
     /// 落ちる (FIRCrashlytics は defaultApp のコンテナからインスタンスを取る) ため、
     /// このガードは省けない。
     ///
+    /// 効き方の非対称 (firebase-ios-sdk 12.19.2 FIRCrashlytics.h の記載):
+    /// - **Analytics** (`setAnalyticsCollectionEnabled`) は **この実行で即時に**効く
+    /// - **Crashlytics** (`setCrashlyticsCollectionEnabled`) は «The value does not
+    ///   apply until the next run of the app» — **次回の起動から**効く。この実行中に
+    ///   クラッシュすると報告が記録されうるが、オフのまま起動した次の実行は
+    ///   configure() しないため送信されず、«オンに戻す« 経路 (startUsageReporting の
+    ///   isLaunch == false) で削除される — «オフの間のクラッシュは送らない« を満たす
+    ///
     /// Analytics / Crashlytics の収集スイッチはどちらも **Firebase 側で起動をまたいで
     /// 永続化される**。そのため «オフにして終了 → 次回オフで起動 (configure しない) →
     /// 実行中にオンへ戻す → そこで configure» の経路では、Firebase に残った
     /// «停止» が生きたままになる — オンに戻すときは必ずここで明示的に true を書く
     /// (AppDelegate.startUsageReporting も configure() の直後に呼ぶ)。
     ///
-    /// オフにするときは未送信のクラッシュレポートも削除する。«止める» を選んだ
-    /// ユーザーの端末に、次にオンへ戻したとき送られる報告を残しておかない
-    /// (`deleteUnsentReports` は収集が無効のときにだけ効く API — 順序は停止 → 削除)
+    /// ここで `deleteUnsentReports` を呼ばない — ヘッダの記載により «自動収集が
+    /// 無効のときだけ» 効く API で、この実行の収集はまだ «有効« のため。削除は
+    /// «オンに戻す« 経路で configure() の直後 (永続化された «オフ« が効いている
+    /// 窓) に行う (AppDelegate.startUsageReporting)
     static func applyToFirebase(enabled: Bool) {
         guard FirebaseApp.app() != nil else { return }
         Analytics.setAnalyticsCollectionEnabled(enabled)
-        let crashlytics = Crashlytics.crashlytics()
-        crashlytics.setCrashlyticsCollectionEnabled(enabled)
-        if !enabled {
-            crashlytics.deleteUnsentReports()
-        }
+        Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(enabled)
     }
 }

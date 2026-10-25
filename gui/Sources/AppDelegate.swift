@@ -165,7 +165,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// 設定の «アプリの利用統計とクラッシュレポートを送信する» が変わったときに
     /// ContentView から呼ばれる (issue #435)。
-    /// - オフ: 即時に収集を止める (Firebase を初期化済みのとき。未初期化なら送信そのものが無い)
+    /// - オフ: Analytics は即時に止まる。Crashlytics は **次回の起動から** (SDK の
+    ///   仕様 — TelemetryPreferences.applyToFirebase)。オフのまま起動した次の実行は
+    ///   configure() しないため、この間に記録された報告は送られない
     /// - オン: 起動時にオフだったため初期化していなければ**ここで初期化する**。条件は
     ///   起動時のゲート sendsUsageToFirebase と同じ (Debug / セルフテストでは初期化しない)。
     ///   起動時と違い `app_open` は送らない — 起動ではないため。初期化済みなら
@@ -186,6 +188,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// 呼ぶ前に sendsUsageToFirebase で可否を判定していること (ここでは判定しない)
     private func startUsageReporting(isLaunch: Bool) {
         FirebaseApp.configure()
+        // «オンに戻す« 経路 (isLaunch == false) では、configure() の直後は Crashlytics
+        // の自動収集が «前回オフにした» 設定 (永続化) のまま無効なため、
+        // deleteUnsentReports の «自動収集が無効のときだけ効く» 適用条件を満たす。
+        // ここで **オフの期間に記録された未送信のクラッシュレポートを削除する** —
+        // 削除せずに収集を再開すると、次の起動の自動アップロードで «オフの間の
+        // クラッシュ» が送られてしまう (CodeRabbit レビュー指摘)。
+        // **起動経路 (isLaunch) では呼ばない** — 設定オンのまま起動したときは前回
+        // セッションのクラッシュの報告を送るのが通常動作のため
+        if !isLaunch {
+            Crashlytics.crashlytics().deleteUnsentReports()
+        }
         // 以前に設定でオフにしたとき Firebase 側に永続化された «収集停止» を解除する。
         // Analytics / Crashlytics の収集スイッチは起動をまたいで残るため、configure()
         // だけでは «オフにして終了 → オフで起動 → オンへ戻す» の経路で送信が再開

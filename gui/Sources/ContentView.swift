@@ -750,15 +750,16 @@ struct ContentView: View {
 
     /// 利用統計 (Firebase Analytics) とクラッシュレポート (Firebase Crashlytics) の
     /// オプトアウト。1 つのチェックボックスで両方を制御する (TelemetryPreferences の
-    /// コメント)。切替は即時 — «次回起動から» にしない。補足は «何が送られないか» を
-    /// 先に言う (ユーザーが知りたいのはそこ)。収集内容の全文は PRIVACY.md
+    /// コメント)。効き方の非対称 (Crashlytics は次回起動から) までここで説明せず、
+    /// «利用統計はすぐ、クラッシュレポートは次の起動から« とだけ書く — 詳細は
+    /// PRIVACY.md。収集内容の全文もそちら
     private var privacySection: some View {
         VStack(alignment: .leading, spacing: 4) {
             Toggle("アプリの利用統計とクラッシュレポートを送信する", isOn: Binding(
                 get: { telemetryEnabled },
                 set: { setTelemetryEnabled($0) }))
                 .toggleStyle(.checkbox)
-            Text("アプリの改善に使う利用統計と、不具合修正に使うクラッシュレポートです。録画や文字起こしの内容・ファイル名は含まれません。オフにするとすぐに送信を止めます")
+            Text("アプリの改善に使う利用統計と、不具合修正に使うクラッシュレポートです。録画や文字起こしの内容・ファイル名は含まれません。オフにすると、利用統計はすぐに止まり、クラッシュレポートは次の起動から送られなくなります")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

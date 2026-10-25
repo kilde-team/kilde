@@ -388,13 +388,14 @@ Esta versión es de mantenimiento: no hay cambios en la grabación ni en la tran
 
 Exclusión voluntaria de estadísticas de uso e informes de fallos (issue #435).
 Nueva sección «Privacidad» en los ajustes del panel; al desmarcar «Enviar
-estadísticas de uso de la app e informes de fallos» se detienen **de inmediato**
-Firebase Analytics y Crashlytics y se borran los informes pendientes. Si la app
+estadísticas de uso de la app e informes de fallos» Analytics se detiene de inmediato
+y Crashlytics desde el siguiente inicio (comportamiento del SDK); lo registrado
+mientras está desactivado se borra al reactivarlo. Si la app
 se abre con el ajuste desactivado, no llama a `FirebaseApp.configure()`.
 **Activado por defecto** (lo que se recoge no cambia; lo que cambia es que se
 puede detener). Sin cambios en el motor (pin v0.19.0). Los elementos medidos
 (descripción / palabras clave / subtítulo / capturas) no cambian.
 
 ```text
-Nuevo ajuste «Privacidad». Desmarca «Enviar estadísticas de uso de la app e informes de fallos» para detener de inmediato ambos envíos (las estadísticas de uso que ayudan a mejorar la app y los informes de fallos que ayudan a corregir errores) y borrar los informes de fallos pendientes en tu Mac. Si la app se abre con el ajuste desactivado, no inicializa el SDK de analítica. Está activado por defecto y no se recoge nada nuevo: tus grabaciones, transcripciones y nombres de archivo nunca se envían, sea cual sea el ajuste.
+Nuevo ajuste «Privacidad». Desmarca «Enviar estadísticas de uso de la app e informes de fallos»: las estadísticas de uso (Firebase Analytics) se detienen de inmediato y los informes de fallos (Firebase Crashlytics) dejan de recopilarse a partir del siguiente inicio. Si la app se abre con el ajuste desactivado, no inicializa el SDK de analítica, y lo que se registró mientras estuvo desactivado se borra en lugar de enviarse al reactivarlo. Está activado por defecto y no se recoge nada nuevo: tus grabaciones, transcripciones y nombres de archivo nunca se envían, sea cual sea el ajuste.
 ```
