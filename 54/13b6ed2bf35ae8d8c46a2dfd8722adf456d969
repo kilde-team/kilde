@@ -1,0 +1,26 @@
+CLAUDE.md
+  h_864205080385bc 68-69
+PRIVACY.md
+  h_864205080385bc 3,53,215-217
+docs/DEVELOPMENT.md
+  h_864205080385bc 657-659
+docs/launch/faq.md
+  h_864205080385bc 62-64
+docs/release-notes/v0.24.0.md
+  h_864205080385bc 6
+gui/Sources/SelfTestTelemetry.swift
+  h_864205080385bc 17-18,70-74,80-81
+gui/Sources/UsageAnalytics.swift
+  h_864205080385bc 153-161,163,167,172-181
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5413b6ed2bf35ae8d8c46a2dfd8722adf456d969",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
