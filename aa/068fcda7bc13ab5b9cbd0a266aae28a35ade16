@@ -1,0 +1,20 @@
+docs/DEVELOPMENT.md
+  h_864205080385bc 661-668
+docs/launch/faq.md
+  h_864205080385bc 59-60
+gui/Sources/AppDelegate.swift
+  h_864205080385bc 191
+gui/Sources/TelemetryPreferences.swift
+  h_864205080385bc 54-55,64-65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "aa068fcda7bc13ab5b9cbd0a266aae28a35ade16",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
