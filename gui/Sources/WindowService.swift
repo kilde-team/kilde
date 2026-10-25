@@ -93,12 +93,13 @@ enum WindowService: String, CaseIterable {
     /// Slack の bundleID 接頭辞。**タイトルでハドルかを見る必要があるため**、
     /// meetingAppPrefixes とは別に持つ
     private static let slackPrefix = "com.tinyspeck.slackmacgap"
-    /// Slack のハドルらしいタイトル (MeetingDetector の Slack 規則と同じ語彙)。
-    /// 部分一致はチャンネル名に "huddle" 等を含む通常ウィンドウを誤タグしうるが、
-    /// 誤りは «タグが付くだけ» で実害が小さい。逆に判定を厳しくする (単語境界等) のは
-    /// 実機のハドルのウィンドウ名を検証せずに取りこぼしを作りうるため、既存の
-    /// 会議検知 (MeetingDetector) と同じ精度に揃えている
-    private static let slackHuddleContains = ["Huddle", "ハドル", "허들"]
+    /// Slack のハドルらしいタイトル。**MeetingDetector の定数をそのまま使う** —
+    /// Meet の語彙と同じ理由 («同じ事実の 2 箇所管理» は片方だけ更新されて検知とタグが
+    /// ずれるため。cubic レビュー指摘)。部分一致はチャンネル名に "huddle" 等を含む通常
+    /// ウィンドウを誤タグしうるが、誤りは «タグが付くだけ» で実害が小さい。逆に判定を
+    /// 厳しくする (単語境界等) のは実機のハドルのウィンドウ名を検証せずに取りこぼしを
+    /// 作りうるため、既存の会議検知 (MeetingDetector) と同じ精度に揃えている
+    private static let slackHuddleContains = MeetingDetector.slackHuddleTitles
 
     /// ブラウザの bundleID 接頭辞 (MeetingDetector.apps の Meet 規則に出てくるものと同じ)。
     /// ブラウザは «アクティブなタブのタイトル« がウィンドウタイトルになるため、

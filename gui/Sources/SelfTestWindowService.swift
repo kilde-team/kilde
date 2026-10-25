@@ -122,7 +122,10 @@ extension SelfTest {
         if let list = CGWindowListCopyWindowInfo(.optionAll, kCGNullWindowID)
                 as? [[String: Any]] {
             var bundleCache: [pid_t: String?] = [:]
-            for info in list.prefix(40) {
+            // 表示の上限 (40 件) は **条件を満たしたウィンドウから** 選ぶ — 生の一覧の
+            // 先頭に小さいウィンドウが並んでいると、開いている会議・動画のウィンドウが
+            // 観測から漏れる (CodeRabbit レビュー指摘)
+            let eligible = list.compactMap { info -> (number: Int, bundle: String?, title: String?)? in
                 guard let number = info[kCGWindowNumber as String] as? Int,
                       let pid = info[kCGWindowOwnerPID as String] as? Int,
                       let frameDict = info[kCGWindowBounds as String] as? NSDictionary,
@@ -130,7 +133,7 @@ extension SelfTest {
                       rect.width >= 120, rect.height >= 80,
                       // 自分自身 (セルフテスト) と小さいウィンドウは一覧に出さない
                       pid_t(pid) != ProcessInfo.processInfo.processIdentifier
-                else { continue }
+                else { return nil }
                 let ownerPID = pid_t(pid)
                 let bundle: String?
                 if let cached = bundleCache[ownerPID] {
@@ -139,10 +142,18 @@ extension SelfTest {
                     bundle = NSRunningApplication(processIdentifier: ownerPID)?.bundleIdentifier
                     bundleCache[ownerPID] = bundle
                 }
-                let title = info[kCGWindowName as String] as? String
-                let service = WindowService.classify(bundleIdentifier: bundle, title: title)
-                print("selftest: window service window=\(number) bundle=\(bundle ?? "?") "
-                      + "title=\"\(title ?? "")\" service=\(service.rawValue)")
+                return (number: number, bundle: bundle,
+                        title: info[kCGWindowName as String] as? String)
+            }
+            for item in eligible.prefix(40) {
+                let service = WindowService.classify(
+                    bundleIdentifier: item.bundle, title: item.title)
+                print("selftest: window service window=\(item.number) bundle=\(item.bundle ?? "?") "
+                      + "title=\"\(item.title ?? "")\" service=\(service.rawValue)")
+            }
+            if eligible.count > 40 {
+                print("selftest: window service live windows omitted=\(eligible.count - 40) "
+                      + "(条件を満たしたウィンドウのうち 40 件のみ表示)")
             }
         }
         print("selftest: window service classify(missing id)="

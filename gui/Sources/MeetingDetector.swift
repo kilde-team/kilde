@@ -105,6 +105,10 @@ enum MeetingDetector {
     static let meetPrefixes = ["Meet - ", "Meet – "]
     static let meetContains = ["Google Meet"]
 
+    /// Slack のハドルらしいタイトル。**WindowService も同じ定数を参照する** —
+    /// Meet の語彙と同じ理由 (片方だけ更新されると検知とタグがずれるため)
+    static let slackHuddleTitles = ["Huddle", "ハドル", "허들"]
+
     private static func meet(_ browser: String, processes: [String], weak: [String] = [],
                              windows: [String]) -> MeetingApp {
         MeetingApp(name: "Google Meet (\(browser))", processPrefixes: processes,
@@ -148,7 +152,7 @@ enum MeetingDetector {
         MeetingApp(
             name: "Slack", processPrefixes: ["com.tinyspeck.slackmacgap"], weakProcessPrefixes: [],
             windowBundlePrefixes: ["com.tinyspeck.slackmacgap"], titlePrefixes: [],
-            titleContains: ["Huddle", "ハドル", "허들"],
+            titleContains: slackHuddleTitles,
             fallback: .frontmost),
         MeetingApp(
             name: "Webex", processPrefixes: ["Cisco-Systems.Spark", "com.webex.", "com.cisco.webex"],
