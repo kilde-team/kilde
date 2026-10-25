@@ -1,0 +1,14 @@
+docs/appstore/metadata/metrics.md
+  h_864205080385bc 44-52,132
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "da6624f0eef374ff2481818aa2137e7b315e936e",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
