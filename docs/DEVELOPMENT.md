@@ -621,6 +621,52 @@ KILDE_GUI_SELFTEST_CONFIG_SAVE=1 "$APP/Contents/MacOS/KildeGUI"
 パネルが開くこと** を確かめてください。保存先は MAS 版が bookmark 経由、
 直接配布版は «既定値として保存» ボタンで復元されます。
 
+### 利用統計・クラッシュレポートのオプトアウト設定を確かめる (issue #435)
+
+`KILDE_GUI_SELFTEST_TELEMETRY=1` は録画せず、**«アプリの利用統計とクラッシュレポートを
+送信する» の設定**を検証し、終わります。**実録画を伴わない**ため、録画のスロット
+(権限・スピーカー) を占有しません。**実設定には触れない隔離テスト**です —
+設定の保存先 (`UserDefaults` のキー `usageTelemetryEnabled`) は**別スイートを注入**して
+検証するため、実 `UserDefaults.standard` は読み書きしません。Firebase は初期化しません
+(セルフテスト起動では `AppDelegate.sendsUsageToFirebase` が常に false)。
+
+```sh
+KILDE_GUI_SELFTEST_TELEMETRY=1 "$APP/Contents/MacOS/KildeGUI"
+# → selftest: telemetry OK: キーが無ければオン (既定)
+#   selftest: telemetry OK: セルフテスト中は設定に依らずゲートが閉じる
+#   selftest: telemetry OK: 設定オフでゲートが閉じる (次回起動で configure() を呼ばない条件)
+#   selftest: telemetry OK: 再読込でもオフが残る (永続化)
+#   selftest: telemetry OK: applyToFirebase は未初期化の Firebase を初期化しない
+#   …
+#   selftest: telemetry failures=0 (exit 0)
+```
+
+検証しているのは、`TelemetryPreferences` の «キーが無ければオン» (既存ユーザーが
+アップデート直後にオフ扱いにならないこと)、オフ / オンの保存と再読込、起動時のゲート
+`AppDelegate.usageReportingPermitted` が設定オフとセルフテストの両方で閉じること、
+Firebase 未初期化で `applyToFirebase` が何もせず落ちないこと (`Crashlytics.crashlytics()`
+を `configure()` 前に呼ばないガード) です。
+
+**このセルフテストで「通った」にできないもの**: Release 構成で実際に `FirebaseApp.configure()`
+が抑止されること (Debug では `sendsUsageToFirebase` が常に false のため、純関数部分
+`usageReportingPermitted` で代替)、および初期化済み Firebase に対する
+`setAnalyticsCollectionEnabled` / `setCrashlyticsCollectionEnabled` の呼び出しと、
+«オンに戻す» 経路 (AppDelegate.startUsageReporting の isLaunch == false) での
+`deleteUnsentReports()`。実機では Release ビルド (sign.sh / appstore-archive.sh の
+成果物) でパネルの «プライバシー» をオフにし、Console.app で `FirebaseAnalytics` の
+サブシステムに Analytics の収集停止を示すログが出ることを確かめてください (文言は SDK の
+バージョンで変わるため、実機で観測した文言をここに追記する)。オフのまま再起動して、
+`FirebaseApp.configure()` 由来の Firebase の初期化ログが**出ない**ことを確かめてください (Crashlytics の収集停止は SDK の仕様で**次回の起動から** —
+`setCrashlyticsCollectionEnabled` の効き方の非対称は TelemetryPreferences のコメント)。
+最後に **«オンに戻す» 経路** (この PR で最も壊れやすい `deleteUnsentReports()` の実行
+条件 — 起動時オフ → 再起動せずにオンへ戻した場合のみ削除) を確かめてください:
+設定オフのまま起動 → パネルでオンに戻す → Firebase の初期化が走ること、かつ
+オフの間に残った未送信のクラッシュ報告が削除されること (Crashlytics の
+`checkForUnsentReports` で未送信が無くなる、または Firebase コンソールに届かない)。
+同一セッション内で オフ → オン と切り替えた場合は削除されない点にも注意してください
+(そのセッションの起動時に自動収集が有効だったため — AppDelegate.startUsageReporting
+のコメント)。
+
 ### 検証時の環境の注意
 
 > 画面がロックされている、または**ディスプレイが消灯している**間は

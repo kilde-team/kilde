@@ -19,11 +19,16 @@ import FirebaseCore
 /// «利用統計» の枠にとどまる (App Privacy ラベル «製品の操作» も変えない)。
 enum UsageAnalytics {
 
-    /// Firebase が初期化済みのときだけ送る。**セルフテストと Debug 構成は configure
-    /// しない** (AppDelegate.sendsUsageToFirebase 参照) ので、ここで跳ねる。
-    /// 未初期化のまま logEvent しても送信は起こらないが、明示しておくと
-    /// «セルフテスト・Debug では何も送っていない» が読み取れる
-    private static var isEnabled: Bool { FirebaseApp.app() != nil }
+    /// Firebase が初期化済みで、かつユーザーが設定でオフにしていないときだけ送る。
+    /// **セルフテストと Debug 構成は configure しない**、**設定オフでは起動時に
+    /// configure しない** (AppDelegate.sendsUsageToFirebase 参照) ので、どちらも
+    /// ここで跳ねる。未初期化のまま logEvent しても送信は起こらないが、明示して
+    /// おくと «セルフテスト・Debug・設定オフでは何も送っていない» が読み取れる。
+    /// 実行中にオフへ切替えた直後の呼び出しもここで跳ねる (Firebase 側の収集停止に
+    /// 加えての二重のガード — TelemetryPreferences.applyToFirebase 参照)
+    private static var isEnabled: Bool {
+        FirebaseApp.app() != nil && TelemetryPreferences.isEnabled()
+    }
 
     /// 完了した録画の生涯累計。**区分に変換した値だけを送る** ので生の回数が
     /// Google へ出ることはないが、数え続ける台帳として端末の UserDefaults に置く。
@@ -145,16 +150,33 @@ enum UsageAnalytics {
     }
 
     /// 完了回数を進めて、区分をユーザー プロパティに反映する。
-    /// **isEnabled の下に置く** — セルフテストの録画経路でカウンタを進めない
-    /// (UserDefaults はセルフテストで触れたままにしたくないし、setUserProperty も
-    /// 届かない方が清潔)
+    ///
+    /// カウンタ (UserDefaults) を進める条件とイベント / ユーザー プロパティを送る条件は
+    /// **分けている** (cubic レビュー指摘): カウンタは**端末内の台帳**で、送信を伴わない
+    /// ため **テレメトリの設定 (オプトアウト — issue #435) には影響されない**。オフの間も
+    /// 累計を進めないと、オンに戻した後の `recordings_bucket` が実際より低い区分になる
+    /// (docs/metrics.md «0.8.2 以降の完了はすべて数える» とも矛盾する)。対象外は
+    /// セルフテストと Debug 構成だけ — 実行環境の録画を実ユーザーの累計に混ぜないため。
+    /// ユーザー プロパティの反映 (setUserProperty) は isEnabled のままでよい — 送信の
+    /// 一部であり、オフなら届かないのが正しい
     private static func bumpRecordingCount() {
-        guard isEnabled else { return }
+        guard countsLocalRecording else { return }
         let count = UserDefaults.standard.integer(forKey: recordingsCompletedKey) + 1
         UserDefaults.standard.set(count, forKey: recordingsCompletedKey)
         if let bucket = recordingsBucket(count) {
+            guard isEnabled else { return }
             Analytics.setUserProperty(bucket, forName: "recordings_bucket")
         }
+    }
+
+    /// 端末内の録画完了カウンタを進めてよいか (bumpRecordingCount 専用 — 上のコメント)。
+    /// 送信の可否 (isEnabled) とは別物
+    private static var countsLocalRecording: Bool {
+#if DEBUG
+        return false
+#else
+        return !SelfTest.isActive
+#endif
     }
 
     /// 累計録画完了回数の区分。**返す値はこの関数に閉じる** (recordingLengthBucket と

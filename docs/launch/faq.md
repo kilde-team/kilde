@@ -43,18 +43,25 @@ Show HN / r/macapps / Product Hunt のコメント欄で想定される質問と
 
 言われたときの追い質問 «Can I turn it off?»:
 
-> There's no opt-out switch in the app today — honest answer. The GUI's
-> telemetry is two kinds: aggregate usage stats (never content, filenames,
-> or paths) and, when it crashes, a crash report with a stack trace. The
-> other outbound connections — the update check (direct download only) and
-> speech-model downloads from Apple — don't carry usage data; everything is
-> listed in the privacy policy. The CLI, which sends no telemetry, covers
-> scripted and automation use. If enough people want a toggle we'll
-> consider it.
+> Yes. In the menu bar panel, under "Privacy", uncheck "Send app usage
+> statistics and crash reports". Usage statistics stop immediately; crash
+> reports stop being collected from the next launch, and a launch with the
+> setting off doesn't even initialize the analytics SDK. Anything recorded
+> while it was off is deleted rather than sent when you turn it back on. The
+> remaining outbound connections — the update check (direct download only)
+> and speech-model downloads from Apple — don't carry usage data; everything
+> is listed in the privacy policy. The CLI sends no telemetry at all.
 
-補足 (日本語注記): «オプトアウトは現状無し» が事実 (gui/Sources/UsageAnalytics.swift —
-isEnabled は Firebase の設定有無のみ)。«consider it» は約束しない言い方。
-要望が多いようならオプトアウト検討の issue を起票する。
+補足 (日本語注記): オプトアウトは 0.24.0 で追加 (issue #435 —
+gui/Sources/TelemetryPreferences.swift)。効き方の非対称は Firebase SDK の仕様:
+Analytics の `setAnalyticsCollectionEnabled` は即時、Crashlytics の
+`setCrashlyticsCollectionEnabled` は «次回の起動から» (firebase-ios-sdk 12.19.2
+FIRCrashlytics.h)。«オフの間に記録された報告は削除» は、オンに戻す経路で
+configure 直後 (自動収集が永続化 «オフ» の窓) に `deleteUnsentReports()` を呼ぶ
+実装による。既定はオン — «opt-in ではないのか» と突かれたら «既定はオンで、告知済みの
+集計統計。オプトアウトは 1 クリック (利用統計は即時、クラッシュレポートは次の起動から)» と
+事実で返す (既定オフにしない理由はフェーズ 2 の KPI 計測 (#159 / #161) —
+gui/Sources/TelemetryPreferences.swift の設計コメント参照)。
 
 ## 3. 対応 OS は?
 

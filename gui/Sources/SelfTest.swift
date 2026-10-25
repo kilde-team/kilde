@@ -52,6 +52,14 @@ enum SelfTest {
             SelfTestConfigSave.run()
             return
         }
+        // KILDE_GUI_SELFTEST_TELEMETRY=1: 利用統計・クラッシュレポートのオプトアウト設定
+        // (issue #435) の検証。既定オン / オフの保存と再読込 / 起動時のゲート
+        // (usageReportingPermitted) を、専用スイートで確かめる。Firebase は初期化しない。
+        // 実録画を伴わないため録画のスロット (権限・スピーカー) を占有しない
+        if env["KILDE_GUI_SELFTEST_TELEMETRY"] == "1" {
+            SelfTestTelemetry.run()
+            return
+        }
         // KILDE_GUI_SELFTEST_LIBRARY_SEARCH: ライブラリの索引構築 + 全文検索の検証
         // (issue #165)。一時ディレクトリに合成したサイドカー 100 件で実測時間を出す —
         // 実録画を伴わないため録画のスロット (権限・スピーカー) を占有しない

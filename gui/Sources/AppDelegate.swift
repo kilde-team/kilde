@@ -136,7 +136,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ///   計測に開発機のデータが混ざり、Crashlytics の報告は dSYM を送っていない
     ///   (project.yml の postBuildScripts は Release 専用) のでシンボル無しで混ざるだけ。
     ///   開発時のクラッシュは Xcode / Console.app で見るため Crashlytics に頼らない
-    /// - 通常起動 (Release 構成): 送る
+    /// - **ユーザーが設定でオフにしている (issue #435): 送らない**。判定は
+    ///   usageReportingPermitted — configure() 自体を呼ばないので Analytics も
+    ///   Crashlytics も初期化されない。実行中の切替は telemetryPreferenceDidChange
+    /// - 通常起動 (Release 構成、設定オン): 送る
     ///
     /// UsageAnalytics.isEnabled は `FirebaseApp.app() != nil` を見るので、configure()
     /// を飛ばせばイベント送信も Crashlytics も自動で止まる。plist 漏れ (configure() が
@@ -147,8 +150,86 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 #if DEBUG
         return false
 #else
-        return !isSelfTest
+        return usageReportingPermitted(isSelfTest: isSelfTest, defaults: .standard)
 #endif
+    }
+
+    /// sendsUsageToFirebase のうち、ビルド構成 (DEBUG) に依らない部分 — セルフテストで
+    /// ないこと、かつユーザーの設定 (TelemetryPreferences) がオンであること。
+    /// Debug 構成では sendsUsageToFirebase が常に false なので、設定のゲートは
+    /// この関数でだけセルフテストから検証できる (SelfTestTelemetry)。`defaults` を
+    /// 注入できるのも同じ理由 — 共有の `UserDefaults.standard` を検証で触らない
+    static func usageReportingPermitted(isSelfTest: Bool, defaults: UserDefaults) -> Bool {
+        !isSelfTest && TelemetryPreferences.isEnabled(defaults)
+    }
+
+    /// 設定の «アプリの利用統計とクラッシュレポートを送信する» が変わったときに
+    /// ContentView から呼ばれる (issue #435)。
+    /// - オフ: Analytics は即時に止まる。Crashlytics は **次回の起動から** (SDK の
+    ///   仕様 — TelemetryPreferences.applyToFirebase)。オフのまま起動した次の実行は
+    ///   configure() しないため、この間に記録された報告は送られない
+    /// - オン: 起動時にオフだったため初期化していなければ**ここで初期化する**。条件は
+    ///   起動時のゲート sendsUsageToFirebase と同じ (Debug / セルフテストでは初期化しない)。
+    ///   起動時と違い `app_open` は送らない — 起動ではないため。初期化済みなら
+    ///   収集を再開するだけ (Firebase 側に永続化された «停止» を解除する —
+    ///   TelemetryPreferences.applyToFirebase 参照)
+    func telemetryPreferenceDidChange() {
+        let enabled = TelemetryPreferences.isEnabled()
+        if enabled, FirebaseApp.app() == nil,
+           Self.sendsUsageToFirebase(isSelfTest: SelfTest.isActive) {
+            startUsageReporting(isLaunch: false)
+            return
+        }
+        TelemetryPreferences.applyToFirebase(enabled: enabled)
+    }
+
+    /// Firebase を初期化して利用状況の送信を始める。起動時 (`isLaunch` — app_open を
+    /// 送る) と、設定でオンに戻されたとき (telemetryPreferenceDidChange) の 2 経路。
+    /// 呼ぶ前に sendsUsageToFirebase で可否を判定していること (ここでは判定しない)
+    private func startUsageReporting(isLaunch: Bool) {
+        FirebaseApp.configure()
+        // «オンに戻す» 経路 (isLaunch == false) では、configure() の直後は Crashlytics
+        // の自動収集が «前回オフにした» 設定 (永続化) のまま無効なため、
+        // deleteUnsentReports の «自動収集が無効のときだけ効く» 適用条件を満たす。
+        // ここで **オフの期間に記録された未送信のクラッシュレポートを削除する** —
+        // 削除せずに収集を再開すると、次の起動の自動アップロードで «オフの間の
+        // クラッシュ» が送られてしまう (CodeRabbit レビュー指摘)。
+        // **起動経路 (isLaunch) では呼ばない** — 設定オンのまま起動したときは前回
+        // セッションのクラッシュの報告を送るのが通常動作のため
+        if !isLaunch {
+            Crashlytics.crashlytics().deleteUnsentReports()
+        }
+        // 以前に設定でオフにしたとき Firebase 側に永続化された «収集停止» を解除する。
+        // Analytics / Crashlytics の収集スイッチは起動をまたいで残るため、configure()
+        // だけでは «オフにして終了 → オフで起動 → オンへ戻す» の経路で送信が再開
+        // しない (TelemetryPreferences.applyToFirebase のコメント)
+        TelemetryPreferences.applyToFirebase(enabled: true)
+        // Analytics の初期化は project.yml の OTHER_LDFLAGS: -ObjC に依存する。
+        // -ObjC が無いと Analytics の ObjC クラスが「どこからも参照されない」扱いで
+        // dead-strip され、configure() してもフレームワークが初期化されない
+        // (2026-09-23 実測: -ObjC を付けると configure() 単独で Analytics started)。
+        // macOS には UIApplicationDelegate swizzling が無く app_open は自動送信
+        // されないので、最初のイベントとして明示的に送る。**ユーザー プロパティを
+        // 先に設定する** — プロパティは過去のイベントに遡って適用されないため、
+        // 先に app_open を送ると初回起動の app_open にチャネルが載らない
+        // (CodeRabbit レビュー指摘)
+        UsageAnalytics.setUserProperties()
+        if isLaunch {
+            Analytics.logEvent("app_open", parameters: nil)
+        }
+        // クラッシュ解析 (issue #210)。FirebaseCrashlytics をリンクしていれば
+        // configure() が自動で有効にし、次回起動時に前回のクラッシュを送る。
+        // 明示的に取り出すのは «リンクされて初期化されている» ことをコードに残すため。
+        // セルフテスト・Debug 構成・設定オフでは上の configure() 自体を呼ばないので、
+        // クラッシュも送らない。
+        //
+        // **NSApplicationCrashOnExceptions は有効にしない。** Firebase は macOS で
+        // これを YES にするよう勧めているが、有効にすると AppKit が握りつぶしていた
+        // メインスレッドの未捕捉例外でアプリが落ちるようになる — 録画中なら
+        // «必ずファイナライズする» という最重要要件 (CLAUDE.md §1) を壊しうる。
+        // その種の例外は報告されない代わりに、シグナル・Swift のトラップ・
+        // メインスレッド外の未捕捉例外といった本物のクラッシュは報告される
+        _ = Crashlytics.crashlytics()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -160,36 +241,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 起動で即気づく方が、計測が黙って欠けるより安全 (Debug 構成では送らないため
         // 検出はアーカイブ時になる — sendsUsageToFirebase 参照)
         // 送信を始める条件は sendsUsageToFirebase — セルフテストに加え **Debug 構成でも
-        // 送らない** (issue #219、理由は関数のコメント)。**Sparkle と分岐は違う** —
+        // 送らない** (issue #219、理由は関数のコメント)。ユーザーが設定でオフにして
+        // いるときも呼ばない (issue #435)。**Sparkle と分岐は違う** —
         // Sparkle は KILDE_GUI_SELFTEST_UPDATE=1 でも起動する (updaterStartsAtLaunch)
         // が、Firebase はセルフテスト・Debug 構成のどちらでも起動しない
         let isSelfTest = SelfTest.isActive
         if Self.sendsUsageToFirebase(isSelfTest: isSelfTest) {
-            FirebaseApp.configure()
-            // Analytics の初期化は project.yml の OTHER_LDFLAGS: -ObjC に依存する。
-            // -ObjC が無いと Analytics の ObjC クラスが「どこからも参照されない」扱いで
-            // dead-strip され、configure() してもフレームワークが初期化されない
-            // (2026-09-23 実測: -ObjC を付けると configure() 単独で Analytics started)。
-            // macOS には UIApplicationDelegate swizzling が無く app_open は自動送信
-            // されないので、最初のイベントとして明示的に送る。**ユーザー プロパティを
-            // 先に設定する** — プロパティは過去のイベントに遡って適用されないため、
-            // 先に app_open を送ると初回起動の app_open にチャネルが載らない
-            // (CodeRabbit レビュー指摘)
-            UsageAnalytics.setUserProperties()
-            Analytics.logEvent("app_open", parameters: nil)
-            // クラッシュ解析 (issue #210)。FirebaseCrashlytics をリンクしていれば
-            // configure() が自動で有効にし、次回起動時に前回のクラッシュを送る。
-            // 明示的に取り出すのは «リンクされて初期化されている» ことをコードに残すため。
-            // セルフテスト・Debug 構成では上の configure() 自体を呼ばないので、
-            // クラッシュも送らない。
-            //
-            // **NSApplicationCrashOnExceptions は有効にしない。** Firebase は macOS で
-            // これを YES にするよう勧めているが、有効にすると AppKit が握りつぶしていた
-            // メインスレッドの未捕捉例外でアプリが落ちるようになる — 録画中なら
-            // «必ずファイナライズする» という最重要要件 (CLAUDE.md §1) を壊しうる。
-            // その種の例外は報告されない代わりに、シグナル・Swift のトラップ・
-            // メインスレッド外の未捕捉例外といった本物のクラッシュは報告される
-            _ = Crashlytics.crashlytics()
+            startUsageReporting(isLaunch: true)
         }
         // 通知の許可要求はここで 1 回だけ。拒否されても録画は完全に動くので、
         // 失敗として扱わない (通知が出ないだけ)

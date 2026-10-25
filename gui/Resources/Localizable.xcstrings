@@ -5510,6 +5510,93 @@
           }
         }
       }
+    },
+    "プライバシー": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privacy"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privacidad"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "개인정보 보호"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐私"
+          }
+        }
+      }
+    },
+    "アプリの利用統計とクラッシュレポートを送信する": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send app usage statistics and crash reports"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enviar estadísticas de uso de la app e informes de fallos"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "앱 사용 통계와 충돌 보고서 보내기"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "发送应用使用统计和崩溃报告"
+          }
+        }
+      }
+    },
+    "アプリの改善に使う利用統計と、不具合修正に使うクラッシュレポートです。録画や文字起こしの内容・ファイル名は含まれません。オフにすると、利用統計はすぐに止まり、クラッシュレポートは次の起動から送られなくなります": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Usage statistics help improve the app and crash reports help fix bugs. Neither includes your recordings, transcripts, or file names. Turning this off stops usage statistics immediately; crash reports stop being sent from the next launch"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Las estadísticas de uso ayudan a mejorar la app y los informes de fallos ayudan a corregir errores. Ninguno incluye tus grabaciones, transcripciones ni nombres de archivo. Al desactivarlo, las estadísticas de uso se detienen de inmediato y los informes de fallos dejan de enviarse a partir del siguiente inicio"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사용 통계는 앱 개선에, 충돌 보고서는 버그 수정에 사용됩니다. 녹화나 텍스트 변환의 내용, 파일 이름은 포함되지 않습니다. 끄면 사용 통계는 즉시 중단되고, 충돌 보고서는 다음 실행부터 전송되지 않습니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用统计用于改进应用，崩溃报告用于修复问题。两者都不包含您的录制、转写内容或文件名。关闭后，使用统计会立即停止发送，崩溃报告从下次启动起不再发送"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
