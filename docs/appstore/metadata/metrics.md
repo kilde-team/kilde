@@ -41,6 +41,15 @@ issue #160 の受け入れ条件「変更前後 4 週間のインプレッショ
   既定ビットレート圧縮の告知 — issue #316 / kilde-cli-swift#86。What's New の追記と提出は
   issue #323)。計測対象 (説明・キーワード・サブタイトル・スクショ) は不変のため計測期間は
   設けない
+- **変更 4 (0.23.0)**: App Store 製品ページに **App Preview 動画 (ja / en-US。kilde#399 で
+  生成、1920×1080 / H.264 / 29.9 秒を実測) を初登録** (issue #160 の 2026-10-25 コメント、
+  リリースは issue #426 のメンテナンス版)。ja に登録したため**製品ページの先頭が初めて
+  動画になる**。説明・キーワード・サブタイトル・スクショは不変、What's New はメンテナンス
+  文面 (What's New は計測対象ではない)。**反映日 = 0.23.0 の承認・公開日 2026-10-26 (JST)**
+  (下の「反映日」)。**変更 4 の基準期間は変更 3 の反映日 (2026-10-03) 〜 反映日前日
+  (2026-10-25)**、比較終了日は反映日 + 4 週間 = **2026-11-23**。週次表は 4 週後の計測時に
+  記入する。動画は «表示 → ページ閲覧» の段階に効く施策なので、変更 3 までと同じ 6 指標の
+  うち **ユニークページ閲覧と CVR の相対変化**を主に見る (issue #434)
 - **反映のタイミング**: メタデータもスクショも、バージョンを審査に通って公開された
   時点で製品ページに現れる (= 下の「反映日」)
 
@@ -120,6 +129,7 @@ ASC 分析の指標を使う (Apple の
 | 0.20.0 審査承認・公開日 | **2026-10-23** (JST。提出 2026-10-22 に CI 完結経路で (mas.yml submit run 39704219181 «version 0.20.0 submitted for review»、status run 39704463362 (2026-10-22T01:13Z) で WAITING_FOR_REVIEW を確認。build 25。中身はカレンダーの会議名を録画ファイル名に使う連携 — issue #393 / PR #402、エンジン kilde-cli-swift v0.18.0 (PR #133)。前の 2 失敗ラン (39702458621 / 39703697502) は «Asset is being processed» のビルド処理待ち)。前の観測 2026-10-23 03:42 JST は IN_REVIEW (mas-watch run 39833749913、14:21Z ランは WAITING_FOR_REVIEW)、検知ラン 39862563204 (2026-10-23 07:07 JST) が READY_FOR_SALE を確認 — issue #408。承認時刻は JST 10-23 03:42〜07:07 間。iTunes Lookup (country=us) の currentVersionReleaseDate 2026-10-22T21:46:30Z = JST 10-23 06:46:30 と整合。計測対象 (説明・キーワード・サブタイトル・スクショ) は不変のため計測期間は設けない) |
 | 0.21.0 審査承認・公開日 | **2026-10-24** (JST。提出 2026-10-23 に CI 完結経路で (mas.yml submit run 39886847205 «version 0.21.0 submitted for review»、status run 39887055161 (2026-10-23T01:59Z) で WAITING_FOR_REVIEW を確認。build 26。中身は文字起こし言語の «自動 (録音から判定)» — issue #409 / PR #411、エンジン kilde-cli-swift v0.19.0 (PR #134))。前の観測 2026-10-24 04:47 JST は IN_REVIEW (mas-watch run 40014178397)、検知ラン 40036532496 (2026-10-24 07:54 JST) が READY_FOR_SALE を確認 — issue #415。承認時刻は JST 10-24 04:47〜07:54 間。iTunes Lookup (country=us) の currentVersionReleaseDate 2026-10-23T20:01:54Z = JST 10-24 05:01:54 と整合 (country=jp は CDN キャッシュ遅延のため us で裏取り)。計測対象 (説明・キーワード・サブタイトル・スクショ) は不変のため計測期間は設けない) |
 | 0.22.0 審査承認・公開日 | **2026-10-25** (JST。提出 2026-10-24 に CI 完結経路で (mas.yml submit run 40052913866 «version 0.22.0 submitted for review»、status run 40053184554 で WAITING_FOR_REVIEW を確認。build 27。中身は既存の音声・動画ファイルの取り込み — issue #416 / PR #418、あわせて録画後にパネルの高さが録画中表示のまま戻る修正 issue #417 / PR #419。エンジン pin は v0.19.0 のまま)。前の観測 2026-10-25 02:05 JST は IN_REVIEW (エージェントによる asc-submit status 確認)、検知ラン 40118020029 (2026-10-25 02:51 JST) が READY_FOR_SALE を確認 — issue #428。承認時刻は JST 10-25 02:05〜02:51 間。iTunes Lookup (country=us) の currentVersionReleaseDate 2026-10-24T17:11:11Z = JST 10-25 02:11:11 と整合。計測対象 (説明・キーワード・サブタイトル・スクショ) は不変のため計測期間は設けない) |
+| 0.23.0 審査承認・公開日 (= 変更 4 の反映日) | **2026-10-26** (JST。提出 2026-10-25 09:32 JST (run 40147079361 の作成時刻 2026-10-25T00:32:13Z) に CI 完結経路で (mas.yml submit run 40147079361 «version 0.23.0 submitted for review»、WAITING_FOR_REVIEW・releaseType AFTER_APPROVAL を確認。build 28。前の 2 ラン 40146643983 / 40146835209 は «Asset is being processed» — 動画派生アセットの処理待ち。中身はメンテナンス版 — issue #426、**App Preview 動画 (ja / en-US) の初登録** — issue #160。エンジン pin は v0.19.0 のまま)。前の観測 mas-watch run 40204086326 (2026-10-25T14:50Z = JST 10-25 23:50) は WAITING_FOR_REVIEW、mas.yml status run 40209217851 (2026-10-25T15:55Z = JST 10-26 00:55) が READY_FOR_SALE を確認 — issue #434 (エージェントが起票。mas-watch の自動起票より先)。承認時刻は JST 10-25 23:50〜10-26 00:55 間で、iTunes Lookup (country=us / jp とも) の currentVersionReleaseDate **2026-10-25T15:45:03Z = JST 10-26 00:45:03** と整合 — 公開日は **10-26** で確定。**変更 4 (プレビュー動画) の反映日は本行で確定**。基準期間 (2026-10-03〜10-25) と比較終了日 (2026-11-23) は上の「比較する変更」のとおり。週次表は 4 週後の計測時に記入する) |
 
 ## 変更前の ASC 登録内容 (2026-09-26 に ASC API で取得)
 
