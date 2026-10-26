@@ -1,0 +1,30 @@
+.github/FUNDING.yml
+  h_864205080385bc 1-3
+docs/appstore/metadata/metadata-en.md
+  h_864205080385bc 390-405
+docs/appstore/metadata/metadata-es.md
+  h_864205080385bc 402-417
+docs/appstore/metadata/metadata-ja.md
+  h_864205080385bc 391-404
+docs/appstore/metadata/metadata-ko.md
+  h_864205080385bc 345-351
+docs/appstore/metadata/metadata-zh-Hans.md
+  h_864205080385bc 315-321
+docs/release-notes/v0.25.0.md
+  h_864205080385bc 1-12
+gui/Resources/Localizable.xcstrings
+  h_864205080385bc 5600-5657
+gui/Sources/ContentView.swift
+  h_864205080385bc 232-235,242-245,292-318
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f7d0ad94b587360790454040115a5aea27a0d49e",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
