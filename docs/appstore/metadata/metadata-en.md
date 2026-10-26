@@ -387,3 +387,19 @@ posts (#157). No engine change (pin v0.19.0). The measured elements
 ```text
 New "Privacy" setting. Uncheck "Send app usage statistics and crash reports": usage statistics (Firebase Analytics) stop immediately, and crash reports (Firebase Crashlytics) are no longer collected from the next launch. When launched with the setting off, the app does not initialize the analytics SDK at all, and anything recorded while it was off is deleted rather than sent when you turn it back on. It is on by default and nothing new is collected; your recordings, transcripts, and file names are never sent, whatever the setting.
 ```
+## What's New (0.25.0)
+
+GitHub Sponsors link in the direct-download version's "Support this app"
+section (the remainder of issue #171). With the Sponsors enrollment done, the
+direct-download route deferred from 0.18.0 is added: a button that opens the
+Sponsors page in the default browser — the app itself sends nothing over the
+network. The repository also gets a FUNDING.yml so the Sponsor button appears
+(same destination). No functional change in the App Store build — the mirror
+image of 0.18.0 (which was App Store–only): the What's New copy says plainly
+that this release is direct-download–only. Recording and transcription stay
+free (issue #171's "don't harm the free experience"). No engine change
+(pin v0.19.0).
+
+```text
+This release changes the direct-download version only. Its "Support this app" section now opens the GitHub Sponsors page in your browser. The App Store version has no functional changes, and every recording and transcription feature remains free, as before.
+```

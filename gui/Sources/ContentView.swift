@@ -229,14 +229,19 @@ struct ContentView: View {
                 updateRow
             }
 #endif
-            // チップ (issue #171)。パネルの最下部 («控えめに置く» が issue の方針) で、
-            // 商品一覧が取れないときはセクションごと出さない。MAS 版のみ —
-            // 直接配布版の導線は GitHub Sponsors の予定 (参加後 — issue #171 の残り)
+            // チップ (issue #171)。パネルの最下部 («控えめに置く» が issue の方針)。
+            // MAS 版は StoreKit のチップ、直接配布版は GitHub Sponsors へのリンク
+            // (Sponsors 参加後に追加した残りのスコープ)。MAS 版では商品一覧が
+            // 取れないときはセクションごと出さない
 #if APPSTORE
             if !tips.isUnavailable {
                 section("アプリを応援") {
                     tipSection
                 }
+            }
+#else
+            section("アプリを応援") {
+                sponsorsSection
             }
 #endif
         }
@@ -282,6 +287,33 @@ struct ContentView: View {
             }
         }
     }
+#endif
+
+#if !APPSTORE
+    /// DMG 版の «アプリを応援» — GitHub Sponsors へのリンクのみ (issue #171)。
+    /// MAS 版のチップと違い外部決済になるため直接配布版だけに置く (issue 本文の
+    /// «MAS 版には外部決済リンクを入れない»)。「開く」は既定ブラウザで行い、
+    /// アプリからはネットワークに何も送らない
+    private var sponsorsSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("開発の支援は GitHub Sponsors からも")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("GitHub Sponsors で応援") {
+                    if let url = URL(string: Self.sponsorsURL) {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+                .controlSize(.small)
+            }
+        }
+    }
+
+    /// FUNDING.yml と同じ行き先 (issue #171)。URL を組み立て直さない —
+    /// 変更はここだけに留める
+    private static let sponsorsURL = "https://github.com/sponsors/takezou621"
 #endif
 
     /// 現在のバージョンと「アップデートを確認」ボタン (issue #122)。

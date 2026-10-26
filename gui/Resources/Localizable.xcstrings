@@ -5597,6 +5597,64 @@
           }
         }
       }
+    },
+    "開発の支援は GitHub Sponsors からも": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can also support development on GitHub Sponsors"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "También puedes apoyar el desarrollo en GitHub Sponsors"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub Sponsors에서도 개발을 지원할 수 있습니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "也可以通过 GitHub Sponsors 支持开发"
+          }
+        }
+      }
+    },
+    "GitHub Sponsors で応援": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Support on GitHub Sponsors"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apoyar en GitHub Sponsors"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitHub Sponsors로 응원하기"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 GitHub Sponsors 上支持"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
