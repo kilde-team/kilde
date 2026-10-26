@@ -15,8 +15,10 @@ struct ContentView: View {
     @ObservedObject var transcription: TranscriptionCoordinator
     /// 会議の自動録画。実体は AppDelegate が持つ — このビューは設定と表示だけ
     @ObservedObject var meetingAutoRecorder: MeetingAutoRecorder
-    /// チップの購入 (issue #171)。実体は AppDelegate が持つ。App Store 配布ビルドの
-    /// み «アプリを応援» セクションを出す (直接配布版ではスタブで商品が空 = 非表示)
+    /// チップの購入 (issue #171)。実体は AppDelegate が持つ。StoreKit のチップは
+    /// App Store 配布ビルドのみ (直接配布版ではスタブで商品が空 = 非表示)。
+    /// «アプリを応援» セクション自体は両ビルドに出る — 直接配布版は 0.25.0 から
+    /// Sponsors リンクに差し替え (sponsorsSection)
     @ObservedObject var tips: TipCoordinator
     /// 利用統計・クラッシュレポートの送信設定 (issue #435)。正本は UserDefaults
     /// (TelemetryPreferences) で、この @State はチェックボックスの表示を追従させる

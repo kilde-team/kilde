@@ -399,19 +399,23 @@ puede detener). Sin cambios en el motor (pin v0.19.0). Los elementos medidos
 ```text
 Nuevo ajuste «Privacidad». Desmarca «Enviar estadísticas de uso de la app e informes de fallos»: las estadísticas de uso (Firebase Analytics) se detienen de inmediato y los informes de fallos (Firebase Crashlytics) dejan de recopilarse a partir del siguiente inicio. Si la app se abre con el ajuste desactivado, no inicializa el SDK de analítica, y lo que se registró mientras estuvo desactivado se borra en lugar de enviarse al reactivarlo. Está activado por defecto y no se recoge nada nuevo: tus grabaciones, transcripciones y nombres de archivo nunca se envían, sea cual sea el ajuste.
 ```
+
 ## Novedades (0.25.0)
 
 Enlace a GitHub Sponsors en la sección «Apoya esta app» de la versión de
-descarga directa (la parte restante del issue #171). Con el alta en GitHub
-Sponsors completada, se añade la vía que se aplazó en 0.18.0: un botón que
-abre la página de Sponsors en el navegador predeterminado — la aplicación no
-envía nada por la red. El repositorio también recibe un FUNDING.yml para que
-aparezca el botón Sponsor (mismo destino). Sin cambios funcionales en la
-versión de la Mac App Store — imagen especular de 0.18.0 (que era solo de la
-App Store): el texto de novedades dice claramente que esta versión afecta
-solo a la descarga directa. La grabación y la transcripción siguen siendo
-gratuitas (política del issue #171). Sin cambios en el motor (pin v0.19.0).
+descarga directa (la parte restante del issue #171). Con el alta completada,
+se añade la vía aplazada desde 0.18.0: un botón que abre la página de
+Sponsors en el navegador predeterminado — la aplicación no realiza ninguna
+llamada de red nueva por esta acción (el tráfico existente, como la
+comprobación de actualizaciones y las estadísticas de uso, no cambia). El
+repositorio también recibe un FUNDING.yml para el botón Sponsor (mismo
+destino). Sin cambios funcionales en la versión de la Mac App Store —
+imagen especular de 0.18.0. **El texto de Novedades (visible en la tienda)
+no menciona Sponsors**: mencionar una vía de pago externa rozaría las normas
+de la App Store (3.1.1) y la propia regla del issue, así que el texto sigue
+el precedente de versión de mantenimiento de 0.23.0. La grabación y la
+transcripción siguen siendo gratuitas. Sin cambios en el motor (pin v0.19.0).
 
 ```text
-Esta versión solo cambia la versión de descarga directa. Su sección «Apoya esta app» ahora abre la página de GitHub Sponsors en tu navegador. La versión de la Mac App Store no tiene cambios funcionales, y todas las funciones de grabación y transcripción siguen siendo gratuitas, como siempre.
+Esta versión es de mantenimiento: la versión de la Mac App Store no tiene cambios funcionales. Todas las funciones siguen siendo gratuitas, como siempre.
 ```
