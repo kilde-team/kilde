@@ -83,6 +83,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// セルフテストでは商品を取りにいかない — ASC へのネットワークアクセスを
     /// 録画系の検証に持ち込まない (updaterStartsAtLaunch と同じ配慮)
     private(set) lazy var tips = TipCoordinator(enabled: !SelfTest.isActive)
+    /// Pro (要約) の購入と権利 (issue #169 / #170)。チップと同じ構成 —
+    /// App Store 配布ビルドのみ StoreKit に触れ、直接配布版はスタブで常に
+    /// ロック解除済み、セルフテストでは無効
+    private(set) lazy var pro = ProCoordinator(enabled: !SelfTest.isActive)
     private var cancellables: Set<AnyCancellable> = []
     /// グローバルホットキー (issue #20)。CLI と同じ `HotkeyMonitor` / `HotkeySettings` を使い、
     /// 設定 (~/.kilde/config.json の `hotkey`) も CLI と共有する。
@@ -253,6 +257,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 失敗として扱わない (通知が出ないだけ)
         notifier.start()
         recording.notifier = notifier
+        // Pro 権利 (issue #169/#170)。起動時に必ず組み立てる — ポップオーバーを
+        // 一度も開かずに (自動録画だけで) 使うセッションでも、文字起こしの要約
+        // ゲートが実行時点の権利を見られるようにするため。licenseProvider の
+        // 既定は «権利なし» (フェイルセーフ) なので、この配線が無いと購入済み
+        // ユーザーの要約まで弾かれる
+        transcription.licenseProvider = { [pro] in pro.license }
+        Task { await pro.refreshEntitlements() }
         // 録画完了通知の «文字起こし» アクション → キューへ (issue #392)。配線の
         // 持ち主はここ (onCompletion と同じ向き)。«録画したときの設定» の
         // スナップショットは通知の側に無いため、**押した時点の setup 値**を使う —
@@ -314,7 +325,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             rootView: ContentView(
                 setup: setup, recording: recording, permissions: permissions, updater: updater,
                 transcription: transcription, meetingAutoRecorder: meetingAutoRecorder,
-                tips: tips))
+                tips: tips, pro: pro))
         popover = p
         item.button?.target = self
         item.button?.action = #selector(togglePopover)
@@ -355,8 +366,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     recordingURL: url,
                     format: self.setup.transcriptFormat,
                     // 要約 (issue #163): トグルがオンかつ Apple Intelligence が使えるときだけ
-                    // テンプレートを運ぶ。録画完了時点の setup 値で確定する (文字起こしと同じ)
-                    summaryTemplate: (self.setup.summaryEnabled && self.setup.summaryAvailable)
+                    // テンプレートを運ぶ。録画完了時点の setup 値で確定する (文字起こしと同じ)。
+                    // Pro の権利も条件に含む (issue #170 — 返金後にトグルがオンのまま
+                    // 残っていても、実行時のゲートで弾かれる前にここで落とす)
+                    summaryTemplate: (self.setup.summaryEnabled && self.setup.summaryAvailable
+                        && self.pro.license.allows(.summary))
                         ? self.setup.summaryTemplate : nil,
                     localeID: self.setup.transcriptLocale,
                     // 録画の長さ。計測 (issue #153) の区分だけに使う。elapsed は

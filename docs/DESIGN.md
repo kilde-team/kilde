@@ -861,6 +861,32 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
 >   LIBRARY_IMPORT=1` が縛る (docs/DEVELOPMENT.md §3)。パネル・ドロップの UI 経路は
 >   手動確認
 
+### Pro (要約) のゲートと購入 (#169 / #170 — 0.26.0)
+
+第一弾 Pro は**会議の要約** (録画・文字起こしは無料のまま — MONETIZATION.md §8
+«線引き» の正本参照)。権利の判定本体は private エンジン側
+(kilde-cli-swift#135 — `MeetingSummarizer.summarize` のゲート) にあり、公開 GUI
+は権利の «運搬» だけを行う:
+
+- **権利の組み立て** (`ProCoordinator` / `ProCoordinatorAppStore` — TipCoordinator
+  と同じ 2 ファイル構成): MAS 版は StoreKit 2 の `Transaction.currentEntitlements`
+  から `LicenseContext` を組み立て、起動時・ポップオーバー表示時・購入後に更新する。
+  直接配布版はスタブで常に `directDistribution` (Pro 直接販売 #172 は当面見送りの
+  ため無料開放)。検証はオフライン完結で、電話ホーム・テレメトリはしない
+- **ロック表示**: MAS 版で未購入のとき、設定パネルの «録画後に要約も作る» が
+  ロック行 («Pro» バッジ) に置き換わり、クリックで購入導線 (価格・購入・復元 —
+  ポップオーバー内にインライン。NSPopover はシートを表示できないため) が開く。
+  ライブラリの «議事録を作成» は押せなくなり、ツールチップで案内する
+  (購入導線は設定パネルにしか置かない — «控えめ» 方針)
+- **商品**: 非消耗型 `kilde.pro` (買い切り ¥2,800。ASC の IAP と productID が契約)。
+  チップ (kilde.tip.*) と同じ «kilde.» 名前空間
+- **実行時の二重のゲート**: `TranscriptionCoordinator` は要約の実行前に権利を確認
+  して権利なしなら «文字起こしは成功・要約はスキップ + 案内» にし (Apple
+  Intelligence 不可の案内と同じ扱い)、エンジンのゲートが最終防護になる。
+  `licenseProvider` の既定は «権利なし» (フェイルセーフ)
+- セルフテスト `KILDE_GUI_SELFTEST_PRO=1` がエンジンのゲートとビルドごとの初期権利を
+  縛る (StoreKit の実トランザクションは実機確認)
+
 ## 10. リポジトリ構成と開発プロセス
 
 エンジンと CLI のソースは kilde-team/kilde-cli-swift へ移管済み (issue #115 / #118)。

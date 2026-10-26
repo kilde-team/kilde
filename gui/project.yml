@@ -87,7 +87,11 @@ packages:
     # 主ロケールを選ぶ。判定不能は端末ロケールへフォールバック) と
     # Transcriber.transcribeWithSpeakers のトラックごとのロケール指定、
     # TranscriptionRun.Request.localeAuto / Phase.localeDetection が増えた
-    exactVersion: 0.19.0
+    # v0.20.0: Pro ライセンスゲートの接続 (kilde-cli-swift#135)。MeetingSummarizer.summarize が
+    # license: LicenseContext? を受け取り、権利なし (非 nil) で .licenseRequired を投げる。
+    # LicenseContext.Entitlement に直接配布版 (directDistribution — Pro 機能無料開放) が増えた。
+    # kilde#169 / kilde#170 (Pro 購入・ロック UI) が消費
+    exactVersion: 0.20.0
   # GUI の自動更新 (issue #122)。Sparkle 2 のバイナリターゲット (macOS 12+) で、
   # リンクすると Sparkle.framework が Contents/Frameworks に埋め込まれる。
   # バージョンを固定する理由は kilde-cli-swift と同じ: 浮動参照だと上流の push が

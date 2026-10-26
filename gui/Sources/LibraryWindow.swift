@@ -627,10 +627,16 @@ private struct LibraryDetailView: View {
     /// 購読しないため、disabled / ツールチップの見た目は本文評価時のスナップショット
     /// (`let snapshot`) だが、**実行はアクションの中で設定を読み直す**
     /// (CodeRabbit 指摘 — ライブラリを開いたまま設定パネルで変えた設定を反映させる)。
-    /// «議事録» は文字起こし + 要約で、Apple Intelligence が使えない環境では
-    /// 押せず、理由をツールチップに出す (設定パネルの案内と同じ文言)
+    /// «議事録» は文字起こし + 要約で、Apple Intelligence が使えない環境と
+    /// Pro 未購入 (issue #170 — 要約は第一弾 Pro 機能) では押せず、理由を
+    /// ツールチップに出す (設定パネルの案内と同じ文言)。購入導線は設定パネルに
+    /// しか無い («控えめ» 方針 — ここではロックの案内だけ)
     private var actionButtons: some View {
         let snapshot = settings()
+        // Pro 権利は文字起こしコーディネータ経由で読む (権利の持ち主の一元化)。
+        // このビューは権利の変化を観測しないため表示は開いた時点の値 (他の
+        // snapshot と同じ契約 — 実行時のゲートが最新値で判定する)
+        let proLocked = !transcription.currentLicense.allows(.summary)
         return HStack(spacing: 12) {
             Button {
                 enqueue(withSummary: false, snapshot: settings())
@@ -644,10 +650,12 @@ private struct LibraryDetailView: View {
                 Label(String(localized: "議事録を作成"), systemImage: "waveform.badge.waveform")
             }
             .buttonStyle(.bordered)
-            .disabled(snapshot.summaryUnsupportedReason != nil)
+            .disabled(snapshot.summaryUnsupportedReason != nil || proLocked)
             .help(snapshot.summaryUnsupportedReason.map { reason in
                 String(localized: "要約には Apple Intelligence が必要です: \(reason)")
-            } ?? String(localized: "文字起こしの後に要約を生成して Markdown (.md) に載せます (テンプレートは設定パネルの選択を使います)"))
+            } ?? (proLocked
+                ? String(localized: "会議の要約は Pro の機能です (設定パネルから購入できます)")
+                : String(localized: "文字起こしの後に要約を生成して Markdown (.md) に載せます (テンプレートは設定パネルの選択を使います)")))
         }
     }
 
