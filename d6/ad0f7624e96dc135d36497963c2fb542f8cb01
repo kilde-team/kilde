@@ -1,0 +1,38 @@
+.github/workflows/release.yml
+  h_864205080385bc 60
+docs/DESIGN.md
+  h_864205080385bc 864-889
+docs/MONETIZATION.md
+  h_864205080385bc 211-230
+gui/Resources/Localizable.xcstrings
+  h_864205080385bc 5658-5918
+gui/Sources/AppDelegate.swift
+  h_864205080385bc 86-89,260-266,328,369-373
+gui/Sources/ContentView.swift
+  h_864205080385bc 23-30,106-109,142-144,149-157,902-918,1012-1116,1461-1463,1465-1467
+gui/Sources/LibraryWindow.swift
+  h_864205080385bc 630-633,636-639,653,656-658
+gui/Sources/ProCoordinator.swift
+  h_864205080385bc 1-50
+gui/Sources/ProCoordinatorAppStore.swift
+  h_864205080385bc 1-185
+gui/Sources/SelfTest.swift
+  h_864205080385bc 63-70
+gui/Sources/SelfTestPro.swift
+  h_864205080385bc 1-100
+gui/Sources/TranscriptionCoordinator.swift
+  h_864205080385bc 102-114,371-392
+gui/project.yml
+  h_864205080385bc 90-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d6ad0f7624e96dc135d36497963c2fb542f8cb01",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
