@@ -1,0 +1,3 @@
+# issue #171。リポジトリの Sponsor ボタンの行き先。GUI の Sponsors リンク
+# (ContentView.sponsorsURL) と同じ — 変更するときは揃える
+github: takezou621
