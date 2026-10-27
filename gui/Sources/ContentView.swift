@@ -169,6 +169,15 @@ struct ContentView: View {
                 // Pro の権利 (issue #169/#170)。閉じている間に (別 Mac での購入など)
                 // 権利が増えていることがあるので、未購入の間は開くたびに確認する
                 Task { await refreshProIfLocked() }
+                // Pro 未購入のロック行が買える状態で表示された = 購入ファネルの分母
+                // (issue #456)。onAppear は NSHostingController の再利用で再表示に
+                // 走らないため、ここ (開くたびに来る通知) で数える。Apple
+                // Intelligence が使えない環境 (summaryAvailable が false) はロック行が
+                // 表示されても購入できないので数えない (cubic レビュー指摘)。
+                // 直接配布版は常にロック解除済みでこの条件に入らない
+                if !pro.isUnlocked, setup.summaryAvailable {
+                    UsageAnalytics.proUpsellView()
+                }
             }
         }
     }
@@ -1063,9 +1072,6 @@ struct ContentView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        // ロック行が表示された = 購入ファネルの分母 (issue #456)。直接配布版は
-        // 常にロック解除済みでこの行が存在しないため発火しない
-        .onAppear { UsageAnalytics.proUpsellView() }
         // Apple Intelligence が使えない環境では導線を開かせない (買っても要約が
         // 動かないため)。理由は下の «要約には Apple Intelligence が必要です» 行が既に出す
         .disabled(!setup.summaryAvailable)

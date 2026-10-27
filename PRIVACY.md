@@ -190,10 +190,18 @@ or another app window) — is part of the same
 usage statistics. Usage of the transcription feature
 (macOS 26 or later) — counts of starts, completions, failures, cancellations,
 and automatic retries, coarse buckets for processing time and recording length,
-and the kind of failure — is part of the same usage statistics. **It never
-includes transcript text or the names or locations of recording or sidecar
-files, which app was picked for app-specific audio capture (no app names or
-bundle IDs), or the bundle IDs or titles of captured windows.** The `kilde`
+and the kind of failure — is part of the same usage statistics. Usage of the
+meeting-summary feature (Pro) — counts of summary starts, completions, and
+failures, coarse buckets for processing time and recording length, the kind of
+failure, and the reason a summary was skipped — and usage of the Pro purchase
+flow in the Mac App Store version — counts of lock-row displays, purchase
+starts and their outcomes (completion, cancellation, pending approval, or
+failure), entitlement grants, and failed purchase restores, plus the kind of
+failure — are also part of the same usage statistics. **It never
+includes transcript or summary text or the names or locations of recording or
+sidecar files, which app was picked for app-specific audio capture (no app
+names or bundle IDs), the bundle IDs or titles of captured windows, or any
+purchase prices, amounts, or transaction IDs.** The `kilde`
 command-line
 tool does no
 analytics.

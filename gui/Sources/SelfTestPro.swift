@@ -93,10 +93,14 @@ enum SelfTestPro {
         UsageAnalytics.summaryStarted(recordingDuration: nil)
         UsageAnalytics.summaryCompleted(recordingDuration: nil, processingTime: nil)
         UsageAnalytics.summaryFailed(
-            KilError.failure(.licenseRequired, "selftest"), recordingDuration: nil)
+            KilError.failure(.licenseRequired, "selftest"),
+            recordingDuration: nil, processingTime: nil)
         UsageAnalytics.summarySkipped(.proRequired, recordingDuration: nil)
+        // «未初期化のまま» であることしか機械検証できない (送信の抑止は
+        // UsageAnalytics.isEnabled が FirebaseApp.app() を見る構造による —
+        // SelfTestTelemetry と同じ線引き)
         check(FirebaseApp.app() == nil,
-              "pro/summary analytics calls stay no-op without Firebase")
+              "pro/summary analytics calls keep Firebase uninitialized")
 
         print("selftest: pro PASS=\(6 - failures) FAIL=\(failures)")
         exit(failures == 0 ? 0 : 1)

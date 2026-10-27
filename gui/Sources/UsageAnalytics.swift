@@ -322,9 +322,15 @@ enum UsageAnalytics {
     /// 要約の生成が失敗した。録画・文字起こしは成功済みで、ジョブ全体は
     /// サイドカーを書かずに失敗する (TranscriptionCoordinator の契約) —
     /// «文字起こしは成功したのに要約で落ちた» 実態を見るためのイベント。
-    /// エラーは種別のみ (KilError のコード / Unavailable / キャンセル)
-    static func summaryFailed(_ error: Error, recordingDuration: TimeInterval?) {
-        log("summary_fail", recordingDuration: recordingDuration, processingTime: nil,
+    /// エラーは種別のみ (KilError のコード / Unavailable / モデルエラー)。
+    /// **キャンセルは呼び出し側が除外する** (transcription_cancel と同じ
+    /// «キャンセルは失敗に数えない» 方針 — ジョブ単位の cancel イベントが
+    /// fail 側で送る)。失敗までの所要時間も載せる («どのくらいで落ちたか» が
+    /// モデル呼び出しの健全性のヒントになるため)
+    static func summaryFailed(
+        _ error: Error, recordingDuration: TimeInterval?, processingTime: TimeInterval?
+    ) {
+        log("summary_fail", recordingDuration: recordingDuration, processingTime: processingTime,
             errorKind: summaryErrorKind(error))
     }
 
@@ -353,6 +359,9 @@ enum UsageAnalytics {
             }
         }
         if error is MeetingSummarizer.Unavailable { return "unsupported_environment" }
+        // キャンセルは呼び出し側 (TranscriptionCoordinator) が送らないが、
+        // まぎれて届いても種別は bounded なので壊れない (transcriptionFailed の
+        // cancelled と同じ防御)
         if error is CancellationError { return "cancelled" }
         // Foundation Models の生エラー (GenerationError 等)
         return "model_error"
