@@ -1,0 +1,26 @@
+PRIVACY.md
+  h_864205080385bc 193-204
+docs/metrics.md
+  h_864205080385bc 19,108-110
+gui/Sources/ContentView.swift
+  h_864205080385bc 172-180
+gui/Sources/ProCoordinatorAppStore.swift
+  h_864205080385bc 61-65,103-109,121,130-133,138-139,164,167,169-170,172,177-183,222,226-230
+gui/Sources/SelfTestPro.swift
+  h_864205080385bc 96-97,99-101,103
+gui/Sources/TranscriptionCoordinator.swift
+  h_864205080385bc 331-335,391,396,408-417,420,443,741-745,788
+gui/Sources/UsageAnalytics.swift
+  h_864205080385bc 325-333,362-364
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "130e17b1996c92a61848f73e5b0cae7c11e69c10",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
