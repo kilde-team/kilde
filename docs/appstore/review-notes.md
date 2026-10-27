@@ -84,6 +84,23 @@ purchase (confirm with your sandbox Apple ID). Nothing is gated behind it —
 every feature stays free. If the section does not appear, the products are
 not yet available in your environment; no feature is missing.
 
+**In-app purchase — kilde Pro, meeting summaries (v0.26.0):**
+
+Meeting summaries are the first paid feature, sold as a non-consumable
+one-time purchase (kilde.pro, ¥2,800 in Japan). In the transcription
+section of the panel, "Summarize after recording" is replaced by a locked
+row with a "Pro" badge while the purchase is not owned. Clicking the row
+expands an inline purchase panel: the price pulled from the App Store, a
+Buy button that starts a standard StoreKit purchase (confirm with your
+sandbox Apple ID), and a Restore Purchase button (App Store sync).
+After the purchase the row turns back into the normal toggle and summaries
+are generated on-device with Apple Intelligence (macOS 26+; the lock row is
+disabled on devices without it, with an explanatory line). **Recording and
+transcription remain free** — nothing else is gated. If the price does not
+load during review (product not yet visible in your environment), the panel
+shows a loading placeholder; that is expected, and the IAP's review
+screenshot shows the locked row and the expanded panel.
+
 ---
 
 ## 日本語 (参考訳 — 提出は英語版)
