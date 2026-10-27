@@ -34,7 +34,7 @@ microphone, with optional on-device transcription of finished recordings.
 - Transcription runs **entirely on this device** (SpeechTranscriber). No
   audio or transcript is sent anywhere (no servers). A missing language
   model downloads from Apple (standard OS asset; your IP reaches Apple as
-  with any request); otherwise it works offline.
+  with any request); otherwise offline.
 - The app uses the App Sandbox. Recordings and transcripts are written to
   `~/Movies` or a user-picked folder, never inside the sandbox container.
 - Outbound connections: usage analytics and crash reports (Firebase), and
@@ -45,21 +45,22 @@ from recording)" picks the language per audio track from the first 30
 seconds (undecided tracks fall back to the device language). No new
 permissions; audio never leaves the device.
 
-**Meeting auto-recording (off by default):** can detect an ongoing meeting
-and record it automatically. Detection is local; it never starts or stops a
-recording unless the user enabled it, and manual recordings are never
-stopped automatically.
+**Meeting auto-recording (off by default):** Kilde can detect an ongoing
+meeting and record it automatically (setting: "Record meeting windows
+automatically"). Detection is local; manual recordings are never stopped
+automatically.
 
 **Calendar meeting names (off by default, v0.20.0):** while auto-recording
 is enabled, the opt-in "Use calendar event names" uses the event title for
 the file name, the start notification, and the transcript heading. macOS has
 no read-only calendar permission, so the request is full access, but **the
 app only reads events** (never creates, edits, or invites). Data stays
-on-device; if declined, the default file name is used.
+on-device; if declined — or a lookup is still running when recording
+starts — the default file name is used.
 
 **Recording-consent note:** system audio can include other participants'
 voices; informing them is the user's responsibility. Any sample audio works
-for testing — no real meeting is required.
+for testing.
 
 **In-app purchase — tips (v0.18.0):** the optional "Support this app"
 section offers three consumable tips (kilde.tip.*); tapping one starts a
@@ -79,8 +80,9 @@ also enable "Transcribe after recording" (it is the input); summaries run
 on-device with Apple Intelligence (macOS 26+; without it the lock row is
 disabled, with an explanatory line when transcription is enabled).
 **Recording and transcription are currently free.** If the price shows a
-loading placeholder, the product is not yet visible in your environment;
-the IAP's review screenshot shows the row and the panel.
+loading placeholder, the product may not be available yet or still
+loading; reopening the panel retries. The IAP's review screenshot shows
+the row and the panel.
 
 ---
 
