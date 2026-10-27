@@ -265,11 +265,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // ユーザーの要約まで弾かれる
         // セルフテストの要約付き経路 (KILDE_GUI_SELFTEST_SUMMARY) は StoreKit を
         // 無効化したまま権利ありで走らせる (MAS ビルドでも issue #163 の経路を
-        // 検証できるようにするため — CodeRabbit 指摘)
+        // 検証できるようにするため — CodeRabbit 指摘)。**Debug 構成に限定** —
+        // セルフテストの起動判定は環境変数だけで、署名済み Release の MAS アプリを
+        // ターミナルから実行した場合でも有効になるため、Release でこの注入が
+        // あると kilde.pro の購入ゲートを回避する経路になる (cubic レビュー指摘)
         transcription.licenseProvider = { [pro] in
-            SelfTest.isSummaryPath
-                ? LicenseContext(entitlement: .directDistribution)
-                : pro.license
+#if DEBUG
+            if SelfTest.isSummaryPath {
+                return LicenseContext(entitlement: .directDistribution)
+            }
+#endif
+            return pro.license
         }
         Task { await pro.refreshEntitlements() }
         // 録画完了通知の «文字起こし» アクション → キューへ (issue #392)。配線の

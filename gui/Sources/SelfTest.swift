@@ -246,6 +246,11 @@ enum SelfTest {
                     guard popover.isShown() else {
                         fail("ポップオーバーを再度開けませんでした (isShown=false)")
                     }
+                    // showPopover 内の reloadTranscriptionSettings が config の値を
+                    // 読み直すため、強制した transcribeEnabled を張り直しのたびに
+                    // 再適用する (cubic レビュー指摘 — 放置すると撮影の途中で
+                    // 文字起こしセクションが畳まれる)
+                    setup.transcribeEnabled = true
                 }
                 RunLoop.main.run(until: Date().addingTimeInterval(0.5))
             }
