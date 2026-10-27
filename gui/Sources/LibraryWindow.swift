@@ -40,6 +40,10 @@ final class LibraryWindowController: NSObject, NSWindowDelegate {
     /// ライブラリ専用のインスタンスを作ると «同じ録画の重複投入を捨てる»
     /// coordinator の guard と «録画パネルの表示» が効かなくなるため、必ず共有する
     private let transcription: TranscriptionCoordinator
+    /// Pro の権利 (issue #169/#170)。«議事録を作成» のロック表示に使う。
+    /// 変化 (別デバイスでの購入・返金) をライブラリの表示に反映するため
+    /// ビューまで ObservedObject として渡す (cubic レビュー指摘)
+    private let pro: ProCoordinator
     /// «議事録を作成» のときに押された時点のパネル設定を読む。クロージャが
     /// RecordingSetup だけを捕まえる (AppDelegate を捕まえない) ため、
     /// ライブラリウィンドウの寿命が AppDelegate と常に同じでも循環参照は作らない
@@ -48,9 +52,11 @@ final class LibraryWindowController: NSObject, NSWindowDelegate {
 
     init(store: LibraryStore,
          transcription: TranscriptionCoordinator,
+         pro: ProCoordinator,
          settings: @escaping () -> LibraryTranscriptionSettings) {
         self.store = store
         self.transcription = transcription
+        self.pro = pro
         self.settings = settings
     }
 
@@ -73,7 +79,8 @@ final class LibraryWindowController: NSObject, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.contentViewController = NSHostingController(
-            rootView: LibraryView(store: store, transcription: transcription, settings: settings))
+            rootView: LibraryView(store: store, transcription: transcription, pro: pro,
+                                  settings: settings))
         self.window = window
         showAndActivate(window)
     }
@@ -158,6 +165,9 @@ struct LibraryView: View {
     /// «後から文字起こし» の投入と進捗表示に使う — パネルと同じインスタンスを
     /// 見るため、パネルで投入されたジョブの進捗もこの一覧に出る
     @ObservedObject var transcription: TranscriptionCoordinator
+    /// Pro の権利 (issue #169/#170)。«議事録を作成» のロック表示のため
+    /// LibraryDetailView へ流す
+    @ObservedObject var pro: ProCoordinator
     let settings: () -> LibraryTranscriptionSettings
     @State private var query = ""
     @State private var results: [LibrarySearchHit] = []
@@ -373,7 +383,7 @@ struct LibraryView: View {
         if let entry = store.entries.first(where: { $0.id == selectedEntryID }) {
             LibraryDetailView(entry: entry, query: searching ? query : "",
                               hits: hits(for: entry), playback: playback,
-                              transcription: transcription, settings: settings)
+                              transcription: transcription, pro: pro, settings: settings)
         } else {
             ContentUnavailableCompat(
                 title: String(localized: "録画を選択してください"),
@@ -511,6 +521,10 @@ private struct LibraryDetailView: View {
     let hits: [LibrarySearchHit]
     @ObservedObject var playback: LibraryPlayerController
     @ObservedObject var transcription: TranscriptionCoordinator
+    /// Pro の権利。権利が変わったら «議事録を作成» のロック状態を即時反映する
+    /// (cubic レビュー指摘 — 観測しないと別デバイスでの購入・返金が開き直しまで
+    /// 反映されない)
+    @ObservedObject var pro: ProCoordinator
     let settings: () -> LibraryTranscriptionSettings
     /// この録画の «再試行» の対象に表示する失敗。coordinator の lastFailure は
     /// «最新の 1 件» スロットで別の録画の失敗に押し出されるため (cubic 指摘)、
@@ -633,10 +647,10 @@ private struct LibraryDetailView: View {
     /// しか無い («控えめ» 方針 — ここではロックの案内だけ)
     private var actionButtons: some View {
         let snapshot = settings()
-        // Pro 権利は文字起こしコーディネータ経由で読む (権利の持ち主の一元化)。
-        // このビューは権利の変化を観測しないため表示は開いた時点の値 (他の
-        // snapshot と同じ契約 — 実行時のゲートが最新値で判定する)
-        let proLocked = !transcription.currentLicense.allows(.summary)
+        // Pro 権利は ObservedObject の ProCoordinator から読む — 変化 (購入・返金) で
+        // このビューが再評価される (cubic レビュー指摘)。実行時のゲート
+        // (TranscriptionCoordinator + エンジン) は常に最新値で判定する
+        let proLocked = !pro.license.allows(.summary)
         return HStack(spacing: 12) {
             Button {
                 enqueue(withSummary: false, snapshot: settings())

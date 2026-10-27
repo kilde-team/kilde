@@ -141,6 +141,11 @@ struct ContentView: View {
                 // 商品を取り直す (録画中に開いたポップオーバーでも «アプリを応援»
                 // が出るようにする — cubic レビュー指摘)
                 Task { await tips.loadProducts() }
+                // Pro の権利と商品も同じ理由で取り直す (cubic レビュー指摘) —
+                // 録画終了までパネルを開いたままのときは onAppear /
+                // kildePopoverDidShow がもう来ないため、購入導線が «読み込み中…» の
+                // まま固まってしまう
+                Task { await refreshProIfLocked() }
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .kildePopoverDidShow)) { _ in
@@ -925,7 +930,7 @@ struct ContentView: View {
                 // 第一弾 Pro 機能 (issue #169/#170): MAS 版で未購入のときはトグルを
                 // ロック行に替え、クリックで購入導線を開く。購入が完了すると
                 // isUnlocked が true に変わって通常のトグルに戻る。直接配布版
-                // (スタブ) は常にロック解除済みで、この分岐は常に else 側
+                // (スタブ) は常にロック解除済みで、この分岐は常に if 側 (通常トグル)
                 if pro.isUnlocked {
                     Toggle("録画後に要約も作る", isOn: summaryBinding)
                         .toggleStyle(.checkbox)
@@ -1088,7 +1093,7 @@ struct ContentView: View {
                     Task { await pro.purchase() }
                 } label: {
                     HStack(spacing: 6) {
-                        if pro.isPurchasing {
+                        if pro.isPurchasing || pro.isRestoring {
                             ProgressView()
                                 .controlSize(.small)
                         }
@@ -1098,7 +1103,9 @@ struct ContentView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
-                .disabled(pro.isPurchasing)
+                // 復元中も含めて実行中は押せない — AppStore.sync と購入の並行実行を
+                // 防ぐ (cubic レビュー指摘)
+                .disabled(pro.isPurchasing || pro.isRestoring)
             } else {
                 // 商品が取れない間のプレースホルダ。失敗時は再表示で取り直す
                 // (onAppear / kildePopoverDidShow — TipCoordinator と同じ)
@@ -1115,6 +1122,8 @@ struct ContentView: View {
             }
             .buttonStyle(.borderless)
             .controlSize(.small)
+            // 連打・購入との同時操作で AppStore.sync が並行しないように実行中は無効
+            .disabled(pro.isPurchasing || pro.isRestoring)
             // 状態は 1 行だけ («控えめ» — チップと同じ)。キャンセルは何も出さない
             if pro.purchaseFailed {
                 Text("購入を開始できませんでした。しばらくしてからもう一度お試しください")
@@ -1482,11 +1491,11 @@ struct ContentView: View {
             let busy = transcription.isQueuedOrRunning(item.url)
             // «後から文字起こしする» は «現在の» 設定で投入する (録画完了の自動投入と
             // 違い、そのときの setup を読む)。要約トグルがオンなら要約付き (.md) で走る。
-            // Pro の権利も含む (issue #170 — ロック中はスイッチを入れられないが、
-            // 返金後にオンのまま残っている設定で要約に入らないようにする)
+            // Pro の権利はここで見ない (録画完了のスナップショットと同じ理由 — 権利の
+            // 組み立て中・購入直後にテンプレートを失わないよう、判定は実行時の
+            // ゲートに一任する — cubic レビュー指摘)
             let summaryTemplate: MeetingTemplate? =
                 setup.summaryEnabled && setup.summaryAvailable
-                    && pro.license.allows(.summary)
                     ? setup.summaryTemplate : nil
             Button {
                 transcription.enqueue(TranscriptionCoordinator.Job(

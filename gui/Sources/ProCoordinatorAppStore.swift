@@ -25,6 +25,9 @@ final class ProCoordinator: ObservableObject {
     @Published private(set) var purchaseFailed = false
     /// 復元の失敗。導線の補助行に使う (成功は isUnlocked が語る)
     @Published private(set) var restoreFailed = false
+    /// 復元の実行中。購入と復元の並行実行を防ぐために UI が両ボタンを無効化する
+    /// のに使う (cubic レビュー指摘)
+    @Published private(set) var isRestoring = false
 
     /// エンジンへ渡す権利。起動時に必ず明示的に組み立てる («まだ判定していない»
     /// を既定値に倒さない — kilde-cli-swift CLAUDE.md §6 と同じ規約)。
@@ -115,16 +118,19 @@ final class ProCoordinator: ObservableObject {
     }
 
     func purchase() async {
-        guard !isPurchasing else { return }
+        // enabled=false (セルフテスト) でも商品の取得は StoreKit へのネットワーク
+        // アクセスになるため、ここで止める (cubic レビュー指摘)。isPurchasing は
+        // **商品の取得より前**に立てる — 取得中の連打で購入が並行するのを防ぐため
+        guard enabled, !isPurchasing, !isRestoring else { return }
+        isPurchasing = true
+        purchaseFailed = false
+        defer { isPurchasing = false }
         do {
             let products = try await Product.products(for: [Self.productID])
             guard let product = products.first else {
                 purchaseFailed = true
                 return
             }
-            isPurchasing = true
-            purchaseFailed = false
-            defer { isPurchasing = false }
             switch try await product.purchase() {
             case .success(let verification):
                 switch verification {
@@ -153,8 +159,11 @@ final class ProCoordinator: ObservableObject {
     /// 別 Apple ID への引越しで使う。`AppStore.sync` はレシートの再取得を強制する
     /// だけのオフライン安全な操作
     func restore() async {
-        guard enabled else { return }
+        // 購入中の並行実行を許さない (AppStore.sync と購入シートの競合 — cubic 指摘)
+        guard enabled, !isPurchasing, !isRestoring else { return }
+        isRestoring = true
         restoreFailed = false
+        defer { isRestoring = false }
         do {
             try await AppStore.sync()
             await refreshEntitlements()

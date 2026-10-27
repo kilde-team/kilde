@@ -21,6 +21,7 @@ final class ProCoordinator: ObservableObject {
     @Published private(set) var isPurchasing = false
     @Published private(set) var purchaseFailed = false
     @Published private(set) var restoreFailed = false
+    @Published private(set) var isRestoring = false
 
     init(enabled: Bool) {}
 

@@ -64,6 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return LibraryWindowController(
             store: LibraryStore(),
             transcription: transcription,
+            pro: pro,
             settings: {
                 LibraryTranscriptionSettings(
                     format: setup.transcriptFormat,
@@ -374,10 +375,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     format: self.setup.transcriptFormat,
                     // 要約 (issue #163): トグルがオンかつ Apple Intelligence が使えるときだけ
                     // テンプレートを運ぶ。録画完了時点の setup 値で確定する (文字起こしと同じ)。
-                    // Pro の権利も条件に含む (issue #170 — 返金後にトグルがオンのまま
-                    // 残っていても、実行時のゲートで弾かれる前にここで落とす)
-                    summaryTemplate: (self.setup.summaryEnabled && self.setup.summaryAvailable
-                        && (SelfTest.isSummaryPath || self.pro.license.allows(.summary)))
+                    // **Pro の権利はここで見ない** — 起動直後 (権利の組み立て中) や録画直後の
+                    // 購入でテンプレートを失う競合があるため、判定は実行時
+                    // (TranscriptionCoordinator のゲート) に一任する (cubic レビュー指摘)
+                    summaryTemplate: (self.setup.summaryEnabled && self.setup.summaryAvailable)
                         ? self.setup.summaryTemplate : nil,
                     localeID: self.setup.transcriptLocale,
                     // 録画の長さ。計測 (issue #153) の区分だけに使う。elapsed は

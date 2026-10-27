@@ -74,7 +74,7 @@ The CLI sends no analytics at all; the GUI sends aggregate usage stats
 (bucketed durations — never content, filenames, or paths) and, if it ever
 crashes, a crash report with a stack trace.
 
-It's free: Mac App Store, Homebrew, or download from GitHub (MIT).
+Recording and transcription are free: Mac App Store, Homebrew, or a direct download. Meeting summaries are a one-time Pro purchase (no subscription); the CLI is free in full.
 Open-source note, so nobody's surprised: the menu bar app, distribution,
 and docs are MIT; the recording engine lives in a separate private repo
 while we decide its long-term source policy. Apple Silicon, macOS 14+
