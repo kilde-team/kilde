@@ -1,0 +1,32 @@
+docs/RELEASE.md
+  h_864205080385bc 516
+docs/launch/faq.md
+  h_864205080385bc 123-131
+docs/launch/product-hunt.md
+  h_864205080385bc 77
+docs/launch/reddit-macapps.md
+  h_864205080385bc 19,25
+gui/Resources/Localizable.xcstrings
+  h_864205080385bc 5712,5735
+gui/Sources/AppDelegate.swift
+  h_864205080385bc 67,378-381
+gui/Sources/ContentView.swift
+  h_864205080385bc 144-148,933,1096,1106-1108,1125-1126,1494-1496
+gui/Sources/LibraryWindow.swift
+  h_864205080385bc 43-46,55,59,82-83,168-170,386,524-527,650-653
+gui/Sources/ProCoordinator.swift
+  h_864205080385bc 24
+gui/Sources/ProCoordinatorAppStore.swift
+  h_864205080385bc 28-30,121-127,162-164,166
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "18aeb75e229d2af37b1f75b8c9a928dc8aa794da",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
