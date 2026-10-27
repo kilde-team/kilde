@@ -1,0 +1,14 @@
+docs/appstore/review-notes.md
+  h_864205080385bc 99-100,119
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "52ccde1822638c575a3426259f1a0eccb06e7178",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
