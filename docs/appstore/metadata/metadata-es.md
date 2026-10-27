@@ -419,3 +419,7 @@ transcripción siguen siendo gratuitas. Sin cambios en el motor (pin v0.19.0).
 ```text
 Esta versión es de mantenimiento: la versión de la Mac App Store no tiene cambios funcionales. Todas las funciones siguen siendo gratuitas, como siempre.
 ```
+
+## Novedades (0.26.0)
+
+Los resúmenes de reuniones pasan a ser una compra única de Pro (sin suscripción). Tras cada grabación se recopilan automáticamente los puntos clave, las decisiones y las tareas pendientes, procesado en el dispositivo con Apple Intelligence. La grabación y la transcripción siguen siendo gratuitas.

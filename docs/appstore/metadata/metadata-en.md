@@ -407,3 +407,7 @@ engine change (pin v0.19.0).
 ```text
 This is a maintenance release with no functional changes in the App Store version. All features remain free, as before.
 ```
+
+## What's New (0.26.0)
+
+Meeting summaries are now a one-time Pro purchase (no subscription). After each recording, key points, decisions, and action items are compiled automatically, processed on-device with Apple Intelligence. Recording and transcription remain free.
