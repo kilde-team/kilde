@@ -1,0 +1,19 @@
+docs/appstore/review-notes.md
+  s_b56e02fd961913::t_9d12a9c9128ac9 16-20,26-30,34-37,39-58,61-62,64-68,72-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a993e1aea5b3bf371a081937062ce6ac50521f5d",
+  "prompts": {},
+  "sessions": {
+    "s_b56e02fd961913": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "76c222fe-66b0-4277-9f58-efec4333d7d7",
+        "model": "unknown"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
