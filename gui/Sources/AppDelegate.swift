@@ -64,6 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return LibraryWindowController(
             store: LibraryStore(),
             transcription: transcription,
+            pro: pro,
             settings: {
                 LibraryTranscriptionSettings(
                     format: setup.transcriptFormat,
@@ -83,6 +84,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// セルフテストでは商品を取りにいかない — ASC へのネットワークアクセスを
     /// 録画系の検証に持ち込まない (updaterStartsAtLaunch と同じ配慮)
     private(set) lazy var tips = TipCoordinator(enabled: !SelfTest.isActive)
+    /// Pro (要約) の購入と権利 (issue #169 / #170)。チップと同じ構成 —
+    /// App Store 配布ビルドのみ StoreKit に触れ、直接配布版はスタブで常に
+    /// ロック解除済み、セルフテストでは無効
+    private(set) lazy var pro = ProCoordinator(enabled: !SelfTest.isActive)
     private var cancellables: Set<AnyCancellable> = []
     /// グローバルホットキー (issue #20)。CLI と同じ `HotkeyMonitor` / `HotkeySettings` を使い、
     /// 設定 (~/.kilde/config.json の `hotkey`) も CLI と共有する。
@@ -253,6 +258,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 失敗として扱わない (通知が出ないだけ)
         notifier.start()
         recording.notifier = notifier
+        // Pro 権利 (issue #169/#170)。起動時に必ず組み立てる — ポップオーバーを
+        // 一度も開かずに (自動録画だけで) 使うセッションでも、文字起こしの要約
+        // ゲートが実行時点の権利を見られるようにするため。licenseProvider の
+        // 既定は «権利なし» (フェイルセーフ) なので、この配線が無いと購入済み
+        // ユーザーの要約まで弾かれる
+        // セルフテストの要約付き経路 (KILDE_GUI_SELFTEST_SUMMARY) は StoreKit を
+        // 無効化したまま権利ありで走らせる (MAS ビルドでも issue #163 の経路を
+        // 検証できるようにするため — CodeRabbit 指摘)。**Debug 構成に限定** —
+        // セルフテストの起動判定は環境変数だけで、署名済み Release の MAS アプリを
+        // ターミナルから実行した場合でも有効になるため、Release でこの注入が
+        // あると kilde.pro の購入ゲートを回避する経路になる (cubic レビュー指摘)
+        transcription.licenseProvider = { [pro] in
+#if DEBUG
+            if SelfTest.isSummaryPath {
+                return LicenseContext(entitlement: .directDistribution)
+            }
+#endif
+            return pro.license
+        }
+        Task { await pro.refreshEntitlements() }
         // 録画完了通知の «文字起こし» アクション → キューへ (issue #392)。配線の
         // 持ち主はここ (onCompletion と同じ向き)。«録画したときの設定» の
         // スナップショットは通知の側に無いため、**押した時点の setup 値**を使う —
@@ -314,7 +339,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             rootView: ContentView(
                 setup: setup, recording: recording, permissions: permissions, updater: updater,
                 transcription: transcription, meetingAutoRecorder: meetingAutoRecorder,
-                tips: tips))
+                tips: tips, pro: pro))
         popover = p
         item.button?.target = self
         item.button?.action = #selector(togglePopover)
@@ -355,7 +380,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     recordingURL: url,
                     format: self.setup.transcriptFormat,
                     // 要約 (issue #163): トグルがオンかつ Apple Intelligence が使えるときだけ
-                    // テンプレートを運ぶ。録画完了時点の setup 値で確定する (文字起こしと同じ)
+                    // テンプレートを運ぶ。録画完了時点の setup 値で確定する (文字起こしと同じ)。
+                    // **Pro の権利はここで見ない** — 起動直後 (権利の組み立て中) や録画直後の
+                    // 購入でテンプレートを失う競合があるため、判定は実行時
+                    // (TranscriptionCoordinator のゲート) に一任する (cubic レビュー指摘)
                     summaryTemplate: (self.setup.summaryEnabled && self.setup.summaryAvailable)
                         ? self.setup.summaryTemplate : nil,
                     localeID: self.setup.transcriptLocale,
@@ -695,6 +723,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // このままトグルを触ったとき古い値が保存される — 開くたびに config から
         // 再読み込みして表示を実体へ追従させる (reloadTranscriptionSettings のコメント参照)
         setup.reloadTranscriptionSettings()
+        // PANEL_PRO のセルフテスト (審査用スクリーンショット — issue #169/#170) では
+        // 縦を広げて文字起こしセクション (ロック行 + 購入導線) まで 1 画面に収める。
+        // ContentView 側のスクロール領域の高さ上限も同じ条件で広げている
+        if SelfTest.isPanelPro {
+            popover.contentSize = NSSize(width: popover.contentSize.width, height: 1400)
+        }
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         // キャプチャ パネルを開いた (issue #343)。Firebase が無い構成
         // (セルフテスト・Debug) では UsageAnalytics 内で跳ねる
@@ -775,4 +809,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 extension Notification.Name {
     /// ポップオーバーを開いた直後に発火 (ContentView の再読込トリガ)
     static let kildePopoverDidShow = Notification.Name("kildePopoverDidShow")
+
+    /// セルフテストの PANEL モードから Pro 購入導線を開くために使う (審査用
+    /// スクリーンショットの撮影 — issue #170)。通常操作では使わない
+    static let kildeProPurchaseReveal = Notification.Name("kildeProPurchaseReveal")
 }

@@ -99,6 +99,19 @@ final class TranscriptionCoordinator: ObservableObject {
     @Published private(set) var lastFailure: Failure?
     @Published private(set) var lastCompletion: Completion?
 
+    /// Pro 権利の提供元 (issue #169 / #170)。AppDelegate が起動時に
+    /// ProCoordinator の現在値を返すクロージャを渡す — **Job のスナップショット
+    /// 時点ではなく実行時点の権利**で判定する (購入直後に並んだジョブも、返金後に
+    /// 並んだジョブも、実行の瞬間の権利が正しいため)。既定は «権利なし»:
+    /// 未配線なら課金対象機能は閉じる (フェイルセーフ — 配線は AppDelegate が
+    /// applicationDidFinishLaunching で必ず行う)
+    var licenseProvider: () -> LicenseContext = { LicenseContext(entitlement: .none) }
+
+    /// 現在の Pro 権利 (licenseProvider の値)。ProCoordinator を直接持たない画面
+    /// (ライブラリウィンドウの «議事録を作成» など) のロック表示に使う —
+    /// 権利の持ち主を一元化するため、GUI のどこでもこの経路で読む
+    var currentLicense: LicenseContext { licenseProvider() }
+
     /// 実行中または待機中。メニューバー表示の分岐に使う
     var isBusy: Bool { running != nil || !queue.isEmpty }
 
@@ -355,16 +368,28 @@ final class TranscriptionCoordinator: ObservableObject {
                     if let reason = MeetingSummarizer.unsupportedReason {
                         summaryNote = "要約は生成できませんでした (\(reason))"
                     } else {
-                        self.setPhase(.summarizing(progress: 0), for: job)
-                        try Task.checkCancellation()
-                        summary = try await MeetingSummarizer.summarize(
-                            transcript: segments,
-                            template: template,
-                            onProgress: { progress in
-                                Task { @MainActor in
-                                    self.setPhase(.summarizing(progress: progress), for: job)
-                                }
-                            })
+                        // Pro の権利 (issue #169/#170 — 要約は第一弾 Pro 機能)。
+                        // UI のロックで要約を選べるのは購入後だけなので、ここに来るのは
+                        // 返金で権利を失った・購入前に有効化していた設定が残っている
+                        // 場合など。文字起こしは成功させたまま要約だけスキップし、
+                        // 案内で伝える (Apple Intelligence 不可の案内と同じ扱い)。
+                        // エンジンのゲート (licenseRequired) はこの前段判定の最終防護
+                        let license = self.licenseProvider()
+                        if !license.allows(.summary) {
+                            summaryNote = "要約は生成できませんでした (kilde Pro の購入または購入の復元が必要です)"
+                        } else {
+                            self.setPhase(.summarizing(progress: 0), for: job)
+                            try Task.checkCancellation()
+                            summary = try await MeetingSummarizer.summarize(
+                                transcript: segments,
+                                template: template,
+                                license: license,
+                                onProgress: { progress in
+                                    Task { @MainActor in
+                                        self.setPhase(.summarizing(progress: progress), for: job)
+                                    }
+                                })
+                        }
                     }
                 }
 

@@ -30,6 +30,20 @@ enum SelfTest {
         ProcessInfo.processInfo.environment.keys.contains { $0.hasPrefix("KILDE_GUI_SELFTEST_") }
     }
 
+    /// 要約付き経路 (KILDE_GUI_SELFTEST_SUMMARY=1) か。**録画を伴う実パスの
+    /// セルフテスト** — StoreKit を無効化したままでも権利ありとして走らせる
+    /// (MAS ビルドで pro.license が .none のままだと要約がゲートで落ちるため —
+    /// CodeRabbit 指摘)。AppDelegate が licenseProvider で参照する
+    static var isSummaryPath: Bool {
+        ProcessInfo.processInfo.environment["KILDE_GUI_SELFTEST_SUMMARY"] == "1"
+    }
+
+    /// PANEL モードで購入導線も開くか (KILDE_GUI_SELFTEST_PANEL_PRO=1 —
+    /// 審査用スクリーンショット用)。ContentView がスクロール領域の高さの判定に使う
+    static var isPanelPro: Bool {
+        ProcessInfo.processInfo.environment["KILDE_GUI_SELFTEST_PANEL_PRO"] == "1"
+    }
+
     @MainActor
     static func runIfRequested(setup: RecordingSetup, recording: RecordingController,
                                permissions: PermissionsModel, updater: UpdaterCoordinator,
@@ -58,6 +72,14 @@ enum SelfTest {
         // 実録画を伴わないため録画のスロット (権限・スピーカー) を占有しない
         if env["KILDE_GUI_SELFTEST_TELEMETRY"] == "1" {
             SelfTestTelemetry.run()
+            return
+        }
+        // KILDE_GUI_SELFTEST_PRO=1: Pro ライセンスゲート (issue #169/#170) の検証。
+        // エンジンのゲート (kilde-cli-swift#135) とビルドごとの初期権利を確かめる。
+        // StoreKit の実トランザクションは扱わない (実機確認)。実録画を伴わないため
+        // 録画のスロット (権限・スピーカー) を占有しない
+        if env["KILDE_GUI_SELFTEST_PRO"] == "1" {
+            SelfTestPro.run()
             return
         }
         // KILDE_GUI_SELFTEST_LIBRARY_SEARCH: ライブラリの索引構築 + 全文検索の検証
@@ -199,6 +221,19 @@ enum SelfTest {
                 popover.show()
             }
             guard popover.isShown() else { fail("ポップオーバーを開けませんでした (isShown=false)") }
+            // 文字起こしトグルをオンにする (プロセス内だけ — config は書き換えない)。
+            // **show の後**に行う — showPopover 内の reloadTranscriptionSettings が
+            // config から値を読み直すため、先に設定すると上書きされて消える。
+            // トグルがオフだと文字起こしセクションの詳細行 (言語・形式・要約) が
+            // 畳まり、スクリーンショットに撮れない (RECORD モードの «ユーザーの
+            // config を書き換えず、このプロセス内だけ有効化» と同じ規約)
+            setup.transcribeEnabled = true
+            // KILDE_GUI_SELFTEST_PANEL_PRO=1: ロック行の購入導線も開く。MAS ビルドで
+            // Pro の審査用スクリーンショットを撮るためのオプション (issue #169/#170)。
+            // 未購入 (ロック) でなければ何もしない (ContentView が guard する)
+            if env["KILDE_GUI_SELFTEST_PANEL_PRO"] == "1" {
+                NotificationCenter.default.post(name: .kildeProPurchaseReveal, object: nil)
+            }
             print("selftest: panel shown=true holding 20s")
             fflush(stdout)
             let deadline = Date().addingTimeInterval(20)
@@ -211,6 +246,11 @@ enum SelfTest {
                     guard popover.isShown() else {
                         fail("ポップオーバーを再度開けませんでした (isShown=false)")
                     }
+                    // showPopover 内の reloadTranscriptionSettings が config の値を
+                    // 読み直すため、強制した transcribeEnabled を張り直しのたびに
+                    // 再適用する (cubic レビュー指摘 — 放置すると撮影の途中で
+                    // 文字起こしセクションが畳まれる)
+                    setup.transcribeEnabled = true
                 }
                 RunLoop.main.run(until: Date().addingTimeInterval(0.5))
             }

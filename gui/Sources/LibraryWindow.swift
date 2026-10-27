@@ -40,6 +40,10 @@ final class LibraryWindowController: NSObject, NSWindowDelegate {
     /// ライブラリ専用のインスタンスを作ると «同じ録画の重複投入を捨てる»
     /// coordinator の guard と «録画パネルの表示» が効かなくなるため、必ず共有する
     private let transcription: TranscriptionCoordinator
+    /// Pro の権利 (issue #169/#170)。«議事録を作成» のロック表示に使う。
+    /// 変化 (別デバイスでの購入・返金) をライブラリの表示に反映するため
+    /// ビューまで ObservedObject として渡す (cubic レビュー指摘)
+    private let pro: ProCoordinator
     /// «議事録を作成» のときに押された時点のパネル設定を読む。クロージャが
     /// RecordingSetup だけを捕まえる (AppDelegate を捕まえない) ため、
     /// ライブラリウィンドウの寿命が AppDelegate と常に同じでも循環参照は作らない
@@ -48,9 +52,11 @@ final class LibraryWindowController: NSObject, NSWindowDelegate {
 
     init(store: LibraryStore,
          transcription: TranscriptionCoordinator,
+         pro: ProCoordinator,
          settings: @escaping () -> LibraryTranscriptionSettings) {
         self.store = store
         self.transcription = transcription
+        self.pro = pro
         self.settings = settings
     }
 
@@ -73,7 +79,8 @@ final class LibraryWindowController: NSObject, NSWindowDelegate {
         window.isReleasedWhenClosed = false
         window.delegate = self
         window.contentViewController = NSHostingController(
-            rootView: LibraryView(store: store, transcription: transcription, settings: settings))
+            rootView: LibraryView(store: store, transcription: transcription, pro: pro,
+                                  settings: settings))
         self.window = window
         showAndActivate(window)
     }
@@ -158,6 +165,9 @@ struct LibraryView: View {
     /// «後から文字起こし» の投入と進捗表示に使う — パネルと同じインスタンスを
     /// 見るため、パネルで投入されたジョブの進捗もこの一覧に出る
     @ObservedObject var transcription: TranscriptionCoordinator
+    /// Pro の権利 (issue #169/#170)。«議事録を作成» のロック表示のため
+    /// LibraryDetailView へ流す
+    @ObservedObject var pro: ProCoordinator
     let settings: () -> LibraryTranscriptionSettings
     @State private var query = ""
     @State private var results: [LibrarySearchHit] = []
@@ -373,7 +383,7 @@ struct LibraryView: View {
         if let entry = store.entries.first(where: { $0.id == selectedEntryID }) {
             LibraryDetailView(entry: entry, query: searching ? query : "",
                               hits: hits(for: entry), playback: playback,
-                              transcription: transcription, settings: settings)
+                              transcription: transcription, pro: pro, settings: settings)
         } else {
             ContentUnavailableCompat(
                 title: String(localized: "録画を選択してください"),
@@ -511,6 +521,10 @@ private struct LibraryDetailView: View {
     let hits: [LibrarySearchHit]
     @ObservedObject var playback: LibraryPlayerController
     @ObservedObject var transcription: TranscriptionCoordinator
+    /// Pro の権利。権利が変わったら «議事録を作成» のロック状態を即時反映する
+    /// (cubic レビュー指摘 — 観測しないと別デバイスでの購入・返金が開き直しまで
+    /// 反映されない)
+    @ObservedObject var pro: ProCoordinator
     let settings: () -> LibraryTranscriptionSettings
     /// この録画の «再試行» の対象に表示する失敗。coordinator の lastFailure は
     /// «最新の 1 件» スロットで別の録画の失敗に押し出されるため (cubic 指摘)、
@@ -627,10 +641,16 @@ private struct LibraryDetailView: View {
     /// 購読しないため、disabled / ツールチップの見た目は本文評価時のスナップショット
     /// (`let snapshot`) だが、**実行はアクションの中で設定を読み直す**
     /// (CodeRabbit 指摘 — ライブラリを開いたまま設定パネルで変えた設定を反映させる)。
-    /// «議事録» は文字起こし + 要約で、Apple Intelligence が使えない環境では
-    /// 押せず、理由をツールチップに出す (設定パネルの案内と同じ文言)
+    /// «議事録» は文字起こし + 要約で、Apple Intelligence が使えない環境と
+    /// Pro 未購入 (issue #170 — 要約は第一弾 Pro 機能) では押せず、理由を
+    /// ツールチップに出す (設定パネルの案内と同じ文言)。購入導線は設定パネルに
+    /// しか無い («控えめ» 方針 — ここではロックの案内だけ)
     private var actionButtons: some View {
         let snapshot = settings()
+        // Pro 権利は ObservedObject の ProCoordinator から読む — 変化 (購入・返金) で
+        // このビューが再評価される (cubic レビュー指摘)。実行時のゲート
+        // (TranscriptionCoordinator + エンジン) は常に最新値で判定する
+        let proLocked = !pro.license.allows(.summary)
         return HStack(spacing: 12) {
             Button {
                 enqueue(withSummary: false, snapshot: settings())
@@ -644,10 +664,12 @@ private struct LibraryDetailView: View {
                 Label(String(localized: "議事録を作成"), systemImage: "waveform.badge.waveform")
             }
             .buttonStyle(.bordered)
-            .disabled(snapshot.summaryUnsupportedReason != nil)
+            .disabled(snapshot.summaryUnsupportedReason != nil || proLocked)
             .help(snapshot.summaryUnsupportedReason.map { reason in
                 String(localized: "要約には Apple Intelligence が必要です: \(reason)")
-            } ?? String(localized: "文字起こしの後に要約を生成して Markdown (.md) に載せます (テンプレートは設定パネルの選択を使います)"))
+            } ?? (proLocked
+                ? String(localized: "会議の要約は Pro の機能です (設定パネルから購入できます)")
+                : String(localized: "文字起こしの後に要約を生成して Markdown (.md) に載せます (テンプレートは設定パネルの選択を使います)")))
         }
     }
 

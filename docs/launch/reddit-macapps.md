@@ -16,13 +16,13 @@ r/macapps (https://www.reddit.com/r/macapps/) 向け。雰囲気は Show HN よ�
 
 ## タイトル候補
 
-1. `Kilde – free macOS recorder for meetings: system audio + your mic, transcribed on-device`
+1. `Kilde – macOS recorder for meetings: system audio + your mic, transcribed on-device (recording & transcription free, summaries a one-time Pro purchase)`
 2. `I built a menu bar app that records online meetings with the other people's audio (system audio) and transcribes it locally`
 
 ## 本文
 
 ```markdown
-Hey r/macapps! I built **kilde**, a free screen/audio recorder for macOS.
+Hey r/macapps! I built **kilde**, a screen/audio recorder for macOS — recording and transcription are free, and meeting summaries are a one-time Pro purchase.
 It fixes the thing that always bugged me about recording
 online meetings: **the other participants' voices come through system audio,
 which QuickTime's screen recording doesn't capture** — so you end up with only

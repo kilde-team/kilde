@@ -513,7 +513,7 @@ Release の作成はしない) — タグが無いと Info.plist 由来の現在
 
 workflow は kilde-cli-swift を **revision 固定**で checkout します
 (`release.yml` の `ref:`。現在は GUI (`gui/project.yml` の `exactVersion`) と同じ
-エンジンのタグ **`v0.8.2`** を指します — issue #298 で exactVersion / タグ参照に
+エンジンのタグ **`v0.20.0`** を指します — issue #298 で exactVersion / タグ参照に
 更新済み)。pin は「リリース成果物がどのコミットで
 ビルドされたか」を追跡可能にするための固定で、GUI と release が同じエンジンを参照する
 契約です。更新手順: kilde-cli-swift で新しいタグを打設 → `gui/project.yml` の

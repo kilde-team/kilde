@@ -20,6 +20,14 @@ struct ContentView: View {
     /// «アプリを応援» セクション自体は両ビルドに出る — 直接配布版は 0.25.0 から
     /// Sponsors リンクに差し替え (sponsorsSection)
     @ObservedObject var tips: TipCoordinator
+    /// Pro (要約) の購入と権利 (issue #169 / #170)。実体は AppDelegate が持つ。
+    /// MAS 版は StoreKit 2 の非消耗型 «kilde.pro»、直接配布版はスタブで常に
+    /// ロック解除済み (Pro 直接販売 #172 は当面見送りのため無料開放)
+    @ObservedObject var pro: ProCoordinator
+    /// Pro 購入導線の開閉 (issue #170)。ロック行をクリックしたときだけ開く —
+    /// ポップオーバー内にインラインで出す (NSPopover はシートを表示できない
+    /// ため。チップと同じ «パネル内に導線を置く» 構成)
+    @State private var showsProPurchase = false
     /// 利用統計・クラッシュレポートの送信設定 (issue #435)。正本は UserDefaults
     /// (TelemetryPreferences) で、この @State はチェックボックスの表示を追従させる
     /// ための写し。切替は setTelemetryEnabled で保存 → AppDelegate が Firebase へ反映
@@ -35,6 +43,10 @@ struct ContentView: View {
             if recording.isActive {
                 sessionView
             } else {
+                // ScrollViewReader はセルフテストの PANEL_PRO モード (購入導線の
+                // スクリーンショット) で文字起こしセクションへスクロールするためだけに
+                // 使う (kildeProPurchaseReveal のハンドラで scrollTo)
+                ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
                         // 権限の案内はスクロール領域の**先頭**に置く。下に積むと、
@@ -55,7 +67,25 @@ struct ContentView: View {
                     // バーが中身に重なり、右端の文字やボタンが隠れる
                     .padding(.trailing, 16)
                 }
-                .frame(maxHeight: 420)
+                // PANEL_PRO のセルフテスト時だけ高さを広げてフォーム全体 (購入導線込み) を
+                // 1 画面に収める — スクリーンショットをスクロール操作なしで撮るため
+                .frame(maxHeight: SelfTest.isPanelPro ? 1160 : 420)
+                .onReceive(NotificationCenter.default.publisher(for: .kildeProPurchaseReveal)) { _ in
+                    // セルフテストの PANEL モード (KILDE_GUI_SELFTEST_PANEL_PRO=1) からのみ
+                    // 来る。審査用スクリーンショットのためにロック行の購入導線を開き、
+                    // 見える位置までスクロールする (フォームは高さ 420 のスクロール領域に
+                    // 入り切らないため — proxy がここでしか見えないのでこの位置)
+                    guard !pro.isUnlocked else { return }
+                    showsProPurchase = true
+                    // レイアウトが済む前に scrollTo すると無視されるため、少し遅らせる
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(400))
+                        withAnimation {
+                            proxy.scrollTo("summaryLockRow", anchor: .top)
+                        }
+                    }
+                }
+                }
                 resultView
                 transcriptionStatusView
                 startButton
@@ -95,6 +125,10 @@ struct ContentView: View {
                 // チップの商品一覧 (issue #171)。取れていれば no-op、取れていなければ
                 // この表示で取りに行く (失敗時は次回の表示で再試行)
                 Task { await tips.loadProducts() }
+                // Pro の権利と商品 (issue #169/#170)。未購入の間だけ StoreKit を
+                // 確認する (ロック行の表示と購入導線の価格のため。購入済みなら
+                // Transaction.updates のリスナーが返金を拾うので、ここでは触らない)
+                Task { await refreshProIfLocked() }
             }
         }
         // 録画が終わった瞬間に一覧を取り直す。ポップオーバーを開いたまま録画を終えると、
@@ -107,6 +141,11 @@ struct ContentView: View {
                 // 商品を取り直す (録画中に開いたポップオーバーでも «アプリを応援»
                 // が出るようにする — cubic レビュー指摘)
                 Task { await tips.loadProducts() }
+                // Pro の権利と商品も同じ理由で取り直す (cubic レビュー指摘) —
+                // 録画終了までパネルを開いたままのときは onAppear /
+                // kildePopoverDidShow がもう来ないため、購入導線が «読み込み中…» の
+                // まま固まってしまう
+                Task { await refreshProIfLocked() }
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .kildePopoverDidShow)) { _ in
@@ -127,8 +166,20 @@ struct ContentView: View {
                 // «アプリを応援» が出ないため、再表示でも再試行する (既に取れていれば
                 // loadProducts は no-op、二重取得は Coordinator 側で防ぐ)
                 Task { await tips.loadProducts() }
+                // Pro の権利 (issue #169/#170)。閉じている間に (別 Mac での購入など)
+                // 権利が増えていることがあるので、未購入の間は開くたびに確認する
+                Task { await refreshProIfLocked() }
             }
         }
+    }
+
+    /// Pro 未購入の間だけ権利と商品を (再) 取得する (issue #169/#170)。
+    /// 購入済みなら何もしない — 権利が増える方向の変化はここで、減る方向 (返金) は
+    /// Transaction.updates のリスナーが拾う
+    private func refreshProIfLocked() async {
+        guard !pro.isUnlocked else { return }
+        await pro.refreshEntitlements()
+        await pro.loadProduct()
     }
 
     // MARK: - ヘッダ
@@ -875,12 +926,24 @@ struct ContentView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
-                // 要約 (issue #163)。文字起こしが有効なときだけ選べる
-                Toggle("録画後に要約も作る", isOn: summaryBinding)
-                    .toggleStyle(.checkbox)
-                    .disabled(!setup.summaryAvailable)
-                    .help("文字起こしの後に、会議の要点・決定事項・アクションを生成して Markdown の先頭に載せます (オンデバイス処理。Apple Intelligence を使用)")
-                if setup.transcriptionAvailable && setup.summaryEnabled {
+                // 要約 (issue #163)。文字起こしが有効なときだけ選べる。
+                // 第一弾 Pro 機能 (issue #169/#170): MAS 版で未購入のときはトグルを
+                // ロック行に替え、クリックで購入導線を開く。購入が完了すると
+                // isUnlocked が true に変わって通常のトグルに戻る。直接配布版
+                // (スタブ) は常にロック解除済みで、この分岐は常に if 側 (通常トグル)
+                if pro.isUnlocked {
+                    Toggle("録画後に要約も作る", isOn: summaryBinding)
+                        .toggleStyle(.checkbox)
+                        .disabled(!setup.summaryAvailable)
+                        .help("文字起こしの後に、会議の要点・決定事項・アクションを生成して Markdown の先頭に載せます (オンデバイス処理。Apple Intelligence を使用)")
+                } else {
+                    summaryLockRow
+                        .id("summaryLockRow")
+                    if showsProPurchase {
+                        proPurchasePanel
+                    }
+                }
+                if pro.isUnlocked, setup.transcriptionAvailable && setup.summaryEnabled {
                     Picker("テンプレート", selection: summaryTemplateBinding) {
                         Text("汎用").tag(MeetingTemplate.standard)
                         Text("定例会議").tag(MeetingTemplate.recurring)
@@ -972,6 +1035,115 @@ struct ContentView: View {
         Binding(
             get: { setup.summaryTemplate },
             set: { setup.summaryTemplate = $0 })
+    }
+
+    /// 要約のロック行 (issue #170)。MAS 版で Pro 未購入のとき、トグルの代わりに
+    /// 表示する。クリックで購入導線 (proPurchasePanel) を開閉する
+    private var summaryLockRow: some View {
+        Button {
+            withAnimation {
+                showsProPurchase.toggle()
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "lock.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("録画後に要約も作る")
+                Spacer()
+                Text("Pro")
+                    .font(.caption2)
+                    .bold()
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 1)
+                    .background(
+                        Capsule().fill(Color.primary.opacity(0.08)))
+                    .foregroundStyle(.secondary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        // Apple Intelligence が使えない環境では導線を開かせない (買っても要約が
+        // 動かないため)。理由は下の «要約には Apple Intelligence が必要です» 行が既に出す
+        .disabled(!setup.summaryAvailable)
+    }
+
+    /// Pro の購入導線 (issue #170)。ロック行の直下にインラインで開く。
+    /// NSPopover の中ではシートを表示できないため、パネル内の導線にする
+    /// (チップの «アプリを応援» と同じ構成)。購入が完了するとロック行ごと消える
+    private var proPurchasePanel: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("会議の要約をアンロック")
+                .font(.callout)
+                .bold()
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Image(systemName: "sparkles")
+                Text("録画のあと、要点・決定事項・アクションアイテムを自動でまとめます")
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .font(.caption)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Image(systemName: "lock.shield")
+                Text("処理はすべて端末内で完結します。録画と文字起こしは無料のままです")
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .font(.caption)
+            if let item = pro.purchaseItem {
+                Button {
+                    Task { await pro.purchase() }
+                } label: {
+                    HStack(spacing: 6) {
+                        if pro.isPurchasing || pro.isRestoring {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+                        Text("購入 — \(item.price)")
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                // 復元中も含めて実行中は押せない — AppStore.sync と購入の並行実行を
+                // 防ぐ (cubic レビュー指摘)
+                .disabled(pro.isPurchasing || pro.isRestoring)
+            } else {
+                // 商品が取れない間のプレースホルダ。失敗時は再表示で取り直す
+                // (onAppear / kildePopoverDidShow — TipCoordinator と同じ)
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text("読み込み中…")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            Button("購入を復元…") {
+                Task { await pro.restore() }
+            }
+            .buttonStyle(.borderless)
+            .controlSize(.small)
+            // 連打・購入との同時操作で AppStore.sync が並行しないように実行中は無効
+            .disabled(pro.isPurchasing || pro.isRestoring)
+            // 状態は 1 行だけ («控えめ» — チップと同じ)。キャンセルは何も出さない
+            if pro.purchaseFailed {
+                Text("購入を開始できませんでした。しばらくしてからもう一度お試しください")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if pro.restoreFailed {
+                Text("この Apple ID では Pro の購入が見つかりませんでした")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Text("買い切りです。サブスクリプションではありません。")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.primary.opacity(0.05)))
     }
 
     /// Binding の set で保存まで行う。onChange で保存すると、保存失敗時の巻き戻しが
@@ -1318,9 +1490,13 @@ struct ContentView: View {
         } else {
             let busy = transcription.isQueuedOrRunning(item.url)
             // «後から文字起こしする» は «現在の» 設定で投入する (録画完了の自動投入と
-            // 違い、そのときの setup を読む)。要約トグルがオンなら要約付き (.md) で走る
+            // 違い、そのときの setup を読む)。要約トグルがオンなら要約付き (.md) で走る。
+            // Pro の権利はここで見ない (録画完了のスナップショットと同じ理由 — 権利の
+            // 組み立て中・購入直後にテンプレートを失わないよう、判定は実行時の
+            // ゲートに一任する — cubic レビュー指摘)
             let summaryTemplate: MeetingTemplate? =
-                setup.summaryEnabled && setup.summaryAvailable ? setup.summaryTemplate : nil
+                setup.summaryEnabled && setup.summaryAvailable
+                    ? setup.summaryTemplate : nil
             Button {
                 transcription.enqueue(TranscriptionCoordinator.Job(
                     recordingURL: item.url,
