@@ -13,95 +13,74 @@ microphone, with optional on-device transcription of finished recordings.
 
 **Permissions requested during review testing:**
 
-- **Screen Recording**: required to capture the screen **and system audio
-  (which can include other participants' voices)**. After granting it in
-  System Settings, please **restart the app** — macOS activates it only
-  after a relaunch.
-- **Microphone**: required to record **your own voice**. You can decline it;
-  recording still works (video + system audio).
+- **Screen Recording**: required for the screen **and system audio (which
+  can include other participants' voices)**. After granting it, please
+  **restart the app** — macOS activates it only after a relaunch.
+- **Microphone**: records **your own voice**. You can decline it; recording
+  still works (video + system audio).
 
 **How to test:**
 
 1. Open Kilde from the menu bar icon.
 2. Choose a display (or window), audio sources, and a destination (default
-   `~/Movies`). Press Record, wait a few seconds, press Stop — the recording
-   appears in the destination and in "Recent recordings".
-3. (Optional, **macOS 26+**) To test transcription: enable "Transcribe after
-   recording", record a short clip with speech, press Stop. A Markdown
-   transcript is written **next to the recording file**. On earlier versions
-   the option is disabled.
+   `~/Movies`). Record a few seconds and stop — the file appears in the
+   destination and in "Recent recordings".
+3. (Optional, **macOS 26+**) enable "Transcribe after recording" and record
+   a short clip with speech; a Markdown transcript is written next to the
+   recording. On earlier versions the option is disabled.
 
 **Transcription and data handling:**
 
-- Transcription runs **entirely on this device** (Apple SpeechAnalyzer /
-  SpeechTranscriber). No audio or transcript is sent anywhere (Kilde operates
-  no servers). If the speech language model is not on the device, it is
-  downloaded from Apple's servers (a standard OS asset; as with any network
-  request, your IP address reaches Apple); otherwise it works offline.
+- Transcription runs **entirely on this device** (SpeechTranscriber). No
+  audio or transcript is sent anywhere (no servers). A missing language
+  model downloads from Apple (standard OS asset; your IP reaches Apple as
+  with any request); otherwise it works offline.
 - The app uses the App Sandbox. Recordings and transcripts are written to
-  `~/Movies` or a user-picked folder (security-scoped bookmark), never inside
-  the sandbox container.
-- Outbound network connections: (a) usage analytics (Firebase Analytics),
-  (b) crash reports after a crash (Firebase Crashlytics), (c) the
-  language-model downloads above. None carries audio content.
+  `~/Movies` or a user-picked folder, never inside the sandbox container.
+- Outbound connections: usage analytics and crash reports (Firebase), and
+  the language-model downloads above. None carries audio content.
 
-**Automatic transcription language (v0.21.0, opt-in):** The transcription
-language setting gains "Automatic (detect from recording)" (default
-unchanged). It picks the language per audio track from the first 30 seconds
-(candidates: device language, Japanese, English; undecided tracks fall back
-to the device language). No new permissions. Audio and transcripts never
-leave the device; missing language models download from Apple as noted
-above.
+**Automatic transcription language (v0.21.0, opt-in):** "Automatic (detect
+from recording)" picks the language per audio track from the first 30
+seconds (undecided tracks fall back to the device language). No new
+permissions; audio never leaves the device.
 
-**Meeting auto-recording (off by default):**
+**Meeting auto-recording (off by default):** can detect an ongoing meeting
+and record it automatically. Detection is local; it never starts or stops a
+recording unless the user enabled it, and manual recordings are never
+stopped automatically.
 
-Kilde can optionally detect an ongoing meeting and record it automatically.
-Detection runs locally and sends nothing anywhere. **Off by default** — it never starts or
-stops a recording unless the user enabled "Record meeting windows
-automatically", and manual recordings are never stopped automatically.
-
-**Calendar meeting names (off by default, v0.20.0):**
-
-A separate opt-in ("Use calendar event names"), effective only while meeting
-auto-recording is also enabled, uses the title of a calendar event overlapping
-the detected meeting for the recording file name, the recording-started
-notification, and the transcript heading. macOS offers no read-only calendar
-permission, so the request — `requestFullAccessToEvents` (macOS 14+) — and the
-entitlement are for full access, but **the app only reads events**; it never
-creates, edits, or invites. Calendar data stays on-device; if declined,
-recordings continue with the default file name. A lookup not finished by the time recording starts
-falls back to the default file name.
+**Calendar meeting names (off by default, v0.20.0):** while auto-recording
+is enabled, the opt-in "Use calendar event names" uses the event title for
+the file name, the start notification, and the transcript heading. macOS has
+no read-only calendar permission, so the request is full access, but **the
+app only reads events** (never creates, edits, or invites). Data stays
+on-device; if declined, the default file name is used.
 
 **Recording-consent note:** system audio can include other participants'
-voices; informing them is the user's responsibility. For your test, any sample
-audio works — no real meeting is required.
+voices; informing them is the user's responsibility. Any sample audio works
+for testing — no real meeting is required.
 
-**In-app purchase — tips (v0.18.0):**
-
-The panel has an optional "Support this app" section with three consumable
-tips (kilde.tip.small/medium/large); tapping one starts a standard StoreKit
-purchase (confirm with your sandbox Apple ID). Nothing is gated behind it —
-every feature stays free. If the section does not appear, the products are
-not yet available in your environment; no feature is missing.
+**In-app purchase — tips (v0.18.0):** the optional "Support this app"
+section offers three consumable tips (kilde.tip.*); tapping one starts a
+standard StoreKit purchase (sandbox Apple ID). Nothing is gated. If the
+section does not appear, the products are not yet visible in your
+environment.
 
 **In-app purchase — kilde Pro, meeting summaries (v0.26.0):**
 
-Meeting summaries are the first paid feature, sold as a non-consumable
-one-time purchase (kilde.pro, ¥2,800 in Japan). In the transcription
-section of the panel, "Summarize after recording" is replaced by a locked
-row with a "Pro" badge while the purchase is not owned. Clicking the row
-expands an inline purchase panel: the price pulled from the App Store, a
-Buy button that starts a standard StoreKit purchase (confirm with your
-sandbox Apple ID), and a Restore Purchase button (App Store sync).
-After the purchase the row turns back into the normal toggle. To actually
-generate a summary, also enable "Transcribe after recording" (transcription
-is the input to the summary); summaries run on-device with Apple
-Intelligence (macOS 26+; on devices without it the lock row is disabled,
-and an explanatory line appears when transcription is enabled). **Recording and transcription are currently
-free** — nothing else is gated. If the price does not load during review
-(product not yet visible in your environment), the panel shows a loading
-placeholder; that is expected, and the IAP's review screenshot shows the
-locked row and the expanded panel.
+Meeting summaries are the first paid feature (non-consumable, one-time:
+kilde.pro). While not owned, "Summarize after recording" in the panel's
+transcription section is a locked row with a "Pro" badge; clicking it
+expands an inline purchase panel (price from the App Store, Buy — standard
+StoreKit purchase with your sandbox Apple ID — and Restore Purchase).
+After purchase the row becomes the normal toggle. To generate a summary,
+also enable "Transcribe after recording" (it is the input); summaries run
+on-device with Apple Intelligence (macOS 26+; without it the lock row is
+disabled, with an explanatory line when transcription is enabled).
+**Recording and transcription are currently free.** If the price shows a
+loading placeholder, the product is not yet visible in your environment;
+the IAP's review screenshot shows the row and the panel.
 
 ---
 
