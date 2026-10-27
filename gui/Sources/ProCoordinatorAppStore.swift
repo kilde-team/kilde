@@ -49,6 +49,10 @@ final class ProCoordinator: ObservableObject {
     /// loadProduct の二重発火 (onAppear と kildePopoverDidShow が連続する) を
     /// 吸収するためのフラグ (TipCoordinator と同じ)
     private var isLoadingProduct = false
+    /// 権利リフレッシュの世代。**古い `currentEntitlements` の列挙結果が後から
+    /// 完了して購入後の権利を未購入へ戻す**のを防ぐ (cubic レビュー指摘) —
+    /// 列挙中に新しいリフレッシュが始まったら、古い結果は適用しない
+    private var entitlementGeneration = 0
 
     init(enabled: Bool) {
         self.enabled = enabled
@@ -89,12 +93,18 @@ final class ProCoordinator: ObservableObject {
     /// 購入・復元の後に呼ぶ。**オフラインで動く** (ローカルのレシート検証のみ)
     func refreshEntitlements() async {
         guard enabled else { return }
+        entitlementGeneration += 1
+        let generation = entitlementGeneration
         var unlocked = false
         for await entitlement in Transaction.currentEntitlements {
             guard let transaction = try? Self.checkVerified(entitlement),
                   transaction.productID == Self.productID else { continue }
             unlocked = true
         }
+        // 列挙中に自分より新しいリフレッシュが始まっていたら、この (古い)
+        // スナップショットは捨てる — 例: ポップオーバー表示でのリフレッシュが
+        // 購入完了のリフレッシュと並走し、後から空の結果で上書くのを防ぐ
+        guard generation == entitlementGeneration else { return }
         // 非消耗型は権利が続く限り currentEntitlements に載り続ける (返金されると
         // 載らなくなる)。ここでは finish しない — 権利の付与は購入時に済んでいる
         isUnlocked = unlocked
