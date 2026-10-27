@@ -34,7 +34,7 @@ microphone, with optional on-device transcription of finished recordings.
 - Transcription runs **entirely on this device** (SpeechTranscriber). No
   audio or transcript is sent anywhere (no servers). A missing language
   model downloads from Apple (standard OS asset; your IP reaches Apple as
-  with any request); otherwise offline.
+  with any request); otherwise it works offline.
 - The app uses the App Sandbox. Recordings and transcripts are written to
   `~/Movies` or a user-picked folder, never inside the sandbox container.
 - Outbound connections: usage analytics and crash reports (Firebase), and
