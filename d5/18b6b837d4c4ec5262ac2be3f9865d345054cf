@@ -1,0 +1,22 @@
+gui/Sources/AppDelegate.swift
+  h_864205080385bc 265-272,380,719-724,805-808
+gui/Sources/ContentView.swift
+  h_864205080385bc 46-49,70-88,936
+gui/Sources/ProCoordinatorAppStore.swift
+  h_864205080385bc 69-74
+gui/Sources/SelfTest.swift
+  h_864205080385bc 33-46,224-236
+gui/Sources/TipCoordinatorAppStore.swift
+  h_864205080385bc 61-65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d518b6b837d4c4ec5262ac2be3f9865d345054cf",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
