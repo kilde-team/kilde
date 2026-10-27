@@ -1,0 +1,29 @@
+docs/appstore/metadata/metadata-en.md
+  s_d3aaa18445d502::t_5d993d23e5ea72 416-427
+docs/appstore/metadata/metadata-es.md
+  s_d3aaa18445d502::t_e2663be5dd46aa 428-433
+docs/appstore/metadata/metadata-ja.md
+  s_d3aaa18445d502::t_0e25c8519c2d7e 414-423
+docs/appstore/metadata/metadata-ko.md
+  s_d3aaa18445d502::t_6990b48204a826 359-364
+docs/appstore/metadata/metadata-zh-Hans.md
+  s_d3aaa18445d502::t_fbdf1eaa687264 329-334
+docs/release-notes/v0.27.0.md
+  s_d3aaa18445d502::t_3249bde26d8d5d 1-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "62df4c3eb84a6c715a249ba47ecc13ce86227cf5",
+  "prompts": {},
+  "sessions": {
+    "s_d3aaa18445d502": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3287790d-6df9-4766-b09a-c6371cf360de",
+        "model": "glm-5.3-flash"
+      },
+      "human_author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
