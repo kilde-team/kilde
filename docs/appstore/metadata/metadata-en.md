@@ -407,3 +407,9 @@ engine change (pin v0.19.0).
 ```text
 This is a maintenance release with no functional changes in the App Store version. All features remain free, as before.
 ```
+
+## What's New (0.26.0)
+
+```text
+Meeting summaries are now a one-time Pro purchase (no subscription). Turn on "Summarize after recording" and key points, decisions, and action items are compiled after each recording, processed on-device with Apple Intelligence (macOS 26 or later). Recording and transcription are free today.
+```
