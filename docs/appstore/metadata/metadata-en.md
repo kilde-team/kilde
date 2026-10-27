@@ -413,3 +413,15 @@ This is a maintenance release with no functional changes in the App Store versio
 ```text
 Meeting summaries are now a one-time Pro purchase (no subscription). Turn on "Summarize after recording" and key points, decisions, and action items are compiled after each recording, processed on-device with Apple Intelligence (macOS 26 or later). Recording and transcription are free today.
 ```
+
+## What's New (0.27.0)
+
+The only changes since 0.26.0 are internal telemetry: aggregated usage
+events for the Pro purchase flow and the meeting-summary feature
+(issue #456; bucketed values only, within the "Usage statistics" scope of
+PRIVACY.md). No user-visible feature changes. Keep the copy honest
+and short.
+
+```text
+Internal improvements to the app. No feature changes.
+```
