@@ -96,8 +96,8 @@ sandbox Apple ID), and a Restore Purchase button (App Store sync).
 After the purchase the row turns back into the normal toggle. To actually
 generate a summary, also enable "Transcribe after recording" (transcription
 is the input to the summary); summaries run on-device with Apple
-Intelligence (macOS 26+; the lock row is disabled on devices without it,
-with an explanatory line). **Recording and transcription are currently
+Intelligence (macOS 26+; on devices without it the lock row is disabled,
+and an explanatory line appears when transcription is enabled). **Recording and transcription are currently
 free** — nothing else is gated. If the price does not load during review
 (product not yet visible in your environment), the panel shows a loading
 placeholder; that is expected, and the IAP's review screenshot shows the
@@ -116,7 +116,7 @@ locked row and the expanded panel.
 «購入を復元» (App Store sync) が並びます。購入後は通常のトグルに戻ります。
 要約の生成には «録画後に文字起こし» も有効化が必要です (文字起こしが入力になるため)。
 処理は Apple Intelligence のオンデバイス (macOS 26+。非対応機ではロック行自体が
-無効になり、理由の案内行が出ます)。**録画と文字起こしは現在無料** — 他にゲート
+無効になり、文字起こしが有効なときは理由の案内行も出ます)。**録画と文字起こしは現在無料** — 他にゲート
 される機能はありません。レビュー環境で価格が取得できない場合 (商品がまだ見えない)
 は «読み込み中» のプレースホルダになります — 想定された挙動で、IAP の審査用
 スクリーンショットにロック行と導線を示してあります。
