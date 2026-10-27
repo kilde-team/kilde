@@ -238,6 +238,136 @@ enum UsageAnalytics {
             recordingDuration: recordingDuration, processingTime: nil)
     }
 
+    // MARK: - Pro (要約の買い切り) の転換計測 (issue #456 / エピック #174)
+
+    /// 0.26.0 の Pro 実装は購入導線・要約の実行に利用統計を一切出していなかった。
+    /// エピック #174 の出口条件 (有料転換 2%) の判定は ASC の IAP 販売数が正本だが、
+    /// **アプリ内のファネル (ロック行の露出 → 購入開始 → 完了) と要約の実利用** は
+    /// ここにしか現れない。#159 / #343 と同じ位置づけ。
+    ///
+    /// **購入系 (`pro_*`) は MAS 版だけで発火する** — 直接配布版は
+    /// ProCoordinator のスタブで常にロック解除済み (Pro 直接販売 #172 は見送り中の
+    /// 無料開放) で、ロック行も購入ボタンも存在しないため。要約系 (`summary_*`) は
+    /// 両チャネルで発火する (直接配布版は Pro 無料開放なので要約だけが計測される)。
+    /// 価格・金額・トランザクション ID は絶対に送らない (PRIVACY.md «利用統計» の枠)
+
+    /// Pro 未購入のロック行がパネルに表示された。購入ファネルの分母
+    /// (impression)。パネルを開くたびに数える
+    static func proUpsellView() {
+        logParameterless("pro_upsell_view")
+    }
+
+    /// 購入ボタンを押して StoreKit の購入フローを開始した
+    static func proPurchaseStarted() {
+        logParameterless("pro_purchase_start")
+    }
+
+    /// ユーザーが購入シートをキャンセルした
+    static func proPurchaseCancelled() {
+        logParameterless("pro_purchase_cancel")
+    }
+
+    /// 購入が承認待ち (Ask to Buy 等) になった。この後の権利付与は
+    /// Transaction.updates → refreshEntitlements の遷移で `proUnlocked` に現れる
+    static func proPurchasePending() {
+        logParameterless("pro_purchase_pending")
+    }
+
+    /// 購入の開始に失敗した (商品の取得失敗・StoreKit エラー)。理由は区分のみ
+    static func proPurchaseFailed(reason: ProPurchaseFailureReason) {
+        logParameterless("pro_purchase_fail", errorKind: reason.rawValue)
+    }
+
+    /// 購入の失敗理由。**値はこの列挙に閉じる** (errorKind と同じ規約)
+    enum ProPurchaseFailureReason: String {
+        /// 商品 (kilde.pro) が StoreKit から取得できない (非公開・ストア不調)
+        case productUnavailable = "product_unavailable"
+        /// `Product.purchase()` がエラーを投げた (ネットワーク等)
+        case purchaseError = "purchase_error"
+    }
+
+    /// この端末で Pro の権利が付与された (権利の false→true 遷移。購入・復元・
+    /// Transaction.updates のどの経路でもここに 1 回集約する — 経路別の内訳は
+    /// `pro_purchase_start` 等の前段イベントで読む)。**起動時の初回判定で
+    /// «既に購入済み» だった場合は数えない** (転換ではなく保有の復元なので —
+    /// ProCoordinatorAppStore.hasDeterminedEntitlement 参照)
+    static func proUnlocked() {
+        logParameterless("pro_unlocked")
+    }
+
+    /// 購入の復元に失敗した。成功 (未購入 → 権利あり) は `proUnlocked` に現れる
+    static func proRestoreFailed(reason: ProRestoreFailureReason) {
+        logParameterless("pro_restore_fail", errorKind: reason.rawValue)
+    }
+
+    /// 復元の失敗理由。**値はこの列挙に閉じる**
+    enum ProRestoreFailureReason: String {
+        /// 同期は成功したがこの Apple ID では未購入
+        case notPurchased = "not_purchased"
+        /// `AppStore.sync()` がエラーを投げた (ネットワーク等)
+        case syncError = "sync_error"
+    }
+
+    /// 要約の生成を開始した (Pro 権利と環境の確認を通った後。両チャネル)
+    static func summaryStarted(recordingDuration: TimeInterval?) {
+        log("summary_start", recordingDuration: recordingDuration, processingTime: nil)
+    }
+
+    /// 要約の生成が完了した (両チャネル)
+    static func summaryCompleted(recordingDuration: TimeInterval?, processingTime: TimeInterval?) {
+        log("summary_complete",
+            recordingDuration: recordingDuration, processingTime: processingTime)
+    }
+
+    /// 要約の生成が失敗した。録画・文字起こしは成功済みで、ジョブ全体は
+    /// サイドカーを書かずに失敗する (TranscriptionCoordinator の契約) —
+    /// «文字起こしは成功したのに要約で落ちた» 実態を見るためのイベント。
+    /// エラーは種別のみ (KilError のコード / Unavailable / キャンセル)
+    static func summaryFailed(_ error: Error, recordingDuration: TimeInterval?) {
+        log("summary_fail", recordingDuration: recordingDuration, processingTime: nil,
+            errorKind: summaryErrorKind(error))
+    }
+
+    /// 要約を生成せずにジョブを完了した (録画・文字起こしは成功。両チャネル)。
+    /// «要約が生成されなかった» 体験の上位 (Pro 未購入より環境非対応が多い想定)
+    static func summarySkipped(_ reason: SummarySkipReason, recordingDuration: TimeInterval?) {
+        log("summary_skip", recordingDuration: recordingDuration, processingTime: nil,
+            errorKind: reason.rawValue)
+    }
+
+    /// 要約が生成されなかった理由。**値はこの列挙に閉じる**
+    enum SummarySkipReason: String {
+        /// Apple Intelligence が無効・非対応 (macOS 26 未満を含む)
+        case unsupportedEnvironment = "unsupported_environment"
+        /// Pro 未購入 (返金で権利を失った等 — UI のロックで通常は選べないため稀)
+        case proRequired = "pro_required"
+    }
+
+    /// 要約の失敗種別。付帯文字列は送らない (errorKind と同じ規約)
+    private static func summaryErrorKind(_ error: Error) -> String {
+        if let e = error as? KilError {
+            switch e.code {
+            case .licenseRequired: return "license_required"
+            case .summaryEmptyTranscript: return "empty_transcript"
+            default: return "engine_error"
+            }
+        }
+        if error is MeetingSummarizer.Unavailable { return "unsupported_environment" }
+        if error is CancellationError { return "cancelled" }
+        // Foundation Models の生エラー (GenerationError 等)
+        return "model_error"
+    }
+
+    /// パラメータなし (または error_kind のみ) のイベント用。録画長などの
+    /// バケットを載せる既存 `log` と別にしたのは、Pro のUI 系イベントには
+    /// «関連する録画» が無い (ロック行の表示は録画と結び付かない) ため
+    private static func logParameterless(_ name: String, errorKind: String? = nil) {
+        guard isEnabled else { return }
+        var parameters: [String: String] = [:]
+        if let errorKind { parameters["error_kind"] = errorKind }
+        Analytics.logEvent(name, parameters: parameters)
+    }
+
     /// screen_view の画面名。**この列挙に閉じる** (errorKind と同じ規約) —
     /// 呼び出し側の文字列をそのまま送らない。メニューバー アプリに画面遷移は
     /// 無いので、«開かれた UI» 単位で語彙を増やす

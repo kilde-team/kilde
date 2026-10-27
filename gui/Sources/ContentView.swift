@@ -1063,6 +1063,9 @@ struct ContentView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // ロック行が表示された = 購入ファネルの分母 (issue #456)。直接配布版は
+        // 常にロック解除済みでこの行が存在しないため発火しない
+        .onAppear { UsageAnalytics.proUpsellView() }
         // Apple Intelligence が使えない環境では導線を開かせない (買っても要約が
         // 動かないため)。理由は下の «要約には Apple Intelligence が必要です» 行が既に出す
         .disabled(!setup.summaryAvailable)

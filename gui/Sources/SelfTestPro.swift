@@ -1,4 +1,5 @@
 import Foundation
+import FirebaseCore
 import KildeCore
 
 /// Pro (要約) のライセンスゲート (issue #169 / #170 — エンジンの接続は
@@ -77,7 +78,27 @@ enum SelfTestPro {
                   == LicenseContext(entitlement: .none),
               "licenseProvider defaults to .none (fail-safe)")
 
-        print("selftest: pro PASS=\(5 - failures) FAIL=\(failures)")
+        // 5) Pro / 要約の計測イベント (issue #456) は Firebase 未初期化 (セルフ
+        //    テスト) で呼んでも安全な no-op になること。UsageAnalytics.isEnabled は
+        //    FirebaseApp.app() を見るため送信は起こらない — ここで確かめるのは
+        //    «呼び出しが落ちない»«Firebase を初期化しない» の 2 点 (実際の送信は
+        //    実機の Release ビルドで確認する — SelfTestTelemetry と同じ線引き)
+        UsageAnalytics.proUpsellView()
+        UsageAnalytics.proPurchaseStarted()
+        UsageAnalytics.proPurchaseCancelled()
+        UsageAnalytics.proPurchasePending()
+        UsageAnalytics.proPurchaseFailed(reason: .productUnavailable)
+        UsageAnalytics.proUnlocked()
+        UsageAnalytics.proRestoreFailed(reason: .notPurchased)
+        UsageAnalytics.summaryStarted(recordingDuration: nil)
+        UsageAnalytics.summaryCompleted(recordingDuration: nil, processingTime: nil)
+        UsageAnalytics.summaryFailed(
+            KilError.failure(.licenseRequired, "selftest"), recordingDuration: nil)
+        UsageAnalytics.summarySkipped(.proRequired, recordingDuration: nil)
+        check(FirebaseApp.app() == nil,
+              "pro/summary analytics calls stay no-op without Firebase")
+
+        print("selftest: pro PASS=\(6 - failures) FAIL=\(failures)")
         exit(failures == 0 ? 0 : 1)
     }
 

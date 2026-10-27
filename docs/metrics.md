@@ -15,6 +15,7 @@ App Store Connect で、このファイルは定義・手順・月次台帳**。
 | 3 | 文字起こし利用率 | 過去 30 日に `transcription_complete` を送ったユーザー数 ÷ 同じ窓で `recording_complete` を送ったユーザー数 | Firebase コンソール → イベントのユーザー数 (両イベント) | 未定 (同上) |
 | 4 | App Store の評価数 | MAS 版の評価 (レーティング) の累計件数 | App Store Connect → 分析 (概要の App Store 評価) と「評価とレビュー」(星別の件数) | **30** (#161 の出口条件) |
 | 5 | チャネル別の内訳 | `recording_complete` の `channel` パラメータとユーザー プロパティ `distribution_channel` (`mas` / `direct`) の分布 | Firebase コンソール (イベントのパラメータ / ユーザー プロパティ) | 目標なし (参考値) |
+| 6 | Pro 転換ファネル (参考) | `pro_upsell_view` → `pro_purchase_start` → `pro_unlocked` の各ユーザー数 (0.27.0 以降。**エピック #174 の出口条件 «有料転換 2%» の正本は ASC の IAP 販売数 ÷ DL** — GA4 側はアプリ内ファネルの相対的な離脱を読むために使う) | Firebase コンソール → イベント (各イベントのユーザー数) | **2%** (#174 の出口条件。判定は ASC 側で) |
 
 ## 送っているイベントとユーザー プロパティ
 
@@ -24,7 +25,18 @@ App Store Connect で、このファイルは定義・手順・月次台帳**。
 - イベント: `app_open`、`recording_complete` (パラメータ: `recording_length`、
   `channel`)、`transcription_start` / `transcription_complete` / `transcription_fail` /
   `transcription_cancel` / `transcription_retry` (パラメータ: `recording_length`、
-  `processing_time`、`error_kind`)
+  `processing_time`、`error_kind`)、`summary_start` / `summary_complete` /
+  `summary_fail` / `summary_skip` (0.27.0〜。パラメータは文字起こしと同じ
+  `recording_length`・`processing_time`・`error_kind`)、`pro_upsell_view` /
+  `pro_purchase_start` / `pro_purchase_cancel` / `pro_purchase_pending` /
+  `pro_purchase_fail` / `pro_unlocked` / `pro_restore_fail` (0.27.0〜。**MAS 版のみ
+  発火** — 直接配布版は Pro 無料開放で購入 UI が存在しないため。パラメータは
+  `error_kind` のみ)
+- **Pro / 要約系のパラメータは登録済みディメンション (`error_kind` /
+  `recording_length` / `processing_time`) のみを使う** (issue #456) — 新しい
+  カスタム定義の登録は不要。`pro_unlocked` は権利の false→true 遷移だけで
+  発火し、起動時の初回判定で «既に購入済み» だった場合 (再インストール等) は
+  数えない
 - ユーザー プロパティ: `distribution_channel` (`mas` / `direct`)、
   `recordings_bucket` (`0` / `1` / `2` / `3_5` / `6_9` / `10_plus` — 端末内で数えた
   累計録画完了回数の区分。`0` は «まだ録っていない» で、起動した全ユーザーが
@@ -90,7 +102,11 @@ OAuth クライアントはこのスコープについて Google の審査を通
 2. ユーザー プロパティ: `recordings_bucket` の分布から、**`(not set)` 行を除く
    全値の行合計を分母に** `3_5` / `6_9` / `10_plus` の合計の割合を定着率として
    記録する (指標 2。分布は «ユーザー × 値» の行 — «計測の限界» 参照)
-3. ユーザー プロパティ: `distribution_channel` の分布を記録する (指標 5)
+3. ユーザー プロパティ: `distribution_channel` の分布を記録する (指標 5)。
+   あわせて Pro ファネル (`pro_upsell_view` / `pro_purchase_start` / `pro_unlocked`)
+   と要約の利用 (`summary_complete`) のユーザー数を記録する (指標 6。
+   **転換率そのものは ASC の IAP 販売数 ÷ DL が正本** — GA4 はアプリ内の
+   離読点を見る参考値)
 4. App Store Connect: 評価の累計件数と平均を記録する (指標 4)
 5. [appstore/metadata/metrics.md](appstore/metadata/metrics.md) の
    ASC 週次台帳が埋まっていれば、その月の初回 DL 合計を台帳の「気づき」に添える
@@ -141,3 +157,9 @@ OAuth クライアントはこのスコープについて Google の審査を通
   枠内。PRIVACY.md も同じ内容に更新済み (2026-09-28 確認、issue #159)
 - 指標 4 の «評価数» は MAS 版のみ。直接配布版には評価の場が無い (Sparkle で
   更新される) ので、出口条件の «評価 30 件» は MAS 版だけで測る
+- **Pro の購入系イベント (`pro_*`) は MAS 版のみ** (直接配布版は Pro 無料開放で
+  購入 UI が存在しない)。`pro_upsell_view` は «ロック行が表示された» 回数で、
+  パネルを開くたびに数える (impression)。0.26.0 〜 0.26.x は Pro 関連イベントが
+  無いため、ファネルの暗黒期間になる — 0.27.0 以降のデータだけで読む
+- 要約系 (`summary_*`) は両チャネルで発火する。直接配布版は Pro 無料開放のため
+  `summary_skip` の `pro_required` は原則 MAS 版でしか現れない

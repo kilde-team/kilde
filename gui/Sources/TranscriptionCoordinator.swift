@@ -367,6 +367,8 @@ final class TranscriptionCoordinator: ObservableObject {
                     // 要約だけをスキップし、理由を案内として運ぶ (issue #163 «無効な環境での案内»)
                     if let reason = MeetingSummarizer.unsupportedReason {
                         summaryNote = "要約は生成できませんでした (\(reason))"
+                        UsageAnalytics.summarySkipped(
+                            .unsupportedEnvironment, recordingDuration: job.recordingDuration)
                     } else {
                         // Pro の権利 (issue #169/#170 — 要約は第一弾 Pro 機能)。
                         // UI のロックで要約を選べるのは購入後だけなので、ここに来るのは
@@ -377,18 +379,35 @@ final class TranscriptionCoordinator: ObservableObject {
                         let license = self.licenseProvider()
                         if !license.allows(.summary) {
                             summaryNote = "要約は生成できませんでした (kilde Pro の購入または購入の復元が必要です)"
+                            UsageAnalytics.summarySkipped(
+                                .proRequired, recordingDuration: job.recordingDuration)
                         } else {
+                            // 要約の開始・完了・失敗 (issue #456)。録画長は文字起こしの
+                            // イベントと同じ区分で載せる。失敗はここでだけ数え、
+                            // この後の catch (ジョブ全体の失敗) の transcription_fail とは
+                            // 別の行為として扱う
+                            UsageAnalytics.summaryStarted(recordingDuration: job.recordingDuration)
                             self.setPhase(.summarizing(progress: 0), for: job)
                             try Task.checkCancellation()
-                            summary = try await MeetingSummarizer.summarize(
-                                transcript: segments,
-                                template: template,
-                                license: license,
-                                onProgress: { progress in
-                                    Task { @MainActor in
-                                        self.setPhase(.summarizing(progress: progress), for: job)
-                                    }
-                                })
+                            let summaryStartedAt = Date()
+                            do {
+                                summary = try await MeetingSummarizer.summarize(
+                                    transcript: segments,
+                                    template: template,
+                                    license: license,
+                                    onProgress: { progress in
+                                        Task { @MainActor in
+                                            self.setPhase(.summarizing(progress: progress), for: job)
+                                        }
+                                    })
+                            } catch {
+                                UsageAnalytics.summaryFailed(
+                                    error, recordingDuration: job.recordingDuration)
+                                throw error
+                            }
+                            UsageAnalytics.summaryCompleted(
+                                recordingDuration: job.recordingDuration,
+                                processingTime: Date().timeIntervalSince(summaryStartedAt))
                         }
                     }
                 }
