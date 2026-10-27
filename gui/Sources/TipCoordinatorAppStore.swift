@@ -58,6 +58,11 @@ final class TipCoordinator: ObservableObject {
                 guard let self else { return }
                 do {
                     let transaction = try Self.checkVerified(update)
+                    // チップの商品だけを扱う。Pro (kilde.pro — ProCoordinatorAppStore)
+                    // のリスナーが同じ Transaction.updates を別に見ているため、
+                    // 相手の商品を finish しない (PR #446 で «このアプリの IAP は
+                    // チップのみ» の前提が崩れたための限定)
+                    guard self.productIDs.contains(transaction.productID) else { continue }
                     await transaction.finish()
                 } catch {
                     // 検証に通らなかったトランザクションは finish しない

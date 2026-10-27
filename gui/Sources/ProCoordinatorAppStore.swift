@@ -65,10 +65,13 @@ final class ProCoordinator: ObservableObject {
             for await update in Transaction.updates {
                 guard let self else { return }
                 do {
-                    // 非消耗型: finish は «権利を付与した» のしるし。ここに来るのは
-                    // 購入直後 (purchase でも finish する — 二重 finish は StoreKit が
-                    // 吸収する) か、承認待ち (.pending) の解消後
                     let transaction = try Self.checkVerified(update)
+                    // **Pro の商品だけを扱う**。このアプリにはチップ (kilde.tip.*) の
+                    // リスナー (TipCoordinatorAppStore) が別にいて、同じ
+                    // Transaction.updates を見ている — 相手の商品をここで finish すると
+                    // 縄張りを壊す (CodeRabbit 指摘)。非消耗型の finish は
+                    // «権利を付与した» のしるし (購入直後は purchase 側でも finish する)
+                    guard transaction.productID == Self.productID else { continue }
                     await transaction.finish()
                 } catch {
                     // 検証に通らなかったトランザクションは finish しない

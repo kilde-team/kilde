@@ -43,6 +43,10 @@ struct ContentView: View {
             if recording.isActive {
                 sessionView
             } else {
+                // ScrollViewReader はセルフテストの PANEL_PRO モード (購入導線の
+                // スクリーンショット) で文字起こしセクションへスクロールするためだけに
+                // 使う (kildeProPurchaseReveal のハンドラで scrollTo)
+                ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
                         // 権限の案内はスクロール領域の**先頭**に置く。下に積むと、
@@ -63,7 +67,25 @@ struct ContentView: View {
                     // バーが中身に重なり、右端の文字やボタンが隠れる
                     .padding(.trailing, 16)
                 }
-                .frame(maxHeight: 420)
+                // PANEL_PRO のセルフテスト時だけ高さを広げてフォーム全体 (購入導線込み) を
+                // 1 画面に収める — スクリーンショットをスクロール操作なしで撮るため
+                .frame(maxHeight: SelfTest.isPanelPro ? 1160 : 420)
+                .onReceive(NotificationCenter.default.publisher(for: .kildeProPurchaseReveal)) { _ in
+                    // セルフテストの PANEL モード (KILDE_GUI_SELFTEST_PANEL_PRO=1) からのみ
+                    // 来る。審査用スクリーンショットのためにロック行の購入導線を開き、
+                    // 見える位置までスクロールする (フォームは高さ 420 のスクロール領域に
+                    // 入り切らないため — proxy がここでしか見えないのでこの位置)
+                    guard !pro.isUnlocked else { return }
+                    showsProPurchase = true
+                    // レイアウトが済む前に scrollTo すると無視されるため、少し遅らせる
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(400))
+                        withAnimation {
+                            proxy.scrollTo("summaryLockRow", anchor: .top)
+                        }
+                    }
+                }
+                }
                 resultView
                 transcriptionStatusView
                 startButton
@@ -911,6 +933,7 @@ struct ContentView: View {
                         .help("文字起こしの後に、会議の要点・決定事項・アクションを生成して Markdown の先頭に載せます (オンデバイス処理。Apple Intelligence を使用)")
                 } else {
                     summaryLockRow
+                        .id("summaryLockRow")
                     if showsProPurchase {
                         proPurchasePanel
                     }

@@ -30,6 +30,20 @@ enum SelfTest {
         ProcessInfo.processInfo.environment.keys.contains { $0.hasPrefix("KILDE_GUI_SELFTEST_") }
     }
 
+    /// 要約付き経路 (KILDE_GUI_SELFTEST_SUMMARY=1) か。**録画を伴う実パスの
+    /// セルフテスト** — StoreKit を無効化したままでも権利ありとして走らせる
+    /// (MAS ビルドで pro.license が .none のままだと要約がゲートで落ちるため —
+    /// CodeRabbit 指摘)。AppDelegate が licenseProvider で参照する
+    static var isSummaryPath: Bool {
+        ProcessInfo.processInfo.environment["KILDE_GUI_SELFTEST_SUMMARY"] == "1"
+    }
+
+    /// PANEL モードで購入導線も開くか (KILDE_GUI_SELFTEST_PANEL_PRO=1 —
+    /// 審査用スクリーンショット用)。ContentView がスクロール領域の高さの判定に使う
+    static var isPanelPro: Bool {
+        ProcessInfo.processInfo.environment["KILDE_GUI_SELFTEST_PANEL_PRO"] == "1"
+    }
+
     @MainActor
     static func runIfRequested(setup: RecordingSetup, recording: RecordingController,
                                permissions: PermissionsModel, updater: UpdaterCoordinator,
@@ -207,6 +221,19 @@ enum SelfTest {
                 popover.show()
             }
             guard popover.isShown() else { fail("ポップオーバーを開けませんでした (isShown=false)") }
+            // 文字起こしトグルをオンにする (プロセス内だけ — config は書き換えない)。
+            // **show の後**に行う — showPopover 内の reloadTranscriptionSettings が
+            // config から値を読み直すため、先に設定すると上書きされて消える。
+            // トグルがオフだと文字起こしセクションの詳細行 (言語・形式・要約) が
+            // 畳まり、スクリーンショットに撮れない (RECORD モードの «ユーザーの
+            // config を書き換えず、このプロセス内だけ有効化» と同じ規約)
+            setup.transcribeEnabled = true
+            // KILDE_GUI_SELFTEST_PANEL_PRO=1: ロック行の購入導線も開く。MAS ビルドで
+            // Pro の審査用スクリーンショットを撮るためのオプション (issue #169/#170)。
+            // 未購入 (ロック) でなければ何もしない (ContentView が guard する)
+            if env["KILDE_GUI_SELFTEST_PANEL_PRO"] == "1" {
+                NotificationCenter.default.post(name: .kildeProPurchaseReveal, object: nil)
+            }
             print("selftest: panel shown=true holding 20s")
             fflush(stdout)
             let deadline = Date().addingTimeInterval(20)

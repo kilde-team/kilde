@@ -262,7 +262,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // ゲートが実行時点の権利を見られるようにするため。licenseProvider の
         // 既定は «権利なし» (フェイルセーフ) なので、この配線が無いと購入済み
         // ユーザーの要約まで弾かれる
-        transcription.licenseProvider = { [pro] in pro.license }
+        // セルフテストの要約付き経路 (KILDE_GUI_SELFTEST_SUMMARY) は StoreKit を
+        // 無効化したまま権利ありで走らせる (MAS ビルドでも issue #163 の経路を
+        // 検証できるようにするため — CodeRabbit 指摘)
+        transcription.licenseProvider = { [pro] in
+            SelfTest.isSummaryPath
+                ? LicenseContext(entitlement: .directDistribution)
+                : pro.license
+        }
         Task { await pro.refreshEntitlements() }
         // 録画完了通知の «文字起こし» アクション → キューへ (issue #392)。配線の
         // 持ち主はここ (onCompletion と同じ向き)。«録画したときの設定» の
@@ -370,7 +377,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     // Pro の権利も条件に含む (issue #170 — 返金後にトグルがオンのまま
                     // 残っていても、実行時のゲートで弾かれる前にここで落とす)
                     summaryTemplate: (self.setup.summaryEnabled && self.setup.summaryAvailable
-                        && self.pro.license.allows(.summary))
+                        && (SelfTest.isSummaryPath || self.pro.license.allows(.summary)))
                         ? self.setup.summaryTemplate : nil,
                     localeID: self.setup.transcriptLocale,
                     // 録画の長さ。計測 (issue #153) の区分だけに使う。elapsed は
@@ -709,6 +716,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // このままトグルを触ったとき古い値が保存される — 開くたびに config から
         // 再読み込みして表示を実体へ追従させる (reloadTranscriptionSettings のコメント参照)
         setup.reloadTranscriptionSettings()
+        // PANEL_PRO のセルフテスト (審査用スクリーンショット — issue #169/#170) では
+        // 縦を広げて文字起こしセクション (ロック行 + 購入導線) まで 1 画面に収める。
+        // ContentView 側のスクロール領域の高さ上限も同じ条件で広げている
+        if SelfTest.isPanelPro {
+            popover.contentSize = NSSize(width: popover.contentSize.width, height: 1400)
+        }
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         // キャプチャ パネルを開いた (issue #343)。Firebase が無い構成
         // (セルフテスト・Debug) では UsageAnalytics 内で跳ねる
@@ -789,4 +802,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 extension Notification.Name {
     /// ポップオーバーを開いた直後に発火 (ContentView の再読込トリガ)
     static let kildePopoverDidShow = Notification.Name("kildePopoverDidShow")
+
+    /// セルフテストの PANEL モードから Pro 購入導線を開くために使う (審査用
+    /// スクリーンショットの撮影 — issue #170)。通常操作では使わない
+    static let kildeProPurchaseReveal = Notification.Name("kildeProPurchaseReveal")
 }
