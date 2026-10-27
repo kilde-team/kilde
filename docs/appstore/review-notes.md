@@ -93,17 +93,33 @@ row with a "Pro" badge while the purchase is not owned. Clicking the row
 expands an inline purchase panel: the price pulled from the App Store, a
 Buy button that starts a standard StoreKit purchase (confirm with your
 sandbox Apple ID), and a Restore Purchase button (App Store sync).
-After the purchase the row turns back into the normal toggle and summaries
-are generated on-device with Apple Intelligence (macOS 26+; the lock row is
-disabled on devices without it, with an explanatory line). **Recording and
-transcription remain free** — nothing else is gated. If the price does not
-load during review (product not yet visible in your environment), the panel
-shows a loading placeholder; that is expected, and the IAP's review
-screenshot shows the locked row and the expanded panel.
+After the purchase the row turns back into the normal toggle. To actually
+generate a summary, also enable "Transcribe after recording" (transcription
+is the input to the summary); summaries run on-device with Apple
+Intelligence (macOS 26+; the lock row is disabled on devices without it,
+with an explanatory line). **Recording and transcription are currently
+free** — nothing else is gated. If the price does not load during review
+(product not yet visible in your environment), the panel shows a loading
+placeholder; that is expected, and the IAP's review screenshot shows the
+locked row and the expanded panel.
 
 ---
 
 ## 日本語 (参考訳 — 提出は英語版)
+
+**アプリ内課金 — kilde Pro・会議の要約 (v0.26.0):**
+
+会議の要約が最初の有料機能 (非消耗型 kilde.pro・日本では ¥2,800 の買い切り)。
+未購入の間、パネルの文字起こしセクションの «録画後に要約も作る» は «Pro» バッジ付きの
+ロック行に置き換わります。クリックするとインラインの購入導線が開き、App Store から
+取得した価格・購入ボタン (StoreKit 標準フロー — sandbox の Apple ID で確認)・
+«購入を復元» (App Store sync) が並びます。購入後は通常のトグルに戻ります。
+要約の生成には «録画後に文字起こし» も有効化が必要です (文字起こしが入力になるため)。
+処理は Apple Intelligence のオンデバイス (macOS 26+。非対応機ではロック行自体が
+無効になり、理由の案内行が出ます)。**録画と文字起こしは現在無料** — 他にゲート
+される機能はありません。レビュー環境で価格が取得できない場合 (商品がまだ見えない)
+は «読み込み中» のプレースホルダになります — 想定された挙動で、IAP の審査用
+スクリーンショットにロック行と導線を示してあります。
 
 Kilde はメニューバーから使う画面録画アプリで、システム音声とマイクを録音でき、
 録画の文字起こし (オプション) を備えています。
