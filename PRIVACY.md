@@ -32,7 +32,12 @@ Slack の会議、YouTube またはその他の動画配信、その他のブラ
 bundleID やタイトルは含まれません。**
 文字起こし機能 (macOS 26 以降) の利用状況 (開始・完了・失敗・キャンセルの回数、
 処理時間と録音の長さの区分、失敗の種別) も同じ利用統計に含まれます。
-**書き起こしたテキストや、録画・サイドカーのファイル名・保存先は含まれません。**
+会議の要約機能 (Pro) の利用状況 (要約の開始・完了・失敗・生成されなかった
+理由の区分と処理時間の区分) と、Mac App Store 版の Pro 購入導線の利用状況
+(ロックの表示、購入の開始とその結果 — 完了・キャンセル・承認待ち・失敗 —、
+権利の付与、購入の復元の失敗、それぞれの回数と失敗の種別) も同じ利用統計に
+含まれます。**書き起こしたテキストや要約の内容、録画・サイドカーのファイル名・
+保存先、購入の価格・金額・トランザクション ID は含まれません。**
 `kilde` コマンドラインは解析を行いません。
 
 GUI アプリ (直接配布版・Mac App Store 版の両方) は、アプリが異常終了 (クラッシュ) した
@@ -185,10 +190,18 @@ or another app window) — is part of the same
 usage statistics. Usage of the transcription feature
 (macOS 26 or later) — counts of starts, completions, failures, cancellations,
 and automatic retries, coarse buckets for processing time and recording length,
-and the kind of failure — is part of the same usage statistics. **It never
-includes transcript text or the names or locations of recording or sidecar
-files, which app was picked for app-specific audio capture (no app names or
-bundle IDs), or the bundle IDs or titles of captured windows.** The `kilde`
+and the kind of failure — is part of the same usage statistics. Usage of the
+meeting-summary feature (Pro) — counts of summary starts, completions, and
+failures, coarse buckets for processing time and recording length, the kind of
+failure, and the reason a summary was skipped — and usage of the Pro purchase
+flow in the Mac App Store version — counts of lock-row displays, purchase
+starts and their outcomes (completion, cancellation, pending approval, or
+failure), entitlement grants, and failed purchase restores, plus the kind of
+failure — are also part of the same usage statistics. **It never
+includes transcript or summary text or the names or locations of recording or
+sidecar files, which app was picked for app-specific audio capture (no app
+names or bundle IDs), the bundle IDs or titles of captured windows, or any
+purchase prices, amounts, or transaction IDs.** The `kilde`
 command-line
 tool does no
 analytics.

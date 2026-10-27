@@ -53,6 +53,16 @@ final class ProCoordinator: ObservableObject {
     /// 完了して購入後の権利を未購入へ戻す**のを防ぐ (cubic レビュー指摘) —
     /// 列挙中に新しいリフレッシュが始まったら、古い結果は適用しない
     private var entitlementGeneration = 0
+    /// 起動後最初の権利判定が済んだか。`pro_unlocked` イベント (issue #456) は
+    /// 権利の **false→true への変化** だけを数える — 初回判定で «既に購入済み»
+    /// (別端末で買った・再インストール) だった場合は転換ではないので数えない。
+    /// enabled=false (セルフテスト) では判定が一度も走らないため false のまま
+    private var hasDeterminedEntitlement = false
+    /// 購入・復元のフローに入ったことがあるか。**初回の権利判定が適用されるより
+    /// 先に購入の結果が適用される** レース (起動直後に購入を終えた場合など) でも
+    /// 実際の購入を転換として数えるためのフラグ (cubic レビュー指摘)。
+    /// 購入フローに入っていない初回判定は «既に購入済み» の復元のまま扱う
+    private var hasEngagedPurchaseFlow = false
 
     init(enabled: Bool) {
         self.enabled = enabled
@@ -90,9 +100,13 @@ final class ProCoordinator: ObservableObject {
     }
 
     /// currentEntitlements から権利を組み立て直す。起動時・ポップオーバー表示時・
-    /// 購入・復元の後に呼ぶ。**オフラインで動く** (ローカルのレシート検証のみ)
-    func refreshEntitlements() async {
-        guard enabled else { return }
+    /// 購入・復元の後に呼ぶ。**オフラインで動く** (ローカルのレシート検証のみ)。
+    /// - Returns: 適用したスナップショットの権利。自分より新しいリフレッシュに
+    ///   追い越されて **適用を捨てたときは nil** (呼び出し側がこの結果で判定を
+    ///   下せないことを表す — restore の «未購入» 判定など)
+    @discardableResult
+    func refreshEntitlements() async -> Bool? {
+        guard enabled else { return nil }
         entitlementGeneration += 1
         let generation = entitlementGeneration
         var unlocked = false
@@ -104,12 +118,25 @@ final class ProCoordinator: ObservableObject {
         // 列挙中に自分より新しいリフレッシュが始まっていたら、この (古い)
         // スナップショットは捨てる — 例: ポップオーバー表示でのリフレッシュが
         // 購入完了のリフレッシュと並走し、後から空の結果で上書くのを防ぐ
-        guard generation == entitlementGeneration else { return }
+        guard generation == entitlementGeneration else { return nil }
         // 非消耗型は権利が続く限り currentEntitlements に載り続ける (返金されると
         // 載らなくなる)。ここでは finish しない — 権利の付与は購入時に済んでいる
+        let wasUnlocked = isUnlocked
         isUnlocked = unlocked
         license = LicenseContext(
             entitlement: unlocked ? .macAppStore : .none)
+        // 権利の false→true 遷移 = この端末で Pro になった瞬間 (購入・復元・
+        // Transaction.updates の全経路でここに集約 — issue #456)。初回判定は
+        // «既に購入済み» の復元になりうるため、転換として数えない — ただし
+        // 購入・復元のフローに入った後なら、それが初回判定であっても
+        // この端末での購入 (復元) の結果なので数える
+        if hasDeterminedEntitlement || hasEngagedPurchaseFlow {
+            if unlocked, !wasUnlocked {
+                UsageAnalytics.proUnlocked()
+            }
+        }
+        hasDeterminedEntitlement = true
+        return unlocked
     }
 
     /// ポップオーバーを開くたびに呼ぶ (onAppear / kildePopoverDidShow)。
@@ -134,18 +161,33 @@ final class ProCoordinator: ObservableObject {
         guard enabled, !isPurchasing, !isRestoring else { return }
         isPurchasing = true
         purchaseFailed = false
+        hasEngagedPurchaseFlow = true
+        UsageAnalytics.proPurchaseStarted()
         defer { isPurchasing = false }
+        let product: Product
         do {
+            // 商品の取得と購入は失敗の種別が違うので do を分ける (issue #456 —
+            // 取得失敗を purchase_error に混ぜると内訳が読めない)
             let products = try await Product.products(for: [Self.productID])
-            guard let product = products.first else {
+            guard let fetched = products.first else {
                 purchaseFailed = true
+                UsageAnalytics.proPurchaseFailed(reason: .productUnavailable)
                 return
             }
+            product = fetched
+        } catch {
+            purchaseFailed = true
+            UsageAnalytics.proPurchaseFailed(reason: .productUnavailable)
+            return
+        }
+        do {
             switch try await product.purchase() {
             case .success(let verification):
                 switch verification {
                 case .verified(let transaction):
-                    // 非消耗型: finish で «権利を付与した» と宣言し、権利を組み立て直す
+                    // 非消耗型: finish で «権利を付与した» と宣言し、権利を組み立て直す。
+                    // 完了のイベント (pro_unlocked) は refreshEntitlements の遷移で
+                    // 送る — 経路を購入に限定しないため (issue #456)
                     await transaction.finish()
                     await refreshEntitlements()
                 case .unverified:
@@ -154,14 +196,18 @@ final class ProCoordinator: ObservableObject {
                     // Transaction.updates のリスナーが次回の回収で検証し直す
                     break
                 }
-            case .userCancelled, .pending:
-                // キャンセルは何も言わない。保留 (承認待ち) も同様 — 別途届く通知に任せる
-                break
+            case .userCancelled:
+                UsageAnalytics.proPurchaseCancelled()
+            case .pending:
+                // 承認待ち (Ask to Buy 等)。権利は承認後に Transaction.updates から
+                // 届くため、イベントもここでは «保留» だけ数える
+                UsageAnalytics.proPurchasePending()
             @unknown default:
                 break
             }
         } catch {
             purchaseFailed = true
+            UsageAnalytics.proPurchaseFailed(reason: .purchaseError)
         }
     }
 
@@ -173,16 +219,24 @@ final class ProCoordinator: ObservableObject {
         guard enabled, !isPurchasing, !isRestoring else { return }
         isRestoring = true
         restoreFailed = false
+        hasEngagedPurchaseFlow = true
         defer { isRestoring = false }
         do {
             try await AppStore.sync()
-            await refreshEntitlements()
-            if !isUnlocked {
+            // 適用結果で判定する — isUnlocked を読むと、この refresh が新しい
+            // リフレッシュに追い越されて**古い権利のまま**のときに誤って
+            // «未購入» と数えてしまう (cubic レビュー指摘)。nil は判定の保留
+            let applied = await refreshEntitlements()
+            if applied == false {
                 // 同期は成功したが権利が無い = この Apple ID では未購入
                 restoreFailed = true
+                UsageAnalytics.proRestoreFailed(reason: .notPurchased)
             }
+            // 復元で権利が付いた場合は refreshEntitlements の遷移が pro_unlocked
+            // を送る (購入と同じ集約地点 — issue #456)
         } catch {
             restoreFailed = true
+            UsageAnalytics.proRestoreFailed(reason: .syncError)
         }
     }
 

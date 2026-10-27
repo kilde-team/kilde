@@ -328,6 +328,11 @@ final class TranscriptionCoordinator: ObservableObject {
             // coordinator は AppDelegate がアプリ生存中ずっと持つので、実行期間の
             // 保持で寿命が変わることはない (cancelAll の hung 観測 Task と同じ流儀)
             guard let self else { return }
+            // この実行の失敗が要約の段階で起きたか (下の catch で fail に伝える —
+            // 要約の失敗で transcription_fail を二重に送らないためのフラグ)。
+            // Swift の catch は do と別スコープで do 内の変数が見えないため、
+            // do の外 (Task 直下) で宣言する
+            var failedDuringSummary = false
             do {
                 // ロケール自動判定 (kilde#409)。トラックごとに解決する。断続失敗の自動再試行
                 // (runRecognition) は同じロケール列を使う。利用者による «再試行« (execute の
@@ -367,6 +372,8 @@ final class TranscriptionCoordinator: ObservableObject {
                     // 要約だけをスキップし、理由を案内として運ぶ (issue #163 «無効な環境での案内»)
                     if let reason = MeetingSummarizer.unsupportedReason {
                         summaryNote = "要約は生成できませんでした (\(reason))"
+                        UsageAnalytics.summarySkipped(
+                            .unsupportedEnvironment, recordingDuration: job.recordingDuration)
                     } else {
                         // Pro の権利 (issue #169/#170 — 要約は第一弾 Pro 機能)。
                         // UI のロックで要約を選べるのは購入後だけなので、ここに来るのは
@@ -377,18 +384,43 @@ final class TranscriptionCoordinator: ObservableObject {
                         let license = self.licenseProvider()
                         if !license.allows(.summary) {
                             summaryNote = "要約は生成できませんでした (kilde Pro の購入または購入の復元が必要です)"
+                            UsageAnalytics.summarySkipped(
+                                .proRequired, recordingDuration: job.recordingDuration)
                         } else {
+                            // 要約の開始・完了・失敗 (issue #456)。録画長は文字起こしの
+                            // イベントと同じ区分で載せる
+                            UsageAnalytics.summaryStarted(recordingDuration: job.recordingDuration)
                             self.setPhase(.summarizing(progress: 0), for: job)
                             try Task.checkCancellation()
-                            summary = try await MeetingSummarizer.summarize(
-                                transcript: segments,
-                                template: template,
-                                license: license,
-                                onProgress: { progress in
-                                    Task { @MainActor in
-                                        self.setPhase(.summarizing(progress: progress), for: job)
-                                    }
-                                })
+                            let summaryStartedAt = Date()
+                            failedDuringSummary = true
+                            do {
+                                summary = try await MeetingSummarizer.summarize(
+                                    transcript: segments,
+                                    template: template,
+                                    license: license,
+                                    onProgress: { progress in
+                                        Task { @MainActor in
+                                            self.setPhase(.summarizing(progress: progress), for: job)
+                                        }
+                                    })
+                            } catch {
+                                // キャンセルは失敗に数えない (fail がジョブ単位の
+                                // transcription_cancel を送る — 文字起こし側と同じ方針)。
+                                // 失敗はここで要約のイベントとして数え、再送出した
+                                // 先の fail では transcription_fail を送らせない
+                                // (文字起こし自体は成功しているため二重計上になる)
+                                if !(error is CancellationError) {
+                                    UsageAnalytics.summaryFailed(
+                                        error, recordingDuration: job.recordingDuration,
+                                        processingTime: Date().timeIntervalSince(summaryStartedAt))
+                                }
+                                throw error
+                            }
+                            failedDuringSummary = false
+                            UsageAnalytics.summaryCompleted(
+                                recordingDuration: job.recordingDuration,
+                                processingTime: Date().timeIntervalSince(summaryStartedAt))
                         }
                     }
                 }
@@ -408,7 +440,7 @@ final class TranscriptionCoordinator: ObservableObject {
                 self.finish(job: job, sidecarURL: writtenURL,
                             summary: summary, summaryNote: summaryNote)
             } catch {
-                self.fail(job: job, error: error)
+                self.fail(job: job, error: error, summaryFailure: failedDuringSummary)
             }
         }
     }
@@ -706,7 +738,11 @@ final class TranscriptionCoordinator: ObservableObject {
         pump()
     }
 
-    private func fail(job: Job, error: Error) {
+    /// - Parameter summaryFailure: 文字起こしの**後**の要約の段階で失敗したか。
+    ///   このとき文字起こし自体は成功しているので、計測の transcription_fail は
+    ///   送らない (要約の失敗は summary_fail として既に送られている — 二重計上の
+    ///   防止。表示・再試行などの残りの挙動は変わらない)
+    private func fail(job: Job, error: Error, summaryFailure: Bool = false) {
         guard running?.id == job.id else { return }
         let processingTime = takeProcessingTime()
         stopExecutingScopedAccess()
@@ -749,7 +785,7 @@ final class TranscriptionCoordinator: ObservableObject {
         if cancelled {
             UsageAnalytics.transcriptionCancelled(
                 recordingDuration: job.recordingDuration, processingTime: processingTime)
-        } else {
+        } else if !summaryFailure {
             UsageAnalytics.transcriptionFailed(
                 error: error, recordingDuration: job.recordingDuration,
                 processingTime: processingTime)
