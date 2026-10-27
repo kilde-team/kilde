@@ -1,0 +1,16 @@
+docs/launch/faq.md
+  h_864205080385bc 123-126
+gui/Sources/ProCoordinatorAppStore.swift
+  h_864205080385bc 52-55,96-97,104-107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "071d4394162c321a0e341b302b0ad03d4ec8a197",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
