@@ -1,0 +1,40 @@
+PRIVACY.md
+  h_864205080385bc 36-38,198-201
+docs/DEVELOPMENT.md
+  h_864205080385bc 661-692
+docs/MONETIZATION.md
+  h_864205080385bc 198-203,237-247
+docs/launch/faq.md
+  h_864205080385bc 124-126,128-130
+docs/metrics.md
+  h_864205080385bc 19,31-33,111-113
+gui/Resources/Localizable.xcstrings
+  h_864205080385bc 5659,5665,5671,5677,5683,5688,5694,5700,5706,5712,5717,5723,5729,5735,5741,5746,5752,5758,5764,5770,5775,5781,5787,5793,5799,5804,5810,5816,5822,5828,5833,5839,5845,5851,5857,5862,5868,5874,5880,5886,5891,5897,5903,5909,5915-6408
+gui/Sources/ContentView.swift
+  h_864205080385bc 1085,1090
+gui/Sources/FollowupDraftSupport.swift
+  h_864205080385bc 1-78
+gui/Sources/FollowupDraftView.swift
+  h_864205080385bc 1-167
+gui/Sources/LibraryWindow.swift
+  h_864205080385bc 534-539,567-573,580-586,696-742
+gui/Sources/SelfTest.swift
+  h_864205080385bc 85-93
+gui/Sources/SelfTestFollowup.swift
+  h_864205080385bc 1-196
+gui/Sources/UsageAnalytics.swift
+  h_864205080385bc 370-408
+gui/project.yml
+  h_864205080385bc 94-98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "debbff1d1e4b1b3f4fe4ef5de8e397cd1fbc46c2",
+  "prompts": {},
+  "humans": {
+    "h_864205080385bc": {
+      "author": "takezou621 <takezou621@gmail.com>"
+    }
+  }
+}
