@@ -91,7 +91,11 @@ packages:
     # license: LicenseContext? を受け取り、権利なし (非 nil) で .licenseRequired を投げる。
     # LicenseContext.Entitlement に直接配布版 (directDistribution — Pro 機能無料開放) が増えた。
     # kilde#169 / kilde#170 (Pro 購入・ロック UI) が消費
-    exactVersion: 0.20.0
+    # v0.21.0: 第二弾 Pro «フォローアップの下書き» (kilde-cli-swift#137 — kilde#464 が消費)。
+    # FollowupComposer.compose (要約 → メール/チャットの下書き。license ゲートは
+    # summarize と同じ契約) と ProFeature.followupDraft、TranscriptFormatter.parseSummary
+    # (.md の «## 要約» 節の往復解析 — 議事録から MeetingSummary を復元する) が増えた
+    exactVersion: 0.21.0
   # GUI の自動更新 (issue #122)。Sparkle 2 のバイナリターゲット (macOS 12+) で、
   # リンクすると Sparkle.framework が Contents/Frameworks に埋め込まれる。
   # バージョンを固定する理由は kilde-cli-swift と同じ: 浮動参照だと上流の push が

@@ -367,6 +367,45 @@ enum UsageAnalytics {
         return "model_error"
     }
 
+    // MARK: - フォローアップの下書き (第二弾 Pro — issue #464 / エピック #174)
+
+    /// 要約 (summary_*) と同じ位置づけの Pro 機能の実利用計測。両チャネルで発火
+    /// (直接配布版は Pro 無料開放のため下書きだけが計測される)。スタイル
+    /// (メール / チャット) は GA4 の登録済みディメンションに無いためパラメータに
+    /// 載せない (コンソール作業を増やさない — issue #456 と同じ方針)
+
+    /// フォローアップの下書きの生成を開始した (Pro 権利と環境の確認を通った後)
+    static func followupStarted() {
+        logParameterless("followup_start")
+    }
+
+    /// フォローアップの下書きの生成が完了した
+    static func followupCompleted(processingTime: TimeInterval?) {
+        log("followup_complete", recordingDuration: nil, processingTime: processingTime)
+    }
+
+    /// フォローアップの下書きの生成が失敗した。**キャンセルは呼び出し側
+    /// (FollowupDraftSheet) が除外する** (summary_* と同じ «キャンセルは失敗に
+    /// 数えない» 方針)
+    static func followupFailed(_ error: Error, processingTime: TimeInterval?) {
+        log("followup_fail", recordingDuration: nil, processingTime: processingTime,
+            errorKind: followupErrorKind(error))
+    }
+
+    /// 下書きの失敗種別 (summaryErrorKind と同じ規約)
+    private static func followupErrorKind(_ error: Error) -> String {
+        if let e = error as? KilError {
+            switch e.code {
+            case .licenseRequired: return "license_required"
+            case .followupEmptySummary: return "empty_summary"
+            default: return "engine_error"
+            }
+        }
+        if error is FollowupComposer.Unavailable { return "unsupported_environment" }
+        if error is CancellationError { return "cancelled" }
+        return "model_error"
+    }
+
     /// パラメータなし (または error_kind のみ) のイベント用。録画長などの
     /// バケットを載せる既存 `log` と別にしたのは、Pro のUI 系イベントには
     /// «関連する録画» が無い (ロック行の表示は録画と結び付かない) ため

@@ -121,12 +121,13 @@ Homebrew 経路も現状 arm64 のため提供なし — 素直に «not right n
 ## 9. 有料化の予定は?
 
 > Recording and transcription are free today — on the Mac App Store, as a
-> direct download, and in the CLI. Meeting summaries are a one-time Pro
-> purchase (¥2,800 on the App Store, no subscription); everything else works
-> without it. The CLI is free in full.
+> direct download, and in the CLI. Meeting summaries and follow-up message
+> drafts are a one-time Pro purchase (¥2,800 on the App Store, no
+> subscription); everything else works without it. The CLI is free in full.
 
-補足 (日本語注記): 0.26.0 から第一弾 Pro (要約・買い切り ¥2,800) が入る
-(docs/MONETIZATION.md §8 — 2026-10-27 実装)。**無料の範囲 (録画・文字起こし) を
+補足 (日本語注記): 0.26.0 から第一弾 Pro (要約・買い切り ¥2,800) が入り、0.28.0 から
+第二弾 (フォローアップの下書き — 要約から参加者へ送るメッセージの下書き) が同じ
+Pro に加わる (docs/MONETIZATION.md §8 — 2026-10-27 / 10-29 実装)。**無料の範囲 (録画・文字起こし) を
 先に言い切ってから** Pro を添える — «無料→有料化» ではなく «無料のまま + Pro 追加»
 の枠組みで答える。直接配布版は当面 Pro も無料 (§8 «線引き»)。
 

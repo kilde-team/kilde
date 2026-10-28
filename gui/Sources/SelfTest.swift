@@ -82,6 +82,15 @@ enum SelfTest {
             SelfTestPro.run()
             return
         }
+        // KILDE_GUI_SELFTEST_FOLLOWUP=1: フォローアップの下書き (issue #464 —
+        // 第二弾 Pro) の検証。エンジンのゲート (kilde-cli-swift#137) と、議事録
+        // .md からの要約復元・ボタンの可否・コピー全文の組み立てを確かめる。
+        // モデル生成の実呼び出しは扱わない (Apple Intelligence が有効な実機で確認)。
+        // 実録画を伴わないため録画のスロット (権限・スピーカー) を占有しない
+        if env["KILDE_GUI_SELFTEST_FOLLOWUP"] == "1" {
+            SelfTestFollowup.run()
+            return
+        }
         // KILDE_GUI_SELFTEST_LIBRARY_SEARCH: ライブラリの索引構築 + 全文検索の検証
         // (issue #165)。一時ディレクトリに合成したサイドカー 100 件で実測時間を出す —
         // 実録画を伴わないため録画のスロット (権限・スピーカー) を占有しない

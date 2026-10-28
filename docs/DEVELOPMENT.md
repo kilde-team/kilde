@@ -658,6 +658,38 @@ Firebase 未初期化で `applyToFirebase` が何もせず落ちないこと (`C
 バージョンで変わるため、実機で観測した文言をここに追記する)。オフのまま再起動して、
 `FirebaseApp.configure()` 由来の Firebase の初期化ログが**出ない**ことを確かめてください (Crashlytics の収集停止は SDK の仕様で**次回の起動から** —
 `setCrashlyticsCollectionEnabled` の効き方の非対称は TelemetryPreferences のコメント)。
+
+`KILDE_GUI_SELFTEST_FOLLOWUP=1` は録画せず、**フォローアップの下書き (第二弾 Pro —
+issue #464)** の GUI 側の下準備を検証し、終わります。エンジンのゲート
+(`FollowupComposer.compose` — 権利なしは `licenseRequired`、nil = CLI 経路は素通り)、
+議事録 .md からの要約復元 (`TranscriptFormatter.parseSummary` の往復 — .md 以外は
+対象外・要約節なしは «無効« 扱い)、ボタンの有効条件 (Apple Intelligence と Pro 権利の
+優先順位)、コピー全文の組み立て、`followup_*` 計測イベントが Firebase 未初期化で
+落ちないことの 14 項目です:
+
+```sh
+KILDE_GUI_SELFTEST_FOLLOWUP=1 "$APP/Contents/MacOS/KildeGUI"
+# → selftest: followup PASS: engine gate fires for .none
+#   …
+#   selftest: followup PASS=14 FAIL=0 (exit 0)
+```
+
+`KILDE_GUI_SELFTEST_FOLLOWUP_LIVE=1` を併せて指定すると、最後に**実モデル**
+(Apple Intelligence) での下書き生成をメール / チャット両スタイルで走らせ、件名と
+本文を標準出力に出します (生成物の中身の品質は目視確認)。Apple Intelligence が
+使えない環境ではこの部分だけ SKIP し、失敗に数えません:
+
+```sh
+KILDE_GUI_SELFTEST_FOLLOWUP=1 KILDE_GUI_SELFTEST_FOLLOWUP_LIVE=1 \
+  "$APP/Contents/MacOS/KildeGUI"
+# → selftest: followup LIVE (email) subject: 週次定例：…
+#   (本文)
+#   selftest: followup PASS=16 FAIL=0 (exit 0)
+```
+
+**このセルフテストで「通った」にできないもの**: ライブラリの詳細画面のボタン配置や
+シートの見た目 (手動確認)、MAS ビルドでの Pro 購入後の実際の導線 (実機の sandbox で
+確認 — `KILDE_GUI_SELFTEST_PRO=1` と同じ線引き)。
 最後に **«オンに戻す» 経路** (この PR で最も壊れやすい `deleteUnsentReports()` の実行
 条件 — 起動時オフ → 再起動せずにオンへ戻した場合のみ削除) を確かめてください:
 設定オフのまま起動 → パネルでオンに戻す → Firebase の初期化が走ること、かつ
