@@ -431,3 +431,9 @@ Los resúmenes de reuniones pasan a ser una compra única de Pro (sin suscripci�
 ```text
 Mejoras internas de la aplicación. No hay cambios en las funciones.
 ```
+
+## Novedades (0.28.0)
+
+```text
+Los borradores de seguimiento se han añadido a Pro. Genera un borrador de correo o de mensaje de chat para los participantes a partir del resumen de cada reunión (procesado en el dispositivo con Apple Intelligence en macOS 26 o posterior). Ya incluido si tienes Pro; sin compras adicionales. La grabación y la transcripción siguen siendo gratuitas.
+```
