@@ -59,9 +59,10 @@ enum SelfTestFollowup {
             .appendingPathComponent("kilde-selftest-followup-\(UUID().uuidString)")
         // createDirectory は throw しない経路で呼ぶ — セルフテストは失敗を
         // check の集計で報告するため、ここでは try? で十分 (作れなければ
-        // 以降のファイル系チェックがすべて失敗する)
+        // 以降のファイル系チェックがすべて失敗する)。後始末の removeItem は
+        // exit の直前に明示的に呼ぶ — defer は exit で走らないため
+        // (SelfTestLibraryExport と同じ)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: directory) }
 
         let summary = MeetingSummary(
             points: ["リリース日を決めた"], decisions: ["月曜 10 時にリリース"],
@@ -92,11 +93,7 @@ enum SelfTestFollowup {
         check(FollowupDraftSupport.loadMinutesDoc(sidecarURL: nil) == .notMinutes,
               "missing sidecar is notMinutes")
 
-        // 4) ボタンの可否 — 環境 (Apple Intelligence) と Pro 権限の優先順位を含む。
-        //    このテスト環境の Apple Intelligence 可否は実行環境で変わるため、
-        //    unsupportedReason の値そのものではなく «環境 OK と見なせる場合» の
-        //    条件を unsupportedReason == nil で組み立てる
-        let environmentOK = MeetingSummarizer.unsupportedReason == nil
+        // 4) ボタンの可否 — 環境 (Apple Intelligence) と Pro 権限の優先順位を含む
         check(FollowupDraftSupport.isButtonEnabled(
                   doc: .summary(summary),
                   appleIntelligenceUnavailableReason: nil, proAllows: true),
@@ -114,16 +111,17 @@ enum SelfTestFollowup {
                   doc: .noSummary,
                   appleIntelligenceUnavailableReason: nil, proAllows: true),
               "button disabled without a summary")
-        // 環境が使える実機では «Pro 無し + 環境 OK» のツールチップが Pro 案内になる
-        // (環境が使えない実行環境では環境案内が先 — どちらになるかは環境次第のため
-        // «空文字列ではない» だけを確かめる)
+        // ツールチップは «Pro あり» と «Pro なし» で別の文言になる (Pro 案内は
+        // Pro なしのときだけ出る)。環境が使えない環境ではどちらも環境案内になる
+        // ため、環境 OK の体裁 (unavailableReason = nil) で純粋関数として比べる
         check(
-            !FollowupDraftSupport.buttonTooltip(
+            FollowupDraftSupport.buttonTooltip(
                 doc: .summary(summary),
-                appleIntelligenceUnavailableReason:
-                    environmentOK ? nil : MeetingSummarizer.unsupportedReason,
-                proAllows: false).isEmpty,
-            "tooltip explains the lock")
+                appleIntelligenceUnavailableReason: nil, proAllows: false)
+                != FollowupDraftSupport.buttonTooltip(
+                    doc: .summary(summary),
+                    appleIntelligenceUnavailableReason: nil, proAllows: true),
+            "tooltip explains the pro lock")
 
         // 5) コピー全文 — 件名は 1 行目 + 空行 + 本文。件名なし (チャット・空件名) は本文のみ
         check(FollowupDraftSupport.clipboardText(
@@ -153,12 +151,26 @@ enum SelfTestFollowup {
         }
 
         print("selftest: followup PASS=\(total - failures) FAIL=\(failures)")
+        // defer は exit で走らないため、一時ディレクトリはここで掃除する
+        try? FileManager.default.removeItem(at: directory)
         exit(failures == 0 ? 0 : 1)
     }
 
     /// 実モデルで下書きを 1 件生成する (両スタイル)。生成結果は標準出力にも
-    /// 出す — «件名 + 本文» の中身は目視での品質確認に委ねる
+    /// 出す — «件名 + 本文» の中身は目視での品質確認に委ねる。
+    ///
+    /// ライセンスは **nil (課金対象外 = CLI 経路) を使わない** — Release の MAS
+    /// ビルドでこのセルフテストを走らせたとき購入なしに下書きが生成できる経路に
+    /// ならないよう、ビルドが組み立てる実際の権利 (直接配布ビルド =
+    /// directDistribution の無料開放 / MAS ビルド = StoreKit 無効の .none) で
+    /// 判定する (cubic レビュー指摘)。MAS の未購入ビルドではゲートが弾くため
+    /// SKIP になる — 有給経路の実生成は直接配布ビルドで確認する
     private static func runLiveGeneration() async {
+        let license = ProCoordinator(enabled: false).license
+        guard license.allows(.followupDraft) else {
+            print("selftest: followup LIVE SKIP: このビルドの権利では Pro 機能がロックされています (MAS ビルド)")
+            return
+        }
         let summary = MeetingSummary(
             points: ["リリース日を11月2日に決めた", "キャンペーンの予算は20万円"],
             decisions: ["月曜 10 時にリリース"],
@@ -166,7 +178,7 @@ enum SelfTestFollowup {
         for style in FollowupDraftStyle.allCases {
             do {
                 let draft = try await FollowupComposer.compose(
-                    summary: summary, title: "週次定例", style: style, license: nil)
+                    summary: summary, title: "週次定例", style: style, license: license)
                 check(!draft.body.isEmpty, "live generation produced a \(style.rawValue) draft")
                 print("selftest: followup LIVE (\(style.rawValue)) subject: \(draft.subject ?? "(なし)")")
                 print(draft.body)

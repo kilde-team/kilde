@@ -374,7 +374,9 @@ enum UsageAnalytics {
     /// (メール / チャット) は GA4 の登録済みディメンションに無いためパラメータに
     /// 載せない (コンソール作業を増やさない — issue #456 と同じ方針)
 
-    /// フォローアップの下書きの生成を開始した (Pro 権利と環境の確認を通った後)
+    /// フォローアップの下書きの生成を開始した (ボタンの有効条件 — 要約あり・
+    /// Apple Intelligence・Pro 権利 — を通ったシートで «生成» を押したとき。
+    /// summary_start と違い、エンジンのゲートはこの後にある)
     static func followupStarted() {
         logParameterless("followup_start")
     }

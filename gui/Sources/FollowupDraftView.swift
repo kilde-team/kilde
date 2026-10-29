@@ -29,6 +29,9 @@ struct FollowupDraftSheet: View {
     @State private var failureText: String?
     @State private var failureDetail: String?
     @State private var hasCopied = false
+    /// 生成中の Task。シートを閉じたらキャンセルする («閉じたらキャンセルでよい» の
+    /// 契約を Task でも守るため — 保持しないと閉じた後もモデル呼び出しが走り続ける)
+    @State private var generationTask: Task<Void, Never>?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -58,7 +61,7 @@ struct FollowupDraftSheet: View {
 
             HStack(spacing: 8) {
                 Button {
-                    Task { await generate() }
+                    generationTask = Task { await generate() }
                 } label: {
                     Label(
                         draft == nil
@@ -109,6 +112,21 @@ struct FollowupDraftSheet: View {
         }
         .padding(16)
         .frame(width: 560, height: 480)
+        .onDisappear {
+            // シートを閉じたら生成をキャンセルする (結果は使わないため。
+            // CancellationError は fail に数えない — generate の catch 参照)
+            generationTask?.cancel()
+        }
+        .onChange(of: style) { _, _ in
+            // 形式を切り替えたら前の形式で生成した下書きを消す — 残したままだと
+            // 表示と «コピー» が選択中の形式と食い違う (cubic レビュー指摘)。
+            // 生成中の切り替えも同様に止めて、結果を捨てる
+            generationTask?.cancel()
+            draft = nil
+            failureText = nil
+            failureDetail = nil
+            hasCopied = false
+        }
     }
 
     /// 生成済みの下書きの表示。件名はメールスタイルのときだけ (チャットは本文のみ)
@@ -133,6 +151,8 @@ struct FollowupDraftSheet: View {
     }
 
     private func generate() async {
+        // 呼び出し側 (ボタン) は Task を generationTask に入れて保持する —
+        // onDisappear / onChange(of: style) からのキャンセルのため
         isGenerating = true
         failureText = nil
         failureDetail = nil

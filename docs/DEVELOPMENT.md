@@ -659,11 +659,22 @@ Firebase 未初期化で `applyToFirebase` が何もせず落ちないこと (`C
 `FirebaseApp.configure()` 由来の Firebase の初期化ログが**出ない**ことを確かめてください (Crashlytics の収集停止は SDK の仕様で**次回の起動から** —
 `setCrashlyticsCollectionEnabled` の効き方の非対称は TelemetryPreferences のコメント)。
 
+最後に **«オンに戻す» 経路** (この PR で最も壊れやすい `deleteUnsentReports()` の実行
+条件 — 起動時オフ → 再起動せずにオンへ戻した場合のみ削除) を確かめてください:
+設定オフのまま起動 → パネルでオンに戻す → Firebase の初期化が走ること、かつ
+オフの間に残った未送信のクラッシュ報告が削除されること (Crashlytics の
+`checkForUnsentReports` で未送信が無くなる、または Firebase コンソールに届かない)。
+同一セッション内で オフ → オン と切り替えた場合は削除されない点にも注意してください
+(そのセッションの起動時に自動収集が有効だったため — AppDelegate.startUsageReporting
+のコメント)。
+
+### フォローアップの下書き (第二弾 Pro) の下準備を確かめる (issue #464)
+
 `KILDE_GUI_SELFTEST_FOLLOWUP=1` は録画せず、**フォローアップの下書き (第二弾 Pro —
 issue #464)** の GUI 側の下準備を検証し、終わります。エンジンのゲート
 (`FollowupComposer.compose` — 権利なしは `licenseRequired`、nil = CLI 経路は素通り)、
 議事録 .md からの要約復元 (`TranscriptFormatter.parseSummary` の往復 — .md 以外は
-対象外・要約節なしは «無効« 扱い)、ボタンの有効条件 (Apple Intelligence と Pro 権利の
+対象外・要約節なしは «無効» 扱い)、ボタンの有効条件 (Apple Intelligence と Pro 権利の
 優先順位)、コピー全文の組み立て、`followup_*` 計測イベントが Firebase 未初期化で
 落ちないことの 14 項目です:
 
@@ -690,14 +701,6 @@ KILDE_GUI_SELFTEST_FOLLOWUP=1 KILDE_GUI_SELFTEST_FOLLOWUP_LIVE=1 \
 **このセルフテストで「通った」にできないもの**: ライブラリの詳細画面のボタン配置や
 シートの見た目 (手動確認)、MAS ビルドでの Pro 購入後の実際の導線 (実機の sandbox で
 確認 — `KILDE_GUI_SELFTEST_PRO=1` と同じ線引き)。
-最後に **«オンに戻す» 経路** (この PR で最も壊れやすい `deleteUnsentReports()` の実行
-条件 — 起動時オフ → 再起動せずにオンへ戻した場合のみ削除) を確かめてください:
-設定オフのまま起動 → パネルでオンに戻す → Firebase の初期化が走ること、かつ
-オフの間に残った未送信のクラッシュ報告が削除されること (Crashlytics の
-`checkForUnsentReports` で未送信が無くなる、または Firebase コンソールに届かない)。
-同一セッション内で オフ → オン と切り替えた場合は削除されない点にも注意してください
-(そのセッションの起動時に自動収集が有効だったため — AppDelegate.startUsageReporting
-のコメント)。
 
 ### 検証時の環境の注意
 

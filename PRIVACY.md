@@ -38,8 +38,9 @@ bundleID やタイトルは含まれません。**
 Pro 購入導線の利用状況
 (ロックの表示、購入の開始とその結果 — 完了・キャンセル・承認待ち・失敗 —、
 権利の付与、購入の復元の失敗、それぞれの回数と失敗の種別) も同じ利用統計に
-含まれます。**書き起こしたテキストや要約の内容、録画・サイドカーのファイル名・
-保存先、購入の価格・金額・トランザクション ID は含まれません。**
+含まれます。**書き起こしたテキストや要約・フォローアップの下書きの内容、
+録画・サイドカーのファイル名・保存先、購入の価格・金額・トランザクション ID は
+含まれません。**
 `kilde` コマンドラインは解析を行いません。
 
 GUI アプリ (直接配布版・Mac App Store 版の両方) は、アプリが異常終了 (クラッシュ) した
@@ -202,10 +203,11 @@ purchase flow in the Mac App Store version — counts of lock-row displays, purc
 starts and their outcomes (completion, cancellation, pending approval, or
 failure), entitlement grants, and failed purchase restores, plus the kind of
 failure — are also part of the same usage statistics. **It never
-includes transcript or summary text or the names or locations of recording or
-sidecar files, which app was picked for app-specific audio capture (no app
-names or bundle IDs), the bundle IDs or titles of captured windows, or any
-purchase prices, amounts, or transaction IDs.** The `kilde`
+includes transcript, summary, or follow-up-draft text or the names or
+locations of recording or sidecar files, which app was picked for
+app-specific audio capture (no app names or bundle IDs), the bundle IDs or
+titles of captured windows, or any purchase prices, amounts, or transaction
+IDs.** The `kilde`
 command-line
 tool does no
 analytics.
