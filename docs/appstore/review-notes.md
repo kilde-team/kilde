@@ -29,34 +29,28 @@ microphone, with optional on-device transcription of finished recordings.
    a short clip with speech; a Markdown transcript is written next to the
    recording. On earlier versions the option is disabled.
 
-**Transcription and data handling:**
-
-- Transcription runs **entirely on this device** (SpeechTranscriber). No
-  audio or transcript is sent anywhere (no servers). A missing language
-  model downloads from Apple (standard OS asset; your IP reaches Apple as
-  with any request); otherwise it works offline.
-- The app uses the App Sandbox. Recordings and transcripts are written to
-  `~/Movies` or a user-picked folder, never inside the sandbox container.
-- Outbound connections: usage analytics and crash reports (Firebase), and
-  the language-model downloads above. None carries audio content.
+**Data handling:** transcription and AI features run **entirely on this
+device** (SpeechTranscriber / Apple Intelligence). No audio, transcript,
+summary, or draft text is sent anywhere. A missing language model downloads
+from Apple (standard OS asset; as with any network request, your IP reaches
+Apple); otherwise it works offline. Recordings and transcripts are written
+to `~/Movies` or a user-picked folder (App Sandbox; never inside the
+container). Outbound connections: usage analytics and crash reports
+(Firebase) and those downloads; none carries audio content.
 
 **Automatic transcription language (v0.21.0, opt-in):** "Automatic (detect
 from recording)" picks the language per audio track from the first 30
-seconds (undecided tracks fall back to the device language). No new
-permissions; audio never leaves the device.
+seconds. No new permissions; audio never leaves the device.
 
-**Meeting auto-recording (off by default):** Kilde can detect an ongoing
-meeting and record it automatically (setting: "Record meeting windows
-automatically"). Detection is local; manual recordings are never stopped
-automatically.
-
-**Calendar meeting names (off by default, v0.20.0):** while auto-recording
-is enabled, the opt-in "Use calendar event names" uses the event title for
-the file name, the start notification, and the transcript heading. macOS has
-no read-only calendar permission, so the request is full access, but **the
-app only reads events** (never creates, edits, or invites). Data stays
-on-device; if declined — or a lookup is still running when recording
-starts — the default file name is used.
+**Meeting auto-recording (off by default):** can detect an ongoing meeting
+and record it automatically. Detection is local; manual recordings are
+never stopped automatically. **Calendar meeting names (v0.20.0, opt-in):**
+with auto-recording enabled, "Use calendar event names for recording file
+names" applies the matched event title to the file name, the start
+notification, and the transcript heading. macOS has no read-only calendar
+permission so the request is full access, but **the app only reads
+events**; data stays on-device. If declined — or a lookup is still running
+when recording starts — the default file name is used.
 
 **Recording-consent note:** system audio can include other participants'
 voices; informing them is the user's responsibility. Any sample audio works
@@ -64,33 +58,34 @@ for testing.
 
 **In-app purchase — tips (v0.18.0):** the optional "Support this app"
 section offers three consumable tips (kilde.tip.*); tapping one starts a
-standard StoreKit purchase (sandbox Apple ID). Nothing is gated. If the
-section does not appear, the products are not yet visible in your
-environment.
+standard StoreKit purchase (sandbox Apple ID). Nothing is gated.
 
-**In-app purchase — kilde Pro, meeting summaries (v0.26.0):**
+**In-app purchase — kilde Pro (v0.26.0 summaries, v0.28.0 follow-up
+drafts):** one non-consumable, one-time product (kilde.pro) unlocks both.
 
-Meeting summaries are the first paid feature (non-consumable, one-time:
-kilde.pro). While not owned, "Summarize after recording" in the panel's
-transcription section is a locked row with a "Pro" badge; clicking it
-expands an inline purchase panel (price from the App Store, Buy — standard
-StoreKit purchase with your sandbox Apple ID — and Restore Purchase).
-After purchase the row becomes the normal toggle. To generate a summary,
-also enable "Transcribe after recording" (it is the input); summaries run
-on-device with Apple Intelligence (macOS 26+; without it the lock row is
-disabled, with an explanatory line when transcription is enabled).
+- *Summaries:* while not owned, "Summarize after recording" in the panel's
+  transcription section is a locked row with a "Pro" badge; clicking it
+  expands an inline purchase panel (price, Buy — standard StoreKit purchase
+  with your sandbox Apple ID — and Restore). After purchase the row becomes
+  the normal toggle. Also enable "Transcribe after recording" (it is the
+  input). Summaries run on-device with Apple Intelligence (macOS 26+;
+  without it the lock row is disabled).
+- *Follow-up drafts (v0.28.0):* in the library window, a recording whose
+  minutes (.md) include a summary shows "Draft a follow-up"; the sheet
+  generates an email or chat draft from that summary (same on-device model,
+  copy button). Without Pro it is locked with a tooltip; without Apple
+  Intelligence or a summary it is disabled with the reason as a tooltip.
 **Recording and transcription are currently free.** If the price shows a
-loading placeholder, the product may not be available yet or still
-loading; reopening the panel retries. The IAP's review screenshot shows
-the row and the panel.
+loading placeholder, the product may not be visible yet; reopening the
+panel retries. The IAP's review screenshot shows the row and the panel.
 
 ---
-
 ## 日本語 (参考訳 — 提出は英語版)
 
-**アプリ内課金 — kilde Pro・会議の要約 (v0.26.0):**
+**アプリ内課金 — kilde Pro・会議の要約 (v0.26.0) とフォローアップの下書き (v0.28.0):**
 
-会議の要約が最初の有料機能 (非消耗型 kilde.pro・日本では ¥2,800 の買い切り)。
+会議の要約とフォローアップの下書きが有料機能で、**同じ非消耗型 kilde.pro
+(日本では ¥2,800 の買い切り) 1 商品で両方がアンロック** されます。
 未購入の間、パネルの文字起こしセクションの «録画後に要約も作る» は «Pro» バッジ付きの
 ロック行に置き換わります。クリックするとインラインの購入導線が開き、App Store から
 取得した価格・購入ボタン (StoreKit 標準フロー — sandbox の Apple ID で確認)・
@@ -101,6 +96,13 @@ the row and the panel.
 される機能はありません。レビュー環境で価格が取得できない場合 (商品がまだ見えない)
 は «読み込み中» のプレースホルダになります — 想定された挙動で、IAP の審査用
 スクリーンショットにロック行と導線を示してあります。
+
+*フォローアップの下書き (v0.28.0):* ライブラリウィンドウで、要約つきの議事録
+(.md) を持つ録画の詳細に «フォローアップを下書き» ボタンが出ます。シートで
+形式 (メール / チャット) を選んで生成すると、要約から送信用の下書き (件名 +
+本文) を作り、コピーできます (要約と同じ Apple Intelligence のオンデバイス
+処理)。未購入ではロックされツールチップで設定パネルへの購入を案内、Apple
+Intelligence が使えない環境・要約のない録画では理由がツールチップに出ます。
 
 Kilde はメニューバーから使う画面録画アプリで、システム音声とマイクを録音でき、
 録画の文字起こし (オプション) を備えています。

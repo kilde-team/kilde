@@ -425,3 +425,13 @@ and short.
 ```text
 Internal improvements to the app. No feature changes.
 ```
+
+## What's New (0.28.0)
+
+Second Pro feature: follow-up drafts (issue #464). Copy states only what
+ships — included in the existing one-time Pro purchase, on-device, and
+recording/transcription stay free.
+
+```text
+Follow-up drafts have been added to Pro. Generate a draft email or chat message to send to participants from each meeting summary (processed on-device with Apple Intelligence on macOS 26 or later). Already included if you own Pro — no extra purchase. Recording and transcription are free today.
+```
