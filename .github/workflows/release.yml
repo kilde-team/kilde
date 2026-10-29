@@ -57,7 +57,10 @@ jobs:
           # v0.18.0: RecordRequest.outputTitle (kilde-cli-swift#132 — GUI の
           # カレンダー連携 kilde#393 が、予定の題名を
           # kilde-yyyyMMdd-HHmmss-<題名> のファイル名に使うために消費)
-          ref: v0.20.0
+          # v0.21.0: 第二弾 Pro «フォローアップの下書き» (kilde-cli-swift#137 —
+          # GUI の kilde#464 が消費。FollowupComposer / ProFeature.followupDraft /
+          # TranscriptFormatter.parseSummary)
+          ref: v0.21.0
           # private リポジトリ: GITHUB_TOKEN は他リポジトリを読めないため
           # fine-grained PAT (contents:read) を使う
           token: ${{ secrets.KILDE_CLI_SWIFT_TOKEN }}

@@ -16,7 +16,7 @@ App Store Connect で、このファイルは定義・手順・月次台帳**。
 | 4 | App Store の評価数 | MAS 版の評価 (レーティング) の累計件数 | App Store Connect → 分析 (概要の App Store 評価) と「評価とレビュー」(星別の件数) | **30** (#161 の出口条件) |
 | 5 | チャネル別の内訳 | `recording_complete` の `channel` パラメータとユーザー プロパティ `distribution_channel` (`mas` / `direct`) の分布 | Firebase コンソール (イベントのパラメータ / ユーザー プロパティ) | 目標なし (参考値) |
 | 6 | Pro 転換ファネル (参考) | `pro_upsell_view` → `pro_purchase_start` → `pro_unlocked` の各ユーザー数 (0.27.0 以降。**エピック #174 の出口条件 «有料転換 2%» の正本は ASC の IAP 販売数 ÷ DL** — GA4 側はアプリ内ファネルの相対的な離脱を読むために使う) | Firebase コンソール → イベント (各イベントのユーザー数) | **2%** (#174 の出口条件。判定は ASC 側で) |
-| 7 | 要約の利用 (参考) | `summary_complete` を 1 回以上送ったユーザー数 ÷ 同じ窓で `transcription_complete` を送ったユーザー数 (0.27.0 以降。要約は Pro の本体機能で、転換後の価値を測る基礎) | Firebase コンソール → イベント (両イベントのユーザー数) | 未定 (指標 3 と同じくベースライン取得後) |
+| 7 | Pro 機能の利用 (参考) | `summary_complete` を 1 回以上送ったユーザー数 ÷ 同じ窓で `transcription_complete` を送ったユーザー数 (0.27.0 以降。要約は Pro の本体機能で、転換後の価値を測る基礎)。0.28.0 からは第二弾 Pro «フォローアップの下書き» の `followup_complete` ユーザー数も同じ窓で記録する | Firebase コンソール → イベント (各イベントのユーザー数) | 未定 (指標 3 と同じくベースライン取得後) |
 
 ## 送っているイベントとユーザー プロパティ
 
@@ -28,7 +28,9 @@ App Store Connect で、このファイルは定義・手順・月次台帳**。
   `transcription_cancel` / `transcription_retry` (パラメータ: `recording_length`、
   `processing_time`、`error_kind`)、`summary_start` / `summary_complete` /
   `summary_fail` / `summary_skip` (0.27.0〜。パラメータは文字起こしと同じ
-  `recording_length`・`processing_time`・`error_kind`)、`pro_upsell_view` /
+  `recording_length`・`processing_time`・`error_kind`)、`followup_start` /
+  `followup_complete` / `followup_fail` (0.28.0〜。第二弾 Pro «フォローアップの
+  下書き› の利用。パラメータは `processing_time`・`error_kind`)、`pro_upsell_view` /
   `pro_purchase_start` / `pro_purchase_cancel` / `pro_purchase_pending` /
   `pro_purchase_fail` / `pro_unlocked` / `pro_restore_fail` (0.27.0〜。**MAS 版のみ
   発火** — 直接配布版は Pro 無料開放で購入 UI が存在しないため。パラメータは
@@ -106,8 +108,9 @@ OAuth クライアントはこのスコープについて Google の審査を通
 3. ユーザー プロパティ: `distribution_channel` の分布を記録する (指標 5)。
    あわせて Pro ファネル (`pro_upsell_view` / `pro_purchase_start` / `pro_unlocked`)
    のユーザー数を記録する (指標 6。**転換率そのものは ASC の IAP 販売数 ÷ DL が
-   正本** — GA4 はアプリ内の離脱点を見る参考値)。要約の利用
-   (`summary_complete` と `transcription_complete` のユーザー数) も記録する (指標 7)
+   正本** — GA4 はアプリ内の離脱点を見る参考値)。Pro 機能の利用
+   (`summary_complete` と `transcription_complete` のユーザー数、0.28.0 以降は
+   `followup_complete` のユーザー数も) も記録する (指標 7)
 4. App Store Connect: 評価の累計件数と平均を記録する (指標 4)
 5. [appstore/metadata/metrics.md](appstore/metadata/metrics.md) の
    ASC 週次台帳が埋まっていれば、その月の初回 DL 合計を台帳の「気づき」に添える

@@ -5656,64 +5656,6 @@
         }
       }
     },
-    "会議の要約をアンロック": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Unlock meeting summaries"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Desbloquea los resúmenes de reuniones"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "회의 요약 잠금 해제"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "解锁会议摘要"
-          }
-        }
-      }
-    },
-    "録画のあと、要点・決定事項・アクションアイテムを自動でまとめます": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "After each recording, key points, decisions, and action items are compiled automatically"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Tras cada grabación, se recopilan automáticamente los puntos clave, las decisiones y las tareas pendientes"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "녹화 후 요점·결정 사항·액션 아이템을 자동으로 정리합니다"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "录制后自动整理要点、决策和待办事项"
-          }
-        }
-      }
-    },
     "処理はすべて端末内で完結します。録画と文字起こしは無料のままです": {
       "extractionState": "manual",
       "localizations": {
@@ -5913,6 +5855,557 @@
           "stringUnit": {
             "state": "translated",
             "value": "会议摘要是 Pro 功能（可在设置面板中购买）"
+          }
+        }
+      }
+    },
+    "フォローアップを下書き": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Draft a follow-up"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Redactar un seguimiento"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "후속 메시지 초안 작성"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "起草后续跟进消息"
+          }
+        }
+      }
+    },
+    "フォローアップの下書きには Apple Intelligence が必要です: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follow-up drafts require Apple Intelligence: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los borradores de seguimiento requieren Apple Intelligence: %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "후속 초안에는 Apple Intelligence가 필요합니다: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "后续跟进草稿需要 Apple Intelligence：%@"
+          }
+        }
+      }
+    },
+    "フォローアップの下書きは Pro の機能です (設定パネルから購入できます)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follow-up drafts are a Pro feature (available to purchase from the settings panel)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los borradores de seguimiento son una función Pro (puedes comprarlos en el panel de ajustes)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "후속 초안은 Pro 기능입니다 (설정 패널에서 구매할 수 있습니다)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "后续跟进草稿是 Pro 功能（可在设置面板中购买）"
+          }
+        }
+      }
+    },
+    "議事録の要約から、参加者へ送るメッセージの下書きを生成します": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Generates a draft message to send to participants from the meeting summary"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Genera un borrador de mensaje para los participantes a partir del resumen de la reunión"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "회의록 요약에서 참가자에게 보낼 메시지 초안을 생성합니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "根据会议纪要的摘要生成发送给参与者的消息草稿"
+          }
+        }
+      }
+    },
+    "この議事録には要約がありません (録画後に要約を作ると使えます)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "These minutes have no summary (it becomes available when you generate one after recording)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta acta no tiene resumen (se puede usar al generarlo tras la grabación)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 회의록에는 요약이 없습니다 (녹화 후 요약을 만들면 사용할 수 있습니다)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此会议纪要没有摘要（录制后生成摘要即可使用）"
+          }
+        }
+      }
+    },
+    "フォローアップの下書きには要約つきの議事録 (.md) が必要です": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follow-up drafts require minutes (.md) with a summary"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Los borradores de seguimiento requieren un acta (.md) con resumen"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "후속 초안에는 요약이 포함된 회의록(.md)이 필요합니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "后续跟进草稿需要包含摘要的会议纪要（.md）"
+          }
+        }
+      }
+    },
+    "フォローアップの下書き": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Follow-up draft"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Borrador de seguimiento"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "후속 메시지 초안"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "后续跟进草稿"
+          }
+        }
+      }
+    },
+    "議事録の要約から、参加者へ送るメッセージの下書きを生成します (端末内で処理します)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Generates a draft message to send to participants from the meeting summary (processed entirely on this device)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Genera un borrador de mensaje para los participantes a partir del resumen de la reunión (se procesa en este dispositivo)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "회의록 요약에서 참가자에게 보낼 메시지 초안을 생성합니다 (기기에서 처리합니다)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "根据会议纪要的摘要生成发送给参与者的消息草稿（在本机处理）"
+          }
+        }
+      }
+    },
+    "形式": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Format"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Formato"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "형식"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "格式"
+          }
+        }
+      }
+    },
+    "メール": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Email"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Correo"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이메일"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "邮件"
+          }
+        }
+      }
+    },
+    "チャット": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chat"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "채팅"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "聊天"
+          }
+        }
+      }
+    },
+    "下書きを生成": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Generate draft"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Generar borrador"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "초안 생성"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "生成草稿"
+          }
+        }
+      }
+    },
+    "作り直す": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regenerate"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volver a generar"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다시 만들기"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新生成"
+          }
+        }
+      }
+    },
+    "コピー": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiar"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "복사"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制"
+          }
+        }
+      }
+    },
+    "コピーしました": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copied"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiado"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "복사됨"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已复制"
+          }
+        }
+      }
+    },
+    "閉じる": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Close"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerrar"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "닫기"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭"
+          }
+        }
+      }
+    },
+    "下書きを生成できませんでした": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not generate the draft"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo generar el borrador"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "초안을 생성하지 못했습니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法生成草稿"
+          }
+        }
+      }
+    },
+    "会議の要約とフォローアップをアンロック": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlock meeting summaries and follow-ups"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desbloquea los resúmenes de reuniones y los seguimientos"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "회의 요약 및 후속 기능 잠금 해제"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解锁会议摘要和后续跟进"
+          }
+        }
+      }
+    },
+    "録画のあと、要点・決定事項・アクションアイテムを自動でまとめ、参加者へ送るメッセージの下書きも作れます": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "After each recording, key points, decisions, and action items are compiled automatically, and you can also draft a follow-up message for participants"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tras cada grabación, se recopilan automáticamente los puntos clave, las decisiones y las tareas pendientes, y también puedes redactar un mensaje de seguimiento para los participantes"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "녹화 후 요점·결정 사항·액션 아이템을 자동으로 정리하고, 참가자에게 보낼 후속 메시지 초안도 만들 수 있습니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "录制后自动整理要点、决策和待办事项，还可以起草发送给参与者的后续跟进消息"
           }
         }
       }

@@ -1082,12 +1082,12 @@ struct ContentView: View {
     /// (チップの «アプリを応援» と同じ構成)。購入が完了するとロック行ごと消える
     private var proPurchasePanel: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("会議の要約をアンロック")
+            Text("会議の要約とフォローアップをアンロック")
                 .font(.callout)
                 .bold()
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Image(systemName: "sparkles")
-                Text("録画のあと、要点・決定事項・アクションアイテムを自動でまとめます")
+                Text("録画のあと、要点・決定事項・アクションアイテムを自動でまとめ、参加者へ送るメッセージの下書きも作れます")
                     .fixedSize(horizontal: false, vertical: true)
             }
             .font(.caption)

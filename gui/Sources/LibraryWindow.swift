@@ -531,6 +531,12 @@ private struct LibraryDetailView: View {
     /// この録画の失敗は表示側で覚える — 消えるのはこの録画の文字起こしの成功時
     /// か選択の切替時。観測の詳細は body の onChange と seedShownFailure()
     @State private var shownFailure: TranscriptionCoordinator.Failure?
+    /// この録画の議事録 (.md) の、フォローアップ下書きの入力状態 (issue #464)。
+    /// サイドカーの読み取りは body 評価のたびに走らせないため @State に置き、
+    /// onAppear と録画の切替・差し替え (entry の変化) で更新する
+    @State private var minutesDoc: FollowupDraftSupport.MinutesDoc = .notMinutes
+    /// フォローアップ下書きシート (issue #464) の表示
+    @State private var showsFollowupDraft = false
 
     /// 表示するセグメント (検索中はヒット順)。行ビューに渡す最小限の形にする
     private struct Row: Identifiable {
@@ -558,12 +564,26 @@ private struct LibraryDetailView: View {
             if entry.segments == nil {
                 noTranscriptPane
             } else {
+                // 議事録 (.md) を持つ録画では、下書きの導線 (issue #464) を
+                // セグメント列の上に置く。他形式のサイドカーでは機能が成り立たない
+                // ためバーごと出さない (FollowupDraftSupport.loadMinutesDoc の契約)
+                if minutesDoc != .notMinutes {
+                    followupBar
+                    Divider()
+                }
                 segmentList
             }
         }
         .onAppear {
             playback.prepare(url: entry.recordingURL)
             seedShownFailure()
+            refreshMinutesDoc()
+        }
+        .onChange(of: entry) { _, newEntry in
+            // 録画の切替と、この録画のサイドカーの差し替え («議事録を作成» の完了で
+            // entries が組み直される) の両方で議事録の状態を読み直す
+            minutesDoc = FollowupDraftSupport.loadMinutesDoc(
+                sidecarURL: newEntry.transcriptURL)
         }
         .onChange(of: entry.id) { _, newURL in
             // 録画が切り替わったらプレイヤーを差し替える (prepare は同じ URL では何もしない)。
@@ -671,6 +691,53 @@ private struct LibraryDetailView: View {
                 ? String(localized: "会議の要約は Pro の機能です (設定パネルから購入できます)")
                 : String(localized: "文字起こしの後に要約を生成して Markdown (.md) に載せます (テンプレートは設定パネルの選択を使います)")))
         }
+    }
+
+    /// フォローアップ下書きの導線 (issue #464 — 第二弾 Pro)。議事録 (.md) の要約から
+    /// 参加者へ送るメッセージの下書きを生成する。有効条件とツールチップは
+    /// FollowupDraftSupport に一元化 (セルフテスト対象)。«議事録を作成» と同じ
+    /// «控えめ» 方針 — Pro 未購入の案内はツールチップのみで、購入導線は設定パネル
+    /// にしか置かない
+    private var followupBar: some View {
+        let unsupportedReason = MeetingSummarizer.unsupportedReason
+        let proAllows = pro.license.allows(.followupDraft)
+        return HStack {
+            Spacer()
+            Button {
+                showsFollowupDraft = true
+            } label: {
+                Label(String(localized: "フォローアップを下書き"), systemImage: "envelope")
+            }
+            .controlSize(.small)
+            .buttonStyle(.bordered)
+            .disabled(!FollowupDraftSupport.isButtonEnabled(
+                doc: minutesDoc,
+                appleIntelligenceUnavailableReason: unsupportedReason,
+                proAllows: proAllows))
+            .help(FollowupDraftSupport.buttonTooltip(
+                doc: minutesDoc,
+                appleIntelligenceUnavailableReason: unsupportedReason,
+                proAllows: proAllows))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .sheet(isPresented: $showsFollowupDraft) {
+            // ボタンが有効なのは .summary のときだけなので、シートの内容は常に
+            // 要約を持てる (無効のまま開かれる経路は無い)
+            if case .summary(let summary) = minutesDoc {
+                FollowupDraftSheet(
+                    summary: summary,
+                    title: entry.recordingURL.deletingPathExtension().lastPathComponent,
+                    license: pro.license)
+            }
+        }
+    }
+
+    /// 議事録 (.md) の入力状態を読み直す (onAppear 用 — @State の既定値は
+    /// .notMinutes のため、表示のたびに更新が必要)
+    private func refreshMinutesDoc() {
+        minutesDoc = FollowupDraftSupport.loadMinutesDoc(
+            sidecarURL: entry.transcriptURL)
     }
 
     /// この録画の処理の進捗。キュー待ちと実行中で見せ方を分ける —
