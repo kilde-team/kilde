@@ -32,10 +32,11 @@ microphone, with optional on-device transcription of finished recordings.
 **Data handling:** transcription and AI features run **entirely on this
 device** (SpeechTranscriber / Apple Intelligence). No audio, transcript,
 summary, or draft text is sent anywhere. A missing language model downloads
-from Apple (standard OS asset); otherwise it works offline. Recordings and
-transcripts are written to `~/Movies` or a user-picked folder (App Sandbox;
-never inside the container). Outbound connections: usage analytics and
-crash reports (Firebase) and those downloads; none carries audio content.
+from Apple (standard OS asset; as with any network request, your IP reaches
+Apple); otherwise it works offline. Recordings and transcripts are written
+to `~/Movies` or a user-picked folder (App Sandbox; never inside the
+container). Outbound connections: usage analytics and crash reports
+(Firebase) and those downloads; none carries audio content.
 
 **Automatic transcription language (v0.21.0, opt-in):** "Automatic (detect
 from recording)" picks the language per audio track from the first 30
@@ -44,9 +45,12 @@ seconds. No new permissions; audio never leaves the device.
 **Meeting auto-recording (off by default):** can detect an ongoing meeting
 and record it automatically. Detection is local; manual recordings are
 never stopped automatically. **Calendar meeting names (v0.20.0, opt-in):**
-reads event titles for file names; macOS has no read-only calendar
+with auto-recording enabled, "Use calendar event names for recording file
+names" applies the matched event title to the file name, the start
+notification, and the transcript heading. macOS has no read-only calendar
 permission so the request is full access, but **the app only reads
-events**; data stays on-device.
+events**; data stays on-device. If declined — or a lookup is still running
+when recording starts — the default file name is used.
 
 **Recording-consent note:** system audio can include other participants'
 voices; informing them is the user's responsibility. Any sample audio works
