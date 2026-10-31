@@ -734,12 +734,11 @@ private struct LibraryDetailView: View {
                     summary: summary,
                     title: entry.recordingURL.deletingPathExtension().lastPathComponent,
                     license: pro.license,
-                    // カスタム指示 (issue #472)。customInstructions の権利がないときは
-                    // «指示したのに指示なしで生成される» を避けるため渡さない
-                    // (シート内の失敗表示ではなく、そもそも反映対象にしない方針 —
-                    // 設定のロック UI は設定パネル側が担う)
-                    instructions: pro.license.allows(.customInstructions)
-                        ? settings().summaryInstructions : nil)
+                    // カスタム指示 (issue #472)。«実質空» は写像側で nil。権利の
+                    // 確認はシート側 generate() の pre-check が担う (非空の指示に
+                    // 権利がないときは生成を止めて案内を出す — 黙って指示なしで
+                    // 生成しないため)
+                    instructions: settings().summaryInstructions)
             }
         }
     }

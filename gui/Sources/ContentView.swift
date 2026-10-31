@@ -980,10 +980,13 @@ struct ContentView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 }
-                // カスタム指示 (issue #472 — 第三弾 Pro)。要約が有効なときだけ開ける
-                // (反映先の summarize / compose がどちらも要約を前提とするため)。
-                // フォローアップの下書きにも同じ指示が効く — 文面に明記する
-                if pro.isUnlocked, setup.transcriptionAvailable && setup.summaryEnabled {
+                // カスタム指示 (issue #472 — 第三弾 Pro)。表示条件と反映条件を揃える
+                // (cubic レビュー指摘): 指示は録画後の要約だけでなく、ライブラリの
+                // «議事録を作成» と «フォローアップを下書き» にも効くため、
+                // summaryEnabled がオフでも入力欄を出す (消すと «保存済みの指示が
+                // 効き続けるのに見えない» 状態になる)。«控えめ» 方針は開閉の既定
+                // (閉じている) で担保する
+                if pro.isUnlocked, setup.transcriptionAvailable {
                     composerInstructionsSection
                 }
                 if let reason = setup.summaryUnsupportedReason, setup.transcribeEnabled {
@@ -1616,11 +1619,18 @@ struct ContentView: View {
             let summaryTemplate: MeetingTemplate? =
                 setup.summaryEnabled && setup.summaryAvailable
                     ? setup.summaryTemplate : nil
+            // カスタム指示 (issue #472)。要約を生成する経路なので、録画完了時と
+            // 同じ条件 (summaryEnabled && summaryAvailable) で写像を運ぶ。権利の
+            // 判定は実行時ゲート (coordinator の pre-check) に一任する
+            let summaryInstructions: ComposerInstructions? =
+                setup.summaryEnabled && setup.summaryAvailable
+                    ? setup.composerInstructions : nil
             Button {
                 transcription.enqueue(TranscriptionCoordinator.Job(
                     recordingURL: item.url,
                     format: setup.transcriptFormat,
                     summaryTemplate: summaryTemplate,
+                    summaryInstructions: summaryInstructions,
                     localeID: setup.transcriptLocale,
                     // 後から文字起こしする録画は録音長を持たないため nil (計測では長さ区分を送らない)。
                     // SelfTest の Job 生成と同じ扱い。

@@ -105,15 +105,31 @@ final class RecordingSetup: ObservableObject {
     /// nil** — summarize / compose に nil を渡せば 0.28.0 までと同一の動作
     /// (ゲートの発火も prompt への追記も無い) になる (kilde-cli-swift#139 の契約)
     var composerInstructions: ComposerInstructions? {
-        let points = instructionsExtraPoints
-            .split(whereSeparator: \.isNewline)
-            .map(String.init)
-        let value = ComposerInstructions(
+        Self.mapComposerInstructions(
             tone: instructionsTone,
             recipients: instructionsRecipients,
             signature: instructionsSignature,
-            extraPoints: points.isEmpty ? nil : points,
+            extraPoints: instructionsExtraPoints,
             freeform: instructionsFreeform)
+    }
+
+    /// 写像の本体 (**UserDefaults 非依存の純粋関数** — SelfTestComposerInstructions
+    /// が実環境の UserDefaults を触らずに写像の回帰を検証できるように切り出した —
+    /// cubic レビュー指摘 — issue #472)。extraPoints は 1 行に 1 項目の約束で
+    /// 改行で分割する (UI 側の説明と同じ)
+    static func mapComposerInstructions(
+        tone: String, recipients: String, signature: String,
+        extraPoints: String, freeform: String
+    ) -> ComposerInstructions? {
+        let points = extraPoints
+            .split(whereSeparator: \.isNewline)
+            .map(String.init)
+        let value = ComposerInstructions(
+            tone: tone,
+            recipients: recipients,
+            signature: signature,
+            extraPoints: points.isEmpty ? nil : points,
+            freeform: freeform)
         return value.isEmpty ? nil : value
     }
 

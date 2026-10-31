@@ -6728,6 +6728,64 @@
             }
           }
         }
+      },
+    "カスタム指示は使えませんでした": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Custom instructions are not available"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Las instrucciones personalizadas no están disponibles"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "사용자 지정 지시를 사용할 수 없습니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "无法使用自定义指令"
+            }
+          }
+        }
+      },
+    "kilde Pro の購入または購入の復元が必要です": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "A kilde Pro purchase (or restore) is required"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Se requiere comprar kilde Pro (o restaurar la compra)"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "kilde Pro 구매(또는 구매 복원)가 필요합니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "需要购买或恢复 kilde Pro"
+            }
+          }
+        }
       }
   },
   "version": "1.0"

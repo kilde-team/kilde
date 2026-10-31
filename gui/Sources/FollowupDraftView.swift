@@ -160,6 +160,18 @@ struct FollowupDraftSheet: View {
         isGenerating = true
         failureText = nil
         failureDetail = nil
+        // カスタム指示の権利をここでも確認する (cubic レビュー指摘 — issue #472)。
+        // «指示したのに指示なしで黙って生成される» は誤変換より質が悪いので、
+        // 非空の指示に customInstructions の権利が無いときは生成を止めて案内する
+        // (要約側 TranscriptionCoordinator の pre-check と同じ方針。エンジンの
+        // 2 段目ゲート kilde-cli-swift#139 が最終防護)
+        if let instructions, !instructions.isEmpty,
+           !license.allows(.customInstructions) {
+            failureText = String(localized: "カスタム指示は使えませんでした")
+            failureDetail = String(localized: "kilde Pro の購入または購入の復元が必要です")
+            isGenerating = false
+            return
+        }
         UsageAnalytics.followupStarted()
         let startedAt = Date()
         do {
