@@ -61,7 +61,8 @@ section offers three consumable tips (kilde.tip.*); tapping one starts a
 standard StoreKit purchase (sandbox Apple ID). Nothing is gated.
 
 **In-app purchase — kilde Pro (v0.26.0 summaries, v0.28.0 follow-up
-drafts):** one non-consumable, one-time product (kilde.pro) unlocks both.
+drafts, v0.29.0 custom instructions):** one non-consumable, one-time
+product (kilde.pro) unlocks all of them.
 
 - *Summaries:* while not owned, "Summarize after recording" in the panel's
   transcription section is a locked row with a "Pro" badge; clicking it
@@ -75,6 +76,13 @@ drafts):** one non-consumable, one-time product (kilde.pro) unlocks both.
   generates an email or chat draft from that summary (same on-device model,
   copy button). Without Pro it is locked with a tooltip; without Apple
   Intelligence or a summary it is disabled with the reason as a tooltip.
+- *Custom instructions (v0.29.0):* in the panel's summary section, a
+  "Custom instructions" disclosure (tone, recipients, signature, points to
+  emphasize, free-form) applies to both summaries and follow-up drafts.
+  The entered text stays on-device. Without Pro, a locked row opens the
+  same inline purchase panel; instructions entered before a refund lapse
+  are ignored at generation time (the summary is skipped with a notice
+  rather than generated without them).
 **Recording and transcription are currently free.** If the price shows a
 loading placeholder, the product may not be visible yet; reopening the
 panel retries. The IAP's review screenshot shows the row and the panel.
@@ -82,7 +90,7 @@ panel retries. The IAP's review screenshot shows the row and the panel.
 ---
 ## 日本語 (参考訳 — 提出は英語版)
 
-**アプリ内課金 — kilde Pro・会議の要約 (v0.26.0) とフォローアップの下書き (v0.28.0):**
+**アプリ内課金 — kilde Pro・会議の要約 (v0.26.0) とフォローアップの下書き (v0.28.0)、カスタム指示 (v0.29.0):**
 
 会議の要約とフォローアップの下書きが有料機能で、**同じ非消耗型 kilde.pro
 (日本では ¥2,800 の買い切り) 1 商品で両方がアンロック** されます。
@@ -103,6 +111,12 @@ panel retries. The IAP's review screenshot shows the row and the panel.
 本文) を作り、コピーできます (要約と同じ Apple Intelligence のオンデバイス
 処理)。未購入ではロックされツールチップで設定パネルへの購入を案内、Apple
 Intelligence が使えない環境・要約のない録画では理由がツールチップに出ます。
+
+*カスタム指示 (v0.29.0):* 設定パネルの要約セクションに «カスタム指示» の
+開閉セクションがあり、トーン・宛先・署名・強調ポイント・自由記述を指定できます。
+要約とフォローアップの下書きの両方に反映され、入力は端末内だけで使われます
+(外部送信なし)。未購入ではロック行が同じ購入導線を開きます。権利を失った
+あとは指示を無視して生成するのではなく、要約ごとスキップして案内を出します。
 
 Kilde はメニューバーから使う画面録画アプリで、システム音声とマイクを録音でき、
 録画の文字起こし (オプション) を備えています。

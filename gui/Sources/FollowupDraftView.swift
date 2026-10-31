@@ -21,6 +21,10 @@ struct FollowupDraftSheet: View {
     /// Pro の権利。UI で事前判定済みだが、エンジンのゲートが最終防護
     /// (シートを開いたままの間に権利が変わっても licenseRequired で落ちるだけ)
     let license: LicenseContext
+    /// カスタム指示 (issue #472 — 第三弾 Pro)。nil は «未指定» で従来どおり。
+    /// 呼び出し側 (LibraryWindow) が customInstructions の権利を確認してから渡す —
+    /// 権利のないときに «指示したのに反映されない» を避けるため
+    var instructions: ComposerInstructions? = nil
 
     @Environment(\.dismiss) private var dismiss
     @State private var style: FollowupDraftStyle = .email
@@ -160,7 +164,8 @@ struct FollowupDraftSheet: View {
         let startedAt = Date()
         do {
             let generated = try await FollowupComposer.compose(
-                summary: summary, title: title, style: style, license: license)
+                summary: summary, title: title, style: style, license: license,
+                instructions: instructions)
             draft = generated
             hasCopied = false
             UsageAnalytics.followupCompleted(

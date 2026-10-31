@@ -698,6 +698,18 @@ KILDE_GUI_SELFTEST_FOLLOWUP=1 KILDE_GUI_SELFTEST_FOLLOWUP_LIVE=1 \
 #   selftest: followup PASS=16 FAIL=0 (exit 0)
 ```
 
+`KILDE_GUI_SELFTEST_COMPOSER_INSTRUCTIONS=1` は録画せず、**カスタム指示
+(第三弾 Pro — issue #472)** の GUI 側の下準備を検証し、終わります。入力の
+写像 («実質空» は `ComposerInstructions` の «未指定» になる) と、エンジンの
+2 段目ゲート (kilde-cli-swift#139 — 非空の指示は `customInstructions` の権利が
+無いと `licenseRequired`、«実質空» と MAS 相当の権利では通る) の 5 項目です:
+
+```sh
+KILDE_GUI_SELFTEST_COMPOSER_INSTRUCTIONS=1 "$APP/Contents/MacOS/KildeGUI"
+#   …
+#   selftest: composer-instructions 5/5 passed (exit 0)
+```
+
 **このセルフテストで「通った」にできないもの**: ライブラリの詳細画面のボタン配置や
 シートの見た目 (手動確認)、MAS ビルドでの Pro 購入後の実際の導線 (実機の sandbox で
 確認 — `KILDE_GUI_SELFTEST_PRO=1` と同じ線引き)。

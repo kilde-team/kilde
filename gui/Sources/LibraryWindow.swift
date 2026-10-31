@@ -23,6 +23,11 @@ struct LibraryTranscriptionSettings {
     let localeID: String?
     /// 現在選択されている要約テンプレート («議事録を作成» で使う)
     let summaryTemplate: MeetingTemplate
+    /// カスタム指示 (issue #472 — 第三弾 Pro)。nil は «未指定» («実質空» も含む —
+    /// RecordingSetup.composerInstructions の写像結果をそのまま運ぶ)。«議事録を
+    /// 作成» の summarize と «フォローアップを下書き» の compose の双方に渡す。
+    /// 権利の判定は呼び出し側 (followupBar の proAllows / 実行時ゲート) が持つ
+    let summaryInstructions: ComposerInstructions?
     /// Apple Intelligence が使えない理由。nil は «使える» — «議事録を作成» の
     /// 可否判定と、押せないときの説明 (ツールチップ) に使う
     let summaryUnsupportedReason: String?
@@ -728,7 +733,13 @@ private struct LibraryDetailView: View {
                 FollowupDraftSheet(
                     summary: summary,
                     title: entry.recordingURL.deletingPathExtension().lastPathComponent,
-                    license: pro.license)
+                    license: pro.license,
+                    // カスタム指示 (issue #472)。customInstructions の権利がないときは
+                    // «指示したのに指示なしで生成される» を避けるため渡さない
+                    // (シート内の失敗表示ではなく、そもそも反映対象にしない方針 —
+                    // 設定のロック UI は設定パネル側が担う)
+                    instructions: pro.license.allows(.customInstructions)
+                        ? settings().summaryInstructions : nil)
             }
         }
     }
@@ -838,6 +849,9 @@ private struct LibraryDetailView: View {
             recordingURL: entry.recordingURL,
             format: snapshot.format,
             summaryTemplate: withSummary ? snapshot.summaryTemplate : nil,
+            // カスタム指示 (issue #472)。«実質空» は写像側で nil。権利がなくても
+            // そのまま運ぶ — 実行時ゲート (coordinator の pre-check) が案内を出す
+            summaryInstructions: withSummary ? snapshot.summaryInstructions : nil,
             localeID: snapshot.localeID,
             // サイドカーが無いので録音長は不明 (nil) — 計測では長さ区分を送らない
             // (パネルの «後から文字起こし» と同じ扱い)
