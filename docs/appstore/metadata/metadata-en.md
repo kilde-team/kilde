@@ -435,3 +435,12 @@ recording/transcription stay free.
 ```text
 Follow-up drafts have been added to Pro. Generate a draft email or chat message to send to participants from each meeting summary (processed on-device with Apple Intelligence on macOS 26 or later). Already included if you own Pro — no extra purchase. Recording and transcription are free today.
 ```
+
+## What's New (0.29.0)
+
+Third Pro feature: custom instructions (issue #472). Copy states only what ships — included in the existing one-time Pro purchase, on-device, and recording/transcription stay free.
+
+```text
+Custom instructions have been added to Pro. Specify tone, recipients, a signature, and more to shape meeting summaries and follow-up drafts in your own style (processed on-device with Apple Intelligence on macOS 26 or later). Already included if you own Pro — no extra purchase. Recording and transcription are free today.
+```
+

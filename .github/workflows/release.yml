@@ -60,7 +60,9 @@ jobs:
           # v0.21.0: 第二弾 Pro «フォローアップの下書き» (kilde-cli-swift#137 —
           # GUI の kilde#464 が消費。FollowupComposer / ProFeature.followupDraft /
           # TranscriptFormatter.parseSummary)
-          ref: v0.21.0
+          # v0.22.0: 第三弾 Pro «カスタム指示» (kilde-cli-swift#139 —
+          # GUI の kilde#472 が消費。ComposerInstructions / ProFeature.customInstructions)
+          ref: v0.22.0
           # private リポジトリ: GITHUB_TOKEN は他リポジトリを読めないため
           # fine-grained PAT (contents:read) を使う
           token: ${{ secrets.KILDE_CLI_SWIFT_TOKEN }}

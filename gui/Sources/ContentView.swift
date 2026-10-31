@@ -28,6 +28,10 @@ struct ContentView: View {
     /// ポップオーバー内にインラインで出す (NSPopover はシートを表示できない
     /// ため。チップと同じ «パネル内に導線を置く» 構成)
     @State private var showsProPurchase = false
+    /// カスタム指示セクション (issue #472) の開閉。既定は閉じたまま — «控えめ»
+    /// 方針 (ロック行・購入導線と同じ)。設定値自体は UserDefaults が正本なので
+    /// 開閉状態の保存はしない (ポップオーバーを開くたび閉じた状態に戻る)
+    @State private var showsComposerInstructions = false
     /// 利用統計・クラッシュレポートの送信設定 (issue #435)。正本は UserDefaults
     /// (TelemetryPreferences) で、この @State はチェックボックスの表示を追従させる
     /// ための写し。切替は setTelemetryEnabled で保存 → AppDelegate が Firebase へ反映
@@ -948,6 +952,10 @@ struct ContentView: View {
                 } else {
                     summaryLockRow
                         .id("summaryLockRow")
+                    // カスタム指示 (issue #472) のロック行。同じ購入導線 (proPurchasePanel)
+                    // を開く — Pro は買い切り 1 商品で全機能のライセンスのため
+                    composerInstructionsLockRow
+                        .id("composerInstructionsLockRow")
                     if showsProPurchase {
                         proPurchasePanel
                     }
@@ -971,6 +979,12 @@ struct ContentView: View {
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                }
+                // カスタム指示 (issue #472 — 第三弾 Pro)。要約が有効なときだけ開ける
+                // (反映先の summarize / compose がどちらも要約を前提とするため)。
+                // フォローアップの下書きにも同じ指示が効く — 文面に明記する
+                if pro.isUnlocked, setup.transcriptionAvailable && setup.summaryEnabled {
+                    composerInstructionsSection
                 }
                 if let reason = setup.summaryUnsupportedReason, setup.transcribeEnabled {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
@@ -1046,6 +1060,17 @@ struct ContentView: View {
             set: { setup.summaryTemplate = $0 })
     }
 
+    /// RecordingSetup の文字列プロパティへの双方向 Binding (issue #472 の
+    /// カスタム指示の入力欄用)。summaryBinding と同じく保存は didSet が担うため
+    /// 巻き戻しは不要
+    private func setupBinding(
+        _ keyPath: ReferenceWritableKeyPath<RecordingSetup, String>
+    ) -> Binding<String> {
+        Binding(
+            get: { setup[keyPath: keyPath] },
+            set: { setup[keyPath: keyPath] = $0 })
+    }
+
     /// 要約のロック行 (issue #170)。MAS 版で Pro 未購入のとき、トグルの代わりに
     /// 表示する。クリックで購入導線 (proPurchasePanel) を開閉する
     private var summaryLockRow: some View {
@@ -1075,6 +1100,91 @@ struct ContentView: View {
         // Apple Intelligence が使えない環境では導線を開かせない (買っても要約が
         // 動かないため)。理由は下の «要約には Apple Intelligence が必要です» 行が既に出す
         .disabled(!setup.summaryAvailable)
+    }
+
+    /// カスタム指示のロック行 (issue #472)。summaryLockRow と同じ構成 —
+    /// クリックで proPurchasePanel を開く (表示位置は summaryLockRow の直下)
+    private var composerInstructionsLockRow: some View {
+        Button {
+            withAnimation {
+                showsProPurchase.toggle()
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "lock.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("要約とフォローアップのカスタム指示")
+                Spacer()
+                Text("Pro")
+                    .font(.caption2)
+                    .bold()
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 1)
+                    .background(
+                        Capsule().fill(Color.primary.opacity(0.08)))
+                    .foregroundStyle(.secondary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!setup.summaryAvailable)
+    }
+
+    /// カスタム指示の入力セクション (issue #472 — 第三弾 Pro)。設定パネルの
+    /// 要約セクション内に置く (pro.isUnlocked かつ要約が有効なときだけ表示 —
+    /// 表示側の条件は呼び出し箇所)。入力は生の文字列のまま RecordingSetup が
+    /// UserDefaults に保存し、«実質空» 判定と正規化はエンジン側
+    /// (ComposerInstructions.sanitized) に一任する
+    private var composerInstructionsSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            DisclosureGroup(isExpanded: $showsComposerInstructions) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("トーン")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                TextField("例: カジュアルに / 丁寧に", text: setupBinding(\.instructionsTone))
+                    .textFieldStyle(.roundedBorder)
+                Text("宛先")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                TextField("例: 社内のチーム向け / 初めてお会いする相手", text: setupBinding(\.instructionsRecipients))
+                    .textFieldStyle(.roundedBorder)
+                Text("署名")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                TextField("例: 田中 (営業部)", text: setupBinding(\.instructionsSignature))
+                    .textFieldStyle(.roundedBorder)
+                Text("強調してほしいポイント (1 行に 1 つ)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                TextEditor(text: setupBinding(\.instructionsExtraPoints))
+                    .font(.caption)
+                    .frame(minHeight: 40, maxHeight: 72)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color.primary.opacity(0.15)))
+                Text("自由記述の指示")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                TextEditor(text: setupBinding(\.instructionsFreeform))
+                    .font(.caption)
+                    .frame(minHeight: 40, maxHeight: 72)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color.primary.opacity(0.15)))
+            }
+            .padding(.leading, 4)
+        } label: {
+            Text("カスタム指示")
+                .font(.caption)
+                .bold()
+        }
+        Text("要約とフォローアップの下書きに、ここで指定した内容が反映されます (処理は端末内で完結し、入力が外部に送られることはありません)")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     /// Pro の購入導線 (issue #170)。ロック行の直下にインラインで開く。

@@ -68,6 +68,55 @@ final class RecordingSetup: ObservableObject {
         didSet { UserDefaults.standard.set(summaryTemplate.rawValue, forKey: "summaryTemplate") }
     }
 
+    // MARK: カスタム指示 (issue #472 — 第三弾 Pro)
+
+    /// カスタム指示の生の入力 (要約・フォローアップの下書きに反映される)。
+    /// **GUI ローカルの設定 (UserDefaults)** — summaryEnabled と同じ理由 (summaryEnabled
+    /// の doc コメント参照)。エンジン側の正規化 (`ComposerInstructions.sanitized`) に
+    /// 任せるため **生の文字列のまま保存する** («空白のみ = 未指定» も呼び出し側で
+    /// 判定せず、ゲートが発火しない側に倒す — エンジンの契約どおり)
+    @Published var instructionsTone: String =
+        UserDefaults.standard.string(forKey: "instructionsTone") ?? "" {
+        didSet { UserDefaults.standard.set(instructionsTone, forKey: "instructionsTone") }
+    }
+    /// 宛先・相手の情報 («社内のチーム向け» など)
+    @Published var instructionsRecipients: String =
+        UserDefaults.standard.string(forKey: "instructionsRecipients") ?? "" {
+        didSet { UserDefaults.standard.set(instructionsRecipients, forKey: "instructionsRecipients") }
+    }
+    /// 署名・差出人として使いたい内容
+    @Published var instructionsSignature: String =
+        UserDefaults.standard.string(forKey: "instructionsSignature") ?? "" {
+        didSet { UserDefaults.standard.set(instructionsSignature, forKey: "instructionsSignature") }
+    }
+    /// 強調してほしいポイント。**1 行に 1 項目** で入力してもらう (TextEditor の
+    /// 自由入力のまま項目列に写像する — 区切り文字の追加入力を利用者に強いない)
+    @Published var instructionsExtraPoints: String =
+        UserDefaults.standard.string(forKey: "instructionsExtraPoints") ?? "" {
+        didSet { UserDefaults.standard.set(instructionsExtraPoints, forKey: "instructionsExtraPoints") }
+    }
+    /// 自由記述の指示
+    @Published var instructionsFreeform: String =
+        UserDefaults.standard.string(forKey: "instructionsFreeform") ?? "" {
+        didSet { UserDefaults.standard.set(instructionsFreeform, forKey: "instructionsFreeform") }
+    }
+
+    /// 設定値をエンジンの `ComposerInstructions` へ写像する。**«実質空» のときは
+    /// nil** — summarize / compose に nil を渡せば 0.28.0 までと同一の動作
+    /// (ゲートの発火も prompt への追記も無い) になる (kilde-cli-swift#139 の契約)
+    var composerInstructions: ComposerInstructions? {
+        let points = instructionsExtraPoints
+            .split(whereSeparator: \.isNewline)
+            .map(String.init)
+        let value = ComposerInstructions(
+            tone: instructionsTone,
+            recipients: instructionsRecipients,
+            signature: instructionsSignature,
+            extraPoints: points.isEmpty ? nil : points,
+            freeform: instructionsFreeform)
+        return value.isEmpty ? nil : value
+    }
+
     /// 議事録 (.md) の自動書き出し先 (issue #163)。nil は «書き出さない»。
     /// MAS 版は security-scoped bookmark (SandboxExportDirectory)、直接配布版は
     /// サンドボックスが無いため素のパス (UserDefaults) で持つ — 詳細は

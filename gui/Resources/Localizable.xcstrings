@@ -6409,7 +6409,326 @@
           }
         }
       }
-    }
+    },
+    "カスタム指示": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Custom instructions"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Instrucciones personalizadas"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "사용자 지정 지시"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "自定义指令"
+            }
+          }
+        }
+      },
+    "トーン": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Tone"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Tono"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "톤"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "语气"
+            }
+          }
+        }
+      },
+    "宛先": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Recipients"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Destinatarios"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "수신자"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "收件人"
+            }
+          }
+        }
+      },
+    "署名": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Signature"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Firma"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "서명"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "署名"
+            }
+          }
+        }
+      },
+    "強調してほしいポイント (1 行に 1 つ)": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Points to emphasize (one per line)"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Puntos que quieres destacar (uno por línea)"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "강조할 포인트 (한 줄에 하나)"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "希望强调的要点（每行一个）"
+            }
+          }
+        }
+      },
+    "自由記述の指示": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Free-form instructions"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Instrucciones libres"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "자유 형식 지시"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "自由指令"
+            }
+          }
+        }
+      },
+    "要約とフォローアップのカスタム指示": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Custom instructions for summaries and follow-ups"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Instrucciones personalizadas para resúmenes y seguimientos"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "요약 및 후속 메시지 사용자 지정 지시"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "摘要与后续跟进的自定义指令"
+            }
+          }
+        }
+      },
+    "例: カジュアルに / 丁寧に": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "e.g. casual / polite"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "p. ej. informal / formal"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "예: 캐주얼하게 / 정중하게"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "例如：随意 / 礼貌"
+            }
+          }
+        }
+      },
+    "例: 社内のチーム向け / 初めてお会いする相手": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "e.g. for your in-house team / for someone you just met"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "p. ej. para tu equipo interno / para alguien recién conocido"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "예: 사내 팀 대상 / 처음 만나는 상대"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "例如：面向内部团队 / 初次见面的对象"
+            }
+          }
+        }
+      },
+    "例: 田中 (営業部)": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "e.g. Tanaka (Sales)"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "p. ej. Tanaka (Ventas)"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "예: 타나카 (영업부)"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "例如：田中（销售部）"
+            }
+          }
+        }
+      },
+    "要約とフォローアップの下書きに、ここで指定した内容が反映されます (処理は端末内で完結し、入力が外部に送られることはありません)": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Your instructions are applied to meeting summaries and follow-up drafts (processed entirely on-device; nothing you enter leaves your Mac)"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Tus instrucciones se aplican a los resúmenes y borradores de seguimiento (procesado íntegramente en el dispositivo; nada de lo que escribas sale de tu Mac)"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "여기서 지정한 내용이 요약과 후속 메시지 초안에 반영됩니다(기기에서 처리되며 입력이 외부로 전송되지 않습니다)"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "此处指定的内容将应用于会议摘要和后续跟进草稿（全部在本机处理，输入不会发送到外部）"
+            }
+          }
+        }
+      }
   },
   "version": "1.0"
 }
