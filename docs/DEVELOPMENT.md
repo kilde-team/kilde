@@ -709,12 +709,12 @@ KILDE_GUI_SELFTEST_FOLLOWUP=1 KILDE_GUI_SELFTEST_FOLLOWUP_LIVE=1 \
 の写像 («実質空» は nil、強調ポイントの改行分割 — UserDefaults を触らず純粋関数
 で検証する) と、エンジンの 2 段目ゲート (kilde-cli-swift#139 — 非空の指示は
 `customInstructions` の権利が無いと `licenseRequired`、«実質空»・MAS 相当の権利・
-課金対象外の nil では通る) の 6 項目です:
+課金対象外の nil では通る) の 7 項目です:
 
 ```sh
 KILDE_GUI_SELFTEST_COMPOSER_INSTRUCTIONS=1 "$APP/Contents/MacOS/KildeGUI"
 #   …
-#   selftest: composer-instructions 6/6 passed (exit 0)
+#   selftest: composer-instructions 7/7 passed (exit 0)
 ```
 
 **このセルフテストで「通った」にできないもの**: 指示が生成結果に実際に反映される

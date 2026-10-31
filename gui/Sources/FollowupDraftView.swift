@@ -167,6 +167,15 @@ struct FollowupDraftSheet: View {
         // 2 段目ゲート kilde-cli-swift#139 が最終防護)
         if let instructions, !instructions.isEmpty,
            !license.allows(.customInstructions) {
+            // 要約側の summarySkipped(.proRequired) と同じく、権利不足の離脱を
+            // 計測に残す (cubic レビュー指摘)。start → fail (license_required)
+            // の組で記録する — エンジンのゲートが投げるのと同じ区分になる
+            UsageAnalytics.followupStarted()
+            UsageAnalytics.followupFailed(
+                KilError.failure(
+                    KilError.Code.licenseRequired,
+                    "カスタム指示には kilde Pro の権利が必要です"),
+                processingTime: nil)
             failureText = String(localized: "カスタム指示は使えませんでした")
             failureDetail = String(localized: "kilde Pro の購入または購入の復元が必要です")
             isGenerating = false
