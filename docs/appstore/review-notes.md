@@ -38,8 +38,8 @@ microphone, with optional on-device transcription of finished recordings.
 **Data handling:** transcription and AI features run **entirely on this
 device** (SpeechTranscriber / Apple Intelligence). No audio, transcript,
 summary, or draft text is sent anywhere. A missing language model downloads
-from Apple (standard OS asset; as with any network request, your IP reaches
-Apple); otherwise it works offline. Recordings and transcripts are written
+from Apple (standard OS asset; your IP reaches Apple); otherwise it works
+offline. Recordings and transcripts are written
 to `~/Movies` or a user-picked folder (never inside the App Sandbox
 container). Outbound connections: usage analytics / crash reports (Firebase)
 and those downloads; none carries audio content.
@@ -57,8 +57,8 @@ purchase. Nothing is gated.
 **In-app purchase — kilde Pro (v0.26.0 summaries, v0.28.0 follow-up
 drafts, v0.29.0 custom instructions):** one non-consumable, one-time
 product (kilde.pro) unlocks all of them (AI features run on-device and
-require Apple Intelligence, macOS 26+; without it the lock rows / toggles
-stay disabled even after purchase).
+require Apple Intelligence, macOS 26+; without it they stay disabled even
+after purchase).
 
 - *Summaries:* without Pro, "Summarize after recording" is a locked row
   with a "Pro" badge; clicking it expands an inline purchase panel (price,
