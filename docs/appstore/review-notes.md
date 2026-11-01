@@ -18,6 +18,12 @@ microphone, with optional on-device transcription of finished recordings.
   **restart the app** — macOS activates it only after a relaunch.
 - **Microphone**: records **your own voice**. You can decline it; recording
   still works (video + system audio).
+- **Calendar (opt-in, auto-recording only)**: applies a matched event title
+  to the recording file name, the start notification, and the transcript
+  heading. macOS has no read-only calendar permission, so the request is
+  full access, but **the app only reads events**; data stays on-device. If
+  declined — or a lookup is still running when recording starts — the
+  default file name is used.
 
 **How to test:**
 
@@ -27,62 +33,51 @@ microphone, with optional on-device transcription of finished recordings.
    destination and in "Recent recordings".
 3. (Optional, **macOS 26+**) enable "Transcribe after recording" and record
    a short clip with speech; a Markdown transcript is written next to the
-   recording. On earlier versions the option is disabled.
+   recording.
 
 **Data handling:** transcription and AI features run **entirely on this
 device** (SpeechTranscriber / Apple Intelligence). No audio, transcript,
 summary, or draft text is sent anywhere. A missing language model downloads
-from Apple (standard OS asset; as with any network request, your IP reaches
-Apple); otherwise it works offline. Recordings and transcripts are written
-to `~/Movies` or a user-picked folder (App Sandbox; never inside the
-container). Outbound connections: usage analytics and crash reports
-(Firebase) and those downloads; none carries audio content.
+from Apple (standard OS asset; your IP reaches Apple); otherwise it works
+offline. Recordings and transcripts are written
+to `~/Movies` or a user-picked folder (never inside the App Sandbox
+container). Outbound connections: usage analytics / crash reports (Firebase)
+and those downloads; none carries audio content.
 
-**Automatic transcription language (v0.21.0, opt-in):** "Automatic (detect
-from recording)" picks the language per audio track from the first 30
-seconds. No new permissions; audio never leaves the device.
-
-**Meeting auto-recording (off by default):** can detect an ongoing meeting
-and record it automatically. Detection is local; manual recordings are
-never stopped automatically. **Calendar meeting names (v0.20.0, opt-in):**
-with auto-recording enabled, "Use calendar event names for recording file
-names" applies the matched event title to the file name, the start
-notification, and the transcript heading. macOS has no read-only calendar
-permission so the request is full access, but **the app only reads
-events**; data stays on-device. If declined — or a lookup is still running
-when recording starts — the default file name is used.
+**Meeting auto-recording (off by default):** detection is local; manual
+recordings are never stopped automatically.
 
 **Recording-consent note:** system audio can include other participants'
-voices; informing them is the user's responsibility. Any sample audio works
-for testing.
+voices; informing them is the user's responsibility.
 
 **In-app purchase — tips (v0.18.0):** the optional "Support this app"
-section offers three consumable tips (kilde.tip.*); tapping one starts a
-standard StoreKit purchase (sandbox Apple ID). Nothing is gated.
+section offers three consumable tips (kilde.tip.*); standard StoreKit
+purchase. Nothing is gated.
 
 **In-app purchase — kilde Pro (v0.26.0 summaries, v0.28.0 follow-up
 drafts, v0.29.0 custom instructions):** one non-consumable, one-time
-product (kilde.pro) unlocks all of them.
+product (kilde.pro) unlocks all of them (AI features run on-device and
+require Apple Intelligence, macOS 26+; without it they stay disabled even
+after purchase).
 
-- *Summaries:* while not owned, "Summarize after recording" in the panel's
-  transcription section is a locked row with a "Pro" badge; clicking it
-  expands an inline purchase panel (price, Buy — standard StoreKit purchase
-  with your sandbox Apple ID — and Restore). After purchase the row becomes
-  the normal toggle. Also enable "Transcribe after recording" (it is the
-  input). Summaries run on-device with Apple Intelligence (macOS 26+;
-  without it the lock row is disabled).
+- *Summaries:* without Pro, "Summarize after recording" is a locked row
+  with a "Pro" badge; clicking it expands an inline purchase panel (price,
+  Buy — standard StoreKit purchase with your sandbox Apple ID — and
+  Restore). After purchase the row becomes the normal toggle. Enable
+  "Transcribe after recording" too (it is the input).
 - *Follow-up drafts (v0.28.0):* in the library window, a recording whose
   minutes (.md) include a summary shows "Draft a follow-up"; the sheet
-  generates an email or chat draft from that summary (same on-device model,
-  copy button). Without Pro it is locked with a tooltip; without Apple
-  Intelligence or a summary it is disabled with the reason as a tooltip.
-- *Custom instructions (v0.29.0):* in the panel's summary section, a
-  "Custom instructions" disclosure (tone, recipients, signature, points to
-  emphasize, free-form) applies to both summaries and follow-up drafts.
-  The entered text stays on-device. Without Pro, a locked row opens the
-  same inline purchase panel; instructions entered before a refund lapse
-  are ignored at generation time (the summary is skipped with a notice
-  rather than generated without them).
+  generates an email or chat draft from that summary (copy button).
+  Without Pro it is locked with a tooltip; without Apple Intelligence or
+  a summary it is disabled with the reason as a tooltip.
+- *Custom instructions (v0.29.0):* a "Custom instructions" disclosure in
+  the panel's summary section (tone, recipients, signature, points to
+  emphasize, free-form) applies to summaries and follow-up drafts; the
+  text stays on-device. Without Pro the locked row opens the same purchase
+  panel; without the entitlement, summaries are skipped with a notice
+  instead of being generated without the instructions, and follow-up
+  drafts likewise stop before generating and show the purchase notice.
+
 **Recording and transcription are currently free.** If the price shows a
 loading placeholder, the product may not be visible yet; reopening the
 panel retries. The IAP's review screenshot shows the row and the panel.
