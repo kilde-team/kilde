@@ -91,6 +91,12 @@ struct SettingsPaneView: View {
                     sponsorsSection
                 }
 #endif
+                if let notice = setup.notice {
+                    Text(notice)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             // パネルと同じ幅の根拠 (ContentView の frame コメント): 縦 ScrollView の
             // 子の理想幅を固定しないと横に広がって左右が切れる
@@ -164,9 +170,6 @@ struct SettingsPaneView: View {
                 }
                 // カスタム指示 (issue #472)。summaryEnabled に依らず出す
                 // («ライブラリ経路にも効く» — ContentView で確定した条件)
-                if pro.isUnlocked, setup.transcriptionAvailable {
-                    composerInstructionsSection
-                }
                 // 議事録の書き出し先 (issue #164)
                 if setup.transcriptionAvailable && setup.transcribeEnabled {
                     HStack(spacing: 6) {
@@ -192,6 +195,12 @@ struct SettingsPaneView: View {
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+            }
+            // カスタム指示 (issue #472)。ライブラリの «議事録を作成» と
+            // «フォローアップを下書き» にも効くため、transcribeEnabled に依らず出す
+            // (cubic レビュー指摘 — ContentView で確定した条件と同じ)
+            if pro.isUnlocked, setup.transcriptionAvailable {
+                composerInstructionsSection
             }
             if let reason = setup.transcriptionUnsupportedReason {
                 Text(reason)

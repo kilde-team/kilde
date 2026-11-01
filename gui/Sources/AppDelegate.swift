@@ -17,7 +17,7 @@ import FirebaseCrashlytics
 /// 録画の状態 (RecordingController) と選択 (RecordingSetup) はここが持つ。
 /// ポップオーバーを閉じても録画を続けるため、録画の寿命をビューに結び付けない (issue #18)
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     /// 生存中のインスタンス。**`NSApp.delegate` からは取れない** —
     /// `@NSApplicationDelegateAdaptor` は SwiftUI が独自のプロキシを
@@ -774,6 +774,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 560),
                               styleMask: [.titled, .closable], backing: .buffered, defer: false)
             window.title = "kilde の設定"
+            // 閉じても再表示するため解放させない (cubic レビュー指摘) —
+            // 既定の true のままだと 2 回目の openSettings で解放済みインスタンスを
+            // makeKeyAndOrderFront に渡してしまう
+            window.isReleasedWhenClosed = false
+            // windowWillClose (.accessory への復帰) を受けるため
+            window.delegate = self
             window.contentView = NSHostingView(
                 rootView: SettingsPaneView(
                     setup: setup, meetingAutoRecorder: meetingAutoRecorder,
@@ -781,8 +787,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             window.center()
             settingsWindow = window
         }
-        window.makeKeyAndOrderFront(nil)
+        // LSUIElement (.accessory) のままではキーウィンドウにならず、他アプリの
+        // 背後に残ることがある — ライブラリウィンドウ (LibraryWindowController) と
+        // 同じく表示前に .regular へ切り替え、閉じたら .accessory に戻す
+        NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    /// 設定ウィンドウが閉じたら .accessory に戻す (ライブラリの windowWillClose と
+    /// 同じ理由 — Dock アイコンを残さない)。設定ウィンドウとライブラリの両方を
+    /// 開いているときは、後から閉じた側が戻す (最終的にどちらも閉じれば .accessory
+    /// に落ちる — 片方が開き直せば .regular に再切换するため)
+    func windowWillClose(_ notification: Notification) {
+        NSApp.setActivationPolicy(.accessory)
     }
 
     private func updateStatusItem(phase: RecordingController.Phase, elapsed: TimeInterval) {
