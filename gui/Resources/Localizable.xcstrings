@@ -6786,6 +6786,180 @@
             }
           }
         }
+      },
+    "設定を開く": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Open Settings"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Abrir Ajustes"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "설정 열기"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "打开设置"
+            }
+          }
+        }
+      },
+    "録音": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Recording"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Grabación"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "녹음"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "录音"
+            }
+          }
+        }
+      },
+    "文字起こしの詳細": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Transcription details"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Detalles de transcripción"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "텍스트 변환 세부 설정"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "转写详细设置"
+            }
+          }
+        }
+      },
+    "ソースごとに分離すると、システム音声・マイク・入力デバイスが別トラックで保存されます": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "With separate tracks, system audio, mic, and input devices are saved as separate tracks"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Con pistas separadas, el audio del sistema, el micrófono y los dispositivos de entrada se guardan como pistas separadas"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "소스별로 분리하면 시스템 오디오, 마이크, 입력 장치가 별도 트랙으로 저장됩니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "选择分轨保存时，系统声音、麦克风和输入设备将保存为单独的轨道"
+            }
+          }
+        }
+      },
+    "録画の構成には影響しません (録画のたびに変えるものではありません)": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Does not affect the recording configuration (not something you change per recording)"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No afecta a la configuración de la grabación (no es algo que se cambie en cada grabación)"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "녹화 구성에는 영향을 주지 않습니다(녹화마다 변경하는 것이 아닙니다)"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "不影响录制配置（不是每次录制都需要更改的选项）"
+            }
+          }
+        }
+      },
+    "kilde の設定": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "kilde Settings"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Ajustes de kilde"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "kilde 설정"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "kilde 设置"
+            }
+          }
+        }
       }
   },
   "version": "1.0"

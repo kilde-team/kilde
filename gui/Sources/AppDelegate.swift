@@ -773,7 +773,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         } else {
             window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 560),
                               styleMask: [.titled, .closable], backing: .buffered, defer: false)
-            window.title = "kilde の設定"
+            window.title = String(localized: "kilde の設定")
             // 閉じても再表示するため解放させない (cubic レビュー指摘) —
             // 既定の true のままだと 2 回目の openSettings で解放済みインスタンスを
             // makeKeyAndOrderFront に渡してしまう
