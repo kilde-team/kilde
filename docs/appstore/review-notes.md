@@ -56,7 +56,9 @@ purchase. Nothing is gated.
 
 **In-app purchase — kilde Pro (v0.26.0 summaries, v0.28.0 follow-up
 drafts, v0.29.0 custom instructions):** one non-consumable, one-time
-product (kilde.pro) unlocks all of them (AI features run on-device).
+product (kilde.pro) unlocks all of them (AI features run on-device and
+require Apple Intelligence, macOS 26+; without it the lock rows / toggles
+stay disabled even after purchase).
 
 - *Summaries:* without Pro, "Summarize after recording" is a locked row
   with a "Pro" badge; clicking it expands an inline purchase panel (price,
