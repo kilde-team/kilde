@@ -10,15 +10,15 @@ struct ContentView: View {
     @ObservedObject var setup: RecordingSetup
     @ObservedObject var recording: RecordingController
     @ObservedObject var permissions: PermissionsModel
-    @ObservedObject var updater: UpdaterCoordinator
     /// 文字起こしの状態 (issue #146)。実体は AppDelegate が持つ — このビューは表示だけ
     @ObservedObject var transcription: TranscriptionCoordinator
-    /// 会議の自動録画。実体は AppDelegate が持つ — このビューは設定と表示だけ
+    /// 会議の自動録画。«UI の設定» は SettingsPaneView へ移設したが、開くたびの
+    /// カレンダー権限の取り直し (refreshCalendarStatus) と録画中の表示
+    /// (activeMeeting) で使う — 実体は AppDelegate が持つ
     @ObservedObject var meetingAutoRecorder: MeetingAutoRecorder
-    /// チップの購入 (issue #171)。実体は AppDelegate が持つ。StoreKit のチップは
-    /// App Store 配布ビルドのみ (直接配布版ではスタブで商品が空 = 非表示)。
-    /// «アプリを応援» セクション自体は両ビルドに出る — 直接配布版は 0.25.0 から
-    /// Sponsors リンクに差し替え (sponsorsSection)
+    /// チップの商品取り寄せ (issue #171)。«アプリを応援» の UI は SettingsPaneView へ
+    /// 移設したが、商品一覧はポップオーバーを開くたびに取りに行く (失敗時の再試行。
+    /// Coordinator 側で二重取得は防がれる) — 実体は AppDelegate が持つ
     @ObservedObject var tips: TipCoordinator
     /// Pro (要約) の購入と権利 (issue #169 / #170)。実体は AppDelegate が持つ。
     /// MAS 版は StoreKit 2 の非消耗型 «kilde.pro»、直接配布版はスタブで常に
@@ -28,14 +28,6 @@ struct ContentView: View {
     /// ポップオーバー内にインラインで出す (NSPopover はシートを表示できない
     /// ため。チップと同じ «パネル内に導線を置く» 構成)
     @State private var showsProPurchase = false
-    /// カスタム指示セクション (issue #472) の開閉。既定は閉じたまま — «控えめ»
-    /// 方針 (ロック行・購入導線と同じ)。設定値自体は UserDefaults が正本なので
-    /// 開閉状態の保存はしない (ポップオーバーを開くたび閉じた状態に戻る)
-    @State private var showsComposerInstructions = false
-    /// 利用統計・クラッシュレポートの送信設定 (issue #435)。正本は UserDefaults
-    /// (TelemetryPreferences) で、この @State はチェックボックスの表示を追従させる
-    /// ための写し。切替は setTelemetryEnabled で保存 → AppDelegate が Firebase へ反映
-    @State private var telemetryEnabled = TelemetryPreferences.isEnabled()
 
     private enum Mode: Hashable {
         case display, window, audioOnly
@@ -217,6 +209,17 @@ struct ContentView: View {
                 .buttonStyle(.borderless)
                 .help("ディスプレイ・ウィンドウ・入力デバイスの一覧を更新")
             }
+            // 設定ウィンドウへの導線 (issue #478)。«1 回設定すればよい» 機能は
+            // SettingsPaneView へ集約したため、パネルからはヘッダーの歯車で開く
+            Button {
+                AppDelegate.shared?.openSettings()
+            } label: {
+                Image(systemName: "gearshape")
+            }
+            .buttonStyle(.borderless)
+            .help("設定を開く")
+            // アイコンのみのボタンに操作のラベルを与える (cubic / CodeRabbit レビュー指摘)
+            .accessibilityLabel("設定を開く")
         }
     }
 
@@ -253,168 +256,13 @@ struct ContentView: View {
             section("音声") {
                 audioToggles
             }
-            section("複数の音声ソース") {
-                Picker("複数の音声ソース", selection: $setup.request.trackPolicy) {
-                    Text("1 トラックに合成").tag(AudioTrackPolicy.mixed)
-                    Text("ソースごとに分離").tag(AudioTrackPolicy.separate)
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .disabled(setup.request.audioSourceCount < 2)
-            }
             section("文字起こし") {
                 transcriptionSection
             }
             section("保存先") {
                 outputRow
             }
-            section("グローバルホットキー") {
-                hotkeyRow
-            }
-            section("起動") {
-                Toggle("ログイン時に kilde を起動する", isOn: Binding(
-                    get: { setup.launchesAtLogin },
-                    set: { setup.setLaunchesAtLogin($0) }))
-                    .toggleStyle(.checkbox)
-            }
-            section("会議の自動録画") {
-                meetingAutoRecordSection
-            }
-            section("録音の告知文") {
-                noticeSection
-            }
-            // 利用統計・クラッシュレポートのオプトアウト (issue #435)。両ターゲット共通 —
-            // Firebase は直接配布 / MAS の両方でリンクしている (UsageAnalytics のコメント)
-            section("プライバシー") {
-                privacySection
-            }
-            // App Store ビルドには更新項目を出さない (issue #126)。MAS では配信が
-            // App Store に一本化されるため「アップデートを確認」の手段自体が無い
-#if !APPSTORE
-            section("アップデート") {
-                updateRow
-            }
-#endif
-            // チップ (issue #171)。パネルの最下部 («控えめに置く» が issue の方針)。
-            // MAS 版は StoreKit のチップ、直接配布版は GitHub Sponsors へのリンク
-            // (Sponsors 参加後に追加した残りのスコープ)。MAS 版では商品一覧が
-            // 取れないときはセクションごと出さない
-#if APPSTORE
-            if !tips.isUnavailable {
-                section("アプリを応援") {
-                    tipSection
-                }
-            }
-#else
-            section("アプリを応援") {
-                sponsorsSection
-            }
-#endif
         }
-    }
-
-#if APPSTORE
-    /// チップ 3 段階のボタンと、購入の状態を示す補助行 (issue #171)。
-    /// ボタンの見出し・金額は StoreKit の displayName / displayPrice (ASC 側の
-    /// ローカライズ) そのものを出す — UI 側で文言を組み立て直さない
-    private var tipSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                ForEach(tips.items) { item in
-                    Button {
-                        Task { await tips.purchase(item) }
-                    } label: {
-                        VStack(spacing: 1) {
-                            Text(item.title)
-                            Text(item.price)
-                                .foregroundStyle(.secondary)
-                        }
-                        .font(.caption)
-                        .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(tips.isPurchasing)
-                }
-            }
-            // 状態は 1 行だけ («控えめ» 方針)。成功は数秒で消え、キャンセルは
-            // 何も出さない。失敗は再試行を促す短文のみ
-            if tips.isPurchasing {
-                ProgressView()
-                    .controlSize(.small)
-            } else if tips.lastPurchasedID != nil {
-                Text("ありがとう!kilde の開発を応援しています")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else if tips.purchaseFailed {
-                Text("購入を開始できませんでした。しばらくしてからもう一度お試しください")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-#endif
-
-#if !APPSTORE
-    /// DMG 版の «アプリを応援» — GitHub Sponsors へのリンクのみ (issue #171)。
-    /// MAS 版のチップと違い外部決済になるため直接配布版だけに置く (issue 本文の
-    /// «MAS 版には外部決済リンクを入れない»)。「開く」は既定ブラウザで行い、
-    /// アプリからはネットワークに何も送らない
-    private var sponsorsSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text("開発の支援は GitHub Sponsors からも")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Button("GitHub Sponsors で応援") {
-                    if let url = URL(string: Self.sponsorsURL) {
-                        NSWorkspace.shared.open(url)
-                    }
-                }
-                .controlSize(.small)
-            }
-        }
-    }
-
-    /// FUNDING.yml と同じ行き先 (issue #171)。URL を組み立て直さない —
-    /// 変更はここだけに留める
-    private static let sponsorsURL = "https://github.com/sponsors/takezou621"
-#endif
-
-    /// 現在のバージョンと「アップデートを確認」ボタン (issue #122)。
-    /// Sparkle 標準の更新ウィンドウが出る。録画中に適用した場合はファイナライズ完了後に
-    /// 再起動する (UpdateInstallGate)
-    private var updateRow: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Image(systemName: "arrow.triangle.2.circle.circle")
-                Text(currentVersion)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .help(currentVersion)
-                Spacer()
-                Button("アップデートを確認") {
-                    updater.checkForUpdates()
-                }
-                // Sparkle の初期化が済むまで押せない (canCheckForUpdates が false)
-                .disabled(!updater.canCheckForUpdates)
-            }
-            Text("録画中に更新を適用したときは、録画を停止してファイルの保存が終わってから再起動します")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    /// CFBundleShortVersionString と CFBundleVersion (Sparkle の sparkle:version と
-    /// 同じ値) を並べて出す。ビルド番号はリリースごとに単調増加する。
-    /// String として連結されるため SwiftUI の暗黙ローカライズが効かない — 明示的に解決する
-    private var currentVersion: String {
-        let info = Bundle.main.infoDictionary ?? [:]
-        let short = info["CFBundleShortVersionString"] as? String ?? "?"
-        let build = info["CFBundleVersion"] as? String ?? "?"
-        return String(localized: "\(short) (build \(build))")
     }
 
     private var mode: Mode {
@@ -711,167 +559,6 @@ struct ContentView: View {
         }
     }
 
-    /// ホットキーの設定 (issue #20)。値は CLI と同じ `~/.kilde/config.json` の `hotkey` に入るので、
-    /// ここで設定すると `kilde rec` も待機モードで起動するようになる (DESIGN.md の優先順位どおり)
-    private var hotkeyRow: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Image(systemName: "keyboard")
-                TextField("例: cmd+shift+r", text: $setup.hotkeyDraft)
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit { applyHotkey() }
-                // 保存済みの値と同じでも押せるようにする — 設定ファイルへの保存が
-                // 成功しても Carbon への登録が失敗する (他アプリとの競合) ことがあり、
-                // そのとき draft == config なので無効にすると**再試行できなくなる**
-                Button("適用") { applyHotkey() }
-            }
-            Text("他のアプリを使っている間でも、このキーで録画を開始・停止できます。空にすると無効になります")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    /// 保存 → AppDelegate に再登録させる。登録の成否は notice に出る。
-    ///
-    /// 設定ファイルへ書くのと Carbon への登録は別物なので、**書けても登録に失敗しうる**。
-    /// 保存に失敗したまま登録へ進むと、旧ホットキーの解除だけが行われて何も登録されない
-    /// 状態になるため、**保存が成功したときだけ登録へ進む**。登録に失敗した場合は
-    /// AppDelegate 側が設定を旧値へ巻き戻す (設定だけ新しい値が残ると、次回の起動で
-    /// CLI も GUI も登録できない値を読むことになる)
-    private func applyHotkey() {
-        // 巻き戻し値は **保存直前にファイルにあった値** を使う。setup.config は GUI
-        // 起動時のスナップショットなので、その間に CLI が変更していると上書きになる
-        let (saved, previous) = setup.saveHotkey()
-        guard saved else { return }
-        // `NSApp.delegate` からは取れない — @NSApplicationDelegateAdaptor が
-        // 挟むプロキシのせいで `as? AppDelegate` が nil になる (AppDelegate.shared のコメント)。
-        // ここを NSApp.delegate にしていたため「適用」を押してもホットキーが
-        // 再登録されず、設定だけ書き換わって無反応になっていた
-        // .some(previous) を渡すことで «失敗したら巻き戻す» を明示する
-        // (previous 自体が nil = 未設定だった場合も巻き戻しの対象)
-        AppDelegate.shared?.applyHotkeyFromConfig(revert: .some(previous))
-    }
-
-    // MARK: - 会議の自動録画
-
-    /// 会議の自動録画のオン/オフ。値は UserDefaults に入る (CLI と共有の config.json には
-    /// 書かない — MeetingAutoRecorder.enabledDefaultsKey のコメント参照)。
-    /// 非対応 OS (macOS 14.2 未満) では操作を無効にして理由を出す。セクションごと隠すと
-    /// 機能の存在自体が分からなくなる (文字起こしと同じ方針)
-    private var meetingAutoRecordSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Toggle("会議を検知したら会議ウィンドウを自動で録画する", isOn: $meetingAutoRecorder.enabled)
-                .toggleStyle(.checkbox)
-                // 非対応環境でも OFF への変更は許す (文字起こしのトグルと同じ理由)
-                .disabled(!meetingAutoRecorder.isSupported && !meetingAutoRecorder.enabled)
-            // 三項演算子で文字列を選ぶと String 扱いになりローカライズされない。
-            // Text に直接リテラルを渡す (LocalizedStringKey)
-            if meetingAutoRecorder.isSupported {
-                Text("Zoom・Google Meet・Teams・Slack ハドル・Webex でマイクが使われ始めたら、その会議ウィンドウだけをシステム音声とマイクで録画し、ウィンドウを閉じると停止します。録画の前に参加者の同意を得てください")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                calendarTitleToggle
-            } else {
-                Text("この機能は macOS 14.2 以降で利用できます")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    /// «カレンダーから会議名を使う» のオン/オフ (issue #393)。値は UserDefaults
-    /// (自動録画のトグルと同じ)。オンにした瞬間だけ読み取り専用の権限を要求する
-    /// (MeetingAutoRecorder.usesCalendarTitles の didSet)
-    private var calendarTitleToggle: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Toggle("カレンダーの予定名を録画ファイル名に使う", isOn: $meetingAutoRecorder.usesCalendarTitles)
-                .toggleStyle(.checkbox)
-                // 自動録画が無いと使われない (予定名は自動録画の開始経路でだけ
-                // ファイル名に付く) — 無効でも OFF への変更は許す (自動録画トグルと同じ理由)
-                .disabled(!meetingAutoRecorder.enabled && !meetingAutoRecorder.usesCalendarTitles)
-            if meetingAutoRecorder.usesCalendarTitles {
-                if meetingAutoRecorder.calendarStatus.canRead {
-                    Text("検知した会議と時間帯が重なるカレンダーの予定があるとき、その予定名を録画ファイル名と議事録の見出しに使います。カレンダーの内容は端末内でだけ使われ、ネットワークには送信されません")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                } else if meetingAutoRecorder.calendarStatus == .notDetermined {
-                    Text("カレンダーの予定名を使うには、表示されたダイアログでカレンダーへのアクセスを許可してください")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                } else {
-                    Text("カレンダーへのアクセスが許可されていないため、予定名は使われません (録画は通常どおり動きます)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Button("システム設定で許可する…") {
-                        meetingAutoRecorder.openCalendarSettings()
-                    }
-                    .buttonStyle(.link)
-                    .font(.caption)
-                }
-            }
-        }
-        .padding(.leading, 8)
-    }
-
-    // MARK: - 録音の告知文 (issue #166)
-
-    /// ボットが参加しない録音では «録音されています» を相手に伝えるのが利用者の役割。
-    /// 会議のチャットに貼る用の文案を編集・コピーできる。編集は GUI ローカルの設定
-    /// (UserDefaults) に保存され、既定文と同じなら «既定» 扱いに戻る
-    private var noticeSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            TextEditor(text: Binding(
-                get: { setup.effectiveNoticeText },
-                set: { setup.customNoticeText = $0 }))
-                .frame(minHeight: 60)
-                .font(.body)
-            HStack {
-                Spacer()
-                Button("既定に戻す") { setup.resetNoticeText() }
-                    .disabled(setup.customNoticeText == nil)
-                Button("コピー") { setup.copyNoticeToClipboard() }
-            }
-            Text("この文案は «録音の告知文をコピー» ボタンでも使われます。録音の同意は利用者の責任で取得してください")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    // MARK: - プライバシー (issue #435)
-
-    /// 利用統計 (Firebase Analytics) とクラッシュレポート (Firebase Crashlytics) の
-    /// オプトアウト。1 つのチェックボックスで両方を制御する (TelemetryPreferences の
-    /// コメント)。効き方の非対称 (Crashlytics は次回起動から) までここで説明せず、
-    /// «利用統計はすぐ、クラッシュレポートは次の起動から« とだけ書く — 詳細は
-    /// PRIVACY.md。収集内容の全文もそちら
-    private var privacySection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Toggle("アプリの利用統計とクラッシュレポートを送信する", isOn: Binding(
-                get: { telemetryEnabled },
-                set: { setTelemetryEnabled($0) }))
-                .toggleStyle(.checkbox)
-            Text("アプリの改善に使う利用統計と、不具合修正に使うクラッシュレポートです。録画や文字起こしの内容・ファイル名は含まれません。オフにすると、利用統計はすぐに止まり、クラッシュレポートは次の起動から送られなくなります")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    /// 保存してから Firebase へ反映する。順序は固定 — AppDelegate.telemetryPreferenceDidChange
-    /// は UserDefaults の値を読んで判定するため、先に保存しないと古い値で反映される
-    private func setTelemetryEnabled(_ enabled: Bool) {
-        telemetryEnabled = enabled
-        TelemetryPreferences.setEnabled(enabled)
-        AppDelegate.shared?.telemetryPreferenceDidChange()
-    }
-
     // MARK: - 文字起こし (issue #145)
 
     /// 「録画後に文字起こし」の設定。値は CLI と同じ `~/.kilde/config.json` の
@@ -899,51 +586,12 @@ struct ContentView: View {
                 .help("~/.kilde/config.json に保存します (CLI の kilde rec の既定値も変わります)")
                 #endif
             if setup.transcriptionAvailable && setup.transcribeEnabled {
-                Picker("言語", selection: transcriptLocaleBinding) {
-                    Text("端末の言語設定").tag(String?.none)
-                    // 録音の冒頭から言語を自動判定 (kilde#409)。判定不能のトラックは
-                    // 端末の言語設定にフォールバックする (kilde-cli-swift#131)
-                    Text("自動 (録音から判定)").tag(String?.some("auto"))
-                    Text("日本語 (ja-JP)").tag(String?.some("ja-JP"))
-                    Text("英語 (en-US)").tag(String?.some("en-US"))
-                    // 手で編集した config.json に他の言語が入っているときは、
-                    // 選択を壊さないようにその値も選択肢に出す
-                    // 判定は実行時 (Coordinator) と同じく大小無視 — 手編集の config.json
-                    // に "AUTO" 等が入っていても «自動« 選択肢と重複して出さない
-                    if let custom = setup.transcriptLocale,
-                       custom != "ja-JP", custom != "en-US",
-                       custom.lowercased() != "auto" {
-                        Text(custom).tag(String?.some(custom))
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                Picker("出力形式", selection: transcriptFormatBinding) {
-                    ForEach(TranscriptOutputFormat.allCases, id: \.self) { format in
-                        Text(Self.formatLabel(format)).tag(format)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                // 合成 1 トラックでは話者の区別が付かない。ソース数に関係なく案内を出す —
-                // 1 ソース構成でもトラックが合成なら話者ラベルは付かず、足すべき選択
-                // (「複数の音声ソース」+「ソースごとに分離」) は同じだから。既定値は変えない (issue の指定)
-                if setup.request.trackPolicy != .separate {
-                    // Label は title を 1 行の理想幅で並べ、fixedSize を付けても折り返さない —
-                    // es 等の長い訳でパネル幅を超え、セクション全体を横に押し広げた (issue #195)。
-                    // アイコンと本文を HStack に分け、本文だけを折り返させる
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Image(systemName: "person.wave.2")
-                        Text("話者ラベルを付けるには「複数の音声ソース」で「ソースごとに分離」を選んでください")
-                            .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-                // 要約 (issue #163)。文字起こしが有効なときだけ選べる。
-                // 第一弾 Pro 機能 (issue #169/#170): MAS 版で未購入のときはトグルを
-                // ロック行に替え、クリックで購入導線を開く。購入が完了すると
-                // isUnlocked が true に変わって通常のトグルに戻る。直接配布版
-                // (スタブ) は常にロック解除済みで、この分岐は常に if 側 (通常トグル)
+                // 言語・出力形式・テンプレート・カスタム指示・書き出し先の詳細は
+                // Settings ウィンドウへ移設した (issue #478 — GA4 の分析では
+                // «録画 → 文字起こし» が利用の中心で、詳細は 1 回設定すればよい項目)
+                // 要約 (issue #163)。トグルと Pro ロック行はパネルに残す —
+                // 0.26.0 (10-27) リリースで分析窓 (10/2〜31) をほぼカバーしておらず
+                // «0 ユーザー» は未使用の証拠にならないため。次回月次で再判定する
                 if pro.isUnlocked {
                     Toggle("録画後に要約も作る", isOn: summaryBinding)
                         .toggleStyle(.checkbox)
@@ -960,35 +608,6 @@ struct ContentView: View {
                         proPurchasePanel
                     }
                 }
-                if pro.isUnlocked, setup.transcriptionAvailable && setup.summaryEnabled {
-                    Picker("テンプレート", selection: summaryTemplateBinding) {
-                        Text("汎用").tag(MeetingTemplate.standard)
-                        Text("定例会議").tag(MeetingTemplate.recurring)
-                        Text("商談").tag(MeetingTemplate.sales)
-                        Text("面接").tag(MeetingTemplate.interview)
-                        Text("1on1").tag(MeetingTemplate.oneOnOne)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    // 要約は Markdown の先頭側に載る (TranscriptWriter の契約) ので、
-                    // 形式選択が srt 等でも出力は .md になる — その予告
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Image(systemName: "doc.text")
-                        Text("要約をつけると出力は Markdown (.md) になります")
-                            .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-                // カスタム指示 (issue #472 — 第三弾 Pro)。表示条件と反映条件を揃える
-                // (cubic レビュー指摘): 指示は録画後の要約だけでなく、ライブラリの
-                // «議事録を作成» と «フォローアップを下書き» にも効くため、
-                // summaryEnabled がオフでも入力欄を出す (消すと «保存済みの指示が
-                // 効き続けるのに見えない» 状態になる)。«控えめ» 方針は開閉の既定
-                // (閉じている) で担保する
-                if pro.isUnlocked, setup.transcriptionAvailable {
-                    composerInstructionsSection
-                }
                 if let reason = setup.summaryUnsupportedReason, setup.transcribeEnabled {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Image(systemName: "sparkles")
@@ -998,31 +617,6 @@ struct ContentView: View {
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                }
-                // 議事録の書き出し先 (issue #164)。文字起こしが有効なときだけ出す
-                if setup.transcriptionAvailable && setup.transcribeEnabled {
-                    HStack(spacing: 6) {
-                        Text("議事録の書き出し先")
-                        Spacer()
-                        Text(setup.exportDirectory.map { $0.lastPathComponent } ?? "なし")
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        Button("変更…") { setup.chooseExportDirectory() }
-                        if setup.exportDirectory != nil {
-                            Button("解除", role: .destructive) { setup.clearExportDirectory() }
-                        }
-                    }
-                    Text("文字起こしした .md をこのフォルダにも書き出します (出力形式が Markdown のとき。要約も含まれます)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                if let exportNotice = setup.exportNotice {
-                    Text(exportNotice)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
                 // 録画が終わると自動で文字起こしが走る (issue #146)。進捗と中止は
                 // パネルの transcriptionStatusView に出るので、ここでは繰り返さない。
@@ -1055,23 +649,6 @@ struct ContentView: View {
         Binding(
             get: { setup.summaryEnabled },
             set: { setup.summaryEnabled = $0 })
-    }
-
-    private var summaryTemplateBinding: Binding<MeetingTemplate> {
-        Binding(
-            get: { setup.summaryTemplate },
-            set: { setup.summaryTemplate = $0 })
-    }
-
-    /// RecordingSetup の文字列プロパティへの双方向 Binding (issue #472 の
-    /// カスタム指示の入力欄用)。summaryBinding と同じく保存は didSet が担うため
-    /// 巻き戻しは不要
-    private func setupBinding(
-        _ keyPath: ReferenceWritableKeyPath<RecordingSetup, String>
-    ) -> Binding<String> {
-        Binding(
-            get: { setup[keyPath: keyPath] },
-            set: { setup[keyPath: keyPath] = $0 })
     }
 
     /// 要約のロック行 (issue #170)。MAS 版で Pro 未購入のとき、トグルの代わりに
@@ -1132,62 +709,6 @@ struct ContentView: View {
         }
         .buttonStyle(.plain)
         .disabled(!setup.summaryAvailable)
-    }
-
-    /// カスタム指示の入力セクション (issue #472 — 第三弾 Pro)。設定パネルの
-    /// 要約セクション内に置く (pro.isUnlocked かつ要約が有効なときだけ表示 —
-    /// 表示側の条件は呼び出し箇所)。入力は生の文字列のまま RecordingSetup が
-    /// UserDefaults に保存し、«実質空» 判定と正規化はエンジン側
-    /// (ComposerInstructions.sanitized) に一任する
-    private var composerInstructionsSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            DisclosureGroup(isExpanded: $showsComposerInstructions) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("トーン")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                TextField("例: カジュアルに / 丁寧に", text: setupBinding(\.instructionsTone))
-                    .textFieldStyle(.roundedBorder)
-                Text("宛先")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                TextField("例: 社内のチーム向け / 初めてお会いする相手", text: setupBinding(\.instructionsRecipients))
-                    .textFieldStyle(.roundedBorder)
-                Text("署名")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                TextField("例: 田中 (営業部)", text: setupBinding(\.instructionsSignature))
-                    .textFieldStyle(.roundedBorder)
-                Text("強調してほしいポイント (1 行に 1 つ)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                TextEditor(text: setupBinding(\.instructionsExtraPoints))
-                    .font(.caption)
-                    .frame(minHeight: 40, maxHeight: 72)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 4)
-                            .stroke(Color.primary.opacity(0.15)))
-                Text("自由記述の指示")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                TextEditor(text: setupBinding(\.instructionsFreeform))
-                    .font(.caption)
-                    .frame(minHeight: 40, maxHeight: 72)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 4)
-                            .stroke(Color.primary.opacity(0.15)))
-            }
-            .padding(.leading, 4)
-        } label: {
-            Text("カスタム指示")
-                .font(.caption)
-                .bold()
-        }
-        Text("要約とフォローアップの下書きに、ここで指定した内容が反映されます (処理は端末内で完結し、入力が外部に送られることはありません)")
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
-        }
     }
 
     /// Pro の購入導線 (issue #170)。ロック行の直下にインラインで開く。
@@ -1423,6 +944,7 @@ struct ContentView: View {
             return String(localized: "文字起こしの準備中…")
         }
     }
+
 
     // MARK: - 開始・結果
 
