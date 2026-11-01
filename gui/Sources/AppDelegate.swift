@@ -339,7 +339,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         p.behavior = .transient
         p.contentViewController = NSHostingController(
             rootView: ContentView(
-                setup: setup, recording: recording, permissions: permissions, updater: updater,
+                setup: setup, recording: recording, permissions: permissions,
                 transcription: transcription, meetingAutoRecorder: meetingAutoRecorder,
                 tips: tips, pro: pro))
         popover = p
@@ -752,6 +752,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func openLibrary() {
         popover?.performClose(nil)
         libraryController.present(fromDirectory: setup.request.outputDirectory)
+    }
+
+    /// 設定ウィンドウ (issue #478)。«1 回設定すればよい» 機能をパネルから集約した
+    /// 受け皿。**1 個だけ生成して保持する** — 都度生成すると設定ウィンドウが
+    /// 複数開き、NSHostingView 側の @State (カスタム指示の開閉など) が揃わなくなる。
+    /// NSWindow を Swift の強参照で保持するのは (ライブラリウィンドウと同じく)
+    /// ARC で即座に解放されないよう NSWindow が self を持つが、閉じた後も
+    /// 再表示できるように AppDelegate 側でも持っておく
+    private var settingsWindow: NSWindow?
+
+    /// 設定ウィンドウを前面に出す。録画中でも開ける (設定の変更は録画に影響しない —
+    /// 値は次の録画開始時に読まれるか、実行時ゲートが扱う)。ポップオーバーは閉じる
+    /// (メニューバーアプリの標準挙動。設定を開いたままパネルが浮いているのは邪魔)
+    func openSettings() {
+        popover?.performClose(nil)
+        let window: NSWindow
+        if let existing = settingsWindow {
+            window = existing
+        } else {
+            window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 560),
+                              styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            window.title = "kilde の設定"
+            window.contentView = NSHostingView(
+                rootView: SettingsPaneView(
+                    setup: setup, meetingAutoRecorder: meetingAutoRecorder,
+                    tips: tips, pro: pro, updater: updater))
+            window.center()
+            settingsWindow = window
+        }
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     private func updateStatusItem(phase: RecordingController.Phase, elapsed: TimeInterval) {

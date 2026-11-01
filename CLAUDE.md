@@ -51,7 +51,11 @@ gui/                           メニューバー GUI (XcodeGen: project.yml が
   Sources/AppDelegate.swift    NSStatusItem + NSPopover の手動管理。録画モデルの持ち主 (閉じても録画継続)
   Sources/RecordingController.swift  Recorder の start/stop と events 購読 → 状態・経過時間・レベル
   Sources/RecordingSetup.swift 選択状態 (RecordRequest) と画面・ウィンドウ・入力デバイスの列挙
-  Sources/ContentView.swift    録画パネル (対象・音声・保存先の選択、Rec/Stop、レベルメーター)
+  Sources/ContentView.swift    録画パネル (対象・音声・保存先の選択、文字起こし/要約のトグル、Rec/Stop、レベルメーター).
+  Sources/SettingsPaneView.swift 設定ウィンドウ (issue #478)。«1 回設定すればよい» 機能の集約先 —
+                               ホットキー・ログイン時起動・会議の自動録画・告知文・テレメトリ・更新・応援・
+                               文字起こしの詳細 (言語/形式/テンプレート/カスタム指示/書き出し先)。開き口は
+                               パネルヘッダーの歯車 → AppDelegate.openSettings()
   Sources/LevelMeter.swift     ソース別レベルメーター (dB 表示)
   Sources/SelfTest.swift       KILDE_GUI_SELFTEST_* による UI なし録画 (検証用)
   Sources/KildeIntents.swift   ショートカット (AppIntents) の定義 (issue #167)。録画開始 /
