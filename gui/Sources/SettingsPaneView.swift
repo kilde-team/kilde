@@ -46,7 +46,7 @@ struct SettingsPaneView: View {
                     .pickerStyle(.segmented)
                     .labelsHidden()
                     .disabled(setup.request.audioSourceCount < 2)
-                    Text("録画の構成には影響しません (録画のたびに変えるものではありません)")
+                    Text("ソースごとに分離すると、システム音声・マイク・入力デバイスが別トラックで保存されます")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -104,6 +104,22 @@ struct SettingsPaneView: View {
             .padding(.trailing, 16)
         }
         .padding(12)
+        // チップの商品一覧 (issue #171)。録画中に Settings を開くとパネル側の
+        // 取り寄せが走らない (cubic レビュー指摘) ので、ここでも取りに行く
+        // (loadProducts は二重取得を Coordinator 側で防ぐ)
+        .onAppear {
+            Task { await tips.loadProducts() }
+            // カレンダー権限 (issue #393) も表示時に取り直す — «システム設定で
+            // 許可する…» ボタンで許可して戻った直後に案内を更新するため
+            // (EventKit は権限の変化を通知しない)
+            meetingAutoRecorder.refreshCalendarStatus()
+        }
+        // システム設定から戻った (アプリが active になった) ときも取り直す
+        // (保持された NSHostingView は onAppear を再実行しないため)
+        .onReceive(NotificationCenter.default.publisher(
+            for: NSApplication.didBecomeActiveNotification)) { _ in
+            meetingAutoRecorder.refreshCalendarStatus()
+        }
     }
 
     // MARK: - 文字起こしの詳細 (パネルのトグルは ContentView に残す)

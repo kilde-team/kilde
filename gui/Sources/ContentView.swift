@@ -218,6 +218,8 @@ struct ContentView: View {
             }
             .buttonStyle(.borderless)
             .help("設定を開く")
+            // アイコンのみのボタンに操作のラベルを与える (cubic / CodeRabbit レビュー指摘)
+            .accessibilityLabel("設定を開く")
         }
     }
 
