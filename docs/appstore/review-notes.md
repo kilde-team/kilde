@@ -19,7 +19,11 @@ microphone, with optional on-device transcription of finished recordings.
 - **Microphone**: records **your own voice**. You can decline it; recording
   still works (video + system audio).
 - **Calendar (opt-in, auto-recording only)**: applies a matched event title
-  to recording file names. The app only reads events; data stays on-device.
+  to the recording file name, the start notification, and the transcript
+  heading. macOS has no read-only calendar permission, so the request is
+  full access, but **the app only reads events**; data stays on-device. If
+  declined — or a lookup is still running when recording starts — the
+  default file name is used.
 
 **How to test:**
 
@@ -34,16 +38,17 @@ microphone, with optional on-device transcription of finished recordings.
 **Data handling:** transcription and AI features run **entirely on this
 device** (SpeechTranscriber / Apple Intelligence). No audio, transcript,
 summary, or draft text is sent anywhere. A missing language model downloads
-from Apple (standard OS asset); otherwise it works offline. Outbound
-connections: usage analytics / crash reports (Firebase) and those downloads;
-none carries audio content.
+from Apple (standard OS asset; as with any network request, your IP reaches
+Apple); otherwise it works offline. Recordings and transcripts are written
+to `~/Movies` or a user-picked folder (never inside the App Sandbox
+container). Outbound connections: usage analytics / crash reports (Firebase)
+and those downloads; none carries audio content.
 
 **Meeting auto-recording (off by default):** detection is local; manual
 recordings are never stopped automatically.
 
 **Recording-consent note:** system audio can include other participants'
-voices; informing them is the user's responsibility. Any sample audio works
-for testing.
+voices; informing them is the user's responsibility.
 
 **In-app purchase — tips (v0.18.0):** the optional "Support this app"
 section offers three consumable tips (kilde.tip.*); standard StoreKit
@@ -51,8 +56,7 @@ purchase. Nothing is gated.
 
 **In-app purchase — kilde Pro (v0.26.0 summaries, v0.28.0 follow-up
 drafts, v0.29.0 custom instructions):** one non-consumable, one-time
-product (kilde.pro) unlocks all of them. All AI features run on-device
-(Apple Intelligence, macOS 26+; without it the lock rows are disabled).
+product (kilde.pro) unlocks all of them (AI features run on-device).
 
 - *Summaries:* without Pro, "Summarize after recording" is a locked row
   with a "Pro" badge; clicking it expands an inline purchase panel (price,
@@ -69,7 +73,8 @@ product (kilde.pro) unlocks all of them. All AI features run on-device
   emphasize, free-form) applies to summaries and follow-up drafts; the
   text stays on-device. Without Pro the locked row opens the same purchase
   panel; without the entitlement, summaries are skipped with a notice
-  instead of being generated without the instructions.
+  instead of being generated without the instructions, and follow-up
+  drafts likewise stop before generating and show the purchase notice.
 
 **Recording and transcription are currently free.** If the price shows a
 loading placeholder, the product may not be visible yet; reopening the
