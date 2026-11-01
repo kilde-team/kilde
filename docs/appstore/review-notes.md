@@ -61,7 +61,8 @@ section offers three consumable tips (kilde.tip.*); tapping one starts a
 standard StoreKit purchase (sandbox Apple ID). Nothing is gated.
 
 **In-app purchase — kilde Pro (v0.26.0 summaries, v0.28.0 follow-up
-drafts):** one non-consumable, one-time product (kilde.pro) unlocks both.
+drafts, v0.29.0 custom instructions):** one non-consumable, one-time
+product (kilde.pro) unlocks all of them.
 
 - *Summaries:* while not owned, "Summarize after recording" in the panel's
   transcription section is a locked row with a "Pro" badge; clicking it
@@ -75,6 +76,13 @@ drafts):** one non-consumable, one-time product (kilde.pro) unlocks both.
   generates an email or chat draft from that summary (same on-device model,
   copy button). Without Pro it is locked with a tooltip; without Apple
   Intelligence or a summary it is disabled with the reason as a tooltip.
+- *Custom instructions (v0.29.0):* in the panel's summary section, a
+  "Custom instructions" disclosure (tone, recipients, signature, points to
+  emphasize, free-form) applies to both summaries and follow-up drafts.
+  The entered text stays on-device. Without Pro, a locked row opens the
+  same inline purchase panel; instructions entered before a refund lapse
+  are ignored at generation time (the summary is skipped with a notice
+  rather than generated without them).
 **Recording and transcription are currently free.** If the price shows a
 loading placeholder, the product may not be visible yet; reopening the
 panel retries. The IAP's review screenshot shows the row and the panel.
@@ -82,18 +90,22 @@ panel retries. The IAP's review screenshot shows the row and the panel.
 ---
 ## 日本語 (参考訳 — 提出は英語版)
 
-**アプリ内課金 — kilde Pro・会議の要約 (v0.26.0) とフォローアップの下書き (v0.28.0):**
+**アプリ内課金 — kilde Pro・会議の要約 (v0.26.0) とフォローアップの下書き (v0.28.0)、カスタム指示 (v0.29.0):**
 
-会議の要約とフォローアップの下書きが有料機能で、**同じ非消耗型 kilde.pro
-(日本では ¥2,800 の買い切り) 1 商品で両方がアンロック** されます。
+会議の要約・フォローアップの下書き・カスタム指示が有料機能で、**同じ非消耗型
+kilde.pro (日本では ¥2,800 の買い切り) 1 商品で 3 機能すべてがアンロック**
+されます。
 未購入の間、パネルの文字起こしセクションの «録画後に要約も作る» は «Pro» バッジ付きの
 ロック行に置き換わります。クリックするとインラインの購入導線が開き、App Store から
 取得した価格・購入ボタン (StoreKit 標準フロー — sandbox の Apple ID で確認)・
 «購入を復元» (App Store sync) が並びます。購入後は通常のトグルに戻ります。
 要約の生成には «録画後に文字起こし» も有効化が必要です (文字起こしが入力になるため)。
 処理は Apple Intelligence のオンデバイス (macOS 26+。非対応機ではロック行自体が
-無効になり、文字起こしが有効なときは理由の案内行も出ます)。**録画と文字起こしは現在無料** — 他にゲート
-される機能はありません。レビュー環境で価格が取得できない場合 (商品がまだ見えない)
+無効になり、文字起こしが有効なときは理由の案内行も出ます)。未購入の間、
+«要約とフォローアップのカスタム指示» も «Pro» バッジ付きのロック行になり、
+クリックで同じ購入導線を開きます。権利を失ったあとは指示を無視して生成するのではなく、
+要約ごとスキップして案内を出します。**録画と文字起こしは現在無料** — Pro の対象は
+この 3 機能です。レビュー環境で価格が取得できない場合 (商品がまだ見えない)
 は «読み込み中» のプレースホルダになります — 想定された挙動で、IAP の審査用
 スクリーンショットにロック行と導線を示してあります。
 
@@ -103,6 +115,12 @@ panel retries. The IAP's review screenshot shows the row and the panel.
 本文) を作り、コピーできます (要約と同じ Apple Intelligence のオンデバイス
 処理)。未購入ではロックされツールチップで設定パネルへの購入を案内、Apple
 Intelligence が使えない環境・要約のない録画では理由がツールチップに出ます。
+
+*カスタム指示 (v0.29.0):* 設定パネルの要約セクションに «カスタム指示» の
+開閉セクションがあり、トーン・宛先・署名・強調ポイント・自由記述を指定できます。
+要約とフォローアップの下書きの両方に反映され、入力は端末内だけで使われます
+(外部送信なし)。未購入ではロック行が同じ購入導線を開きます。権利を失った
+あとは指示を無視して生成するのではなく、要約ごとスキップして案内を出します。
 
 Kilde はメニューバーから使う画面録画アプリで、システム音声とマイクを録音でき、
 録画の文字起こし (オプション) を備えています。

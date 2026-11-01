@@ -702,6 +702,26 @@ KILDE_GUI_SELFTEST_FOLLOWUP=1 KILDE_GUI_SELFTEST_FOLLOWUP_LIVE=1 \
 シートの見た目 (手動確認)、MAS ビルドでの Pro 購入後の実際の導線 (実機の sandbox で
 確認 — `KILDE_GUI_SELFTEST_PRO=1` と同じ線引き)。
 
+### カスタム指示 (第三弾 Pro — issue #472) の下準備を確かめる
+
+`KILDE_GUI_SELFTEST_COMPOSER_INSTRUCTIONS=1` は録画せず、**カスタム指示**
+の GUI 側の下準備を検証し、終わります。`RecordingSetup.mapComposerInstructions`
+の写像 («実質空» は nil、強調ポイントの改行分割 — UserDefaults を触らず純粋関数
+で検証する) と、エンジンの 2 段目ゲート (kilde-cli-swift#139 — 非空の指示は
+`customInstructions` の権利が無いと `licenseRequired`、«実質空»・MAS 相当の権利・
+課金対象外の nil では通る) の 7 項目です:
+
+```sh
+KILDE_GUI_SELFTEST_COMPOSER_INSTRUCTIONS=1 "$APP/Contents/MacOS/KildeGUI"
+#   …
+#   selftest: composer-instructions 7/7 passed (exit 0)
+```
+
+**このセルフテストで「通った」にできないもの**: 指示が生成結果に実際に反映される
+こと (Apple Intelligence が有効な実機で確認 — `FOLLOWUP_LIVE` と同じ線引き)、
+設定パネルのセクションの見た目 (手動確認)。
+
+
 ### 検証時の環境の注意
 
 > 画面がロックされている、または**ディスプレイが消灯している**間は

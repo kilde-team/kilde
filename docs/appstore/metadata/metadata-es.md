@@ -437,3 +437,10 @@ Mejoras internas de la aplicación. No hay cambios en las funciones.
 ```text
 Los borradores de seguimiento se han añadido a Pro. Genera un borrador de correo o de mensaje de chat para los participantes a partir del resumen de cada reunión (procesado en el dispositivo con Apple Intelligence en macOS 26 o posterior). Ya están incluidos si ya tienes Pro; no se requiere ninguna compra adicional. La grabación y la transcripción son gratuitas actualmente.
 ```
+
+## Novedades (0.29.0)
+
+```text
+Las instrucciones personalizadas se han añadido a Pro. Especifica el tono, los destinatarios, una firma y más para dar forma a los resúmenes y a los borradores de seguimiento con tu propio estilo (procesado en el dispositivo con Apple Intelligence en macOS 26 o posterior). Ya están incluidas si ya tienes Pro; no se requiere ninguna compra adicional. La grabación y la transcripción son gratuitas actualmente.
+```
+

@@ -32,6 +32,14 @@ final class TranscriptionCoordinator: ObservableObject {
         /// (要約は Markdown の先頭側に載る — TranscriptWriter の契約)。
         /// 録画完了時点の選択 (RecordingSetup) をスナップショットして入れる
         let summaryTemplate: MeetingTemplate?
+        /// カスタム指示 (issue #472 — 第三弾 Pro)。nil は «未指定» で 0.28.0 までと
+        /// 同一の動作。録画完了時点の setup 値を写像して入れる。**権利の判定は
+        /// しない** (summaryTemplate と同じ — 実行時のゲートに一任する)。非空の
+        /// 指示に `customInstructions` の権利が無いときは要約をスキップして案内する
+        /// (下の pre-check。エンジンの 2 段目ゲート kilde-cli-swift#139 の手前)。
+        /// 既定 nil — 後から追加したメンバのため、既存の Job 生成箇所は
+        /// 書き換えずに済む (directoryBookmark と同じ形)
+        var summaryInstructions: ComposerInstructions? = nil
         /// nil は «端末の言語設定»。実行時に CLI と同じ `.bcp47` 表記へ解決する
         /// (kilde-cli-swift の TranscribeCommand.swift と同じ規約)。
         /// «auto» は録音からの自動判定 (kilde#409 — 設定 UI の «自動 (録音から判定)»)。
@@ -386,6 +394,17 @@ final class TranscriptionCoordinator: ObservableObject {
                             summaryNote = "要約は生成できませんでした (kilde Pro の購入または購入の復元が必要です)"
                             UsageAnalytics.summarySkipped(
                                 .proRequired, recordingDuration: job.recordingDuration)
+                        } else if let instructions = job.summaryInstructions,
+                                  !instructions.isEmpty,
+                                  !license.allows(.customInstructions) {
+                            // カスタム指示 (issue #472) は要約に加えて
+                            // customInstructions の権利を要求する (エンジンの 2 段目
+                            // ゲートの前段判定 — 要約自体は権利があれば続行できるが、
+                            // «指示したのに指示なしで生成される» は誤変換より質が悪い
+                            // ので、要約ごとスキップして案内する方針に揃える)
+                            summaryNote = "カスタム指示は使えませんでした (kilde Pro の購入または購入の復元が必要です)"
+                            UsageAnalytics.summarySkipped(
+                                .proRequired, recordingDuration: job.recordingDuration)
                         } else {
                             // 要約の開始・完了・失敗 (issue #456)。録画長は文字起こしの
                             // イベントと同じ区分で載せる
@@ -399,6 +418,7 @@ final class TranscriptionCoordinator: ObservableObject {
                                     transcript: segments,
                                     template: template,
                                     license: license,
+                                    instructions: job.summaryInstructions,
                                     onProgress: { progress in
                                         Task { @MainActor in
                                             self.setPhase(.summarizing(progress: progress), for: job)

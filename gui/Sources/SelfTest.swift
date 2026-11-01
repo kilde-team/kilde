@@ -91,6 +91,15 @@ enum SelfTest {
             SelfTestFollowup.run()
             return
         }
+        // KILDE_GUI_SELFTEST_COMPOSER_INSTRUCTIONS=1: カスタム指示 (issue #472 —
+        // 第三弾 Pro) の検証。RecordingSetup 入力の写像 («実質空» = nil) と、
+        // エンジンの 2 段目ゲート (kilde-cli-swift#139 — 非空の指示に
+        // customInstructions の権利が無いと licenseRequired) を確かめる。
+        // 実録画を伴わないため録画のスロット (権限・スピーカー) を占有しない
+        if env["KILDE_GUI_SELFTEST_COMPOSER_INSTRUCTIONS"] == "1" {
+            SelfTestComposerInstructions.run()
+            return
+        }
         // KILDE_GUI_SELFTEST_LIBRARY_SEARCH: ライブラリの索引構築 + 全文検索の検証
         // (issue #165)。一時ディレクトリに合成したサイドカー 100 件で実測時間を出す —
         // 実録画を伴わないため録画のスロット (権限・スピーカー) を占有しない

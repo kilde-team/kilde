@@ -70,6 +70,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     format: setup.transcriptFormat,
                     localeID: setup.transcriptLocale,
                     summaryTemplate: setup.summaryTemplate,
+                    // カスタム指示 (issue #472)。«実質空» は写像側で nil になる
+                    summaryInstructions: setup.composerInstructions,
                     summaryUnsupportedReason: setup.summaryUnsupportedReason)
             })
     }()
@@ -386,6 +388,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     // (TranscriptionCoordinator のゲート) に一任する (cubic レビュー指摘)
                     summaryTemplate: (self.setup.summaryEnabled && self.setup.summaryAvailable)
                         ? self.setup.summaryTemplate : nil,
+                    // カスタム指示 (issue #472)。summaryEnabled がオフなら要約が
+                    // 生成されないので指示も運ばない。«実質空» は写像側で nil になる
+                    // (RecordingSetup.composerInstructions)。権利の判定は実行時ゲート
+                    summaryInstructions: (self.setup.summaryEnabled && self.setup.summaryAvailable)
+                        ? self.setup.composerInstructions : nil,
                     localeID: self.setup.transcriptLocale,
                     // 録画の長さ。計測 (issue #153) の区分だけに使う。elapsed は
                     // .finished の時点で最後の progress 値のまま (次の start() まで
