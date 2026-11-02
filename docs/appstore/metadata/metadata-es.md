@@ -444,3 +444,13 @@ Los borradores de seguimiento se han añadido a Pro. Genera un borrador de corre
 Las instrucciones personalizadas se han añadido a Pro. Especifica el tono, los destinatarios, una firma y más para dar forma a los resúmenes y a los borradores de seguimiento con tu propio estilo (procesado en el dispositivo con Apple Intelligence en macOS 26 o posterior). Ya están incluidas si ya tienes Pro; no se requiere ninguna compra adicional. La grabación y la transcripción son gratuitas actualmente.
 ```
 
+## Novedades (0.30.0)
+
+Reorganización del panel y nueva ventana de Ajustes (issue #478). El texto solo dice lo que
+existe (misma política que 0.28.0): no hay funciones nuevas ni eliminadas — es un cambio de
+distribución, y así se indica.
+
+```text
+El panel de grabación se ha reorganizado. Los elementos que se tocan justo antes de grabar (objetivo de captura, audio, transcripción y destino) siguen en el panel. Los ajustes que se cambian rara vez (atajo de teclado, inicio al entrar, grabación automática de reuniones, privacidad y más) se agrupan ahora en una nueva ventana de Ajustes, que se abre con el icono de engranaje de la cabecera del panel. La grabación, la transcripción y los resúmenes no cambian.
+```
+

@@ -41,7 +41,7 @@ App Store Connect の App Review Information → Notes に転記する文案 (�
 
 ## 2. スクリーンショット (ドラフト)
 
-`screenshots/*.png` — 2880×1800 (Mac App Store の受け付けサイズ)、6 枚。
+`screenshots/*.png` — 2880×1800 (Mac App Store の受け付けサイズ)、7 枚。
 
 **これは実機キャプチャではなく、`gui/Sources/ContentView.swift` の UI を HTML/CSS で
 再現したモックです。** 提出前に実機のキャプチャへ差し替えること。フォントが
@@ -55,6 +55,7 @@ Noto Sans CJK JP で、macOS 実機の SF Pro / ヒラギノとは字形が違�
 | `04-window-capture.png` | ウィンドウ単位の収録 |
 | `05-audio-only.png` | 音声のみ (M4A) |
 | `06-safe-finish.png` | 停止・アプリ終了のどちらでもファイルを仕上げる |
+| `07-settings.png` | 設定ウィンドウ (0.30.0 — issue #478 で新設。歯車から開く) |
 
 **先頭 2 枚は表示順 (ファイル名順) で訴求を統一してある** (issue #266):
 サブタイトル「システム音声ごと録って文字起こし」と同じ意図が、画像を流し見する人に
@@ -64,10 +65,12 @@ Noto Sans CJK JP で、macOS 実機の SF Pro / ヒラギノとは字形が違�
   DESIGN.md §5 は**プロセス異常終了時を保証対象外**としているので、「どう終わっても」の
   ような書き方はしない (cubic レビュー指摘)
 - **モックは全セクションを描かない**。パネルごとに訴求に関係する部分だけを描いている:
-  `panel_setup` (01) は収録対象・音声・複数の音声ソース・保存先、`panel_transcribe` (02) は
-  保存完了・文字起こしの完了 (.md サイドカー)・文字起こし設定、`panel_window` (04) は
-  収録対象・音声、`panel_audio_only` (05) はそれに「起動」を加えたもの、`panel_done` (06) は
-  保存完了・「グローバルホットキー」・最近の録画。実機のパネルはこれらを**すべて同時に**
+  `panel_setup` (01) は収録対象・音声・文字起こしトグル・保存先、`panel_transcribe` (02) は
+  保存完了・文字起こしの完了 (.md サイドカー)・文字起こしトグルと Pro のロック行、
+  `panel_window` (04) は収録対象・音声、`panel_audio_only` (05) は音声と保存先、`panel_done`
+  (06) は保存完了・最近の録画 (0.30.0 でホットキー等は設定ウィンドウへ移設されたため描かない)、
+  `settings_pane` (07) は設定ウィンドウの主要セクション (実ウィンドウはスクロールするため
+  «録音の告知文» «アプリを応援» は省略)。実機のパネルはこれらを**すべて同時に**
   表示するので、**実機キャプチャへ差し替えるときは縦の情報量が変わる**点に注意すること
 - **Apple の製品名 (QuickTime など) を画面の文言に入れない**。「QuickTime では録れない」は
   Guideline 5.2.5 でリジェクトされた (0.4.0 (5)、§5)。比較は「標準の画面収録」のような
@@ -77,7 +80,7 @@ Noto Sans CJK JP で、macOS 実機の SF Pro / ヒラギノとは字形が違�
   (実在の製品名は入れない — cubic レビュー指摘)。実機キャプチャに差し替えるときも、Zoom / Google Meet / Teams などの
   ウィンドウ名・バンドル ID・ロゴが写り込まないようにすること (App Store の審査で
   指摘されうる)
-- リポジトリに入っているのは 256 色に最適化した版 (6 枚で約 3MB)。UI 画像なので
+- リポジトリに入っているのは 256 色に最適化した版 (7 枚で約 3.6MB)。UI 画像なので
   見た目の劣化はほぼ無い。フル品質が要るときは下の手順で作り直す
 
 ## 3. 作り直す
@@ -94,7 +97,7 @@ cd docs/appstore/tools
 python3 icon.py ../icon          # SVG を書き出す (3 バリアント)
 python3 render.py                # SVG -> PNG (16〜1024px)
 python3 sync_appicon.py          # PNG -> gui/Resources/.../AppIcon.appiconset (§1)
-python3 build.py                 # スクリーンショット 6 枚 (2880x1800) を screenshots/ へ
+python3 build.py                 # スクリーンショット 7 枚 (2880x1800) を screenshots/ へ
 python3 video.py                 # プロモ動画 4 本 (60s ja/en + App Store 30s ja/en)
 ```
 
@@ -112,10 +115,11 @@ python3 video.py                 # プロモ動画 4 本 (60s ja/en + App Store 
 - **スクリーンショットをコミットするときは 256 色に最適化する**
   (`pngquant --force --ext .png --strip *.png` を `screenshots/` で実行。
   **`--ext .png` が要る** — `--force` だけでは元を置き換えず `*-fs8.png` を別に作る
-  (2026-09-18 実測)。リポジトリに入っている版はこれで約 3MB/6 枚に抑えてある — §2)
+  (2026-09-18 実測)。リポジトリに入っている版はこれで約 3.6MB/7 枚に抑えてある — §2)
 
-`panel.py` がパネルの再現部分。`ContentView.swift` を変えたら、スクリーンショットを
-撮り直す前にこちらも合わせること (幅 380pt・padding 12・セクション間 14 は SwiftUI 側の値)。
+`panel.py` がパネルと設定ウィンドウの再現部分。`ContentView.swift` / `SettingsPaneView.swift`
+を変えたら、スクリーンショットを撮り直す前にこちらも合わせること (幅 380pt・padding 12・
+セクション間 14、設定ウィンドウ 400x560 は SwiftUI 側の値)。
 モックに描く要素は **MAS ビルド (KildeGUI-AppStore) の実機と一致させる** —
 更新セクション (`#if !APPSTORE`) のような直接配布版にしか無い UI を入れない。
 

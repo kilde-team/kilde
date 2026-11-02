@@ -444,3 +444,13 @@ Third Pro feature: custom instructions (issue #472). Copy states only what ships
 Custom instructions have been added to Pro. Specify tone, recipients, a signature, and more to shape meeting summaries and follow-up drafts in your own style (processed on-device with Apple Intelligence on macOS 26 or later). Already included if you own Pro — no extra purchase. Recording and transcription are free today.
 ```
 
+## What's New (0.30.0)
+
+Panel reorganization and a new Settings window (issue #478). Copy states only what ships
+(same policy as 0.28.0). No features were added or removed — the change is layout, so
+the copy states that recording, transcription, and summaries are unchanged.
+
+```text
+The recording panel has been reorganized. The items you touch right before recording (capture target, audio, transcription, destination) are still in the panel. Settings you rarely change (hotkey, launch at login, meeting auto-recording, privacy, and more) are now grouped in a new Settings window, opened with the gear icon in the panel header. Recording, transcription, and summaries are unchanged.
+```
+
