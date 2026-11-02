@@ -124,12 +124,13 @@ ul.pts li::before { content:""; position:absolute; left:4px; top:8px; width:8px;
 /* .win の position:absolute の基準にする (.pop は静的配置のままだが、
    .desk を relative にしても .pop の描画は変わらない) */
 .desk { position: relative; }
-/* 設定ウィンドウ (SettingsPaneView、ライト外観。400x560 を zoom 1.15 で描画) */
+/* 設定ウィンドウ (SettingsPaneView、ライト外観)。実ウィンドウは
+   AppDelegate.openSettings() の 400x560pt — CSS zoom は使わず、等価の
+   460x644px を直接指定して描画する */
 .win { /* .desk (flex, justify-end) のフロー内で右寄せ。絶対配置にすると
      desk の高さが潰れて .mac (overflow:hidden) にクリップされる */
   width: 460px;
-  /* 実ウィンドウは 400x560 (zoom 1.15 で 460x644)。中身がはみ出すと画面から
-     あふれてしまうため高さを固定し、はみ出しはクリップする */
+  /* 中身がはみ出すと画面からあふれるため高さを固定し、はみ出しはクリップする */
   height: 644px;
   border-radius: 12px; overflow: hidden; background: #F2F2F7; color: #1D1D1F;
   box-shadow: 0 40px 90px rgba(0,0,0,.52), 0 0 0 1px rgba(255,255,255,.09); }

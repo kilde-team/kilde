@@ -22,8 +22,8 @@ microphone, with optional on-device transcription of finished recordings.
   to the file name, the start notification, and the transcript
   heading. macOS has no read-only calendar permission, so the request is
   full access, but **the app only reads events**; data stays on-device. If
-  declined — or while a lookup is still running — the default file name is
-  used.
+  declined — or a lookup is still running when recording starts — the
+  default file name is used.
 
 **How to test:**
 
@@ -36,21 +36,22 @@ microphone, with optional on-device transcription of finished recordings.
    recording.
 
 Rarely changed settings (hotkey, launch at login, meeting auto-recording,
-analytics opt-out) are in the **Settings window** (gear icon in the panel
-header).
+analytics opt-out, tips, custom instructions) are in the **Settings
+window** (gear icon).
 
 **Data handling:** transcription and AI features run **entirely on this
 device** (SpeechTranscriber / Apple Intelligence). No audio, transcript,
 summary, or draft text is sent anywhere. A missing language model downloads
 from Apple (standard OS asset; your IP reaches Apple); otherwise it works
 offline. Recordings and transcripts go to `~/Movies` or a user-picked
-folder (never inside the App Sandbox container). Outbound connections: usage analytics / crash reports (Firebase)
-and those downloads; none carries audio content.
+folder (never inside the App Sandbox container). Outbound connections: Firebase Analytics (usage analytics),
+Crashlytics (post-crash reports), and those downloads; none carries audio
+content.
 
-**Meeting auto-recording (off by default):** detection is local; manual
-recordings are never stopped automatically.
+**Meeting auto-recording (off by default):** local detection only; manual
+recordings are never stopped.
 
-**Recording-consent note:** system audio can include other participants'
+**Consent note:** system audio can include other participants'
 voices; informing them is the user's responsibility.
 
 **In-app purchase — tips (v0.18.0):** the optional "Support this app"
@@ -132,7 +133,7 @@ Kilde はメニューバーから使う画面録画アプリで、システム�
 
 **テスト手順:**
 
-録画に関係まれな設定 (ホットキー、ログイン時起動、会議の自動録画、テレメトリの
+録画の操作に関係しない設定 (ホットキー、ログイン時起動、会議の自動録画、テレメトリの
 オプトアウト、チップ、カスタム指示) は **設定ウィンドウ** (パネルヘッダーの
 歯車アイコン) にあります。
 

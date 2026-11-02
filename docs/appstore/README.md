@@ -43,7 +43,8 @@ App Store Connect の App Review Information → Notes に転記する文案 (�
 
 `screenshots/*.png` — 2880×1800 (Mac App Store の受け付けサイズ)、7 枚。
 
-**これは実機キャプチャではなく、`gui/Sources/ContentView.swift` の UI を HTML/CSS で
+**これは実機キャプチャではなく、`gui/Sources/ContentView.swift` (パネル) と
+`gui/Sources/SettingsPaneView.swift` (設定ウィンドウ) の UI を HTML/CSS で
 再現したモックです。** 提出前に実機のキャプチャへ差し替えること。フォントが
 Noto Sans CJK JP で、macOS 実機の SF Pro / ヒラギノとは字形が違う。
 
@@ -70,8 +71,9 @@ Noto Sans CJK JP で、macOS 実機の SF Pro / ヒラギノとは字形が違�
   `panel_window` (04) は収録対象・音声、`panel_audio_only` (05) は音声と保存先、`panel_done`
   (06) は保存完了・最近の録画 (0.30.0 でホットキー等は設定ウィンドウへ移設されたため描かない)、
   `settings_pane` (07) は設定ウィンドウの主要セクション (実ウィンドウはスクロールするため
-  «録音の告知文» «アプリを応援» は省略)。実機のパネルはこれらを**すべて同時に**
-  表示するので、**実機キャプチャへ差し替えるときは縦の情報量が変わる**点に注意すること
+  «録音の告知文» «アプリを応援» は省略)。実機ではパネルと設定ウィンドウは**別画面**で、
+  パネルの各セクションはすべて同時に表示され、設定ウィンドウは**スクロールして**表示される。
+  **実機キャプチャへ差し替えるときは縦の情報量が変わる**点に注意すること
 - **Apple の製品名 (QuickTime など) を画面の文言に入れない**。「QuickTime では録れない」は
   Guideline 5.2.5 でリジェクトされた (0.4.0 (5)、§5)。比較は「標準の画面収録」のような
   一般表現で書く
@@ -119,7 +121,7 @@ python3 video.py                 # プロモ動画 4 本 (60s ja/en + App Store 
 
 `panel.py` がパネルと設定ウィンドウの再現部分。`ContentView.swift` / `SettingsPaneView.swift`
 を変えたら、スクリーンショットを撮り直す前にこちらも合わせること (幅 380pt・padding 12・
-セクション間 14、設定ウィンドウ 400x560 は SwiftUI 側の値)。
+セクション間 14 は SwiftUI 側の値、設定ウィンドウ 400x560 は `AppDelegate.openSettings()` 側の値)。
 モックに描く要素は **MAS ビルド (KildeGUI-AppStore) の実機と一致させる** —
 更新セクション (`#if !APPSTORE`) のような直接配布版にしか無い UI を入れない。
 

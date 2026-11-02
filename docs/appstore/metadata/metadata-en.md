@@ -451,6 +451,6 @@ Panel reorganization and a new Settings window (issue #478). Copy states only wh
 the copy states that recording, transcription, and summaries are unchanged.
 
 ```text
-The recording panel has been reorganized. The items you touch right before recording (capture target, audio, transcription, destination) are still in the panel. Settings you rarely change (hotkey, launch at login, meeting auto-recording, privacy, and more) are now grouped in a new Settings window, opened with the gear icon in the panel header. Recording, transcription, and summaries are unchanged.
+The recording panel has been reorganized. The capture target, audio sources, the transcription toggle, and the destination are still in the panel. Settings you rarely change (hotkey, launch at login, meeting auto-recording, privacy, and more) and the transcription details (language, format, and more) are now grouped in a new Settings window, opened with the gear icon in the panel header. Recording, transcription, and summaries are unchanged.
 ```
 

@@ -451,6 +451,6 @@ existe (misma política que 0.28.0): no hay funciones nuevas ni eliminadas — e
 distribución, y así se indica.
 
 ```text
-El panel de grabación se ha reorganizado. Los elementos que se tocan justo antes de grabar (objetivo de captura, audio, transcripción y destino) siguen en el panel. Los ajustes que se cambian rara vez (atajo de teclado, inicio al entrar, grabación automática de reuniones, privacidad y más) se agrupan ahora en una nueva ventana de Ajustes, que se abre con el icono de engranaje de la cabecera del panel. La grabación, la transcripción y los resúmenes no cambian.
+El panel de grabación se ha reorganizado. El objetivo de captura, el audio, el interruptor de transcripción y el destino siguen en el panel. Los ajustes que se cambian rara vez (atajo de teclado, inicio al entrar, grabación automática de reuniones, privacidad y más) y los detalles de la transcripción (idioma, formato y más) se agrupan ahora en una nueva ventana de Ajustes, que se abre con el icono de engranaje de la cabecera del panel. La grabación, la transcripción y los resúmenes no cambian.
 ```
 
