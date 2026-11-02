@@ -116,16 +116,83 @@ ul.pts li::before { content:""; position:absolute; left:4px; top:8px; width:8px;
 .wcol { display:flex; flex-direction:column; gap:1px; min-width:0; }
 .wt { font-size: 12.5px; }
 .wb { font-size: 10.5px; color:#8A8F98; }
+/* Pro のロック行 (issue #170/#472) */
+.lockrow { display:flex; align-items:center; gap:6px; padding:4px 0; color:#E8EAEE; }
+.probadge { font-size:10px; font-weight:700; padding:1px 7px; border-radius:999px;
+  background:rgba(255,255,255,.10); color:#C7CCD4; border:1px solid rgba(255,255,255,.18); }
+.ck.appmenu { color:#C7CCD4; }
+/* .win の position:absolute の基準にする (.pop は静的配置のままだが、
+   .desk を relative にしても .pop の描画は変わらない) */
+.desk { position: relative; }
+/* 設定ウィンドウ (SettingsPaneView、ライト外観)。実ウィンドウは
+   AppDelegate.openSettings() の 400x560pt — CSS zoom は使わず、等価の
+   460x644px を直接指定して描画する */
+.win { /* .desk (flex, justify-end) のフロー内で右寄せ。絶対配置にすると
+     desk の高さが潰れて .mac (overflow:hidden) にクリップされる */
+  width: 460px;
+  /* 中身がはみ出すと画面からあふれるため高さを固定し、はみ出しはクリップする */
+  height: 644px;
+  border-radius: 12px; overflow: hidden; background: #F2F2F7; color: #1D1D1F;
+  box-shadow: 0 40px 90px rgba(0,0,0,.52), 0 0 0 1px rgba(255,255,255,.09); }
+.wtb { height: 38px; position:relative; display:flex; align-items:center; padding:0 12px; gap:7px;
+  background: rgba(246,246,248,.96); border-bottom: 1px solid rgba(0,0,0,.08); }
+.tl { width:12px; height:12px; border-radius:50%; }
+.tl.r { background:#FF5F57; } .tl.y { background:#FEBC2E; } .tl.g { background:#28C840; }
+.wtb-t { position:absolute; left:0; right:0; text-align:center; font-size:13px; font-weight:600; color:#3C3C43; }
+.wbody { padding: 14px 22px 20px; }
+.win .sec { margin-bottom: 12px; }
+.win .sec-t { color:#6E6E73; }
+.win .ck { color:#1D1D1F; }
+.win .cb { border-color:#8E8E93; background:#fff; }
+.win .cb.on { background:#0A84FF; border-color:#0A84FF; }
+.win .dim { color:#6E6E73; }
+.win .seg { background: rgba(0,0,0,.07); }
+.win .seg-item { color:#3C3C43; }
+.win .seg-item.active { background:#fff; color:#1D1D1F;
+  box-shadow: 0 1px 2px rgba(0,0,0,.18), 0 0 0 .5px rgba(0,0,0,.06); }
+.wline { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+.wlab { font-size:12px; color:#6E6E73; width:112px; flex:none; }
+.wpick { flex:1; display:flex; align-items:center; background:#fff; border:1px solid rgba(0,0,0,.12);
+  border-radius:6px; padding:3px 8px; font-size:12px; color:#1D1D1F; }
+.car { color:#8E8E93; font-size:10px; margin-left:auto; }
+.wfield { flex:1; background:#fff; border:1px solid rgba(0,0,0,.12); border-radius:6px;
+  padding:3px 8px; font-size:12px; color:#1D1D1F;
+  font-family: "DejaVu Sans Mono", ui-monospace, monospace; }
+.btn.light { background:#fff; border:1px solid rgba(0,0,0,.14); border-radius:6px;
+  padding:3px 10px; font-size:12px; color:#1D1D1F; }
+.wdisc { font-size:12px; font-weight:600; color:#1D1D1F; margin:2px 0; }
+.car2 { color:#8E8E93; font-size:10px; }
+.ck2 { display:flex; flex-direction:column; gap:5px; }
+.ck.sub { margin-left: 20px; }
+.wedit { background:#fff; border:1px solid rgba(0,0,0,.12); border-radius:6px;
+  padding:6px 8px; font-size:12px; min-height:46px; color:#1D1D1F; }
+.wbtns { display:flex; margin-top:6px; gap:6px; }
+.wtips { display:flex; gap:8px; }
+.wtip { flex:1; text-align:center; background:#fff; border:1px solid rgba(0,0,0,.14);
+  border-radius:6px; padding:5px 0; font-size:12px; color:#1D1D1F; line-height:1.4; }
+.copy.narrow { width: 470px; }
 """
 
-def page(eyebrow, h1, sub, points, body, icon_uri, menubar_recording=False):
+def page(eyebrow, h1, sub, points, body, icon_uri, menubar_recording=False,
+         settings=False):
+    # settings=True のときはポップオーバーではなく設定ウィンドウ (SettingsPaneView、
+    # AppDelegate.openSettings の 400x560) を描く。ウィンドウのぶん文言ブロックは
+    # narrow に縮めて重なりを避ける
     mb = (f'<span class="mb-k"><span class="mb-dot"></span>00:12:34</span>'
           if menubar_recording else
           f'<span class="mb-k"><img src="{icon_uri}"></span>')
     pts = "".join(f"<li>{p}</li>" for p in points)
+    copy_cls = "copy narrow" if settings else "copy"
+    if settings:
+        desk = (f'<div class="win"><div class="wtb"><span class="tl r"></span>'
+                f'<span class="tl y"></span><span class="tl g"></span>'
+                f'<span class="wtb-t">kilde の設定</span></div>'
+                f'<div class="wbody">{body}</div></div>')
+    else:
+        desk = f'<div class="pop">{body}</div>'
     return f"""<html><head><meta charset="utf-8"><style>{CSS}</style></head><body>
 <div class="stage">
-  <div class="copy">
+  <div class="{copy_cls}">
     <div class="eyebrow"><img src="{icon_uri}">KILDE for macOS</div>
     <h1>{h1}</h1>
     <p class="sub">{sub}</p>
@@ -136,7 +203,7 @@ def page(eyebrow, h1, sub, points, body, icon_uri, menubar_recording=False):
       <span class="mb-app">Finder</span><span>ファイル</span><span>編集</span><span>表示</span>
       <span class="spacer"></span>{mb}<span>100%</span><span>14:22</span>
     </div>
-    <div class="desk"><div class="pop">{body}</div></div>
+    <div class="desk">{desk}</div>
   </div>
 </div></body></html>"""
 
@@ -190,6 +257,16 @@ SHOTS = [
                  "最近の録画から Finder へワンクリック",
                  "オープンソース (MIT) / 録画は Mac の外に出さない"],
          body=panel.panel_done()),
+    # 0.30.0 の主機能 (issue #478): «1 回設定すればよい» 項目の集約先としての
+    # 設定ウィンドウ。文面は実装にあることだけ (ホットキー・ログイン時起動・
+    # 会議の自動録画・プライバシー・チップが移設された)
+    dict(name="07-settings",
+         h1='録画はパネルに、<br>設定は<span class="hl">「設定」に</span>。',
+         sub="パネルの右上の歯車から設定ウィンドウが開きます。ホットキー、ログイン時起動、会議の自動録画、プライバシー設定はここにまとまっています。",
+         points=["まれに変える設定を 1 枚のウィンドウに集約",
+                 "グローバルホットキーで他アプリからでも開始・停止",
+                 "利用統計はここからいつでもオフにできる"],
+         body=panel.settings_pane(), settings=True),
 ]
 
 
@@ -218,7 +295,8 @@ async def main():
                   'コミット済みのスクリーンショットと変わります', file=sys.stderr)
         for s in SHOTS:
             await pg.set_content(page(None, s["h1"], s["sub"], s["points"], s["body"],
-                                      icon_uri, s.get("menubar_recording", False)))
+                                      icon_uri, s.get("menubar_recording", False),
+                                      s.get("settings", False)))
             await pg.wait_for_timeout(180)
             await pg.screenshot(path=str(OUT / f"{s['name']}.png"))
         await b.close()

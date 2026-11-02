@@ -14,12 +14,12 @@ microphone, with optional on-device transcription of finished recordings.
 **Permissions requested during review testing:**
 
 - **Screen Recording**: required for the screen **and system audio (which
-  can include other participants' voices)**. After granting it, please
+  can include other participants' voices)**. After granting it,
   **restart the app** — macOS activates it only after a relaunch.
 - **Microphone**: records **your own voice**. You can decline it; recording
   still works (video + system audio).
 - **Calendar (opt-in, auto-recording only)**: applies a matched event title
-  to the recording file name, the start notification, and the transcript
+  to the file name, the start notification, and the transcript
   heading. macOS has no read-only calendar permission, so the request is
   full access, but **the app only reads events**; data stays on-device. If
   declined — or a lookup is still running when recording starts — the
@@ -35,24 +35,28 @@ microphone, with optional on-device transcription of finished recordings.
    a short clip with speech; a Markdown transcript is written next to the
    recording.
 
+Rarely changed settings (hotkey, launch at login, meeting auto-recording,
+analytics opt-out, tips, custom instructions) are in the **Settings
+window** (gear icon).
+
 **Data handling:** transcription and AI features run **entirely on this
 device** (SpeechTranscriber / Apple Intelligence). No audio, transcript,
 summary, or draft text is sent anywhere. A missing language model downloads
 from Apple (standard OS asset; your IP reaches Apple); otherwise it works
-offline. Recordings and transcripts are written
-to `~/Movies` or a user-picked folder (never inside the App Sandbox
-container). Outbound connections: usage analytics / crash reports (Firebase)
-and those downloads; none carries audio content.
+offline. Recordings and transcripts go to `~/Movies` or a user-picked
+folder (never inside the App Sandbox container). Outbound connections: Firebase Analytics (usage analytics),
+Crashlytics (post-crash reports), and those downloads; none carries audio
+content.
 
-**Meeting auto-recording (off by default):** detection is local; manual
-recordings are never stopped automatically.
+**Meeting auto-recording (off by default):** local detection only; manual
+recordings are never stopped.
 
-**Recording-consent note:** system audio can include other participants'
+**Consent note:** system audio can include other participants'
 voices; informing them is the user's responsibility.
 
 **In-app purchase — tips (v0.18.0):** the optional "Support this app"
-section offers three consumable tips (kilde.tip.*); standard StoreKit
-purchase. Nothing is gated.
+section in the Settings window offers three consumable tips (kilde.tip.*);
+standard StoreKit purchase. Nothing is gated.
 
 **In-app purchase — kilde Pro (v0.26.0 summaries, v0.28.0 follow-up
 drafts, v0.29.0 custom instructions):** one non-consumable, one-time
@@ -62,25 +66,23 @@ after purchase).
 
 - *Summaries:* without Pro, "Summarize after recording" is a locked row
   with a "Pro" badge; clicking it expands an inline purchase panel (price,
-  Buy — standard StoreKit purchase with your sandbox Apple ID — and
-  Restore). After purchase the row becomes the normal toggle. Enable
+  Buy — StoreKit purchase with your sandbox Apple ID — and
+  Restore). After purchase it becomes the normal toggle. Enable
   "Transcribe after recording" too (it is the input).
 - *Follow-up drafts (v0.28.0):* in the library window, a recording whose
   minutes (.md) include a summary shows "Draft a follow-up"; the sheet
   generates an email or chat draft from that summary (copy button).
-  Without Pro it is locked with a tooltip; without Apple Intelligence or
-  a summary it is disabled with the reason as a tooltip.
+  Without Pro it is locked (tooltip); without Apple Intelligence or a
+  summary it is disabled with the reason as a tooltip.
 - *Custom instructions (v0.29.0):* a "Custom instructions" disclosure in
-  the panel's summary section (tone, recipients, signature, points to
-  emphasize, free-form) applies to summaries and follow-up drafts; the
-  text stays on-device. Without Pro the locked row opens the same purchase
-  panel; without the entitlement, summaries are skipped with a notice
-  instead of being generated without the instructions, and follow-up
-  drafts likewise stop before generating and show the purchase notice.
+  the Settings window (tone, recipients, signature, points to emphasize,
+  free-form) applies to summaries and drafts; the text stays
+  on-device. Without Pro, the panel's locked rows open the purchase panel;
+  without the entitlement, summaries and drafts are skipped with a notice.
 
-**Recording and transcription are currently free.** If the price shows a
-loading placeholder, the product may not be visible yet; reopening the
-panel retries. The IAP's review screenshot shows the row and the panel.
+**Recording and transcription are currently free.** A loading price
+placeholder means the product is not visible yet; reopening the panel
+retries. The IAP's review screenshot shows the locked rows and the panel.
 
 ---
 ## 日本語 (参考訳 — 提出は英語版)
@@ -111,11 +113,11 @@ kilde.pro (日本では ¥2,800 の買い切り) 1 商品で 3 機能すべて�
 処理)。未購入ではロックされツールチップで設定パネルへの購入を案内、Apple
 Intelligence が使えない環境・要約のない録画では理由がツールチップに出ます。
 
-*カスタム指示 (v0.29.0):* 設定パネルの要約セクションに «カスタム指示» の
-開閉セクションがあり、トーン・宛先・署名・強調ポイント・自由記述を指定できます。
+*カスタム指示 (v0.29.0):* 設定ウィンドウ («文字起こしの詳細» セクション) の
+«カスタム指示» で、トーン・宛先・署名・強調ポイント・自由記述を指定できます。
 要約とフォローアップの下書きの両方に反映され、入力は端末内だけで使われます
-(外部送信なし)。未購入ではロック行が同じ購入導線を開きます。権利を失った
-あとは指示を無視して生成するのではなく、要約ごとスキップして案内を出します。
+(外部送信なし)。未購入ではパネルのロック行が同じ購入導線を開きます。権利を失った
+あとは指示を無視して生成するのではなく、要約・下書きごとスキップして案内を出します。
 
 Kilde はメニューバーから使う画面録画アプリで、システム音声とマイクを録音でき、
 録画の文字起こし (オプション) を備えています。
@@ -130,6 +132,10 @@ Kilde はメニューバーから使う画面録画アプリで、システム�
   拒否しても録画は機能します (映像 + システム音声)。
 
 **テスト手順:**
+
+めったに変更しない設定 (ホットキー、ログイン時起動、会議の自動録画、テレメトリの
+オプトアウト、チップ、カスタム指示) は **設定ウィンドウ** (パネルヘッダーの
+歯車アイコン) にあります。
 
 1. メニューバーアイコンから Kilde を開きます。
 2. 画面 (またはウィンドウ)・音声ソース・保存先を選びます。既定の保存先は `~/Movies`。
@@ -192,8 +198,8 @@ kilde は進行中の会議を検知して自動で録画できます (オプシ
 
 **アプリ内課金 — チップ (v0.18.0 で追加):**
 
-パネルの最下部に «アプリを応援» セクションがあり、消耗型のチップ商品
-(kilde.tip.small / kilde.tip.medium / kilde.tip.large) を 3 段階で送れます。
+設定ウィンドウの «アプリを応援» セクションに、消耗型のチップ商品
+(kilde.tip.small / kilde.tip.medium / kilde.tip.large) を 3 段階で送る導線があります。
 タップで標準の StoreKit 購入が始まり、システムの確認シートで完了します。
 セクションは App Store から商品一覧を取得できたときにのみ表示され、
 録画・文字起こしのすべての機能は購入なしで完全に利用できます。

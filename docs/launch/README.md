@@ -12,7 +12,7 @@ Show HN / r/macapps / Product Hunt への投稿に使う文案と素材の一式
 |---|---|---|
 | 投稿文案 (3 媒体) | このディレクトリ | ✅ 本 PR で作成 |
 | 想定質問への回答 | [faq.md](faq.md) | ✅ 本 PR で作成 (投稿時は最新の実態で読み替えること) |
-| スクリーンショット 6 枚 (2880×1800) | `docs/appstore/screenshots/` | ✅ 既存 (#266 で再生成したもの) |
+| スクリーンショット 7 枚 (2880×1800) | `docs/appstore/screenshots/` | ✅ 既存 (#266 で再生成、#481 で設定ウィンドウを追加) |
 | アプリアイコン | `docs/appstore/icon/` | ✅ 既存 (SVG) |
 | デモ動画 (60 秒 + App Store 30 秒) | kilde.site に掲載済み (`/` と `/ja/`)。生成は `docs/appstore/tools/video.py` (#399) | ✅ 生成・掲載済み (2026-10-20、kilde-site#18)。**App Store プレビュー (30 秒版) の ASC 登録は 0.23.0 版作成直後 (PREPARE_FOR_SUBMISSION の間) が最初の機会** (#426 / #160) — 素材は kilde-site `public/assets/demo/appstore/`。Product Hunt・Show HN でもそのまま使える |
 
