@@ -1,12 +1,14 @@
+import AppKit
 import Foundation
 import KildeCore
+import UniformTypeIdentifiers
 
-/// 録画ライブラリの «テキストに書き出す» (issue #329) の UI 無し検証。
+/// 録画ライブラリの文字起こしの持ち出し (issue #329 / #493) の UI 無し検証。
 /// 一時ディレクトリに **5 形式 (md / json / srt / vtt / txt) のサイドカー** を
-/// エンジンの TranscriptWriter で書き (実経路 — «録画後に文字起こし» と同じ)、「
-/// 走査 → 書き出しテキストの生成 → ファイルへの書き込み」を確かめる。
-/// 保存パネルは出さない (UI を伴う経路は手動確認) — パネルまでの純粋変換と、
-/// パネルで確定した後の書き込みの経路を検証する。
+/// エンジンの TranscriptWriter で書き (実経路 — «録画後に文字起こし» と同じ)、
+/// «走査 → 各形式の書き出しテキストの生成 → ファイルへの書き込み → クリップボード»
+/// を確かめる。保存パネルは出さない (UI を伴う経路は手動確認) — パネルまでの
+/// 純粋変換と、パネルで確定した後の書き込みの経路を検証する。
 /// 実録画を伴わないため、録画のスロット (画面収録・マイクの権限、スピーカー) を占有しない
 ///
 /// 使い方: `KILDE_GUI_SELFTEST_LIBRARY_EXPORT=1 <GUI>` (AppDelegate.runIfRequested から配線)
@@ -25,6 +27,60 @@ enum SelfTestLibraryExport {
     ]
     /// «[HH:MM:SS] 本文» の 1 行 = 1 セグメント + 末尾の改行 (TranscriptFormatter.plainText の契約)
     private static let expectedExport = "[00:00:10] 会議の冒頭のあいさつ\n[00:00:20] 締めのことば\n"
+    /// srt (issue #493)。SubRip の cue (番号 / `-->` はカンマ区切りのミリ秒 / 本文) を
+    /// エンジンの整形器の契約どおり期待する — GUI 側の写像 (話者 nil) が入っても
+    /// 出力が変わらないことを機械的に縛る。**末尾の改行は cue の連結後の契約**
+    /// (srt は各 cue を空行でつなぎ最後に 1 つの改行) のためリテラルの外で付ける。
+    /// こちらは **終了時刻を持つサイドカー (srt / vtt / json) 用**
+    private static let expectedSRT = """
+        1
+        00:00:10,000 --> 00:00:19,000
+        会議の冒頭のあいさつ
+
+        2
+        00:00:20,000 --> 00:00:30,000
+        締めのことば
+        """ + "\n"
+    /// vtt (issue #493)。先頭に WEBVTT、時刻の小数点はドット。末尾の改行は srt と同じ。
+    /// こちらは **終了時刻を持つサイドカー (srt / vtt / json) 用**
+    private static let expectedVTT = """
+        WEBVTT
+
+        1
+        00:00:10.000 --> 00:00:19.000
+        会議の冒頭のあいさつ
+
+        2
+        00:00:20.000 --> 00:00:30.000
+        締めのことば
+        """ + "\n"
+    /// 秒精度のサイドカー (txt / md) 用の srt。このパーサは **終了時刻を持たない** ため
+    /// «end = 次セグメントの開始» になり、**最終セグメント (end == start) は
+    /// 字幕の契約 (end > start) を満たさない** ため `minimumCueDuration` (2 秒) の
+    /// 下限で補われる (LibraryEntry.duration のコメントがパーサ契約の正本)。
+    /// «表示されない cue» を出さないための最小限の補正で、他の cue は
+    /// サイドカー由来の値のまま
+    private static let expectedSRTFromSecondPrecision = """
+        1
+        00:00:10,000 --> 00:00:20,000
+        会議の冒頭のあいさつ
+
+        2
+        00:00:20,000 --> 00:00:22,000
+        締めのことば
+        """ + "\n"
+    /// 秒精度のサイドカー (txt / md) 用の vtt (expectedSRTFromSecondPrecision と同理由)
+    private static let expectedVTTFromSecondPrecision = """
+        WEBVTT
+
+        1
+        00:00:10.000 --> 00:00:20.000
+        会議の冒頭のあいさつ
+
+        2
+        00:00:20.000 --> 00:00:22.000
+        締めのことば
+        """ + "\n"
 
     /// 合成する 5 形式。md は «議事録» (要約付き) も兼ねる — 要約が書き出しテキストに
     /// 混ざらないことを見るため
@@ -54,13 +110,52 @@ enum SelfTestLibraryExport {
                 check(false, "\(format) のパース (\(entry.segments?.count ?? -1) セグメント)")
                 continue
             }
+            // 終了時刻をサイドカーが持つか (持たない txt / md は «end = 次の開始» の
+            // パーサ契約に従う — expectedSRTFromSecondPrecision のコメントが正本)
+            let carriesEndTimes = (entry.transcriptURL?.pathExtension).map {
+                ["srt", "vtt", "json"].contains($0)
+            } ?? false
+            let expectedSRT = carriesEndTimes ? Self.expectedSRT : Self.expectedSRTFromSecondPrecision
+            let expectedVTT = carriesEndTimes ? Self.expectedVTT : Self.expectedVTTFromSecondPrecision
             // 受け入れ条件: どの形式のサイドカーからも同じ txt 形式で書き出せる
             check(LibraryTranscriptExport.plainText(segments) == expectedExport,
                   "\(format) から txt 形式を生成できる")
-            // 受け入れ条件: 既定のファイル名は録画のベース名 + .txt
+            // 受け入れ条件 (issue #493): srt / vtt はエンジンの整形器の契約どおり。
+            // どのサイドカー形式から始めても同じ出力になる («パース済みセグメントから
+            // 生成する» 契約の確認)
+            check((try? LibraryTranscriptExport.formatted(segments, as: .srt)) == expectedSRT,
+                  "\(format) から srt 形式を生成できる")
+            check((try? LibraryTranscriptExport.formatted(segments, as: .vtt)) == expectedVTT,
+                  "\(format) から vtt 形式を生成できる")
+            // 受け入れ条件 (issue #493): 既定のファイル名は録画のベース名 + 形式の拡張子
             let stem = entry.recordingURL.deletingPathExtension().lastPathComponent
-            check(LibraryTranscriptExport.defaultFileName(for: entry) == "\(stem).txt",
-                  "\(format) の既定のファイル名 (\(LibraryTranscriptExport.defaultFileName(for: entry)))")
+            let fileName = LibraryTranscriptExport.defaultFileName(for: entry, format: .srt)
+            check(fileName == "\(stem).srt",
+                  "\(format) の既定のファイル名 (\(fileName))")
+        }
+
+        // 受け入れ条件 (issue #493): 保存パネルの許可型が形式の拡張子に対応する。
+        // srt は UTType の定数が無い (動的型) ため、preferredFilenameExtension が
+        // 元の拡張子に戻ることまで確かめる («パネルで拡張子を固定する» 契約)
+        for format in LibraryTranscriptExport.supportedFormats {
+            let type = LibraryTranscriptExport.contentType(for: format)
+            check(type.preferredFilenameExtension == format.fileExtension,
+                  "\(format.fileExtension) の許可型が拡張子に対応する (\(type.identifier))")
+        }
+
+        // 受け入れ条件 (issue #493 / cubic 再レビュー指摘): 1ms 未満の cue も
+        // 出力の量子化 (ミリ秒 3 桁) 後に end > start を満たす。formatted は
+        // LibrarySegment を直接受けるため、サイドカーを経由せずに検証できる
+        do {
+            let subMillisecond = [LibrarySegment(start: 40, end: 40 + 0.0005, text: "一瞬のセグメント")]
+            let srt = try LibraryTranscriptExport.formatted(subMillisecond, as: .srt)
+            check(srt.contains("00:00:40,000 --> 00:00:42,000"),
+                  "1ms 未満の cue が表示できる長さに補われる (srt)")
+            let vtt = try LibraryTranscriptExport.formatted(subMillisecond, as: .vtt)
+            check(vtt.contains("00:00:40.000 --> 00:00:42.000"),
+                  "1ms 未満の cue が表示できる長さに補われる (vtt)")
+        } catch {
+            check(false, "1ms 未満の cue の整形 (\(error))")
         }
 
         // パネルで保存先が確定した後の書き込み。原子的に書け、内容が生成テキストと一致する。
@@ -71,8 +166,24 @@ enum SelfTestLibraryExport {
             try LibraryTranscriptExport.write(text: expectedExport, to: destination)
             check(try String(contentsOf: destination, encoding: .utf8) == expectedExport,
                   "書き込んだファイルが生成テキストと一致する")
+            // srt も同じ書き込み経路を通る (形式ごとの分岐は生成だけ)
+            let subtitleDestination = directory.appendingPathComponent("exported.srt")
+            try LibraryTranscriptExport.write(text: expectedSRT, to: subtitleDestination)
+            check(try String(contentsOf: subtitleDestination, encoding: .utf8) == expectedSRT,
+                  "srt の書き込みが生成テキストと一致する")
         } catch {
             check(false, "ファイルへの書き込み (\(error))")
+        }
+
+        // 受け入れ条件 (issue #493): «全文をコピー» の経路。クリップボードは
+        // セルフテスト実行者のものを上書きする (1 回だけ — 検証のための許容)。
+        // 計測は呼び出し側 (LibraryWindow) が送るため、ここではペーストボードの
+        // 登録が通ることだけを見る
+        if LibraryTranscriptExport.copyToPasteboard(expectedExport) {
+            check(NSPasteboard.general.string(forType: .string) == expectedExport,
+                  "クリップボードへのコピーが生成テキストと一致する")
+        } else {
+            check(false, "クリップボードへのコピー (setString が失敗)")
         }
 
         try? FileManager.default.removeItem(at: directory)

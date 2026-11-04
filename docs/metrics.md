@@ -34,7 +34,12 @@ App Store Connect で、このファイルは定義・手順・月次台帳**。
   `pro_purchase_start` / `pro_purchase_cancel` / `pro_purchase_pending` /
   `pro_purchase_fail` / `pro_unlocked` / `pro_restore_fail` (0.27.0〜。**MAS 版のみ
   発火** — 直接配布版は Pro 無料開放で購入 UI が存在しないため。パラメータは
-  `error_kind` のみ)
+  `error_kind` のみ)、`transcript_export` / `transcript_copy` (0.32.0〜。
+  ライブラリでの文字起こしの持ち出し — «どの形式で書き出されたか» と «コピーの
+  単位» を見る。パラメータは `format` (`txt` / `srt` / `vtt`) と `kind`
+  (`whole` / `segment`)。**どちらも新しいパラメータのため GA4 のカスタム
+  ディメンション登録が必要** — 下の «初回セットアップ» と «実施記録» を参照。
+  未登録の間は GA4 の制約で直近 30 分の値しか見られない)
 - **Pro / 要約系のパラメータは登録済みディメンション (`error_kind` /
   `recording_length` / `processing_time`) のみを使う** (issue #456) — 新しい
   カスタム定義の登録は不要。`pro_unlocked` は権利の false→true 遷移だけで
@@ -57,6 +62,12 @@ App Store Connect で、このファイルは定義・手順・月次台帳**。
 2. ユーザー プロパティとして `distribution_channel` と `recordings_bucket` を登録
 3. カスタム ディメンション (イベント スコープ) として `channel`、`recording_length`、
    `processing_time`、`error_kind` を登録
+4. 0.32.0 追加分: カスタム ディメンション (イベント スコープ) として `format`
+   (`transcript_export` の書き出し形式) と `kind` (`transcript_copy` のコピー単位) を
+   登録する。**2026-11-05 時点で未登録** — コンソール作業は ASC の CSV エクスポートと
+   同じく人間の作業のため、依頼者に依頼する (issue #493 の完了報告に記載)。登録の
+   前提条件は下の «検知用イベントの経緯» と同じ: GA4 は端末から受信済みのパラメータ
+   しか選べないため、0.32.0 の配布ビルドが 1 件以上イベントを送る必要がある
 
 ### 実施記録 (2026-09-28 〜 09-29。09-29 に 6/6 完了)
 

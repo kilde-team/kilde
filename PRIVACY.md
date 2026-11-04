@@ -1,6 +1,6 @@
 # プライバシーポリシー / Privacy Policy
 
-最終更新日 / Last updated: 2026-10-26
+最終更新日 / Last updated: 2026-11-05
 
 対象: kilde (macOS 用の画面・音声録画アプリ `Kilde` と `kilde` コマンドライン)
 
@@ -32,6 +32,11 @@ Slack の会議、YouTube またはその他の動画配信、その他のブラ
 bundleID やタイトルは含まれません。**
 文字起こし機能 (macOS 26 以降) の利用状況 (開始・完了・失敗・キャンセルの回数、
 処理時間と録音の長さの区分、失敗の種別) も同じ利用統計に含まれます。
+録画ライブラリでの文字起こしの持ち出し (ファイルへの書き出しとクリップボードへの
+コピー) の利用状況 (書き出した形式の区分 — テキスト / SubRip / WebVTT —、
+コピーの単位 — 全文または 1 セグメントの本文 —、それぞれの回数) も同じ利用統計に
+含まれます。書き出したファイルの名前や保存先、コピーしたテキストの内容は
+含まれません。
 会議の要約機能 (Pro) の利用状況 (要約の開始・完了・失敗・生成されなかった
 理由の区分と処理時間の区分)、フォローアップの下書き機能 (Pro) の利用状況
 (下書きの開始・完了・失敗の回数、処理時間の区分と失敗の種別)、Mac App Store 版の
@@ -193,7 +198,12 @@ or another app window) — is part of the same
 usage statistics. Usage of the transcription feature
 (macOS 26 or later) — counts of starts, completions, failures, cancellations,
 and automatic retries, coarse buckets for processing time and recording length,
-and the kind of failure — is part of the same usage statistics. Usage of the
+and the kind of failure — is part of the same usage statistics. Usage of taking
+transcripts out of the recording library (exporting to files and copying) —
+the exported format bucket (text / SubRip / WebVTT), the copy unit (the whole
+transcript or one segment's text), and their counts — is part of the same
+usage statistics. It never includes the exported file's name or location or
+the copied text itself. Usage of the
 meeting-summary feature (Pro) — counts of summary starts, completions, and
 failures, coarse buckets for processing time and recording length, the kind of
 failure, and the reason a summary was skipped — usage of the follow-up-draft
