@@ -458,15 +458,6 @@ El panel de grabación se ha reorganizado. El objetivo de captura, el audio, el 
 ## Novedades (0.31.0)
 
 Reducción de fallos de transcripción: la lista de idiomas sigue las locales que admite
-SpeechTranscriber (issue #486). El texto solo dice lo que existe (misma política que 0.28.0).
-
-```text
-Elegir el idioma de la transcripción es más fácil. La lista de idiomas de Ajustes muestra ahora todos los idiomas que la transcripción en este Mac admite (primero japonés e inglés, y los idiomas que aún hay que descargar se indican). Si el idioma de tu Mac no está admitido, los ajustes lo indican y la transcripción detecta el idioma a partir de la grabación. Las funciones de grabación no cambian.
-```
-
-## Novedades (0.31.0)
-
-Reducción de fallos de transcripción: la lista de idiomas sigue las locales que admite
 SpeechTranscriber (issue #486). El texto solo dice lo que existe (misma política que 0.28.0),
 con la condición de macOS 26 y el aviso de «no se transcribe cuando no se puede determinar».
 

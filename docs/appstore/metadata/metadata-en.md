@@ -458,15 +458,6 @@ The recording panel has been reorganized. The capture target, audio sources, the
 ## What's New (0.31.0)
 
 Reducing transcription failures — the language list now follows the locales SpeechTranscriber
-supports (issue #486). Copy states only what ships (same policy as 0.28.0).
-
-```text
-Choosing a transcription language is easier. The language list in Settings now shows every language supported by on-device transcription on this Mac (Japanese and English first, and languages that still need to be downloaded are marked). If your Mac's language is not supported, the setting says so, and transcription then detects the language from the recording. Recording features are unchanged.
-```
-
-## What's New (0.31.0)
-
-Reducing transcription failures — the language list now follows the locales SpeechTranscriber
 supports (issue #486). Copy states only what ships (same policy as 0.28.0). The macOS 26
 condition and the «no transcription when undetermined» caveat are stated because the
 detection is not guaranteed to succeed (cubic review — avoid copy that reads as guaranteed).
