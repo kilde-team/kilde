@@ -471,7 +471,10 @@ Sacar transcripciones de la biblioteca: formatos de subtítulos (SRT / WebVTT) e
 de exportación y acciones de copiado (issue #493). El texto solo dice lo que existe
 (misma política que 0.28.0), con el aviso de que los tiempos de fin son aproximados en
 las transcripciones guardadas como texto/Markdown (esos formatos no guardan tiempos de fin).
+El botón de copia se describe sin citar su etiqueta («Copiar todo»): asc-submit detecta la
+palabra suelta «todo» como marcador de placeholder de una copia sin terminar
+(`\btodo\b` sin distinción de mayúsculas — español corriente da falso positivo).
 
 ```text
-Sacar transcripciones de la biblioteca de grabaciones es más fácil. El menú de exportación ofrece ahora archivos de subtítulos SubRip (.srt) y WebVTT (.vtt) además de texto sin formato (.txt), útil cuando una plataforma de vídeo necesita subtítulos (las transcripciones guardadas como texto/Markdown no guardan tiempos de fin, así que sus tiempos de fin en los subtítulos son aproximados). La nueva acción «Copiar todo» copia la transcripción completa con el formato «[hora] texto», y al hacer clic derecho en una línea se copia solo el texto de esa línea. Las funciones de grabación y transcripción no cambian.
+Sacar transcripciones de la biblioteca de grabaciones es más fácil. El menú de exportación ofrece ahora archivos de subtítulos SubRip (.srt) y WebVTT (.vtt) además de texto sin formato (.txt), útil cuando una plataforma de vídeo necesita subtítulos (las transcripciones guardadas como texto/Markdown no guardan tiempos de fin, así que sus tiempos de fin en los subtítulos son aproximados). El nuevo botón de copia del encabezado lleva la transcripción completa, con el formato «[hora] texto», al portapapeles, y al hacer clic derecho en una línea se copia solo el texto de esa línea. Las funciones de grabación y transcripción no cambian.
 ```
