@@ -170,8 +170,10 @@ struct SettingsPaneView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                // 明示言語の適用範囲の案内 (issue #486 — cubic レビュー指摘)。«自動» と
-                // «端末の言語設定» はトラックごとに判定するが、明示言語は録音全体を
+                // 明示言語の適用範囲の案内 (issue #486 — cubic レビュー指摘)。«自動» は
+                // トラックごとに判定する (kilde#409)。「端末の言語設定» は端末ロケールが
+                // 対応のとき録音全体を端末ロケールで書き、非対応のときだけ録音から判定する
+                // (TranscriptionCoordinator のフォールバック)。明示言語は録音全体を
                 // その言語で書く (エンジンの transcribeWithSpeakers にロケール列を渡さない
                 // 経路)。«分離にしたのに話者ごとに言語が変わる» と期待すると裏切るため
                 if let selected = setup.transcriptLocale,
