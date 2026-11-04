@@ -347,8 +347,20 @@ final class TranscriptionCoordinator: ObservableObject {
                 // やり直し) は判定からやり直す — 同一音声への判定は決定論的で、やり直しの
                 // コストは数秒のため)
                 // resolve は throw しない設計 (判定不能はフォールバックに解決される)
+                // «端末の言語設定» (localeID == nil → localeID は端末ロケール) で端末ロケールが
+                // SpeechTranscriber 非対応のときは、モデル確認 (recognizeOnce の
+                // modelAssetStatus) が .unsupported で確実に落ちる経路の代わりに «自動» と
+                // 同じ録音からの判定へ倒す (issue #486)。GA4 の unsupported_locale
+                // (issue #478 コメント) の主因 «対応外の端末言語» をアプリ内で救える形にする。
+                // «自動» の判定候補は対応ロケールで絞られる (LocaleAutoDetector.defaultCandidates)
+                // ので、判定に成功したトラックは必ず対応ロケールで書かれる
+                let fallbackSupported = await Self.isLocaleSupported(localeID)
                 let perTrackLocales: [String?]?
-                if localeAuto {
+                if localeAuto || !fallbackSupported {
+                    if !localeAuto {
+                        Self.logger.info(
+                            "device locale \(localeID, privacy: .public) is unsupported; falling back to per-track detection (issue #486)")
+                    }
                     self.setPhase(.detectingLocale, for: job)
                     perTrackLocales = await Self.resolveAutoLocales(
                         recordingURL: job.recordingURL, fallbackID: localeID)
@@ -356,6 +368,17 @@ final class TranscriptionCoordinator: ObservableObject {
                         "locale auto-detection resolved: \(perTrackLocales?.compactMap { $0 }.joined(separator: ", ") ?? "-", privacy: .public)")
                     // 判定中のキャンセルは resolve が握るのでここで明示的に中止にする
                     try Task.checkCancellation()
+                    // 判定不能のトラックはフォールバック (端末ロケール) で書かれる契約
+                    // (kilde-cli-swift#131) だが、端末ロケール自体が非対応のときはその契約が
+                    // unsupported_locale に化けてしまう。対応済みのロケールで誤言語の全文を
+                    // でっち上げるより «対応言語を選んで» と案内して止める — 誤判定の全文は
+                    // 黙って生成される分、質として悪い (案内は UnsupportedDeviceLocaleError)。
+                    // 判定は SelfTest からも確かめられる純関数 (needsLocaleGuidance) に
+                    // 抽出してある
+                    if Self.needsLocaleGuidance(
+                        perTrackLocales: perTrackLocales, fallbackSupported: fallbackSupported) {
+                        throw UnsupportedDeviceLocaleError(localeIdentifier: localeID)
+                    }
                 } else {
                     perTrackLocales = nil
                 }
@@ -589,7 +612,13 @@ final class TranscriptionCoordinator: ObservableObject {
                 fileURL: recordingURL,
                 trackIndex: trackIndex,
                 deviceLocaleIdentifier: fallbackID)
-            locales.append(resolution.localeIdentifier)
+            // 判定不能は **nil** に写す («このトラックは localeID (フォールバック) で
+            // 書き起こす» — transcribeWithSpeakers の nil 契約)。書き起こしに使う
+            // ロケール自体は判定結果と同じ (fallbackID) なので従来の挙動は変わらないが、
+            // «判定できた» と «判定不能でフォールバック» を区別しないと、フォールバック
+            // 自体が SpeechTranscriber 非対応のとき (issue #486) に案内付きの失敗へ
+            // 分岐できなくなる
+            locales.append(resolution.detected ? resolution.localeIdentifier : nil)
         }
         return locales
     }
@@ -599,6 +628,44 @@ final class TranscriptionCoordinator: ObservableObject {
     private static func orderedUnique(_ identifiers: [String]) -> [String] {
         var seen = Set<String>()
         return identifiers.filter { seen.insert($0).inserted }
+    }
+
+    /// «フォールバック (端末ロケール) が非対応» のときに、判定不能のトラックを
+    /// UnsupportedDeviceLocaleError (対応言語の選択を促す案内) にするかどうかの
+    /// 純関数 (issue #486)。perTrackLocales の nil 要素 = «判定不能でフォールバック»
+    /// (resolveAutoLocales が写す) を見る。
+    ///
+    /// 合成音声での実経路テストは «判定不能» を再現できない (SpeakerTranscript.swift
+    /// «無音トラックの誤検出» — 純粋な無音でも SpeechTranscriber が短いセグメントを
+    /// 出すことがある実測があり、判定が undetermined にならない)。そのためこの
+    /// 分岐はセルフテスト (KILDE_GUI_SELFTEST_LOCALE_GUIDANCE) でこの純関数を
+    /// 直接確かめる
+    nonisolated static func needsLocaleGuidance(perTrackLocales: [String?]?, fallbackSupported: Bool) -> Bool {
+        !fallbackSupported && perTrackLocales?.contains(nil) == true
+    }
+
+    /// 指定ロケールが SpeechTranscriber の対応一覧に載るか (issue #486)。
+    /// «端末の言語設定» の非対応フォールバックの分岐に使う。対応一覧が空の環境
+    /// (macOS 26 未満・SpeechTranscriber 無効) は «対応» 扱いにして従来挙動を保つ —
+    /// transcriptionAvailable のゲート (RecordingSetup) を通った実行が前提なので、
+    /// 一覧照会の結果を使えない環境まで録画後の文字起こしごと落とすべきではない
+    ///
+    /// セルフテスト用の足場: KILDE_GUI_SELFTEST_FAKE_UNSUPPORTED_LOCALE で指定した
+    /// ロケールを «非対応» と見せる。実機では再現が難しい «端末言語が対応外» の経路
+    /// («端末の言語設定» のフォールバック) を、この Mac (ja-JP) でも検証できるようにする
+    /// ため。SelfTest の起動ゲートを通っていないときは読まない — 一般利用で
+    /// 環境変数を置かれても挙動が変わらない
+    static func isLocaleSupported(_ identifier: String) async -> Bool {
+        if let fake = ProcessInfo.processInfo
+            .environment["KILDE_GUI_SELFTEST_FAKE_UNSUPPORTED_LOCALE"],
+           !fake.isEmpty,
+           SelfTest.isActive,
+           Transcriber.normalizedBCP47(fake) == Transcriber.normalizedBCP47(identifier) {
+            return false
+        }
+        let supported = await Transcriber.supportedLocales()
+        guard !supported.isEmpty else { return true }
+        return supported.contains(Transcriber.normalizedBCP47(identifier))
     }
 
     /// 実行する録画の保存先フォルダの security-scoped bookmark データ (issue #192)。
@@ -893,6 +960,9 @@ final class TranscriptionCoordinator: ObservableObject {
     /// 入るおそれがあり、計測側は «値は列挙に閉じる» 規約 (UsageAnalytics.errorKind)
     private static func diagnosticDetail(_ error: Error, includeUserInfo: Bool) -> String? {
         if error is TranscriptionError { return nil }
+        // 案内付きエラー (issue #486) も説明を自前で持つ (TranscriptionError と同じ扱い) —
+        // NSError 橋替えの domain / code は診断にならず、失敗表示のノイズになるだけ
+        if error is UnsupportedDeviceLocaleError { return nil }
         var parts: [String] = []
         var current: NSError = error as NSError
         // 連鎖は実運用で 2〜3 段。上限は異常な連鎖 (循環は通常あり得ないが) に対する防御
@@ -925,3 +995,23 @@ final class TranscriptionCoordinator: ObservableObject {
         return flattened.prefix(120) + "…"
     }
 }
+
+/// «端末の言語設定» のロケールが SpeechTranscriber 非対応で、かつ録音からの言語判定も
+/// できなかったときの案内付きエラー (issue #486)。TranscriptionError はエンジンの語彙
+/// (kilde-cli-swift 側で閉じる) なので GUI 側で定義する。fail 経路の describe は
+/// LocalizedError の errorDescription をそのまま出すため、失敗通知とライブラリの
+/// «再試行» 行にこの案内文が載る。計測では UsageAnalytics.errorKind が専用の区分
+/// (unsupported_device_locale) に振り分ける — unsupported_locale を減らした結果
+/// «判定でも救えなかった残り» がいくら残るかを次の月次 GA4 で読めるようにするため
+struct UnsupportedDeviceLocaleError: LocalizedError, CustomStringConvertible {
+    let localeIdentifier: String
+
+    var errorDescription: String? {
+        "端末の言語 (\(localeIdentifier)) は文字起こしに対応しておらず、録音からの言語判定もできませんでした。メニューバーのパネルから «設定» を開き、«文字起こしの詳細» で対応言語を選んでください"
+    }
+
+    var description: String {
+        errorDescription ?? "unsupported device locale (\(localeIdentifier))"
+    }
+}
+

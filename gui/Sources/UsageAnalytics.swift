@@ -463,6 +463,11 @@ enum UsageAnalytics {
     /// エラーの種別。**返す値はこの列挙に閉じる** — 付帯文字列や localizedDescription
     /// をそのまま送ると、ロケール ID やパスが含まれるおそれがある
     private static func errorKind(_ error: Error) -> String {
+        // «端末言語非対応 + 判定不能» の案内付き失敗 (issue #486)。issue #486 は
+        // unsupported_locale を «端末の言語設定» の録音からの判定フォールバックで
+        // 減らす変更で、この区分が増える = «判定でも救えなかった残り» を数える先。
+        // 次の月次 GA4 (issue #478 の再判定サイクル) で効果を読めるようにするため
+        if error is UnsupportedDeviceLocaleError { return "unsupported_device_locale" }
         if let e = error as? TranscriptionError {
             switch e {
             case .unavailable: return "unavailable"
