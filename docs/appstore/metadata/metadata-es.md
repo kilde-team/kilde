@@ -454,3 +454,12 @@ distribución, y así se indica.
 El panel de grabación se ha reorganizado. El objetivo de captura, el audio, el interruptor de transcripción y el destino siguen en el panel. Los ajustes que se cambian rara vez (atajo de teclado, inicio automático al iniciar sesión, grabación automática de reuniones, privacidad y más) y los detalles de la transcripción (idioma, formato y más) se agrupan ahora en una nueva ventana de Ajustes, que se abre con el icono de engranaje de la cabecera del panel. La grabación, la transcripción y los resúmenes no cambian.
 ```
 
+
+## Novedades (0.31.0)
+
+Reducción de fallos de transcripción: la lista de idiomas sigue las locales que admite
+SpeechTranscriber (issue #486). El texto solo dice lo que existe (misma política que 0.28.0).
+
+```text
+Elegir el idioma de la transcripción es más fácil. La lista de idiomas de Ajustes muestra ahora todos los idiomas que la transcripción en este Mac admite (primero japonés e inglés, y los idiomas que aún hay que descargar se indican). Si el idioma de tu Mac no está admitido, los ajustes lo indican y la transcripción detecta el idioma a partir de la grabación. Las funciones de grabación no cambian.
+```
