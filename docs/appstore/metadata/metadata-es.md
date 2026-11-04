@@ -464,3 +464,14 @@ con la condición de macOS 26 y el aviso de «no se transcribe cuando no se pued
 ```text
 Elegir el idioma de la transcripción es más fácil (la transcripción requiere macOS 26 o posterior). La lista de idiomas de Ajustes muestra ahora todos los idiomas que la transcripción en este Mac admite (primero japonés e inglés, y los idiomas que aún hay que descargar se indican). Si el idioma de tu Mac no está admitido, los ajustes lo indican y la transcripción detecta el idioma a partir de la grabación. Cuando no puede determinar el idioma, no se transcribe y se te pide elegir un idioma admitido en Ajustes. Las funciones de grabación no cambian.
 ```
+
+## Novedades (0.32.0)
+
+Sacar transcripciones de la biblioteca: formatos de subtítulos (SRT / WebVTT) en el menú
+de exportación y acciones de copiado (issue #493). El texto solo dice lo que existe
+(misma política que 0.28.0), con el aviso de que los tiempos de fin son aproximados en
+las transcripciones guardadas como texto/Markdown (esos formatos no guardan tiempos de fin).
+
+```text
+Sacar transcripciones de la biblioteca de grabaciones es más fácil. El menú de exportación ofrece ahora archivos de subtítulos SubRip (.srt) y WebVTT (.vtt) además de texto sin formato (.txt), útil cuando una plataforma de vídeo necesita subtítulos (las transcripciones guardadas como texto/Markdown no guardan tiempos de fin, así que sus tiempos de fin en los subtítulos son aproximados). La nueva acción «Copiar todo» copia la transcripción completa con el formato «[hora] texto», y al hacer clic derecho en una línea se copia solo el texto de esa línea. Las funciones de grabación y transcripción no cambian.
+```
