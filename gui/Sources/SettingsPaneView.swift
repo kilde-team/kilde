@@ -113,8 +113,9 @@ struct SettingsPaneView: View {
         // (loadProducts は二重取得を Coordinator 側で防ぐ)
         .onAppear {
             Task { await tips.loadProducts() }
-            // 対応ロケールの一覧も表示時に取り寄せる (issue #486 — loadIfNeeded は冪等)
-            localeCatalog.loadIfNeeded()
+            // 対応ロケールの一覧も表示時に取り寄せる (issue #486 — refresh は
+            // 毎回呼んでよい。2 回目以降は installed フラグの再取得になる)
+            localeCatalog.refresh()
             // カレンダー権限 (issue #393) も表示時に取り直す — «システム設定で
             // 許可する…» ボタンで許可して戻った直後に案内を更新するため
             // (EventKit は権限の変化を通知しない)
@@ -125,6 +126,9 @@ struct SettingsPaneView: View {
         .onReceive(NotificationCenter.default.publisher(
             for: NSApplication.didBecomeActiveNotification)) { _ in
             meetingAutoRecorder.refreshCalendarStatus()
+            // 対応ロケールも取り直す — 設定を開いたまま文字起こしが走ってモデルを
+            // 取得したあとに «未取得» が残るのを防ぐ (issue #486 — cubic レビュー指摘)
+            localeCatalog.refresh()
         }
     }
 
@@ -166,6 +170,17 @@ struct SettingsPaneView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                // 明示言語の適用範囲の案内 (issue #486 — cubic レビュー指摘)。«自動» と
+                // «端末の言語設定» はトラックごとに判定するが、明示言語は録音全体を
+                // その言語で書く (エンジンの transcribeWithSpeakers にロケール列を渡さない
+                // 経路)。«分離にしたのに話者ごとに言語が変わる» と期待すると裏切るため
+                if let selected = setup.transcriptLocale,
+                   selected.lowercased() != "auto" {
+                    Text("言語を指定すると録音全体をその言語で文字起こしします。トラックごとに言語を判定するには「自動 (録音から判定)」を選んでください")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 // 対応外の選択への警告 (issue #486)。表示のみで挙動は変えない —
                 // «端末の言語設定» 非対応時の実行時フォールバックは
                 // TranscriptionCoordinator が担う

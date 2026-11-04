@@ -347,16 +347,26 @@ final class TranscriptionCoordinator: ObservableObject {
                 // やり直し) は判定からやり直す — 同一音声への判定は決定論的で、やり直しの
                 // コストは数秒のため)
                 // resolve は throw しない設計 (判定不能はフォールバックに解決される)
-                // «端末の言語設定» (localeID == nil → localeID は端末ロケール) で端末ロケールが
-                // SpeechTranscriber 非対応のときは、モデル確認 (recognizeOnce の
-                // modelAssetStatus) が .unsupported で確実に落ちる経路の代わりに «自動» と
-                // 同じ録音からの判定へ倒す (issue #486)。GA4 の unsupported_locale
-                // (issue #478 コメント) の主因 «対応外の端末言語» をアプリ内で救える形にする。
-                // «自動» の判定候補は対応ロケールで絞られる (LocaleAutoDetector.defaultCandidates)
-                // ので、判定に成功したトラックは必ず対応ロケールで書かれる
-                let fallbackSupported = await Self.isLocaleSupported(localeID)
+                // «端末の言語設定» (job.localeID == nil) で端末ロケールが SpeechTranscriber
+                // 非対応のときは、モデル確認 (recognizeOnce の modelAssetStatus) が
+                // .unsupported で確実に落ちる経路の代わりに «自動» と同じ録音からの判定へ
+                // 倒す (issue #486)。GA4 の unsupported_locale (issue #478 コメント) の主因
+                // «対応外の端末言語» をアプリ内で救える形にする。«自動» の判定候補は
+                // 対応ロケールで絞られる (LocaleAutoDetector.defaultCandidates) ので、
+                // 判定に成功したトラックは必ず対応ロケールで書かれる。
+                // **明示ロケール (手編集 config.json を含む) はフォールバックしない** —
+                // ユーザーが選んだ言語を黙って別言語の判定に差し替えると «選んだ言語で
+                // 書かれる» の期待を裏切るため、従来どおり modelAssetStatus の
+                // .unsupported で落ちる (cubic / CodeRabbit レビュー指摘。Settings の
+                // selectionWarning の文言と実挙動を一致させる)
+                let fallbackSupported: Bool
+                if localeAuto || job.localeID == nil {
+                    fallbackSupported = await Self.isLocaleSupported(localeID)
+                } else {
+                    fallbackSupported = true  // 明示ロケール経路では参照しない
+                }
                 let perTrackLocales: [String?]?
-                if localeAuto || !fallbackSupported {
+                if localeAuto || (job.localeID == nil && !fallbackSupported) {
                     if !localeAuto {
                         Self.logger.info(
                             "device locale \(localeID, privacy: .public) is unsupported; falling back to per-track detection (issue #486)")

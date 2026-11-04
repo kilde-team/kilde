@@ -11,9 +11,17 @@ import KildeCore
 /// (`Transcriber.installedLocales`) を取り寄せ、Settings の Picker と警告文に供給する。
 ///
 /// 取り寄せは macOS 26 以降の Speech API を叩くが、どちらもこの端末のローカル照会で
-/// ネットワーク送信は無い。ロードは Settings を開いたときの 1 回だけ
-/// (SettingsPaneView.onAppear → loadIfNeeded)。ウィンドウは openSettings が再利用する
-/// (閉じても解放しない) ので、StateObject もアプリ生存中の 1 インスタンスで済む。
+/// ネットワーク送信は無い。ロードは Settings を開いたとき (onAppear) と、
+/// アプリが active に戻ったときに走らせる (refresh — 下のコメント参照)。
+/// ウィンドウは openSettings が再利用する (閉じても解放しない) ので、StateObject も
+/// アプリ生存中の 1 インスタンスで済む。
+///
+/// **@MainActor で隔離する理由**: @Published を SwiftUI が購読するため、API 呼び出し
+/// (await) の後に来る状態更新をメインアクターに固定する — 非隔離のまま Task を作ると
+/// バックグラウンド publish になり、設定画面の更新が不定になる (cubic / CodeRabbit
+/// レビュー指摘)。呼び出し側 (SettingsPaneView の onAppear / onReceive) は
+/// いずれもメインアクター上にある
+@MainActor
 final class TranscriptionLocaleCatalog: ObservableObject {
     struct Entry: Identifiable, Hashable {
         /// 正規化済み BCP 47 (エンジン `supportedLocales` の戻り値と同じ形。小文字、
@@ -45,23 +53,30 @@ final class TranscriptionLocaleCatalog: ObservableObject {
     @Published private(set) var deviceLocaleSupported = true
     @Published private(set) var loaded = false
 
-    private var loadTask: Task<Void, Never>?
+    private var refreshTask: Task<Void, Never>?
 
-    /// Settings 表示時の取り寄せ。冪等 — 2 回目以降は何もしない
-    func loadIfNeeded() {
-        guard loadTask == nil else { return }
-        loadTask = Task { [weak self] in
+    /// Settings 表示時の取り寄せ。**毎回呼んでよい** — 初回は一覧を組み立て、
+    /// 以降は installed フラグと一覧の再取得になる (2 つ目以降の呼び出しは
+    /// 実行中タスクがあれば何もしない)。毎回取り直す理由: 文字起こしの実行で
+    /// 言語モデルを取得したあとに «未取得» 表示が残ると誤案内になるため
+    /// (cubic レビュー指摘)。ウィンドウは再利用され onAppear が再実行されない
+    /// ことがあるため、didBecomeActive からも呼ぶ
+    func refresh() {
+        guard refreshTask == nil else { return }
+        refreshTask = Task { [weak self] in
             await self?.load()
+            self?.refreshTask = nil
         }
     }
 
-    /// 取り寄せに失敗しても Picker を壊さない (entries は空のまま «端末 / 自動 / 手編集値»
-    /// の従来形で動く — 機能の後退ではなく、動的列挙が付かないだけに倒す)
+    /// 一覧の組み立てと再取得。失敗しても Picker を壊さない (entries は空のまま
+    /// «端末 / 自動 / 手編集値» の従来形で動く — 機能の後退ではなく、動的列挙が
+    /// 付かないだけに倒す)
     private func load() async {
         // transcriptionAvailable のゲート (RecordingSetup) を通った呼び出しが前提。
         // 非対応環境では何もしない — 非対応の案内は既存の
         // transcriptionUnsupportedReason が担う (役割を二重にしない)
-        guard Transcriber.isSupported, !loaded else { return }
+        guard Transcriber.isSupported else { return }
         let supported = await Transcriber.supportedLocales()
         let installed = await Transcriber.installedLocales()
         let device = Transcriber.normalizedBCP47(Locale.current.identifier(.bcp47))
@@ -95,7 +110,11 @@ final class TranscriptionLocaleCatalog: ObservableObject {
         }
         entries = out
         deviceLocaleIdentifier = device
-        deviceLocaleSupported = supported.contains(device)
+        // 空の一覧は «照会結果なし» として «対応» 扱いにする — 実行時判定
+        // (TranscriptionCoordinator.isLocaleSupported) と同じ折り方。片側だけが
+        // 非対応と判定すると、UI は «録音から判定» へのフォールバックを案内するのに
+        // 実行時は通常の端末ロケール経路になり、利用者を誤誘導する (cubic レビュー指摘)
+        deviceLocaleSupported = supported.isEmpty || supported.contains(device)
         loaded = true
     }
 

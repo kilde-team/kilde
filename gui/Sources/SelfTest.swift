@@ -135,12 +135,12 @@ enum SelfTest {
             AppDelegate.shared?.openSettings()
             print("selftest: settings opened holding 20s")
             fflush(stdout)
-            // Picker と同じデータ経路 (loadIfNeeded → supportedLocales / installedLocales)
+            // Picker と同じデータ経路 (refresh → supportedLocales / installedLocales)
             // を実環境で確かめて stdout に出す — «対応言語が並ぶこと» の受け入れ条件を
             // 機械検証するため (ターミナルからの screencapture は画面収録権限が要るため
             // 画像での自動検証はしない。ウィンドウは 20 秒開くので目視でも確認できる)
             let catalog = TranscriptionLocaleCatalog()
-            catalog.loadIfNeeded()
+            catalog.refresh()
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
                 print("selftest: locale catalog loaded=\(catalog.loaded)"
