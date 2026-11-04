@@ -408,6 +408,44 @@ enum UsageAnalytics {
         return "model_error"
     }
 
+    // MARK: - ライブラリの文字起こしの持ち出し (issue #493)
+
+    /// 無料機能 (ライブラリ) の実利用計測。両チャネルで発火する。
+    /// «録画後の文字起こしをどの経路で持ち出しているか» を見る — 書き出しの形式の
+    /// 分布が «次に広げる形式» (md や hit 行書き出しの判断) の材料になる。
+    /// window_service (#429) と同じ «実現したこと» を数える方針: 書き出しは
+    /// 保存の確定後、コピーはクリップボードへの登録が通ったときだけ送る
+    /// (キャンセル・失敗は数えない)
+
+    /// 書き出し形式。**値はこの列挙に閉じる** (エンジン TranscriptOutputFormat の
+    /// rawValue と同じ語彙だが、GUI の書き出し入口で許可した 3 形式のみ —
+    /// md / json は書き出し対象外のため含めない)
+    enum TranscriptExportFormat: String {
+        case txt
+        case srt
+        case vtt
+    }
+
+    /// 文字起こしのコピーの単位。**値はこの列挙に閉じる**
+    enum TranscriptCopyKind: String {
+        /// 文字起こし全体 («全文をコピー»)
+        case whole
+        /// 1 セグメントの本文 (セグメント行のコンテキストメニュー)
+        case segment
+    }
+
+    /// ライブラリで文字起こしをファイルに書き出した (保存パネルの確定と書き込みの後)
+    static func transcriptExport(format: TranscriptExportFormat) {
+        guard isEnabled else { return }
+        Analytics.logEvent("transcript_export", parameters: ["format": format.rawValue])
+    }
+
+    /// ライブラリで文字起こしをクリップボードへコピーした
+    static func transcriptCopy(kind: TranscriptCopyKind) {
+        guard isEnabled else { return }
+        Analytics.logEvent("transcript_copy", parameters: ["kind": kind.rawValue])
+    }
+
     /// パラメータなし (または error_kind のみ) のイベント用。録画長などの
     /// バケットを載せる既存 `log` と別にしたのは、Pro のUI 系イベントには
     /// «関連する録画» が無い (ロック行の表示は録画と結び付かない) ため

@@ -107,9 +107,10 @@ enum SelfTest {
             SelfTestLibrarySearch.run()
             return
         }
-        // KILDE_GUI_SELFTEST_LIBRARY_EXPORT=1: ライブラリの «テキストに書き出す» の検証
-        // (issue #329)。5 形式のサイドカーを合成し、«ライブラリ表示と同じセグメント列から
-        // txt 形式を生成できる» を確かめる。保存パネルは出さない — UI を伴う経路は手動確認。
+        // KILDE_GUI_SELFTEST_LIBRARY_EXPORT=1: ライブラリの文字起こしの持ち出しの検証
+        // (issue #329 / #493)。5 形式のサイドカーを合成し、«ライブラリ表示と同じ
+        // セグメント列から txt / srt / vtt を生成できる» と «クリップボードへ
+        // コピーできる» を確かめる。保存パネルは出さない — UI を伴う経路は手動確認。
         // 実録画を伴わないため録画のスロット (権限・スピーカー) を占有しない
         if env["KILDE_GUI_SELFTEST_LIBRARY_EXPORT"] == "1" {
             SelfTestLibraryExport.run()

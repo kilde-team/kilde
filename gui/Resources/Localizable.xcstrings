@@ -1,6 +1,254 @@
 {
   "sourceLanguage": "ja",
   "strings": {
+    
+      "全文をコピー": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Copy All"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Copiar todo"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "전체 복사"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "复制全文"
+            }
+          }
+        }
+      }
+    ,
+    
+      "書き出す": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Export"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Exportar"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "내보내기"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "导出"
+            }
+          }
+        }
+      }
+    ,
+    
+      "このセグメントをコピー": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Copy This Segment"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Copiar este segmento"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "이 세그먼트 복사"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "复制此分段"
+            }
+          }
+        }
+      }
+    ,
+    
+      "文字起こしをファイルに保存": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Save Transcript to File"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Guardar transcripción en un archivo"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "텍스트 변환을 파일로 저장"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "将转写文本保存到文件"
+            }
+          }
+        }
+      }
+    ,
+    
+      "表示中の文字起こし全体を保存します。検索中でも録画全体が対象です": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Saves the entire transcript. The whole recording is exported even while searching"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Guarda la transcripción completa. Se exporta toda la grabación, incluso durante una búsqueda"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "전체 텍스트 변환을 저장합니다. 검색 중에도 녹화 전체가 대상입니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "保存完整转写文本。即使在搜索中也以整段录像为对象"
+            }
+          }
+        }
+      }
+    ,
+    
+      "文字起こしを保存できませんでした": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Could not save the transcript"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No se ha podido guardar la transcripción"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "텍스트 변환을 저장하지 못했습니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "无法保存转写文本"
+            }
+          }
+        }
+      }
+    ,
+    
+      "文字起こし全体を «[時刻] 本文» の形でクリップボードにコピーします": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Copies the entire transcript as “[time] text” to the clipboard"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Copia toda la transcripción con el formato «[hora] texto» al portapapeles"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "전체 텍스트 변환을 «[시간] 본문» 형태로 클립보드에 복사합니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "以「[时间] 正文」的形式将整个转写文本拷贝到剪贴板"
+            }
+          }
+        }
+      }
+    ,
+    
+      "文字起こし全体をファイルに保存します (.txt / .srt / .vtt を選べます)": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Saves the entire transcript to a file (.txt / .srt / .vtt)"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Guarda toda la transcripción en un archivo (.txt / .srt / .vtt)"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "전체 텍스트 변환을 파일로 저장합니다 (.txt / .srt / .vtt 선택 가능)"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "将整个转写文本保存为文件（.txt / .srt / .vtt）"
+            }
+          }
+        }
+      }
+    ,
     "会議": {
       "extractionState": "manual",
       "localizations": {

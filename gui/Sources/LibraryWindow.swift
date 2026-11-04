@@ -859,9 +859,11 @@ private struct LibraryDetailView: View {
 
     private var segmentList: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // ヘッダー行。検索中はヒット数、常に右端に «テキストに書き出す» (issue #329)。
-            // 書き出しは検索の絞り込みに関わらず **録画全体の文字起こし** を対象にする —
-            // «持ち出したいのは表示中の録画の全文» で、ヒット行だけの需要はコピーで足りる
+            // ヘッダー行。検索中はヒット数、常に右端に «全文をコピー» と «書き出す»
+            // (issue #329 / #493)。書き出しは検索の絞り込みに関わらず
+            // **録画全体の文字起こし** を対象にする — «持ち出したいのは表示中の
+            // 録画の全文» で、ヒット行だけの需要は (#329 PR の見込みどおり)
+            // このヘッダーの «全文をコピー» と行の «このセグメントをコピー» で足りる
             HStack(spacing: 8) {
                 if !query.isEmpty {
                     Text(String(localized: "ヒット \(rows.count) 件 / 全 \(entry.segments?.count ?? 0) セグメント"))
@@ -869,14 +871,8 @@ private struct LibraryDetailView: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button {
-                    LibraryTranscriptExport.exportTranscript(of: entry)
-                } label: {
-                    Label(String(localized: "テキストに書き出す"), systemImage: "square.and.arrow.down")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .help("文字起こし全体をテキストファイル (.txt) に保存します")
+                copyWholeButton
+                exportMenu
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
@@ -884,6 +880,14 @@ private struct LibraryDetailView: View {
                 List(rows) { row in
                     LibrarySegmentRow(text: row.text, query: query, start: row.start) {
                         playback.seek(to: row.start)
+                    }
+                    // 行は «クリックでシーク» のボタンのため本文をテキスト選択できない
+                    // (LibrarySegmentRow)。その分、コンテキストメニューで本文を
+                    // 持ち出せるようにする (issue #493)
+                    .contextMenu {
+                        Button(String(localized: "このセグメントをコピー")) {
+                            copySegment(row.text)
+                        }
                     }
                     .id(row.id)
                 }
@@ -894,6 +898,52 @@ private struct LibraryDetailView: View {
                     if let first = rows.first { proxy.scrollTo(first.id) }
                 }
             }
+        }
+    }
+
+    /// «全文をコピー»。txt 書き出しと同じ «[時刻] 本文» の形でクリップボードへ
+    /// 入れる — «書き出しと同じものが手軽に取れる» ため (issue #493)
+    private var copyWholeButton: some View {
+        Button {
+            guard let segments = entry.segments, !segments.isEmpty else { return }
+            if LibraryTranscriptExport.copyToPasteboard(
+                LibraryTranscriptExport.plainText(segments)) {
+                UsageAnalytics.transcriptCopy(kind: .whole)
+            }
+        } label: {
+            Label(String(localized: "全文をコピー"), systemImage: "doc.on.doc")
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        // 空のセグメント列は (サイドカーは必ず 1 行以上を持つが) 防御として無効化
+        .disabled(entry.segments?.isEmpty != false)
+        .help(String(localized: "文字起こし全体を «[時刻] 本文» の形でクリップボードにコピーします"))
+    }
+
+    /// «書き出す»。形式 (txt / srt / vtt) はメニューで選び、保存パネルは選んだ
+    /// 拡張子に固定する (issue #493)。書き出しは検索の絞り込みに関わらず
+    /// 録画全体が対象 (#329 と同じ契約)
+    private var exportMenu: some View {
+        Menu {
+            ForEach(LibraryTranscriptExport.supportedFormats, id: \.self) { format in
+                Button(LibraryTranscriptExport.menuLabel(for: format)) {
+                    LibraryTranscriptExport.exportTranscript(of: entry, as: format)
+                }
+            }
+        } label: {
+            Label(String(localized: "書き出す"), systemImage: "square.and.arrow.down")
+        }
+        .menuStyle(.button)
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .help(String(localized: "文字起こし全体をファイルに保存します (.txt / .srt / .vtt を選べます)"))
+    }
+
+    /// セグメント 1 件の本文をクリップボードへ。時刻は付けない — 貼り付け先では
+    /// 本文だけが欲しいことが多く、«[時刻]» 付きが欲しいときは «全文をコピー» がある
+    private func copySegment(_ text: String) {
+        if LibraryTranscriptExport.copyToPasteboard(text) {
+            UsageAnalytics.transcriptCopy(kind: .segment)
         }
     }
 }
