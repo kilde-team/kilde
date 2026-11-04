@@ -143,6 +143,21 @@ enum SelfTestLibraryExport {
                   "\(format.fileExtension) の許可型が拡張子に対応する (\(type.identifier))")
         }
 
+        // 受け入れ条件 (issue #493 / cubic 再レビュー指摘): 1ms 未満の cue も
+        // 出力の量子化 (ミリ秒 3 桁) 後に end > start を満たす。formatted は
+        // LibrarySegment を直接受けるため、サイドカーを経由せずに検証できる
+        do {
+            let subMillisecond = [LibrarySegment(start: 40, end: 40 + 0.0005, text: "一瞬のセグメント")]
+            let srt = try LibraryTranscriptExport.formatted(subMillisecond, as: .srt)
+            check(srt.contains("00:00:40,000 --> 00:00:42,000"),
+                  "1ms 未満の cue が表示できる長さに補われる (srt)")
+            let vtt = try LibraryTranscriptExport.formatted(subMillisecond, as: .vtt)
+            check(vtt.contains("00:00:40.000 --> 00:00:42.000"),
+                  "1ms 未満の cue が表示できる長さに補われる (vtt)")
+        } catch {
+            check(false, "1ms 未満の cue の整形 (\(error))")
+        }
+
         // パネルで保存先が確定した後の書き込み。原子的に書け、内容が生成テキストと一致する。
         // 保存パネルの URL は powerbox が既にアクセスを許しているため、
         // 一時ディレクトリ (スコープ外) も同じ write の経路で書ける

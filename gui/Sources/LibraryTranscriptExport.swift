@@ -25,9 +25,16 @@ enum LibraryTranscriptExport {
     /// (LibraryEntry.duration のコメントが正本) で、**end == start の cue は
     /// WebVTT / SubRip の契約 (end > start) を満たさず表示されない**
     /// (CodeRabbit 指摘 — w3c.github.io/webvtt の cue timing の要件)。
-    /// そのため字幕形式ではこの下限だけ終端を補う。«録画の残り時間» はライブラリが
-    /// 知らない (サイドカーに無い) ため、推測ではなく表示に必要な最小値で固定
+    /// さらに **SRT / WebVTT は時刻をミリ秒 (小数 3 桁) に量子化する** ため、
+    /// 1ms 未満の cue も量子化後に同一時刻になってしまう (cubic 再レビュー指摘)。
+    /// そのため字幕形式では «出力精度での差が 1ms 以上になるまで» この下限で
+    /// 終端を補う。«録画の残り時間» はライブラリが知らない (サイドカーに無い) ため、
+    /// 推測ではなく表示に必要な最小値で固定
     static let minimumCueDuration: TimeInterval = 2
+
+    /// SRT / WebVTT の時刻の量子化幅 (ミリ秒 = 小数 3 桁)。これ未満の cue 長は
+    /// 出力で同一時刻に丸められる (minimumCueDuration のコメントが正本)
+    private static let cueTimingQuantum: TimeInterval = 0.001
 
     /// ライブラリ表示中のセグメント列を指定形式へ整形する。
     /// LibrarySegment には話者ラベルが無い (LibraryTranscriptParser が捨てる) ので
@@ -41,11 +48,13 @@ enum LibraryTranscriptExport {
             TranscriptSegment(start: segment.start, end: segment.end, text: segment.text)
         }
         // 字幕形式だけ cue の終端に下限を敷く (txt は時刻を載せないので無関係)。
-        // end > start の cue はサイドカーの値をそのまま使う — 触るのは
+        // «生の差が正» だけでなく «出力精度での差が正» を判定する — 1ms 未満の
+        // cue は量子化後に同一時刻になるため (minimumCueDuration のコメント)。
+        // 表示できる cue はサイドカーの値をそのまま使う — 触るのは
         // «表示されない» 終端だけ
         if format == .srt || format == .vtt {
             let displayable = mapped.map { segment in
-                segment.end > segment.start
+                segment.end - segment.start >= cueTimingQuantum
                     ? segment
                     : TranscriptSegment(start: segment.start,
                                         end: segment.start + minimumCueDuration,
