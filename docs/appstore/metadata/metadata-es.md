@@ -463,3 +463,13 @@ SpeechTranscriber (issue #486). El texto solo dice lo que existe (misma polític
 ```text
 Elegir el idioma de la transcripción es más fácil. La lista de idiomas de Ajustes muestra ahora todos los idiomas que la transcripción en este Mac admite (primero japonés e inglés, y los idiomas que aún hay que descargar se indican). Si el idioma de tu Mac no está admitido, los ajustes lo indican y la transcripción detecta el idioma a partir de la grabación. Las funciones de grabación no cambian.
 ```
+
+## Novedades (0.31.0)
+
+Reducción de fallos de transcripción: la lista de idiomas sigue las locales que admite
+SpeechTranscriber (issue #486). El texto solo dice lo que existe (misma política que 0.28.0),
+con la condición de macOS 26 y el aviso de «no se transcribe cuando no se puede determinar».
+
+```text
+Elegir el idioma de la transcripción es más fácil (la transcripción requiere macOS 26 o posterior). La lista de idiomas de Ajustes muestra ahora todos los idiomas que la transcripción en este Mac admite (primero japonés e inglés, y los idiomas que aún hay que descargar se indican). Si el idioma de tu Mac no está admitido, los ajustes lo indican y la transcripción detecta el idioma a partir de la grabación. Cuando no puede determinar el idioma, no se transcribe y se te pide elegir un idioma admitido en Ajustes. Las funciones de grabación no cambian.
+```
