@@ -20,6 +20,15 @@ enum LibraryTranscriptExport {
     /// そのまま拡張子になるため、ファイル名・計測パラメータもこの列挙に閉じる
     static let supportedFormats: [TranscriptOutputFormat] = [.txt, .srt, .vtt]
 
+    /// 字幕 cue の最小の長さ (秒)。終了時刻を持たないサイドカー (txt / md) の
+    /// パーサは «end = 次のセグメントの開始、最終セグメントは start と等しい»
+    /// (LibraryEntry.duration のコメントが正本) で、**end == start の cue は
+    /// WebVTT / SubRip の契約 (end > start) を満たさず表示されない**
+    /// (CodeRabbit 指摘 — w3c.github.io/webvtt の cue timing の要件)。
+    /// そのため字幕形式ではこの下限だけ終端を補う。«録画の残り時間» はライブラリが
+    /// 知らない (サイドカーに無い) ため、推測ではなく表示に必要な最小値で固定
+    static let minimumCueDuration: TimeInterval = 2
+
     /// ライブラリ表示中のセグメント列を指定形式へ整形する。
     /// LibrarySegment には話者ラベルが無い (LibraryTranscriptParser が捨てる) ので
     /// speaker nil の TranscriptSegment に写してエンジンの整形器に渡す —
@@ -28,11 +37,23 @@ enum LibraryTranscriptExport {
     /// 範囲では起きないが、書き出しの失敗を黙って捨てないため throws のまま運ぶ
     static func formatted(_ segments: [LibrarySegment],
                           as format: TranscriptOutputFormat) throws -> String {
-        try TranscriptFormatter.render(
-            segments.map { segment in
-                TranscriptSegment(start: segment.start, end: segment.end, text: segment.text)
-            },
-            as: format)
+        let mapped = segments.map { segment in
+            TranscriptSegment(start: segment.start, end: segment.end, text: segment.text)
+        }
+        // 字幕形式だけ cue の終端に下限を敷く (txt は時刻を載せないので無関係)。
+        // end > start の cue はサイドカーの値をそのまま使う — 触るのは
+        // «表示されない» 終端だけ
+        if format == .srt || format == .vtt {
+            let displayable = mapped.map { segment in
+                segment.end > segment.start
+                    ? segment
+                    : TranscriptSegment(start: segment.start,
+                                        end: segment.start + minimumCueDuration,
+                                        text: segment.text)
+            }
+            return try TranscriptFormatter.render(displayable, as: format)
+        }
+        return try TranscriptFormatter.render(mapped, as: format)
     }
 
     /// «[HH:MM:SS] 本文» の 1 行 = 1 セグメント (txt サイドカーと同じ形)。

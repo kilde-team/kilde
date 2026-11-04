@@ -55,16 +55,18 @@ enum SelfTestLibraryExport {
         締めのことば
         """ + "\n"
     /// 秒精度のサイドカー (txt / md) 用の srt。このパーサは **終了時刻を持たない** ため
-    /// «end = 次セグメントの開始、最終セグメントは start と等しい» になる
-    /// (LibraryEntry.duration のコメントが正本)。書き出しはサイドカーの情報以上の
-    /// ことはしない — «字幕らしく固定長を補う» といった推測は入れない
+    /// «end = 次セグメントの開始» になり、**最終セグメント (end == start) は
+    /// 字幕の契約 (end > start) を満たさない** ため `minimumCueDuration` (2 秒) の
+    /// 下限で補われる (LibraryEntry.duration のコメントがパーサ契約の正本)。
+    /// «表示されない cue» を出さないための最小限の補正で、他の cue は
+    /// サイドカー由来の値のまま
     private static let expectedSRTFromSecondPrecision = """
         1
         00:00:10,000 --> 00:00:20,000
         会議の冒頭のあいさつ
 
         2
-        00:00:20,000 --> 00:00:20,000
+        00:00:20,000 --> 00:00:22,000
         締めのことば
         """ + "\n"
     /// 秒精度のサイドカー (txt / md) 用の vtt (expectedSRTFromSecondPrecision と同理由)
@@ -76,7 +78,7 @@ enum SelfTestLibraryExport {
         会議の冒頭のあいさつ
 
         2
-        00:00:20.000 --> 00:00:20.000
+        00:00:20.000 --> 00:00:22.000
         締めのことば
         """ + "\n"
 
