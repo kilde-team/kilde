@@ -465,3 +465,14 @@ detection is not guaranteed to succeed (cubic review — avoid copy that reads a
 ```text
 Choosing a transcription language is easier (transcription requires macOS 26 or later). The language list in Settings now shows every language supported by on-device transcription on this Mac (Japanese and English first, and languages that still need to be downloaded are marked). If your Mac's language is not supported, the setting says so, and transcription detects the language from the recording. When it cannot, no transcription happens and you are asked to pick a supported language in Settings. Recording features are unchanged.
 ```
+
+## What's New (0.32.0)
+
+Taking transcripts out of the library — subtitle formats (SRT / WebVTT) join the export
+menu, plus copy actions (issue #493). Copy states only what ships (same policy as 0.28.0).
+The «approximate cue end times for text/Markdown transcripts» caveat states the fact that
+those formats store no end times (avoid a reading of «just works» for every recording).
+
+```text
+Taking transcripts out of the recording library got easier. The export menu now offers SubRip (.srt) and WebVTT (.vtt) subtitle files in addition to plain text (.txt) — handy when a video platform needs subtitles (transcripts saved as text/Markdown store no end times, so their subtitle end times are approximate). A new “Copy All” action copies the whole transcript as “[time] text” lines, and right-clicking a transcript line copies just that line's text. Recording and transcription are unchanged.
+```
