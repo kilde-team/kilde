@@ -32,6 +32,10 @@ struct SettingsPaneView: View {
     /// カスタム指示セクション (issue #472) の開閉。ContentView から移設。
     /// 設定値自体は UserDefaults が正本なので開閉状態の保存はしない
     @State private var showsComposerInstructions = false
+    /// SpeechTranscriber の対応ロケールの一覧 (issue #486)。固定の ja-JP / en-US だと
+    /// 端末言語が対応外の利用者に対応言語を選ぶ導線が無かった (GA4 unsupported_locale
+    /// — #478 コメント)。取り寄せはローカル照会で、Settings を開いたときの 1 回だけ
+    @StateObject private var localeCatalog = TranscriptionLocaleCatalog()
 
     var body: some View {
         ScrollView {
@@ -109,6 +113,9 @@ struct SettingsPaneView: View {
         // (loadProducts は二重取得を Coordinator 側で防ぐ)
         .onAppear {
             Task { await tips.loadProducts() }
+            // 対応ロケールの一覧も表示時に取り寄せる (issue #486 — refresh は
+            // 毎回呼んでよい。2 回目以降は installed フラグの再取得になる)
+            localeCatalog.refresh()
             // カレンダー権限 (issue #393) も表示時に取り直す — «システム設定で
             // 許可する…» ボタンで許可して戻った直後に案内を更新するため
             // (EventKit は権限の変化を通知しない)
@@ -119,6 +126,9 @@ struct SettingsPaneView: View {
         .onReceive(NotificationCenter.default.publisher(
             for: NSApplication.didBecomeActiveNotification)) { _ in
             meetingAutoRecorder.refreshCalendarStatus()
+            // 対応ロケールも取り直す — 設定を開いたまま文字起こしが走ってモデルを
+            // 取得したあとに «未取得» が残るのを防ぐ (issue #486 — cubic レビュー指摘)
+            localeCatalog.refresh()
         }
     }
 
@@ -131,23 +141,61 @@ struct SettingsPaneView: View {
     private var transcriptionDetails: some View {
         VStack(alignment: .leading, spacing: 4) {
             if setup.transcriptionAvailable && setup.transcribeEnabled {
-                Picker("言語", selection: transcriptLocaleBinding) {
-                    Text("端末の言語設定").tag(String?.none)
+                Picker("言語", selection: localeSelection) {
+                    // «端末の言語設定» が SpeechTranscriber 非対応のときはラベルで示す
+                    // (issue #486)。実行時は録音からの判定にフォールバックする
+                    // (TranscriptionCoordinator) — その挙動は下の警告文で案内する
+                    Text(localeCatalog.deviceLocaleSupported
+                         ? "端末の言語設定"
+                         : "端末の言語設定 (非対応 — 録音から判定)")
+                        .tag(String?.none)
                     // 録音の冒頭から言語を自動判定 (kilde#409)。判定不能のトラックは
                     // 端末の言語設定にフォールバックする (kilde-cli-swift#131)
                     Text("自動 (録音から判定)").tag(String?.some("auto"))
-                    Text("日本語 (ja-JP)").tag(String?.some("ja-JP"))
-                    Text("英語 (en-US)").tag(String?.some("en-US"))
+                    // SpeechTranscriber の対応ロケールを実環境から出す (issue #486)。
+                    // 固定の ja-JP / en-US だと、端末言語が対応外の利用者に対応言語を
+                    // 選ぶ導線が無かった。未取得の言語は文字起こし実行時にモデルの
+                    // 取得が走る (TranscriptionCoordinator) ので «未取得» を併記する
+                    ForEach(localeCatalog.entries) { entry in
+                        Text(entry.installed ? entry.label : entry.label + " (未取得)")
+                            .tag(String?.some(entry.id))
+                    }
                     // 手で編集した config.json に他の言語が入っているときは、
-                    // 選択を壊さないようにその値も選択肢に出す (大小無視の判定は
-                    // 実行時と同じ — «自動» との重複は出さない)
+                    // 選択を壊さないようにその値も選択肢に出す (動的一覧に正規化のうえ
+                    // 重複しないときだけ — «自動» は上の固定枠があるため出さない)
                     if let custom = setup.transcriptLocale,
-                       custom != "ja-JP", custom != "en-US",
-                       custom.lowercased() != "auto" {
+                       custom.lowercased() != "auto",
+                       !localeCatalog.containsNormalized(custom) {
                         Text(custom).tag(String?.some(custom))
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                // 明示言語の適用範囲の案内 (issue #486 — cubic レビュー指摘)。«自動» は
+                // トラックごとに判定する (kilde#409)。「端末の言語設定» は端末ロケールが
+                // 対応のとき録音全体を端末ロケールで書き、非対応のときだけ録音から判定する
+                // (TranscriptionCoordinator のフォールバック)。明示言語は録音全体を
+                // その言語で書く (エンジンの transcribeWithSpeakers にロケール列を渡さない
+                // 経路)。«分離にしたのに話者ごとに言語が変わる» と期待すると裏切るため
+                if let selected = setup.transcriptLocale,
+                   selected.lowercased() != "auto" {
+                    Text("言語を指定すると録音全体をその言語で文字起こしします。トラックごとに言語を判定するには「自動 (録音から判定)」を選んでください")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                // 対応外の選択への警告 (issue #486)。表示のみで挙動は変えない —
+                // «端末の言語設定» 非対応時の実行時フォールバックは
+                // TranscriptionCoordinator が担う
+                if let warning = localeCatalog.selectionWarning(for: setup.transcriptLocale) {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Image(systemName: "exclamationmark.triangle")
+                        Text(warning)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
                 Picker("出力形式", selection: transcriptFormatBinding) {
                     ForEach(TranscriptOutputFormat.allCases, id: \.self) { format in
                         Text(Self.formatLabel(format)).tag(format)
@@ -245,11 +293,26 @@ struct SettingsPaneView: View {
             set: { setup[keyPath: keyPath] = $0 })
     }
 
-    private var transcriptLocaleBinding: Binding<String?> {
+    /// 言語 Picker の選択 Binding (issue #486)。動的一覧の tag はエンジンの正規化形
+    /// (小文字、例 «ja-jp» — Transcriber.supportedLocales の戻り値) で、config.json の
+    /// 保存値は大小任意 («ja-JP» の実績) がある。SwiftUI Picker の選択一致は tag の
+    /// **完全一致**なので、正規化のうえ一致する tag へ写して表示する — 表示の写像だけ
+    /// で、書くときは選ばれた tag の値をそのまま保存する (一致しない値を書き戻さない)。
+    /// これがないと «既存の ja-JP 設定が未選択表示になる»
+    private var localeSelection: Binding<String?> {
         Binding(
-            get: { setup.transcriptLocale },
+            get: {
+                guard let value = setup.transcriptLocale else { return nil }
+                if value.lowercased() == "auto" { return "auto" }
+                let normalized = Transcriber.normalizedBCP47(value)
+                if let matched = localeCatalog.entries.first(where: { $0.id == normalized }) {
+                    return matched.id
+                }
+                // 動的一覧に無い値 (カスタム枠) は生値の tag と対応させる
+                return value
+            },
             set: { value in
-                // «自動» の値は大小無視で "auto" に正規化して保持する (移設前と同じ)
+                // «自動» の値は大小無視で "auto" に正規化して保持する (既存契約)
                 setup.transcriptLocale = value?.lowercased() == "auto" ? "auto" : value
                 setup.saveTranscriptionSetting(.locale)
             })

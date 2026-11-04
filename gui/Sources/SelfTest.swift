@@ -123,11 +123,66 @@ enum SelfTest {
             SelfTestLibraryImport.run()
             return
         }
+        // KILDE_GUI_SELFTEST_SETTINGS=1: «設定» ウィンドウを開いたまま約 20 秒保つ (issue #486)。
+        // PANEL と同じ «外部から screencapture -x で撮る» 前提のモード。対応ロケールの
+        // 動的列挙 (TranscriptionLocaleCatalog) は Settings 表示時の onAppear で
+        // 取り寄せるため、«言語 Picker に実環境の対応言語が並ぶこと» を実 UI で
+        // 確かめるのに使う。実録画を伴わないため録画のスロットを占有しない
+        if env["KILDE_GUI_SELFTEST_SETTINGS"] == "1" {
+            // LSUIElement のアプリをターミナルから起動すると非アクティブのまま。
+            // openSettings が .regular へ切り替えるが、その前に activate しておく
+            NSApp.activate(ignoringOtherApps: true)
+            AppDelegate.shared?.openSettings()
+            print("selftest: settings opened holding 20s")
+            fflush(stdout)
+            // Picker と同じデータ経路 (refresh → supportedLocales / installedLocales)
+            // を実環境で確かめて stdout に出す — «対応言語が並ぶこと» の受け入れ条件を
+            // 機械検証するため (ターミナルからの screencapture は画面収録権限が要るため
+            // 画像での自動検証はしない。ウィンドウは 20 秒開くので目視でも確認できる)
+            let catalog = TranscriptionLocaleCatalog()
+            catalog.refresh()
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                print("selftest: locale catalog loaded=\(catalog.loaded)"
+                    + " device=\(catalog.deviceLocaleIdentifier)"
+                    + " deviceSupported=\(catalog.deviceLocaleSupported)"
+                    + " entries=\(catalog.entries.count)")
+                for entry in catalog.entries {
+                    print("selftest:   locale id=\(entry.id) installed=\(entry.installed) label=\(entry.label)")
+                }
+                print("selftest: device warning=\(catalog.selectionWarning(for: nil) ?? "(none)")")
+                fflush(stdout)
+            }
+            Task { @MainActor in
+                // 撮影・目視の猶予。メインランループは通常起動どおり回り続けるため
+                // RunLoop を手で回す必要はない (PANEL の張り直しループが要らないのは
+                // ウィンドウが transient でないため)
+                try? await Task.sleep(nanoseconds: 20_000_000_000)
+                exit(0)
+            }
+            return
+        }
+        // KILDE_GUI_SELFTEST_LOCALE_GUIDANCE=1: «端末の言語設定» の非対応フォールバック
+        // の判定を確かめる (issue #486)。needsLocaleGuidance の真理値表、
+        // FAKE_UNSUPPORTED_LOCALE を見る isLocaleSupported の分岐、案内文のマーカー
+        // (EXPECT_FAILURE_TEXT と同じ断片) を検証する。合成音声では «判定不能» が
+        // 実経路で再現できない («無音トラックの誤検出» — needsLocaleGuidance のコメント)
+        // ための純関数検証。実録画・実文字起こしを伴わず録画のスロットを占有しない。
+        // KILDE_GUI_SELFTEST_FAKE_UNSUPPORTED_LOCALE の指定が前提
+        if env["KILDE_GUI_SELFTEST_LOCALE_GUIDANCE"] == "1" {
+            runLocaleGuidance()
+            return
+        }
         // KILDE_GUI_SELFTEST_TRANSCRIBE: 文字起こし経路の検証。値で 2 つの経路を分ける。
         // 値 1 は録画なし版 (issue #146) — 入力音声を KILDE_GUI_SELFTEST_TRANSCRIBE_INPUT で
         // 渡し、実録画を伴わないため録画のスロット (権限・スピーカー) を占有しない。
         // 2 以上の秒数は実録画版 (issue #150) — «録画 → 停止 → 自動文字起こし → 出力検証» の
-        // 完全経路。実録画を伴うので並行する録画テストと同時に回さない
+        // 完全経路。実録画を伴うので並行する録画テストと同時に回さない。
+        // 録画なし版の補助変数 (issue #486): KILDE_GUI_SELFTEST_TRANSCRIBE_LOCALE で
+        // Job の localeID を上書き («nil»/«auto»/任意の値)、
+        // KILDE_GUI_SELFTEST_FAKE_UNSUPPORTED_LOCALE で TranscriptionCoordinator の
+        // 端末ロケール対応判定を «非対応» と見せる、
+        // KILDE_GUI_SELFTEST_TRANSCRIBE_EXPECT_FAILURE_TEXT で «正しく失敗する» を検証する
         if let transcribeText = env["KILDE_GUI_SELFTEST_TRANSCRIBE"] {
             if transcribeText == "1" {
                 runTranscription(setup: setup, transcription: transcription)
@@ -802,6 +857,66 @@ enum SelfTest {
         fflush(stdout)
     }
 
+    /// «端末の言語設定» の非対応フォールバックの判定検証 (issue #486)。
+    /// 合成音声では «判定不能» を実経路で再現できない («無音トラックの誤検出» —
+    /// needsLocaleGuidance のコメント参照) ため、純関数の真理値表と対応判定の分岐、
+    /// 案内文のマーカーを直接確かめる。KILDE_GUI_SELFTEST_FAKE_UNSUPPORTED_LOCALE の
+    /// 指定が前提 (その値を «非対応» と判定すべきことを見る)
+    private static func runLocaleGuidance() {
+        // 1) 純関数 (needsLocaleGuidance) の真理値表。nil 要素 = «判定不能で
+        //    フォールバック» を 1 つでも含み、かつフォールバックが非対応のときだけ案内
+        let table: [([String?]?, Bool, Bool)] = [
+            (["ja-jp"], true, false),       // 判定済みのみ → 案内不要
+            ([nil], true, false),           // 判定不能でもフォールバック対応 → 案内不要
+            (["ja-jp"], false, false),      // フォールバック非対応だが判定は成功 → 案内不要
+            ([nil], false, true),           // 判定不能 + フォールバック非対応 → 案内
+            (["ja-jp", nil], false, true),  // 混在 (1 トラックだけ判定不能) → 案内
+            (nil, false, false),            // 自動判定なし (単一ロケール経路) → 案内不要
+            (nil, true, false),
+        ]
+        for (locales, fallbackSupported, expected) in table {
+            let actual = TranscriptionCoordinator.needsLocaleGuidance(
+                perTrackLocales: locales, fallbackSupported: fallbackSupported)
+            guard actual == expected else {
+                fail("needsLocaleGuidance の判定が期待と違います: locales=\(String(describing: locales))"
+                    + " fallbackSupported=\(fallbackSupported) 期待=\(expected) 実際=\(actual)")
+            }
+        }
+        print("selftest: needsLocaleGuidance truth table ok (\(table.count) cases)")
+        guard let fake = ProcessInfo.processInfo
+            .environment["KILDE_GUI_SELFTEST_FAKE_UNSUPPORTED_LOCALE"], !fake.isEmpty else {
+            fail("KILDE_GUI_SELFTEST_FAKE_UNSUPPORTED_LOCALE を指定してください (このモードの前提)")
+        }
+        Task { @MainActor in
+            // 2) isLocaleSupported の分岐。fake に指定したロケールは «非対応»、
+            //    対応一覧の «fake 以外» は «対応» と判定されるべき。一覧が空の環境
+            //    (文字起こし非対応) は «対応» 扱いに倒す契約 — true を期待する
+            let fakeNormalized = Transcriber.normalizedBCP47(fake)
+            let fakeResult = await TranscriptionCoordinator.isLocaleSupported(fakeNormalized)
+            guard fakeResult == false else {
+                fail("isLocaleSupported(fake=\(fakeNormalized)) が false になりませんでした")
+            }
+            let supported = await Transcriber.supportedLocales()
+            let other = supported.first {
+                Transcriber.normalizedBCP47($0) != fakeNormalized
+            } ?? "en-US"
+            let otherResult = await TranscriptionCoordinator.isLocaleSupported(other)
+            guard otherResult == true else {
+                fail("isLocaleSupported(\(other)) が true になりませんでした")
+            }
+            // 3) 案内文のマーカー。EXPECT_FAILURE_TEXT で使う断片が errorDescription に
+            //    含まれることを見る — 案内文を変えたときにテストの部分列が空振りするのを防ぐ
+            let error = UnsupportedDeviceLocaleError(localeIdentifier: fakeNormalized)
+            let marker = "録音からの言語判定もできませんでした"
+            guard error.errorDescription?.contains(marker) == true else {
+                fail("UnsupportedDeviceLocaleError の案内文にマーカー «\(marker)» がありません: \(error.description)")
+            }
+            print("selftest: locale guidance ok (fake=\(fakeNormalized), other=\(other), marker ok)")
+            fflush(stdout)
+            exit(0)
+        }
+    }
+
     /// 文字起こし経路の検証 (KILDE_GUI_SELFTEST_TRANSCRIBE=1、issue #146)。
     ///
     ///     KILDE_GUI_SELFTEST_TRANSCRIBE=1 \
@@ -849,6 +964,21 @@ enum SelfTest {
             setup.exportDirectory = URL(fileURLWithPath: exportDir, isDirectory: true)
             print("selftest: exportDirectory forced=\(exportDir)")
         }
+        // KILDE_GUI_SELFTEST_TRANSCRIBE_LOCALE (issue #486): Job へ渡す localeID の上書き。
+        // «nil» / «端末» は端末の言語設定 (nil) を、«auto» は録音からの判定を、
+        // それ以外はその値をそのまま Job に渡す。setup (config) には触れない —
+        // «設定を変えずに経路だけ» の方針を保つため。未指定なら従来どおり
+        // setup.transcriptLocale (config 由来) を使う
+        let localeOverride = env["KILDE_GUI_SELFTEST_TRANSCRIBE_LOCALE"]
+        let jobLocaleID: String?
+        if let override = localeOverride {
+            jobLocaleID = (override == "nil" || override == "端末") ? nil : override
+        } else {
+            jobLocaleID = setup.transcriptLocale
+        }
+        if localeOverride != nil {
+            print("selftest: transcriptLocale forced=\(jobLocaleID.map { "'\($0)'" } ?? "nil (端末の言語設定)")")
+        }
         // KILDE_GUI_SELFTEST_SUMMARY=1 (issue #163): 要約付きで走らせる。
         // 要約は Markdown の先頭側に載るため、出力形式は .md に強制される
         // (TranscriptionCoordinator の契約)
@@ -860,7 +990,7 @@ enum SelfTest {
         print("selftest: transcribe input=\(inputURL.lastPathComponent)"
             + " format=\(outputFormat)"
             + " summary=\(withSummary ? "on (standard)" : "off")"
-            + " locale=\(setup.transcriptLocale ?? "(端末の言語設定)")")
+            + " locale=\(jobLocaleID.map { "'\($0)'" } ?? "nil (端末の言語設定)")")
         print("selftest: expect sidecar=\(sidecar.path)")
         fflush(stdout)
         // 本体と同じ «録画完了時のスナップショット» の形で Job を作る
@@ -868,7 +998,7 @@ enum SelfTest {
             recordingURL: inputURL,
             format: outputFormat,
             summaryTemplate: withSummary ? .standard : nil,
-            localeID: setup.transcriptLocale,
+            localeID: jobLocaleID,
             recordingDuration: nil))
         // lastCompletion / lastFailure の更新は Swift Concurrency で届くため
         // RunLoop.main.run では観測できない (reportNotifyTargets のコメントと同じ理由) —
@@ -903,10 +1033,32 @@ enum SelfTest {
                 }
             }
             if let failure = transcription.lastFailure {
+                // KILDE_GUI_SELFTEST_TRANSCRIBE_EXPECT_FAILURE_TEXT (issue #486):
+                // «正しく失敗する» ことを確かめる検証。lastFailure.message に指定部分列が
+                // 含まれていれば合格 (exit 0) — 通常経路の «失敗 = テスト失敗» を、
+                // 期待した失敗だけ反転させる。部分列は案内文の固有の断片を渡す
+                // («録音からの言語判定もできませんでした» — UnsupportedDeviceLocaleError)
+                let expectFailureText = ProcessInfo.processInfo
+                    .environment["KILDE_GUI_SELFTEST_TRANSCRIBE_EXPECT_FAILURE_TEXT"]
+                if let expectFailureText, !expectFailureText.isEmpty {
+                    if failure.message.contains(expectFailureText) {
+                        print("selftest: expected failure observed (contains \"\(expectFailureText)\")")
+                        fflush(stdout)
+                        exit(0)
+                    }
+                    fail("失敗メッセージが期待と異なります。期待=\(expectFailureText) 実際=\(failure.message)")
+                }
                 fail("文字起こしが失敗: \(failure.message)\(failure.detail.map { " [\($0)]" } ?? "")")
             }
             guard let completion = transcription.lastCompletion else {
                 fail("文字起こしが 10 分で完了しませんでした (モデル取得が進んでいない?)")
+            }
+            // «失敗を期待» していたのに完了した場合も不合格 (issue #486) —
+            // 反転検証が «成功で誤って通る» のを防ぐ
+            if let expectFailureText = ProcessInfo.processInfo
+                   .environment["KILDE_GUI_SELFTEST_TRANSCRIBE_EXPECT_FAILURE_TEXT"],
+               !expectFailureText.isEmpty {
+                fail("失敗を期待しましたが文字起こしは成功しました (期待=\(expectFailureText))")
             }
             // 書き出し先は TranscriptWriter の契約 (録画ファイルの隣) どおりか、
             // 存在するか、空でないかを見る。存在チェックだけだと別の場所に書いても
