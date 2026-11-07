@@ -343,6 +343,12 @@ final class LibraryStore: ObservableObject {
             self.entries = scanned
             self.index = index
             self.isScanning = false
+            // 走査結果を Spotlight 索引へ反映する (issue #502)。ここが «走査結果の
+            // 正» が確定する唯一の場所なので配線もここ — «ライブラリを開いた» 経路の
+            // 登録・更新・削除の差分はすべてこの 1 行で満たす。内部で設定トグルを
+            // 見ており、オフなら何もしない。fire-and-forget (一覧の表示を Spotlight
+            // の反映で遅らせない — 索引への書き込みは補助的な入口の話)
+            Task { await SpotlightExporter.shared.sync(entries: scanned) }
         }
     }
 

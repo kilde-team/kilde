@@ -80,6 +80,13 @@ GUI アプリ (直接配布版・Mac App Store 版の両方) は、アプリが�
 - **議事録の書き出し先 (設定した場合)**: 文字起こしした .md を、利用者が指定した
   フォルダ (Obsidian の vault など) にも複製できます。この書き出しは
   **あなたの Mac 内のフォルダへのコピーのみ**で、内容がネットワークへ送信されることはありません
+- **Spotlight 索引 (既定はオン、設定でオフにできます)**: 録画ライブラリにある録画を
+  macOS の Spotlight から探せるようにするため、録画の名前・録画日時・長さと、
+  文字起こししたテキストの本文を **macOS の Spotlight 索引に登録します**。
+  索引は **この Mac の Spotlight の仕組みの中にだけ**保存され、kilde や Apple を含む
+  第三者へは送信されません ( Spotlight での検索そのものが端末内で完結します)。
+  «設定 > 録画ライブラリ > 録画と文字起こしを Spotlight に登録する» をオフにすると、
+  登録した索引はすぐに消去されます
 - **会議の自動録画 (既定はオフ)**: 有効にすると、会議の開始を検知するために
   «どのアプリがマイクを使っているか» とウィンドウのタイトルを数秒おきに
   **あなたの Mac 上で**確認します。これらの情報は保存も送信もされません
@@ -273,6 +280,15 @@ language models from Apple — see "Network access").
 - **Optional transcript export folder**: you can choose a folder (for example, an
   Obsidian vault) that transcript .md files are also copied into. This is a
   **local copy on your Mac only**; the content is never sent over the network
+- **Spotlight index (on by default; you can turn it off in settings)**: to make
+  recordings in the recording library findable from macOS Spotlight, the app
+  registers the recording's name, date, duration, and the transcript text with
+  **macOS's Spotlight index**. The index lives **only inside Spotlight on this
+  Mac** and is never sent to kilde or to any third party, including Apple
+  (Spotlight search itself completes on the device). Turning off
+  "Settings > Recording library > Register recordings and transcripts with
+  Spotlight" erases the registered index immediately
+
 ### Permissions and why they are needed
 
 | Permission | Purpose |

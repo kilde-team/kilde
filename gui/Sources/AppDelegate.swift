@@ -325,6 +325,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 sidecarURL: completion.sidecarURL,
                 summaryGenerated: completion.summary != nil,
                 summaryNote: completion.summaryNote)
+            // Spotlight 索引の更新 (issue #502)。「ライブラリを一度も開かないでも
+            // 文字起こしが Spotlight に載る» をここで満たす — ライブラリを開いたことが
+            // ある場合でも LibraryView の onChange で再走査 (→ 同期) されるが、
+            // そちらは «ウィンドウを開いたことがある» が前提なので二重に配線する
+            // (同期は差分 + 直列化なので再実行は無害)。**セルフテストでは走らない** —
+            // TRANSCRIBE 系の検証が開発機の Spotlight 索引を汚さないため
+            if !SelfTest.isActive {
+                let directory = self.setup.request.outputDirectory
+                Task { await SpotlightExporter.shared.sync(directory: directory) }
+            }
         }
 
         // 録画中は経過時間を横に出すので可変幅にする
@@ -461,6 +471,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // 実際の会議を検知して録画が始まると、録画スロットと検証結果の両方が壊れる
         if !isSelfTest {
             meetingAutoRecorder.activate()
+        }
+
+        // Spotlight 索引の起動時同期 (issue #502)。「ライブラリを一度も開かないでも
+        // Spotlight で探せる» を起動時の 1 回で満たす。差分同期なので既に最新なら
+        // 何も起きない。**セルフテストでは走らない** — 検証の起動で開発機の
+        // Spotlight 索引を書き換えない (SelfTestSpotlight は純関数だけを触る)。
+        // fire-and-forget (起動の後続処理を待たせない — 走査は内部でバックグラウンド)
+        if !isSelfTest {
+            Task { [weak self] in
+                guard let self else { return }
+                await SpotlightExporter.shared.sync(directory: self.setup.request.outputDirectory)
+            }
         }
 
         // セルフテストは 1 回ランループを回してから始める — applicationDidFinishLaunching の
@@ -748,10 +770,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     /// 録画ライブラリを開く (issue #165)。ポップオーバーを閉じてからウィンドウを
     /// 出す — ポップオーバーを開いたままにすると、フォーカスがウィンドウに移らず
-    /// 検索欄にキー入力できず、見た目も二重になる
-    func openLibrary() {
+    /// 検索欄にキー入力できず、見た目も二重になる。
+    /// reveal は «この録画を選んだ状態で開く» (Spotlight の結果からのオープン、issue #502)
+    func openLibrary(reveal recordingURL: URL? = nil) {
         popover?.performClose(nil)
-        libraryController.present(fromDirectory: setup.request.outputDirectory)
+        libraryController.present(fromDirectory: setup.request.outputDirectory,
+                                  reveal: recordingURL)
+    }
+
+    /// Spotlight の結果を開いた (issue #502)。CoreSpotlight のアイテムをクリックすると
+    /// macOS がこのアプリを起動 (または前面化) してアクティビティを届ける。
+    /// identifier は録画の絶対パス (SpotlightItemFactory.identifier) なので
+    /// URL に戻してライブラリを開く。kilde 以外のアクティビティは処理しない (false を
+    /// 返してシステムに委ねる)。計測は «Spotlight から開かれた» ことが知りたいだけで、
+    /// どの録画かは送らない (UsageAnalytics の «テキスト・名前を送らない» 契約)
+    func application(_ application: NSApplication,
+                     continue userActivity: NSUserActivity,
+                     restorationHandler: @escaping ([NSUserActivityRestoring]) -> Void) -> Bool {
+        guard let url = SpotlightItemFactory.recordingURL(fromActivity: userActivity)
+        else { return false }
+        UsageAnalytics.spotlightOpened()
+        openLibrary(reveal: url)
+        return true
     }
 
     /// 設定ウィンドウ (issue #478)。«1 回設定すればよい» 機能をパネルから集約した

@@ -100,6 +100,15 @@ enum SelfTest {
             SelfTestComposerInstructions.run()
             return
         }
+        // KILDE_GUI_SELFTEST_SPOTLIGHT=1: Spotlight 対応 (issue #502) の検証。
+        // «CSSearchableItem の生成» «差分計算» «アクティビティからの URL 復元» の
+        // 純関数を合成録画で確かめる。**CSSearchableIndex には書き込まない** (実機の
+        // Spotlight 索引を汚さない — 実際の検索・クリックは手動確認)。
+        // 実録画を伴わないため録画のスロット (権限・スピーカー) を占有しない
+        if env["KILDE_GUI_SELFTEST_SPOTLIGHT"] == "1" {
+            SelfTestSpotlight.run()
+            return
+        }
         // KILDE_GUI_SELFTEST_LIBRARY_SEARCH: ライブラリの索引構築 + 全文検索の検証
         // (issue #165)。一時ディレクトリに合成したサイドカー 100 件で実測時間を出す —
         // 実録画を伴わないため録画のスロット (権限・スピーカー) を占有しない
