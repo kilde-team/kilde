@@ -476,3 +476,15 @@ those formats store no end times (avoid a reading of «just works» for every re
 ```text
 Taking transcripts out of the recording library got easier. The export menu now offers SubRip (.srt) and WebVTT (.vtt) subtitle files in addition to plain text (.txt) — handy when a video platform needs subtitles (transcripts saved as text/Markdown store no end times, so their subtitle end times are approximate). A new “Copy All” action copies the whole transcript as “[time] text” lines, and right-clicking a transcript line copies just that line's text. Recording and transcription are unchanged.
 ```
+
+## What's New (0.33.0)
+
+Spotlight support for the recording library — recordings and transcripts are indexed with
+CoreSpotlight, and a Spotlight result opens the library with that recording (issue #502).
+Copy states only what ships (same policy as 0.28.0). «The index stays on this Mac and is
+never sent anywhere» follows PRIVACY.md «Spotlight index» (scoped to what kilde itself
+registers and sends).
+
+```text
+Find recordings from Spotlight. Search the library by name, date, and duration — and by the words in the transcript. Choosing a Spotlight result opens the recording library with that recording selected. The index stays on this Mac and is never sent anywhere. It can be turned off under Settings > Recording library. Recording and transcription are unchanged.
+```

@@ -2,6 +2,99 @@
   "sourceLanguage": "ja",
   "strings": {
     
+      "録画と文字起こしを Spotlight に登録する": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Register recordings and transcripts with Spotlight"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Registrar grabaciones y transcripciones en Spotlight"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "녹화와 텍스트 변환을 Spotlight에 등록"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "将录像和转写登记到Spotlight"
+            }
+          }
+        }
+      }
+    ,
+    
+      "録画ライブラリ": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Recording library"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Biblioteca de grabaciones"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "녹화 라이브러리"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "录像库"
+            }
+          }
+        }
+      }
+    ,
+    
+      "Spotlight で録画や発言の中身を探せるようになります。索引はこの Mac の中にだけ保存され、外部には送りません。オフにすると索引はすぐに消えます": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Find recordings and spoken words from Spotlight. The index is stored only on this Mac and is never sent anywhere. Turning it off erases the index immediately."
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Busca grabaciones y lo dicho en ellas desde Spotlight. El índice se guarda solo en este Mac y no se envía a ningún sitio. Al desactivarlo, el índice se borra enseguida."
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Spotlight에서 녹화와 발언 내용을 찾을 수 있습니다. 인덱스는 이 Mac 안에만 저장되고 외부로 보내지지 않습니다. 끄면 인덱스가 바로 삭제됩니다."
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "可以从Spotlight查找录像和发言内容。索引只保存在这台Mac中，不会发送到外部。关闭后会立即删除索引。"
+            }
+          }
+        }
+      }
+    ,
+    
       "全文をコピー": {
         "extractionState": "manual",
         "localizations": {
