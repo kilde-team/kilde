@@ -488,5 +488,5 @@ and sends — not Spotlight's own behavior).
 «The first 100,000 characters» states the textContent cap (textContentLimit in SpotlightExporter.swift). The in-app full-text search covers the whole transcript.
 
 ```text
-Find recordings from Spotlight. Search the library by name, date, and duration — and by the words in the transcript (the first 100,000 characters of a transcript are indexed). Choosing a Spotlight result opens the recording library with that recording selected. What kilde registers with the index stays on this Mac; kilde never sends it anywhere. It can be turned off under Settings > Recording library. Recording and transcription are unchanged.
+Find recordings from Spotlight. Search the library by name, date, and duration — and by the words in the transcript (the first 100,000 characters of a transcript are indexed). Choosing a Spotlight result opens the recording library with that recording selected (for recordings in the current save location). What kilde registers with the index stays on this Mac; kilde never sends it anywhere. It can be turned off under Settings > Recording library. Recording and transcription are unchanged.
 ```

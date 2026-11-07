@@ -91,6 +91,11 @@ enum SelfTestSpotlight {
         if let itemA {
             check(itemA.domainIdentifier == SpotlightItemFactory.domainIdentifier,
                   "domainIdentifier が recording")
+            // 有効期限の明示を検証する — SDK ヘッダの «By default it's set to 1 month»
+            // (既定のままだと約 1 か月で索引から落ち、manifest が進んでいるため
+            // 差分同期は再登録しない) を避けるため makeItem が .distantFuture を置く
+            check(itemA.expirationDate == .distantFuture,
+                  "アイテムの有効期限が無期限 (既定の 1 か月を回避)")
             let attributes = itemA.attributeSet
             check(attributes.title == "kilde-\(stampA)",
                   "タイトルがファイル名の stem (実際 \(attributes.title ?? "(nil)"))")

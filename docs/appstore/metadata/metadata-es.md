@@ -492,5 +492,5 @@ texto localizado de la app («Biblioteca de grabaciones»).
 «Los primeros 100.000 caracteres» es el límite de textContent (textContentLimit en SpotlightExporter.swift); la búsqueda completa dentro de la app cubre todo el texto.
 
 ```text
-Ahora puedes buscar grabaciones desde Spotlight: por nombre, fecha y duración, y también por las palabras de la transcripción (se indexan los primeros 100.000 caracteres de cada transcripción). Al elegir un resultado de Spotlight se abre la biblioteca de grabaciones con esa grabación seleccionada. Lo que kilde registra en el índice se guarda solo en este Mac; kilde no lo envía a ningún sitio. Se puede desactivar en Ajustes > Biblioteca de grabaciones. Las funciones de grabación y transcripción no cambian.
+Ahora puedes buscar grabaciones desde Spotlight: por nombre, fecha y duración, y también por las palabras de la transcripción (se indexan los primeros 100.000 caracteres de cada transcripción). Al elegir un resultado de Spotlight se abre la biblioteca de grabaciones con esa grabación seleccionada (para grabaciones de la ubicación de guardado actual). Lo que kilde registra en el índice se guarda solo en este Mac; kilde no lo envía a ningún sitio. Se puede desactivar en Ajustes > Biblioteca de grabaciones. Las funciones de grabación y transcripción no cambian.
 ```

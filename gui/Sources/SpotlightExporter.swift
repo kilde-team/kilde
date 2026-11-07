@@ -182,10 +182,20 @@ enum SpotlightItemFactory {
         }
         // キーワード。アプリ名を入れると Spotlight の «kilde» 入力でも録画が引ける
         attributes.keywords = ["kilde"]
-        return CSSearchableItem(
+        let item = CSSearchableItem(
             uniqueIdentifier: Self.identifier(for: entry),
             domainIdentifier: Self.domainIdentifier,
             attributeSet: attributes)
+        // 有効期限を明示的に «無期限» にする — SDK ヘッダ (CSSearchableItem.h) が
+        // «Searchable items have an expiration date or time to live. By default it's set
+        // to 1 month.» と明示しており、既定のままでは **約 1 か月で索引から落ちる**。
+        // 落ちたアイテムは manifest (台帳) には «登録済み» と残るため、差分同期は
+        // 再登録してくれない — «1 か月後に録画が Spotlight から消える» を防ぐため
+        // 明示的に遠い日付を置く (CodeRabbit レビュー指摘)。索引の寿命の正本は
+        // «このアプリの差分同期» (削除は明示的に行う) なので、システム側の
+        // 時間切れに管理を任せない
+        item.expirationDate = .distantFuture
+        return item
     }
 
     /// 走査結果の一括生成。fingerprint が取れない録画はスキップされる
