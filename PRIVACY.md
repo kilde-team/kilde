@@ -37,6 +37,9 @@ bundleID やタイトルは含まれません。**
 コピーの単位 — 全文または 1 セグメントの本文 —、それぞれの回数) も同じ利用統計に
 含まれます。書き出したファイルの名前や保存先、コピーしたテキストの内容は
 含まれません。
+Spotlight からのオープンの利用状況 (Spotlight の結果からアプリを開いた回数。
+0.33.0 以降) も同じ利用統計に含まれます。**どの録画を開いたか、録画の
+ファイル名・保存先・文字起こしの内容は含まれません。**
 会議の要約機能 (Pro) の利用状況 (要約の開始・完了・失敗・生成されなかった
 理由の区分と処理時間の区分)、フォローアップの下書き機能 (Pro) の利用状況
 (下書きの開始・完了・失敗の回数、処理時間の区分と失敗の種別)、Mac App Store 版の
@@ -212,7 +215,10 @@ transcripts out of the recording library (exporting to files and copying) —
 the exported format bucket (text / SubRip / WebVTT), the copy unit (the whole
 transcript or one segment's text), and their counts — is part of the same
 usage statistics. It never includes the exported file's name or location or
-the copied text itself. Usage of the
+the copied text itself. Usage of opening the app from Spotlight (the count of
+times the app is opened from a Spotlight result; 0.33.0 or later) is part of
+the same usage statistics. **It never includes which recording was opened, its
+file name or save location, or the transcript content.** Usage of the
 meeting-summary feature (Pro) — counts of summary starts, completions, and
 failures, coarse buckets for processing time and recording length, the kind of
 failure, and the reason a summary was skipped — usage of the follow-up-draft

@@ -51,9 +51,11 @@ enum SelfTestSpotlight {
         writeJSONSidecar(directory: directory, stem: "kilde-\(stampB)")
         writeRecording(directory: directory, stem: "kilde-\(stampC)", ext: "mov")
         writeRecording(directory: directory, stem: "kilde-\(stampD)", ext: "mov")
+        // 切り詰めの方向を検証できるように、本文の先頭と末尾に **別の** マーカーを置く
+        // (cubic レビュー指摘 — «あ» だけだと prefix されても本文が同じで分からない)
         writeSidecar(
             directory: directory, stem: "kilde-\(stampD)", ext: "txt",
-            body: "[00:00:00] \(String(repeating: "あ", count: SpotlightItemFactory.textContentLimit + 5_000))")
+            body: "[00:00:00] 冒頭マーカー\(String(repeating: "あ", count: SpotlightItemFactory.textContentLimit + 5_000))末尾マーカー")
 
         // scan は «ディレクトリが読めない» と «空» を区別する (issue #502) が、
         // ここは存在する一時ディレクトリなので nil にならず、nil なら下の検証が落とす
@@ -116,7 +118,13 @@ enum SelfTestSpotlight {
             let text = itemD.attributeSet.textContent ?? ""
             check(text.count == SpotlightItemFactory.textContentLimit,
                   "textContent が上限文字数に切り詰められる (実際 \(text.count) 字)")
-            check(text.hasSuffix("あ"), "切り詰めは末尾 (先頭) から行われる")
+            // 切り詰めは **先頭から** 行われる (prefix)。末尾マーカーは含まれず、
+            // 先頭マーカーは残る — «あ» だけだとどちらから切れたか検証できない。
+            // textContent はセグメント本文の連結なので «[時刻]» の表記は含まれない
+            check(text.hasPrefix("冒頭マーカー"),
+                  "切り詰めが先頭を保持する (実際 先頭 20 字: \(text.prefix(20)))")
+            check(!text.contains("末尾マーカー"),
+                  "切り詰めで末尾マーカーが落ちる")
         } else {
             check(false, "録画 D が索引対象に入る (巨大セグメント)")
         }
@@ -134,8 +142,13 @@ enum SelfTestSpotlight {
 
         // MARK: 更新の差分 — B のサイドカーを書き換える
         let urlB = scannedURLs["kilde-\(stampB).mp4"] ?? missing
+        // 追い詰める要素は **更新時刻だけ** にする — 本文は既定と同じ UTF-8 バイト数
+        // («会議の冒頭の発言です» と «再書き込みキーワード» はどちらも 10 文字 = 30 バイト)
+        // にし、fileSize が変わらないようにする (cubic レビュー指摘。サイズも変わると
+        // «mtime 以外の要素で差分が出た» ことになり、fingerprint の «更新時刻由来» を
+        // 検証できなくなる)
         writeJSONSidecar(directory: directory, stem: "kilde-\(stampB)",
-                         extraText: "追記したユニークキーワード502")
+                         extraText: "再書き込みキーワード")
         // 更新時刻を明示的に進める — «書き換えたのに mtime が同じ» を合成側で潰す
         // (fingerprint が更新時刻由来であることの検証も兼ねる)。
         // setModificationDate / removeItem は POSIX のファイル操作なので、
@@ -149,7 +162,7 @@ enum SelfTestSpotlight {
               "書き換えた録画 B だけが再索引対象 (実際 \(afterUpdate.index.map(\.uniqueIdentifier)))")
         check(afterUpdate.delete.isEmpty, "変更は «置き換え» のため削除対象にならない (実際 \(afterUpdate.delete.count) 件)")
         if let itemB = afterUpdate.index.first {
-            check(itemB.attributeSet.textContent?.contains("追記したユニークキーワード502") == true,
+            check(itemB.attributeSet.textContent?.contains("再書き込みキーワード") == true,
                   "再索引された item に更新後の本文が載る")
         }
 
@@ -172,9 +185,9 @@ enum SelfTestSpotlight {
         check(!afterDelete.index.contains(where: { $0.uniqueIdentifier == urlA.path }),
               "消した録画 A は索引対象にならない")
 
-        // MARK: fingerprint が取れない録画 — «索引に残っていて実ファイルが読めない»
-        // 状態を «identifier は分かるが entry が無い» ことで模擬する (manifest にだけ
-        // 存在する identifier が削除対象に変わること)
+        // MARK: manifest にだけ残る identifier («前回は登録したが今回の走査に無い»)
+        // — «identifier は分かるが entry が無い» 状態。manifest にだけ存在する
+        // identifier が削除対象に変わること
         let phantomManifest = initial.manifest
         let phantomDiff = SpotlightItemFactory.diff(
             manifest: phantomManifest.merging(["/nonexistent/kilde-99999999-999999.mov": "0|0|none"],
@@ -182,6 +195,24 @@ enum SelfTestSpotlight {
             entries: LibraryStore.scan(directory: directory) ?? [])
         check(phantomDiff.delete.contains("/nonexistent/kilde-99999999-999999.mov"),
               "実在しない identifier が削除対象になる")
+
+        // MARK: fingerprint が取れない録画 (cubic レビュー指摘)
+        // **実ファイルが読めない entry** を diff に直接渡し、diff の
+        // «fingerprint 取得の guard» の分岐を検証する — 上の phantom (manifest にだけ
+        // 残る identifier) とは別の経路。存在しない recording URL は
+        // contentModificationDate が取れないため fingerprint が nil になる
+        let ghostURL = URL(fileURLWithPath: "/nonexistent-for-selftest/ghost.mov")
+        let ghost = LibraryEntry(id: ghostURL, recordingURL: ghostURL,
+                                 transcriptURL: nil, recordedAt: Date(), segments: nil)
+        check(SpotlightItemFactory.fingerprint(for: ghost) == nil,
+              "存在しない録画の fingerprint が nil (取得できない)")
+        let ghostDiffEmpty = SpotlightItemFactory.diff(manifest: [:], entries: [ghost])
+        check(ghostDiffEmpty.index.isEmpty && ghostDiffEmpty.delete.isEmpty,
+              "fingerprint が取れない録画は新規に索引対象にならず、削除もない")
+        let ghostDiffStale = SpotlightItemFactory.diff(
+            manifest: [ghostURL.path: "0|0|none"], entries: [ghost])
+        check(ghostDiffStale.delete == [ghostURL.path] && ghostDiffStale.index.isEmpty,
+              "fingerprint が取れない録画が manifest に残っていたら削除対象になる")
 
         // MARK: Spotlight アクティビティからの URL 復元
         // userInfo のキーは macOS では CSSearchableItemActivityIdentifier
