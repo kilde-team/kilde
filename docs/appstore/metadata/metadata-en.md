@@ -481,11 +481,11 @@ Taking transcripts out of the recording library got easier. The export menu now 
 
 Spotlight support for the recording library — recordings and transcripts are indexed with
 CoreSpotlight, and a Spotlight result opens the library with that recording (issue #502).
-Copy states only what ships (same policy as 0.28.0). «The index stays on this Mac and is
-never sent anywhere» follows PRIVACY.md «Spotlight index» (scoped to what kilde itself
-registers and sends).
+Copy states only what ships (same policy as 0.28.0). «What kilde registers with the index stays on this Mac; kilde never sends it anywhere»
+follows the corrected PRIVACY.md «Spotlight index» (scoped to what kilde itself registers
+and sends — not Spotlight's own behavior).
 
-«What kilde registers with the index stays on this Mac; kilde never sends it anywhere» is scoped the same way as the fixed PRIVACY.md (what kilde itself registers and sends — not Spotlight's own behavior). «The first 100,000 characters» states the textContent cap (textContentLimit in SpotlightExporter.swift); the in-app full-text search covers the whole transcript
+«The first 100,000 characters» states the textContent cap (textContentLimit in SpotlightExporter.swift). The in-app full-text search covers the whole transcript.
 
 ```text
 Find recordings from Spotlight. Search the library by name, date, and duration — and by the words in the transcript (the first 100,000 characters of a transcript are indexed). Choosing a Spotlight result opens the recording library with that recording selected. What kilde registers with the index stays on this Mac; kilde never sends it anywhere. It can be turned off under Settings > Recording library. Recording and transcription are unchanged.

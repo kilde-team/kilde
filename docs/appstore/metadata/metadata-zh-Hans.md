@@ -378,11 +378,11 @@ Pro 新增了自定义指令。可以指定语气、收件人、署名等，让�
 ## 新功能 (0.33.0)
 
 录像库的 Spotlight 支持：将录像和转写登记到 Spotlight 索引，从结果打开录像库并显示该
-录像（issue #502）。只写实现中存在的内容（与 0.28.0 相同的方针）。“索引只保存在这台
-Mac 中，不会发送到外部”遵循 PRIVACY.md 的“Spotlight index”（限于 kilde 自己登记并发送的
-范围）。区块名称使用应用的本地化字符串（“录像库”）。
+录像（issue #502）。只写实现中存在的内容（与 0.28.0 相同的方针）。“kilde登记到索引的内容只保存在这台Mac中，kilde不会将其发送到外部”遵循修正后的
+PRIVACY.md“Spotlight index”（限于 kilde 自己登记并发送的内容——不涉及 Spotlight 搜索
+功能自身的通信）。区块名称使用应用的本地化字符串（“录像库”）。
 
-“kilde登记到索引的内容只保存在这台Mac中，kilde不会将其发送到外部”与修正后的 PRIVACY.md 采用同样的范围限定（不涉及 Spotlight 搜索功能自身的通信）。“前10万字”是 textContent 上限（SpotlightExporter.swift 的 textContentLimit）的事实说明；应用内的全文搜索仍覆盖全文
+“前10万字”是 textContent 上限（SpotlightExporter.swift 的 textContentLimit）的事实说明；应用内的全文搜索仍覆盖全文。
 
 ```text
 现在可以从Spotlight查找录像了。除了名称、录像日期和时长，还可以按转写文本的内容进行搜索（每条转写只有前10万字会被索引。选择Spotlight结果会打开录像库并显示该录像）。kilde登记到索引的内容只保存在这台Mac中，kilde不会将其发送到外部。可以在“设置 > 录像库”中关闭。录屏、录音和转写功能没有变化。

@@ -484,11 +484,12 @@ Sacar transcripciones de la biblioteca de grabaciones es más fácil. El menú d
 Soporte de Spotlight para la biblioteca de grabaciones: las grabaciones y transcripciones
 se registran en el índice de Spotlight y un resultado abre la biblioteca con esa grabación
 (issue #502). Se describe solo lo que existe en la implementación (misma política que 0.28.0).
-«El índice se guarda solo en este Mac y no se envía a ningún sitio» sigue PRIVACY.md
-(«Spotlight index», acotado a lo que kilde registra y envía). El nombre de la sección es el
+«Lo que kilde registra en el índice se guarda solo en este Mac; kilde no lo envía a
+ningún sitio» sigue la PRIVACY.md corregida («Spotlight index», acotado a lo que kilde
+registra y envía — no el comportamiento propio de Spotlight). El nombre de la sección es el
 texto localizado de la app («Biblioteca de grabaciones»).
 
-«Lo que kilde registra en el índice se guarda solo en este Mac; kilde no lo envía a ningún sitio» limita el alcance igual que la PRIVACY.md corregida (lo que kilde registra y envía, no el comportamiento propio de Spotlight). «Los primeros 100.000 caracteres» es el límite de textContent (textContentLimit en SpotlightExporter.swift); la búsqueda completa dentro de la app cubre todo el texto
+«Los primeros 100.000 caracteres» es el límite de textContent (textContentLimit en SpotlightExporter.swift); la búsqueda completa dentro de la app cubre todo el texto.
 
 ```text
 Ahora puedes buscar grabaciones desde Spotlight: por nombre, fecha y duración, y también por las palabras de la transcripción (se indexan los primeros 100.000 caracteres de cada transcripción). Al elegir un resultado de Spotlight se abre la biblioteca de grabaciones con esa grabación seleccionada. Lo que kilde registra en el índice se guarda solo en este Mac; kilde no lo envía a ningún sitio. Se puede desactivar en Ajustes > Biblioteca de grabaciones. Las funciones de grabación y transcripción no cambian.
