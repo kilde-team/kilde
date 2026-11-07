@@ -1,6 +1,6 @@
 # プライバシーポリシー / Privacy Policy
 
-最終更新日 / Last updated: 2026-11-05
+最終更新日 / Last updated: 2026-11-07
 
 対象: kilde (macOS 用の画面・音声録画アプリ `Kilde` と `kilde` コマンドライン)
 
@@ -37,6 +37,9 @@ bundleID やタイトルは含まれません。**
 コピーの単位 — 全文または 1 セグメントの本文 —、それぞれの回数) も同じ利用統計に
 含まれます。書き出したファイルの名前や保存先、コピーしたテキストの内容は
 含まれません。
+Spotlight からのオープンの利用状況 (Spotlight の結果からアプリを開いた回数。
+0.33.0 以降) も同じ利用統計に含まれます。**どの録画を開いたか、録画の
+ファイル名・保存先・文字起こしの内容は含まれません。**
 会議の要約機能 (Pro) の利用状況 (要約の開始・完了・失敗・生成されなかった
 理由の区分と処理時間の区分)、フォローアップの下書き機能 (Pro) の利用状況
 (下書きの開始・完了・失敗の回数、処理時間の区分と失敗の種別)、Mac App Store 版の
@@ -80,6 +83,15 @@ GUI アプリ (直接配布版・Mac App Store 版の両方) は、アプリが�
 - **議事録の書き出し先 (設定した場合)**: 文字起こしした .md を、利用者が指定した
   フォルダ (Obsidian の vault など) にも複製できます。この書き出しは
   **あなたの Mac 内のフォルダへのコピーのみ**で、内容がネットワークへ送信されることはありません
+- **Spotlight 索引 (既定はオン、設定でオフにできます)**: 録画ライブラリにある録画を
+  macOS の Spotlight から探せるようにするため、録画の名前と保存先 (パス)・
+  録画日時・長さ、および文字起こししたテキストの本文を **macOS の Spotlight 索引に
+  登録します**。kilde が索引に登録するこれらの情報は、kilde から外部へ送信されません
+  (索引はこの Mac の Spotlight の仕組みの中に置かれます。Spotlight の検索機能自体が
+  設定によって端末外と通信しないかは kilde 側からは確認できないため、ここでは
+  «kilde が登録した内容を送らない» ことだけを記載します)。
+  «設定 > 録画ライブラリ > 録画と文字起こしを Spotlight に登録する» をオフにすると、
+  登録した索引はすぐに消去されます
 - **会議の自動録画 (既定はオフ)**: 有効にすると、会議の開始を検知するために
   «どのアプリがマイクを使っているか» とウィンドウのタイトルを数秒おきに
   **あなたの Mac 上で**確認します。これらの情報は保存も送信もされません
@@ -203,7 +215,10 @@ transcripts out of the recording library (exporting to files and copying) —
 the exported format bucket (text / SubRip / WebVTT), the copy unit (the whole
 transcript or one segment's text), and their counts — is part of the same
 usage statistics. It never includes the exported file's name or location or
-the copied text itself. Usage of the
+the copied text itself. Usage of opening the app from Spotlight (the count of
+times the app is opened from a Spotlight result; 0.33.0 or later) is part of
+the same usage statistics. **It never includes which recording was opened, its
+file name or save location, or the transcript content.** Usage of the
 meeting-summary feature (Pro) — counts of summary starts, completions, and
 failures, coarse buckets for processing time and recording length, the kind of
 failure, and the reason a summary was skipped — usage of the follow-up-draft
@@ -273,6 +288,18 @@ language models from Apple — see "Network access").
 - **Optional transcript export folder**: you can choose a folder (for example, an
   Obsidian vault) that transcript .md files are also copied into. This is a
   **local copy on your Mac only**; the content is never sent over the network
+- **Spotlight index (on by default; you can turn it off in settings)**: to make
+  recordings in the recording library findable from macOS Spotlight, the app
+  registers the recording's name and save location (path), date, duration, and
+  the transcript text with **macOS's Spotlight index**. kilde never sends the
+  information it registers with the index off the Mac (the index lives inside
+  Spotlight on this Mac. Whether Spotlight's own search behavior communicates
+  off the device under some setting is not something kilde can verify from the
+  app side, so this describes only what kilde itself registers — and that it
+  sends nothing). Turning off "Settings > Recording library > Register
+  recordings and transcripts with Spotlight" erases the registered index
+  immediately
+
 ### Permissions and why they are needed
 
 | Permission | Purpose |

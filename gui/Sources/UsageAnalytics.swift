@@ -446,6 +446,16 @@ enum UsageAnalytics {
         Analytics.logEvent("transcript_copy", parameters: ["kind": kind.rawValue])
     }
 
+    /// Spotlight の結果からアプリを開いた (issue #502)。**パラメータなし** —
+    /// «Spotlight という入口が使われているか» だけを見る。どの録画を開いたかは
+    /// «録画ファイル・サイドカーの名前やパスを絶対に含めない» 契約に反するため
+    /// 載せない (カスタム ディメンションの追加も不要 — issue #456 の «登録済み
+    /// ディメンションのみ» 規約)。パラメータの無いイベントは GA4 で自動登録される
+    static func spotlightOpened() {
+        guard isEnabled else { return }
+        Analytics.logEvent("spotlight_open", parameters: nil)
+    }
+
     /// パラメータなし (または error_kind のみ) のイベント用。録画長などの
     /// バケットを載せる既存 `log` と別にしたのは、Pro のUI 系イベントには
     /// «関連する録画» が無い (ロック行の表示は録画と結び付かない) ため

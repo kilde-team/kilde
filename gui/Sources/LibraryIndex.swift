@@ -332,17 +332,37 @@ final class LibraryStore: ObservableObject {
         // 存在しない (アクセスできない) 録画をクリックできてしまう
         entries = []
         index = nil
-        let scan = Task.detached { () -> ([LibraryEntry], LibraryIndex) in
-            let scanned = Self.scan(directory: directory)
+        let scan = Task.detached { () -> ([LibraryEntry], LibraryIndex)? in
+            // 走査が失敗した (nil) ときは «一覧も索引も Spotlight も更新しない» —
+            // nil を空と誤認すると «読めなかったフォルダの索引を全削除» する
+            // (CodeRabbit レビュー指摘)。一時的な失敗は次回の reload で再試行される
+            guard let scanned = Self.scan(directory: directory) else { return nil }
             let index = LibraryIndex(entries: scanned)
             return (scanned, index)
         }
         Task { [weak self] in
-            let (scanned, index) = await scan.value
+            // **先に await してから世代を見る** (cubic レビュー指摘)。«await より前に
+            // 世代を見る» と、«await 中に新しい reload が走った» ケースを拾えず、
+            // 古い走査結果が新しい一覧を上書きしてしまう (reload は世代を «呼ばれた瞬間»
+            // に進めるため、古い Task の guard はその後に通ってしまう)
+            let result = await scan.value
             guard let self, currentGeneration == self.generation else { return }
+            guard let (scanned, index) = result else {
+                // 走査の失敗。一覧は «走査を始める前に空にした» まま (誤って
+                // 旧ディレクトリの一覧を残さない — reload のコメント参照)。
+                // isScanning を下ろして «読み込み中» の表示だけは終わらせる
+                self.isScanning = false
+                return
+            }
             self.entries = scanned
             self.index = index
             self.isScanning = false
+            // 走査結果を Spotlight 索引へ反映する (issue #502)。ここが «走査結果の
+            // 正» が確定する唯一の場所なので配線もここ — «ライブラリを開いた» 経路の
+            // 登録・更新・削除の差分はすべてこの 1 行で満たす。内部で設定トグルを
+            // 見ており、オフなら何もしない。fire-and-forget (一覧の表示を Spotlight
+            // の反映で遅らせない — 索引への書き込みは補助的な入口の話)
+            Task { await SpotlightExporter.shared.sync(entries: scanned) }
         }
     }
 
@@ -353,16 +373,20 @@ final class LibraryStore: ObservableObject {
     nonisolated static let recordingExtensions: Set<String> = LibraryImport.importableExtensions
 
     /// 保存先フォルダを走査して LibraryEntry 列を作る (新しい順)。
+    /// 戻り値の **nil は «ディレクトリが読めなかった»** — «空のフォルダ» ([]) と
+    /// 区別するのは Spotlight への同期 (issue #502) のため: 読めないフォルダを
+    /// 空と誤認すると «索引の全件削除» をしてしまう (一時的な権限の喪失など)。
+    /// 一覧表示側は nil も [] と同じ «空の一覧» として扱ってよい (従来の挙動)。
     /// 一覧の対象は «kilde- 接頭辞 + LibraryImport.importableExtensions の拡張子»
     /// (エンジンが録る mov/mp4/m4a に、取り込み (issue #416) の音声形式を足した
     /// 集合)。サイドカーの対応付けは RecordingSetup.transcriptSidecar と同じ規則 —
     /// «最近の録画» に出るものは必ずライブラリにも出る
-    nonisolated static func scan(directory: URL) -> [LibraryEntry] {
+    nonisolated static func scan(directory: URL) -> [LibraryEntry]? {
         let fileManager = FileManager.default
         let keys: [URLResourceKey] = [.contentModificationDateKey, .isRegularFileKey]
         guard let all = try? fileManager.contentsOfDirectory(
             at: directory, includingPropertiesForKeys: keys,
-            options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants]) else { return [] }
+            options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants]) else { return nil }
         let regular = all.filter {
             (try? $0.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
         }

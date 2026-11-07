@@ -33,6 +33,15 @@ struct LibraryTranscriptionSettings {
     let summaryUnsupportedReason: String?
 }
 
+/// «指定した録画を選んだ状態で開く» をウィンドウ (と保持された rootView) へ
+/// 届ける運び屋 (issue #502)。Spotlight の結果からのオープンが唯一の送り手。
+/// 値は «消費したら nil に戻す» 契約 — 残していると次のオープンで
+/// 古い選択が再適用される
+@MainActor
+final class LibraryRevealCoordinator: ObservableObject {
+    @Published var pending: URL?
+}
+
 /// 録画ライブラリのウィンドウ (issue #165)。
 /// このアプリは LSUIElement (.accessory) で動くため、普通のウィンドウを
 /// orderFront しても Dock に出ず前面に来ない。ウィンドウを出している間だけ
@@ -53,6 +62,12 @@ final class LibraryWindowController: NSObject, NSWindowDelegate {
     /// RecordingSetup だけを捕まえる (AppDelegate を捕まえない) ため、
     /// ライブラリウィンドウの寿命が AppDelegate と常に同じでも循環参照は作らない
     private let settings: () -> LibraryTranscriptionSettings
+    /// Spotlight など «指定した録画を選んだ状態で開く» 経路の受け渡し (issue #502)。
+    /// ウィンドウを持ち回る (閉じても破棄しない) ため、再オープン時に rootView は
+    /// 再生成されない — 選択はこの ObservableObject をビューが購読することで
+    /// «後から» 届く (初回生成の前に値が入っていても、$pending は購読開始時に
+    /// 現在値を流すので初期選択もこの 1 本で済む)
+    let reveal = LibraryRevealCoordinator()
     private var window: NSWindow?
 
     init(store: LibraryStore,
@@ -66,9 +81,17 @@ final class LibraryWindowController: NSObject, NSWindowDelegate {
     }
 
     /// ウィンドウを開く (既に開いていれば前面に出す)。directory は保存先 —
-    /// 開くたびに走査し直すので、録画や文字起こしの追加が次回のオープンで反映される
-    func present(fromDirectory directory: URL) {
+    /// 開くたびに走査し直すので、録画や文字起こしの追加が次回のオープンで反映される。
+    /// reveal は «この録画を選んだ状態で開く» (Spotlight の結果からのオープン、issue #502)。
+    /// **reveal が現在の保存先に無いときは選択されない** (走査は現在の保存先が対象。
+    /// 旧保存先の録画を Spotlight から開いた場合は詳細が空のまま — 限界は PR に明記する)
+    func present(fromDirectory directory: URL, reveal recordingURL: URL? = nil) {
         store.reload(directory: directory)
+        if let recordingURL {
+            // 一覧が並ぶのを待たずに渡してよい — ビュー側は «entries に現れたら
+            // 詳細が出る» (selectedEntryID は URL の tag で照合する) だけを見る
+            self.reveal.pending = recordingURL
+        }
         if let window {
             showAndActivate(window)
             return
@@ -85,7 +108,7 @@ final class LibraryWindowController: NSObject, NSWindowDelegate {
         window.delegate = self
         window.contentViewController = NSHostingController(
             rootView: LibraryView(store: store, transcription: transcription, pro: pro,
-                                  settings: settings))
+                                  settings: settings, reveal: reveal))
         self.window = window
         showAndActivate(window)
     }
@@ -181,6 +204,10 @@ struct LibraryView: View {
     @StateObject private var playback = LibraryPlayerController()
     /// 既存ファイルの取り込み (issue #416)。コピーの進捗と案内の表示元
     @StateObject private var importer = LibraryImportCoordinator()
+    /// Spotlight からの «この録画を選んで開く» (issue #502)。コントローラが持ち、
+    /// このビューが購読する — ウィンドウの再オープンでは rootView が再生成されない
+    /// (LibraryWindowController.reveal のコメント) ための受け渡し
+    @ObservedObject var reveal: LibraryRevealCoordinator
 
     private var searching: Bool {
         !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -232,6 +259,18 @@ struct LibraryView: View {
                   Self.recordingBelongsToDirectory(completion.job.recordingURL, directory)
             else { return }
             store.reload(directory: directory)
+        }
+        // Spotlight の結果からのオープン (issue #502)。«該当の録画を選んだ状態»
+        // にする — 検索語が残っていると一覧が絞り込まれて目的の録画が見えないので
+        // クエリを一旦クリアする («Spotlight から開いた» = «目的の録画が決まっている»
+        // ため、全文検索の続きを期待しない)。entries に無い URL (旧保存先) は
+        // 詳細が空になるだけ (present のコメント参照)
+        .onReceive(reveal.$pending) { pending in
+            guard let pending else { return }
+            query = ""
+            recomputeResults()
+            selectedEntryID = pending
+            reveal.pending = nil
         }
     }
 

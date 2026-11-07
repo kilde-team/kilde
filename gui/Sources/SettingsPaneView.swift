@@ -29,6 +29,9 @@ struct SettingsPaneView: View {
     /// 利用統計・クラッシュレポートの送信設定 (issue #435)。ContentView から移設。
     /// 正本は UserDefaults (TelemetryPreferences) で、この @State は表示を追従させる写し
     @State private var telemetryEnabled = TelemetryPreferences.isEnabled()
+    /// Spotlight への登録設定 (issue #502)。telemetryEnabled と同じ «UserDefaults が
+    /// 正本・@State は写し» の構成
+    @State private var spotlightEnabled = SpotlightPreferences.isEnabled()
     /// カスタム指示セクション (issue #472) の開閉。ContentView から移設。
     /// 設定値自体は UserDefaults が正本なので開閉状態の保存はしない
     @State private var showsComposerInstructions = false
@@ -72,6 +75,9 @@ struct SettingsPaneView: View {
                 }
                 section("録音の告知文") {
                     noticeSection
+                }
+                section("録画ライブラリ") {
+                    spotlightSection
                 }
                 section("プライバシー") {
                     privacySection
@@ -492,6 +498,38 @@ struct SettingsPaneView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // MARK: - 録画ライブラリ (issue #502 — Spotlight)
+
+    private var spotlightSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle("録画と文字起こしを Spotlight に登録する", isOn: Binding(
+                get: { spotlightEnabled },
+                set: { setSpotlightEnabled($0) }))
+                .toggleStyle(.checkbox)
+            Text("Spotlight で録画や発言の中身を探せるようになります。索引はこの Mac の中にだけ保存され、外部には送りません。オフにすると索引はすぐに消えます")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// 保存してから索引へ反映する (telemetry と同じ «先に保存» の順序)。
+    /// オフ → 即座に全消去 («切ったのに Spotlight に残っていた» は信頼を壊す —
+    /// TelemetryPreferences の «オフは即時» と同じ立付け)。オン → 現在の保存先を
+    /// 同期して «オンに戻したらすぐ並ぶ» (次の走査を待たせない)
+    private func setSpotlightEnabled(_ enabled: Bool) {
+        spotlightEnabled = enabled
+        SpotlightPreferences.setEnabled(enabled)
+        let directory = setup.request.outputDirectory
+        Task { @MainActor in
+            if enabled {
+                await SpotlightExporter.shared.sync(directory: directory)
+            } else {
+                await SpotlightExporter.shared.clearAll()
+            }
         }
     }
 

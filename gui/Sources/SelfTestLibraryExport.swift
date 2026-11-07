@@ -100,7 +100,9 @@ enum SelfTestLibraryExport {
         }
 
         writeSyntheticRecordings(into: directory)
-        let entries = LibraryStore.scan(directory: directory)
+        // scan は «読めない» と «空» を区別するようになった (issue #502) が、ここは
+        // 存在する一時ディレクトリなので nil にならず、nil なら下の検証が落とす
+        let entries = LibraryStore.scan(directory: directory) ?? []
         check(entries.count == formats.count,
               "録画 \(formats.count) 件を走査できる (実際 \(entries.count) 件)")
 
