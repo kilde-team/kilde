@@ -341,8 +341,13 @@ final class LibraryStore: ObservableObject {
             return (scanned, index)
         }
         Task { [weak self] in
+            // **先に await してから世代を見る** (cubic レビュー指摘)。«await より前に
+            // 世代を見る» と、«await 中に新しい reload が走った» ケースを拾えず、
+            // 古い走査結果が新しい一覧を上書きしてしまう (reload は世代を «呼ばれた瞬間»
+            // に進めるため、古い Task の guard はその後に通ってしまう)
+            let result = await scan.value
             guard let self, currentGeneration == self.generation else { return }
-            guard let (scanned, index) = await scan.value else {
+            guard let (scanned, index) = result else {
                 // 走査の失敗。一覧は «走査を始める前に空にした» まま (誤って
                 // 旧ディレクトリの一覧を残さない — reload のコメント参照)。
                 // isScanning を下ろして «読み込み中» の表示だけは終わらせる
