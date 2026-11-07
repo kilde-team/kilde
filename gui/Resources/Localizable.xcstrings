@@ -2,6 +2,99 @@
   "sourceLanguage": "ja",
   "strings": {
     
+      "録画と文字起こしを Spotlight に登録する": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Register recordings and transcripts with Spotlight"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Registrar grabaciones y transcripciones en Spotlight"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "녹화와 텍스트 변환을 Spotlight에 등록"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "将录像和转写登记到Spotlight"
+            }
+          }
+        }
+      }
+    ,
+    
+      "録画ライブラリ": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Recording library"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Biblioteca de grabaciones"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "녹화 라이브러리"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "录像库"
+            }
+          }
+        }
+      }
+    ,
+    
+      "Spotlight で録画や発言の中身を探せます(文字起こしのうち検索の対象になるのは冒頭 10 万字までです)。kilde が Spotlight に登録する内容はこの Mac の中にだけ保存され、外部へは送信しません。オフにすると索引はすぐに消えます": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Find recordings and spoken words from Spotlight (the first 100,000 characters of a transcript are indexed). The index kilde creates is stored only on this Mac. Turning it off erases the index immediately."
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Busca grabaciones y lo dicho en ellas desde Spotlight (se indexan los primeros 100.000 caracteres de cada transcripción). El índice que crea kilde se guarda solo en este Mac. Al desactivarlo, el índice se borra enseguida."
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Spotlight에서 녹화와 발언 내용을 찾을 수 있습니다(텍스트 변환은 앞부분 10만 자까지 검색 대상). kilde가 만드는 인덱스는 이 Mac 안에만 저장됩니다. 끄면 인덱스가 바로 삭제됩니다."
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "可以从Spotlight查找录像和发言内容（每条转写只有前10万字会被索引）。kilde创建的索引只保存在这台Mac中。关闭后会立即删除索引。"
+            }
+          }
+        }
+      }
+    ,
+    
       "全文をコピー": {
         "extractionState": "manual",
         "localizations": {

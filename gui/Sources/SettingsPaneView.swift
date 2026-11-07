@@ -509,7 +509,12 @@ struct SettingsPaneView: View {
                 get: { spotlightEnabled },
                 set: { setSpotlightEnabled($0) }))
                 .toggleStyle(.checkbox)
-            Text("Spotlight で録画や発言の中身を探せるようになります。索引はこの Mac の中にだけ保存され、外部には送りません。オフにすると索引はすぐに消えます")
+            // このリテラルは Localizable.xcstrings の «キー» と完全一致させる —
+            // カタログ側だけ文言を直すとキーの一致が外れ、全ロケールで日本語 (旧文言) が
+            // 表示される (cubic レビュー指摘 — PR #505 review round 2)。上限の注記
+            // («冒頭 10 万字まで») と «kilde が Spotlight に登録する内容…» の範囲限定は
+            // PRIVACY.md / What's New と同じ説明
+            Text("Spotlight で録画や発言の中身を探せます(文字起こしのうち検索の対象になるのは冒頭 10 万字までです)。kilde が Spotlight に登録する内容はこの Mac の中にだけ保存され、外部へは送信しません。オフにすると索引はすぐに消えます")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
