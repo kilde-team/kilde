@@ -55,7 +55,9 @@ enum SelfTestSpotlight {
             directory: directory, stem: "kilde-\(stampD)", ext: "txt",
             body: "[00:00:00] \(String(repeating: "あ", count: SpotlightItemFactory.textContentLimit + 5_000))")
 
-        let entries = LibraryStore.scan(directory: directory)
+        // scan は «ディレクトリが読めない» と «空» を区別する (issue #502) が、
+        // ここは存在する一時ディレクトリなので nil にならず、nil なら下の検証が落とす
+        let entries = LibraryStore.scan(directory: directory) ?? []
         check(entries.count == 4, "合成録画 4 件を走査できる (実際 \(entries.count) 件)")
 
         // MARK: 初回の差分 — 全部 «新規»
@@ -141,7 +143,7 @@ enum SelfTestSpotlight {
         setModificationDate(urlB, to: Date(timeIntervalSince1970: 1_800_000_000))
         setModificationDate(directory.appendingPathComponent("kilde-\(stampB).json"),
                             to: Date(timeIntervalSince1970: 1_800_000_001))
-        let afterUpdate = SpotlightItemFactory.diff(manifest: initial.manifest, entries: LibraryStore.scan(directory: directory))
+        let afterUpdate = SpotlightItemFactory.diff(manifest: initial.manifest, entries: LibraryStore.scan(directory: directory) ?? [])
         check(afterUpdate.index.count == 1
               && afterUpdate.index.first?.uniqueIdentifier == urlB.path,
               "書き換えた録画 B だけが再索引対象 (実際 \(afterUpdate.index.map(\.uniqueIdentifier)))")
@@ -158,14 +160,14 @@ enum SelfTestSpotlight {
         setModificationDate(urlC, to: Date(timeIntervalSince1970: 1_800_000_010))
         setModificationDate(directory.appendingPathComponent("kilde-\(stampC).txt"),
                             to: Date(timeIntervalSince1970: 1_800_000_011))
-        let afterAdded = SpotlightItemFactory.diff(manifest: initial.manifest, entries: LibraryStore.scan(directory: directory))
+        let afterAdded = SpotlightItemFactory.diff(manifest: initial.manifest, entries: LibraryStore.scan(directory: directory) ?? [])
         check(afterAdded.index.map(\.uniqueIdentifier).sorted() == [urlB.path, urlC.path],
               "«サイドカーが後から付いた» 録画も再索引対象 (実際 \(afterAdded.index.map(\.uniqueIdentifier).sorted()))")
 
         // MARK: 削除の差分 — A の録画を消す
         try? FileManager.default.removeItem(at: urlA)
         try? FileManager.default.removeItem(at: directory.appendingPathComponent("kilde-\(stampA).txt"))
-        let afterDelete = SpotlightItemFactory.diff(manifest: initial.manifest, entries: LibraryStore.scan(directory: directory))
+        let afterDelete = SpotlightItemFactory.diff(manifest: initial.manifest, entries: LibraryStore.scan(directory: directory) ?? [])
         check(afterDelete.delete == [urlA.path], "消した録画 A だけが削除対象 (実際 \(afterDelete.delete))")
         check(!afterDelete.index.contains(where: { $0.uniqueIdentifier == urlA.path }),
               "消した録画 A は索引対象にならない")
@@ -177,7 +179,7 @@ enum SelfTestSpotlight {
         let phantomDiff = SpotlightItemFactory.diff(
             manifest: phantomManifest.merging(["/nonexistent/kilde-99999999-999999.mov": "0|0|none"],
                                               uniquingKeysWith: { a, _ in a }),
-            entries: LibraryStore.scan(directory: directory))
+            entries: LibraryStore.scan(directory: directory) ?? [])
         check(phantomDiff.delete.contains("/nonexistent/kilde-99999999-999999.mov"),
               "実在しない identifier が削除対象になる")
 
@@ -199,11 +201,10 @@ enum SelfTestSpotlight {
               "identifier の無いアクティビティは復元しない")
 
         // MARK: 設定トグルの既定と往復
-        let defaults = UserDefaults.standard
-        let originalEnabled = defaults.object(forKey: SpotlightPreferences.enabledKey)
-        let originalManifest = defaults.object(forKey: "spotlightIndexManifest")
-        // 往復の検証は «このプロセスの UserDefaults» を使い、終わったら元の値に戻す
-        // (テストが設定を書き換えたままにしない)
+        // 往復の検証は **専用スイート** だけで行う — UserDefaults.standard は
+        // «この Mac の本物の設定» (spotlightIndexEnabled / manifest 台帳) なので、
+        // テストから読みも書きもしない (CodeRabbit レビュー指摘。読んで戻す方式だと
+        // «テストが標準ドメインに触れる» こと自体がリスクで、専用スイートで十分)
         let testDefaults = UserDefaults(suiteName: "kilde-selftest-spotlight-prefs")
         testDefaults?.removePersistentDomain(forName: "kilde-selftest-spotlight-prefs")
         check(SpotlightPreferences.isEnabled(testDefaults!) == true,
@@ -215,18 +216,6 @@ enum SelfTestSpotlight {
         check(SpotlightPreferences.isEnabled(testDefaults!) == true,
               "オンに戻せる")
         testDefaults?.removePersistentDomain(forName: "kilde-selftest-spotlight-prefs")
-        // メインの defaults は «触っていない» ことの確認を兼ねた復元 (originalEnabled が
-        // nil なら削除 = 元の «未設定» に戻る)
-        if let originalEnabled {
-            defaults.set(originalEnabled, forKey: SpotlightPreferences.enabledKey)
-        } else {
-            defaults.removeObject(forKey: SpotlightPreferences.enabledKey)
-        }
-        if let originalManifest {
-            defaults.set(originalManifest, forKey: "spotlightIndexManifest")
-        } else {
-            defaults.removeObject(forKey: "spotlightIndexManifest")
-        }
 
         try? FileManager.default.removeItem(at: directory)
 

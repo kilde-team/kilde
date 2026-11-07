@@ -221,11 +221,20 @@ enum SpotlightItemFactory {
     }
 }
 
-/// CSSearchableIndex への反映 (issue #502)。**actor で直列化する** —
-/// «ライブラリ再走査» «アプリ起動» «文字起こし完了» «設定トグル» が
-/// ほぼ同時に走ると、manifest (台帳) の読み書きと delete/index の順序が競合する。
-/// 直列化しておけば «後から走った同期が最新の台帳で差分を組み直す» になり、
-/// 古いスナップショットが新しい索引を壊す競合が起きない
+/// CSSearchableIndex への反映 (issue #502)。**actor による非再入の直列化** —
+/// «ライブラリ再走査» «アプリ起動» «文字起こし完了» «設定トグル» がほぼ同時に走ると、
+/// manifest (台帳) の読み書きと delete/index の順序が競合する。
+///
+/// ここでの競合で起きうる最悪の事例 (cubic レビュー指摘): «オフへの切替
+/// (clearAll) の最中に、先に走り出していた同期が後から索引を書き戻す»。
+/// Swift の actor は `await` で **再入する** ので、actor にしただけでは
+/// この順序は守られない — そこで `acquire()` / `release()` による
+/// 排他区間 (バトン渡しの待合室) を設け、sync / clearAll の本体を
+/// **最後まで走り切ってから次の操作を開始する** 構造にしている。
+/// あわせて `sync(directory:)` の走査を排他区間の **内側** で行うことで、
+/// «古い走査結果が新しい索引を上書きする» も同時に防いでいる
+/// (CodeRabbit レビュー指摘 — 世代チェックよりも走査の直列化の方が単純で、
+/// «走査と反映が同じスナップショット» を構造的に保証できる)
 actor SpotlightExporter {
 
     /// LibraryStore / AppDelegate / SettingsPaneView から触る窓口。
@@ -241,14 +250,83 @@ actor SpotlightExporter {
 
     private let index = CSSearchableIndex.default()
 
+    // MARK: - 排他区間 (非再入)
+
+    /// «誰かが排他区間にいる» ことを示すフラグ。バトン渡しのため、
+    /// «待っていた次の操作に直接引き渡す» 間は true のまま保つ
+    private var isBusy = false
+
+    /// 排他区間の解放を待っている操作の待合室。release() が先頭にバトンを渡す
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    /// 排他区間に入る。空いていれば即入場、いれば待合室で自分の番を待つ。
+    /// **await で再入してもこの 2 つは素通りできない** — 番が来た操作だけが
+    /// 先へ進むため、await をまたぐ処列が完全に直列化される
+    private func acquire() async {
+        if !isBusy {
+            isBusy = true
+            return
+        }
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            waiters.append(continuation)
+        }
+        // release() が resume でバトンを渡してきた — この時点で自分が区間の持ち主
+    }
+
+    /// 排他区間を出る。待合室にいれば先頭へバトンを渡し (フラグは true のまま)、
+    /// いなければフラグを下ろす。呼び出し側は defer で必ず通す
+    private func release() {
+        if let next = waiters.first {
+            waiters.removeFirst()
+            next.resume()
+        } else {
+            isBusy = false
+        }
+    }
+
     // MARK: - 登録
 
-    /// 走査結果を Spotlight 索引へ反映する。設定がオフなら何もしない
-    /// («オフの間の走査が索引を作らない»)。
+    /// 走査結果を Spotlight 索引へ反映する («ライブラリを開いた» 経路 —
+    /// LibraryStore.reload が走査結果をそのまま渡す)。
+    /// 設定がオフなら何もしない («オフの間の走査が索引を作らない»)。**オフ判定は
+    /// 自分の番が来たときに取り直す** — 待合室で待っている間にトグルが切られたら
+    /// その同期は何もしないで降りる (cubic / CodeRabbit レビュー指摘)。
     /// 反映は best-effort — Spotlight は補助的な入口なので、失敗を UI に
     /// 出さず次回の走査で再試行する (manifest を進めないことで «未反映» が残る)
     func sync(entries: [LibraryEntry]) async {
+        await acquire()
+        defer { release() }
         guard SpotlightPreferences.isEnabled() else { return }
+        await apply(entries: entries)
+    }
+
+    /// ディレクトリを走査してから sync する («ライブラリを開いていない» 経路 —
+    /// アプリ起動時と文字起こし完了 — のための入り口)。
+    /// 走査を **排他区間の内側** で行う — «走査と反映が同じスナップショット» を
+    /// 構造的に保証し、古い走査結果が新しい索引を壊す競合を防ぐ
+    /// (CodeRabbit レビュー指摘への対応)。
+    /// 走査が失敗した (nil) ときは索引に **何もしない** — «読めないフォルダ» を
+    /// «空のフォルダ» と誤認して全件削除する経路を塞ぐため (CodeRabbit レビュー指摘)。
+    /// 一時的な読み取り失敗は次回の走査で再試行される
+    func sync(directory: URL) async {
+        await acquire()
+        defer { release() }
+        guard SpotlightPreferences.isEnabled() else { return }
+        let entries = await Task.detached {
+            LibraryStore.scan(directory: directory)
+        }.value
+        guard let entries else {
+            print("spotlight: scan failed, skipping sync (\(directory.lastPathComponent))")
+            return
+        }
+        await apply(entries: entries)
+    }
+
+    /// 差分を組み立てて索引へ反映し、成功したら manifest を進める。
+    /// **排他区間の内側からだけ呼ばれる** (呼び出し側で acquire 済み)。
+    /// «削除は成功・登録は失敗» のときも manifest は進めない —
+    /// 次回の走査で登録だけが再試行される (削除の再実行は冪等)
+    private func apply(entries: [LibraryEntry]) async {
         let defaults = UserDefaults.standard
         let manifest = defaults.dictionary(forKey: Self.manifestKey)
             as? [String: String] ?? [:]
@@ -261,32 +339,31 @@ actor SpotlightExporter {
                 try await index.indexSearchableItems(plan.index)
             }
         } catch {
-            // «削除は成功・登録は失敗» のときも manifest は進めない —
-            // 次回の走査で登録だけが再試行される (削除の再実行は冪等)
             print("spotlight: sync failed: \(error)")
             return
         }
         defaults.set(plan.manifest, forKey: Self.manifestKey)
     }
 
-    /// ディレクトリを走査してから sync する («ライブラリを開いていない» 経路 —
-    /// アプリ起動時と文字起こし完了 — のための入り口)。
-    /// 走査 (LibraryStore.scan) は UI 無しで動くバックグラウンド処理
-    func sync(directory: URL) async {
-        let entries = await Task.detached {
-            LibraryStore.scan(directory: directory)
-        }.value
-        await sync(entries: entries)
-    }
-
     // MARK: - 消去
 
     /// 索引を全消去する (設定をオフにしたとき)。manifest も消す —
     /// «オンに戻したら次の走査で全部再登録» のためには台帳を空にする必要がある。
-    /// 失敗しても manifest は消す — «オフなのに索引に残っている» より
-    /// «オンに戻したら作り直し» の方が安全な側に倒れる
+    /// manifest の消去は **消去が成功したときだけ** 行う (CodeRabbit レビュー指摘) —
+    /// 消去に失敗したのに台帳を消すと «索引には残っているのに、次回の再登録で
+    /// 消えた録画の残骸が二度と掃除されない» 状態になる。台帳を残しておけば、
+    /// オンに戻したときの差分同期が «実在しない録画» を削除対象として拾う
+    /// («オフの間に消去が失敗し続けた場合の自動再試行はしない» — 索引が
+    /// 使えない状態は稀で、再試行のために常時起動の監視を足すほどのものではない。
+    /// 失敗はログで確認できる)
     func clearAll() async {
-        try? await index.deleteAllSearchableItems()
-        UserDefaults.standard.removeObject(forKey: Self.manifestKey)
+        await acquire()
+        defer { release() }
+        do {
+            try await index.deleteAllSearchableItems()
+            UserDefaults.standard.removeObject(forKey: Self.manifestKey)
+        } catch {
+            print("spotlight: clearAll failed: \(error)")
+        }
     }
 }

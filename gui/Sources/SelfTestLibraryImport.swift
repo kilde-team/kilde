@@ -265,16 +265,18 @@ enum SelfTestLibraryImport {
               "コピーの一時ファイルが残っていない")
     }
 
-    /// 取り込んだファイルがライブラリの一覧に出る (受け入れ条件)
+    /// 取り込んだファイルがライブラリの一覧に出る (受け入れ条件)。
+    /// scan は «読めない» と «空» を区別するようになった (issue #502) が、ここは
+    /// 存在する一時ディレクトリなので nil にならず、nil なら下の検証が落とす
     private static func checkListing(destination: URL) {
-        let entries = LibraryStore.scan(directory: destination)
+        let entries = LibraryStore.scan(directory: destination) ?? []
         let names = Set(entries.map { $0.recordingURL.lastPathComponent })
         check(names.contains("kilde-20270102-030405-商談メモ.m4a"), "取り込んだ m4a が一覧に出る")
         // mp3 のような «エンジンが録らない形式« も一覧の対象であること (wav で確認)
         let wavSource = destination.deletingLastPathComponent().appendingPathComponent("元フォルダ/メモ.wav")
         FileManager.default.createFile(atPath: wavSource.path, contents: Data(repeating: 3, count: 16))
         _ = try? LibraryImport.performImport(of: wavSource, into: destination, at: fixedDate)
-        let rescaned = LibraryStore.scan(directory: destination)
+        let rescaned = LibraryStore.scan(directory: destination) ?? []
         let rescanedNames = Set(rescaned.map { $0.recordingURL.lastPathComponent })
         check(rescanedNames.contains("kilde-20270102-030405-メモ.wav"), "取り込んだ wav が一覧に出る")
     }

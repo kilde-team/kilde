@@ -37,9 +37,11 @@ enum SelfTestLibrarySearch {
         writeSyntheticSidecars(into: directory)
 
         // 索引構築 (走査 + パース + 2-gram 索引) の実測。LibraryStore.reload と同じ
-        // «scan → LibraryIndex» の経路を通す
+        // «scan → LibraryIndex» の経路を通す。scan は «ディレクトリが読めない» と
+        // «空» を区別する (issue #502 — nil は読めない) が、ここは存在する一時
+        // ディレクトリなので nil にならず、nil なら下の件数の検証が落とす
         let buildStart = Date()
-        let entries = LibraryStore.scan(directory: directory)
+        let entries = LibraryStore.scan(directory: directory) ?? []
         let index = LibraryIndex(entries: entries)
         let buildElapsed = -buildStart.timeIntervalSinceNow
 
