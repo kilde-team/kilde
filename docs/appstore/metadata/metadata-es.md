@@ -488,6 +488,8 @@ se registran en el índice de Spotlight y un resultado abre la biblioteca con es
 («Spotlight index», acotado a lo que kilde registra y envía). El nombre de la sección es el
 texto localizado de la app («Biblioteca de grabaciones»).
 
+«Lo que kilde registra en el índice se guarda solo en este Mac; kilde no lo envía a ningún sitio» limita el alcance igual que la PRIVACY.md corregida (lo que kilde registra y envía, no el comportamiento propio de Spotlight). «Los primeros 100.000 caracteres» es el límite de textContent (textContentLimit en SpotlightExporter.swift); la búsqueda completa dentro de la app cubre todo el texto
+
 ```text
-Ahora puedes buscar grabaciones desde Spotlight: por nombre, fecha y duración, y también por las palabras de la transcripción. Al elegir un resultado de Spotlight se abre la biblioteca de grabaciones con esa grabación seleccionada. El índice se guarda solo en este Mac y no se envía a ningún sitio. Se puede desactivar en Ajustes > Biblioteca de grabaciones. Las funciones de grabación y transcripción no cambian.
+Ahora puedes buscar grabaciones desde Spotlight: por nombre, fecha y duración, y también por las palabras de la transcripción (se indexan los primeros 100.000 caracteres de cada transcripción). Al elegir un resultado de Spotlight se abre la biblioteca de grabaciones con esa grabación seleccionada. Lo que kilde registra en el índice se guarda solo en este Mac; kilde no lo envía a ningún sitio. Se puede desactivar en Ajustes > Biblioteca de grabaciones. Las funciones de grabación y transcripción no cambian.
 ```
