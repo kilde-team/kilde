@@ -40,6 +40,9 @@ bundleID やタイトルは含まれません。**
 Spotlight からのオープンの利用状況 (Spotlight の結果からアプリを開いた回数。
 0.33.0 以降) も同じ利用統計に含まれます。**どの録画を開いたか、録画の
 ファイル名・保存先・文字起こしの内容は含まれません。**
+リマインダーへの書き出しの利用状況 (要約のアクションアイテムをリマインダーに
+追加した回数。0.34.0 以降) も同じ利用統計に含まれます。**追加した項目の文面と
+件数、どの録画から書き出したか (録画のファイル名・保存先) は含まれません。**
 会議の要約機能 (Pro) の利用状況 (要約の開始・完了・失敗・生成されなかった
 理由の区分と処理時間の区分)、フォローアップの下書き機能 (Pro) の利用状況
 (下書きの開始・完了・失敗の回数、処理時間の区分と失敗の種別)、Mac App Store 版の
@@ -92,6 +95,13 @@ GUI アプリ (直接配布版・Mac App Store 版の両方) は、アプリが�
   «kilde が登録した内容を送らない» ことだけを記載します)。
   «設定 > 録画ライブラリ > 録画と文字起こしを Spotlight に登録する» をオフにすると、
   登録した索引はすぐに消去されます
+- **リマインダーへの書き出し («リマインダーへ追加» ボタン)**: 議事録の要約の
+  アクションアイテムを、あなたがリマインダー (Reminders.app) で使っている
+  既定のリストに追加します (0.34.0 以降。ボタンを押したときだけアクセスを
+  求めます)。kilde が行うのは項目の追加だけで、既存の項目の読み取り・変更・
+  削除はしません。書き出す内容はこの Mac の中だけで組み立てられ、kilde が
+  ネットワークへ送信することはありません (既定のリストが iCloud のリマインダーの
+  場合、ほかの端末への反映は macOS 側の同期で行われます — kilde の通信ではありません)
 - **会議の自動録画 (既定はオフ)**: 有効にすると、会議の開始を検知するために
   «どのアプリがマイクを使っているか» とウィンドウのタイトルを数秒おきに
   **あなたの Mac 上で**確認します。これらの情報は保存も送信もされません
@@ -111,7 +121,7 @@ GUI アプリ (直接配布版・Mac App Store 版の両方) は、アプリが�
 | マイク | 選んだマイク・入力デバイス (内蔵マイク、外部マイク、BlackHole などの仮想デバイスを含む) の音声を録るため。入力デバイスを 1 つ以上選んだときだけ要求します |
 | ファイルとフォルダ (保存先) | 録画ファイルを指定の場所に書き込むため |
 | カレンダー | «カレンダーから会議名を使う» を有効にしたとき、検知した会議に重なる予定の題名を録画ファイル名・録画開始通知・議事録の見出しに使うため。macOS の許可は読み書きを含みますが、アプリは読み取りだけを行い、予定の作成・変更・招待はしません。設定で明示的に有効にしたときだけ要求します |
-| リマインダー | «リマインダーへ追加» ボタンを押したとき、議事録の要約のアクションアイテムを、あなたがリマインダー (Reminders.app) で使っている既定のリストに追加するため。macOS の許可は読み書きを含みますが、アプリは項目の追加だけを行い、既存の項目の読み取り・変更・削除はしません。リマインダーの内容がネットワークに送信されることはなく、書き出す内容もこの Mac の中だけで組み立てられます。ボタンを押したときだけ要求します |
+| リマインダー | «リマインダーへ追加» ボタンを押したとき、議事録の要約のアクションアイテムを、あなたがリマインダー (Reminders.app) で使っている既定のリストに追加するため。macOS の許可は読み書きを含みますが、アプリは項目の追加だけを行い、既存の項目の読み取り・変更・削除はしません。リマインダーの内容を kilde がネットワークに送信することはなく、書き出す内容もこの Mac の中だけで組み立てられます。ボタンを押したときだけ要求します |
 
 これらの権限で得たデータは、上記「録画・録音したデータ」のとおりローカルの
 ファイルにのみ保存されます。
@@ -219,7 +229,11 @@ usage statistics. It never includes the exported file's name or location or
 the copied text itself. Usage of opening the app from Spotlight (the count of
 times the app is opened from a Spotlight result; 0.33.0 or later) is part of
 the same usage statistics. **It never includes which recording was opened, its
-file name or save location, or the transcript content.** Usage of the
+file name or save location, or the transcript content.** Usage of exporting to
+Reminders (the count of times the summary's action items are added to
+Reminders; 0.34.0 or later) is part of the same usage statistics. **It never
+includes the text or count of the added items, or which recording they came
+from (the recording's file name or save location).** Usage of the
 meeting-summary feature (Pro) — counts of summary starts, completions, and
 failures, coarse buckets for processing time and recording length, the kind of
 failure, and the reason a summary was skipped — usage of the follow-up-draft
@@ -300,6 +314,14 @@ language models from Apple — see "Network access").
   sends nothing). Turning off "Settings > Recording library > Register
   recordings and transcripts with Spotlight" erases the registered index
   immediately
+- **Exporting to Reminders (the "Add to Reminders" button)**: adds the action
+  items from a transcript summary to the default list you use in Reminders
+  (0.34.0 or later; access is requested only when you press the button). The
+  app only adds items — it never reads, edits, or deletes your existing
+  reminders. What is written is assembled entirely on this Mac, and kilde
+  never sends it over the network (if the default list is an iCloud
+  reminders list, syncing to your other devices is done by macOS itself —
+  not by kilde)
 
 ### Permissions and why they are needed
 
@@ -309,7 +331,7 @@ language models from Apple — see "Network access").
 | Microphone | To record audio from the input devices you select — a built-in or external microphone, or a virtual device such as BlackHole. Requested only when you select at least one input device |
 | Files and folders (save location) | To write recordings to the location you choose |
 | Calendars | When "Use calendar event names" is enabled, to read the title of the event overlapping the detected meeting and use it in the recording file name, the recording-started notification, and the transcript heading. The macOS permission includes read-write access, but the app only reads events and never creates, edits, or sends invitations. Requested only when you explicitly enable it in settings |
-| Reminders | When you press "Add to Reminders", to add the action items from a transcript summary to the default list you use in Reminders. The macOS permission includes read-write access, but the app only adds items and never reads, edits, or deletes existing ones. Reminder contents are never sent over the network, and what is written is assembled entirely on this Mac. Requested only when you press the button |
+| Reminders | When you press "Add to Reminders", to add the action items from a transcript summary to the default list you use in Reminders. The macOS permission includes read-write access, but the app only adds items and never reads, edits, or deletes existing ones. kilde never sends reminder contents over the network, and what is written is assembled entirely on this Mac. Requested only when you press the button |
 
 Data obtained through these permissions is stored only in local files, as
 described above.

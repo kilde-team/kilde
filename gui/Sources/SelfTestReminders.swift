@@ -44,13 +44,24 @@ enum SelfTestReminders {
         check(ReminderExportSupport.items(fromActions: [], meetingName: "x").isEmpty,
               "空のアクション列は 0 件")
 
-        // MARK: 議事録の状態からの取り出し (actions(in:))
+        // MARK: 議事録の状態からの取り出し (actions(in:)) — ここで正規化も行う
         let summary = MeetingSummary(
             points: ["要点"], decisions: [],
             actions: ["アクション A", "アクション B"])
         let noActionsSummary = MeetingSummary(points: ["要点"], decisions: ["決定"], actions: [])
+        // 空白のみの項目は «正規化の単一の点» (actions(in:)) で除く — 有効条件と
+        // 書き出し対象を同じ判定に揃え、«ボタンは押せるのに書き出すと 0 件» を
+        // 防ぐ (cubic レビュー指摘)
+        let whitespaceOnlySummary = MeetingSummary(
+            points: ["要点"], decisions: [], actions: ["   ", "", "\n"])
+        let mixedSummary = MeetingSummary(
+            points: ["要点"], decisions: [], actions: ["  実際のアクション  ", "  "])
         check(ReminderExportSupport.actions(in: .summary(summary)) == ["アクション A", "アクション B"],
               "要約からアクションを取り出せる")
+        check(ReminderExportSupport.actions(in: .summary(mixedSummary)) == ["実際のアクション"],
+              "空白混じりの項目は正規化して残す")
+        check(ReminderExportSupport.actions(in: .summary(whitespaceOnlySummary)).isEmpty,
+              "空白のみの項目は正規化で除く")
         check(ReminderExportSupport.actions(in: .summary(noActionsSummary)).isEmpty,
               "アクションの無い要約は空")
         check(ReminderExportSupport.actions(in: .noSummary).isEmpty,
@@ -58,9 +69,13 @@ enum SelfTestReminders {
         check(ReminderExportSupport.actions(in: .notMinutes).isEmpty,
               "議事録でないものは空")
 
-        // MARK: ボタンの有効条件 (isButtonEnabled)
+        // MARK: ボタンの有効条件 (isButtonEnabled) — 正規化後の判定
         check(ReminderExportSupport.isButtonEnabled(doc: .summary(summary)),
               "アクションがある要約で押せる")
+        check(ReminderExportSupport.isButtonEnabled(doc: .summary(mixedSummary)),
+              "空白混じりでも書き出せる項目があれば押せる")
+        check(!ReminderExportSupport.isButtonEnabled(doc: .summary(whitespaceOnlySummary)),
+              "空白のみの要約では押せない (cubic レビュー指摘)")
         check(!ReminderExportSupport.isButtonEnabled(doc: .summary(noActionsSummary)),
               "アクションの無い要約では押せない")
         check(!ReminderExportSupport.isButtonEnabled(doc: .noSummary),
@@ -68,10 +83,15 @@ enum SelfTestReminders {
         check(!ReminderExportSupport.isButtonEnabled(doc: .notMinutes),
               "議事録でないものでは押せない")
 
-        // MARK: ツールチップ (buttonTooltip) — 4 状態すべてで空でない文面
+        // MARK: ツールチップ (buttonTooltip) — 有効条件と同じ正規化を通るため、
+        // «空白のみの要約» と «アクションの無い要約» の文言は一致する
+        let noActionsTooltip = ReminderExportSupport.buttonTooltip(doc: .summary(noActionsSummary))
+        check(ReminderExportSupport.buttonTooltip(doc: .summary(whitespaceOnlySummary))
+            == noActionsTooltip, "空白のみの要約は «アクションなし» と同じ文言になる")
+        check(ReminderExportSupport.buttonTooltip(doc: .summary(summary)) != noActionsTooltip,
+              "アクションがあるときの文言は無効理由と異なる")
         for (label, doc) in [
             ("アクションあり", FollowupDraftSupport.MinutesDoc.summary(summary)),
-            ("アクションなし", FollowupDraftSupport.MinutesDoc.summary(noActionsSummary)),
             ("要約なし", FollowupDraftSupport.MinutesDoc.noSummary),
             ("議事録なし", FollowupDraftSupport.MinutesDoc.notMinutes),
         ] {

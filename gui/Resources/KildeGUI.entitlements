@@ -6,12 +6,14 @@
 	     欠けるとクラッシュもエラーもなく無音のトラックになる (issue #17 の project.yml コメント参照) -->
 	<key>com.apple.security.device.audio-input</key>
 	<true/>
-	<!-- カレンダー (issue #393)。非サンドボックスでも、最近の macOS ではこの
+	<!-- カレンダー (issue #393) とリマインダー (issue #509)。非サンドボックスでも、最近の macOS ではこの
 	     エンタイトルメントが無いと EventKit への TCC 許可が黙って拒否される実例が
-	     あるため、Hardened Runtime の直接配布ビルドにも付ける (App Sandbox は無しのまま。
-	     カレンダーは読み取りだけを行い、予定の作成・変更はしない。リマインダー
-	     (issue #509) も同じキーで、項目の追加だけを行い既存項目の読み取り・
-	     変更・削除はしない) -->
+	     あるため、Hardened Runtime の直接配布ビルドにも付ける (App Sandbox は無しのまま)。
+	     カレンダーは requestFullAccessToEvents で要求する (読み取り専用の要求 API が
+	     macOS に無いため full を要求 — 許可は読み書きを含むが、アプリは読み取りだけを
+	     行い、予定の作成・変更はしない)。リマインダーは requestFullAccessToReminders で
+	     要求する (書き込み専用の要求 API が無いため full を要求 — 許可は読み書きを
+	     含むが、アプリは項目の追加だけを行い、既存項目の読み取り・変更・削除はしない) -->
 	<key>com.apple.security.personal-information.calendars</key>
 	<true/>
 	<!-- ローカル開発ビルド専用 (issue #212)。kilde-dev のような自己署名証明書には Team ID が

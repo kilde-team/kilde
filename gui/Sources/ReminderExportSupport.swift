@@ -42,29 +42,37 @@ enum ReminderExportSupport {
         }
     }
 
-    /// 議事録の入力状態から書き出し対象のアクションを取り出す。
-    /// MinutesDoc はフォローアップの下書き (issue #464) が導入した «議事録 .md の
-    /// 状態» の語彙 — リマインダーの書き出しも同じ状態を読む (要約は .md にしか
-    /// 載らない契約は TranscriptWriter 側で不変)
+    /// 議事録の入力状態から、書き出し対象のアクションを取り出す。
+    /// **ここで正規化 (前後の空白を整え、空白のみの項目を除く) も行う** —
+    /// ボタンの有効条件と書き出しの対象をこの 1 か所で揃え、«ボタンは押せるのに
+    /// 書き出すと 0 件» を防ぐ (cubic レビュー指摘)。MinutesDoc はフォローアップの
+    /// 下書き (issue #464) が導入した «議事録 .md の状態» の語彙 — リマインダーの
+    /// 書き出しも同じ状態を読む (要約は .md にしか載らない契約は TranscriptWriter 側で不変)
     static func actions(in doc: FollowupDraftSupport.MinutesDoc) -> [String] {
         guard case .summary(let summary) = doc else { return [] }
-        return summary.actions
+        return summary.actions.compactMap { raw in
+            let title = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            return title.isEmpty ? nil : title
+        }
     }
 
     /// ボタンの有効条件。リマインダーの書き出しは端末内の操作で、Apple Intelligence
     /// も Pro も不要 (要約の«生成»が Pro で、出来上がった .md の持ち出しは free —
-    /// «書き出し先の連携» #164 と同じ位置づけ)。書き出せるアクションがあることだけを見る
+    /// «書き出し先の連携» #164 と同じ位置づけ)。書き出せるアクションがあること
+    /// (正規化後の actions(in:) が空でないこと) だけを見る
     static func isButtonEnabled(doc: FollowupDraftSupport.MinutesDoc) -> Bool {
         !actions(in: doc).isEmpty
     }
 
     /// ボタン・無効理由のツールチップ («議事録を作成» «フォローアップを下書き» と同じ
     /// «控えめ» 方針 — 権限の案内は押したあとの結果表示で行い、購入導線は
-    /// 設定パネルにしか置かない)
+    /// 設定パネルにしか置かない)。有効条件と同じ正規化済みの判定を通るため、
+    /// «押せるのに無効理由の文言になる» ずれは起きない
     static func buttonTooltip(doc: FollowupDraftSupport.MinutesDoc) -> String {
-        switch doc {
-        case .summary(let summary) where !summary.actions.isEmpty:
+        if isButtonEnabled(doc: doc) {
             return String(localized: "要約のアクションアイテムを、リマインダーの既定のリストに追加します")
+        }
+        switch doc {
         case .summary:
             return String(localized: "この議事録の要約にアクションアイテムはありません")
         case .noSummary:
@@ -118,8 +126,9 @@ enum ReminderExportSupport {
 final class ReminderExporter: ObservableObject {
 
     /// 文字起こしと同じく、subsystem は実行中の構成のバンドル ID (Debug と Release
-    /// で分かれている — CLAUDE.md §5-21)
-    private static let logger = Logger(
+    /// で分かれている — CLAUDE.md §5-21)。nonisolated: 保存は MainActor の外で
+    /// 動くため (save のコメント)。Logger はスレッド安全なので共有できる
+    nonisolated private static let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "com.takezou621.KildeGUI",
         category: "reminders")
 
@@ -200,9 +209,11 @@ final class ReminderExporter: ObservableObject {
                 try store.save(reminder, commit: false)
             }
             try store.commit()
-        } catch let error as ReminderExporter.ExportError {
-            throw error
         } catch {
+            // 途中まで stage した未確定の変更を破棄する — このストアは次の書き出しでも
+            // 使い回すため、reset しないと «失敗と表示した項目» が次の書き出しの
+            // commit で後から確定してしまう (cubic レビュー指摘)
+            store.reset()
             // EventKit の保存エラー (NSError) は其のまま出すと内部情報が並ぶため、
             // 案内として要約した文言に載せ替える。ログには **domain と code だけ** を
             // 出す — localizedDescription / userInfo には項目の文面などユーザーの

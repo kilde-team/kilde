@@ -587,6 +587,14 @@ private struct LibraryDetailView: View {
     /// «リマインダーへ追加» の結果表示 (追加件数・権限の案内)。nil は «表示なし»。
     /// 録画を切り替えたら消す (前の録画の結果が残ると別の議事録の結果と誤読するため)
     @State private var reminderNotice: ReminderNotice?
+    /// «リマインダーへ追加» の実行中。権限ダイアログの表示中や書き込み中の再入を
+    /// 潰す — 並行に 2 回走ると同じ項目を二重に追加する (cubic レビュー指摘)
+    @State private var isExportingReminders = false
+    /// 書き出しの世代。処理の途中で録画が切り替わったとき、押した時点の Task が
+    /// 古い録画の結果を新しい録画の表示に書かないための照合に使う — Task は
+    /// 押した時点の世代の値を捕まえるので、書き込みの直前に現在値と比べる
+    /// (cubic レビュー指摘。切替時にインクリメントするのは entry.id の onChange)
+    @State private var reminderEpoch = 0
 
     /// «リマインダーへ追加» の 1 表示分。message に案内文、offersSettingsLink が
     /// true のとき «設定を開く» の導線を添える (権限が拒否されている場合のみ)
@@ -647,7 +655,9 @@ private struct LibraryDetailView: View {
             // 失敗表示も新しい録画のものに引き継ぎ直す (shownFailure の契約は «この録画の» 失敗)
             playback.prepare(url: newURL)
             seedShownFailure()
-            // «リマインダーへ追加» の結果は «この録画の» 結果なので、切替時に消す
+            // «リマインダーへ追加» の結果は «この録画の» 結果なので、切替時に消し、
+            // 世代を進める (処理中の Task が古い結果を書かない照合に使う)
+            reminderEpoch += 1
             reminderNotice = nil
         }
         // coordinator の失敗スロット (lastFailure) は «最新の 1 件» — 別の録画が
@@ -785,7 +795,9 @@ private struct LibraryDetailView: View {
             }
             .controlSize(.small)
             .buttonStyle(.bordered)
-            .disabled(!ReminderExportSupport.isButtonEnabled(doc: minutesDoc))
+            // 実行中は無効化する — «押せるのに押しても何も起きない» より
+            // «押せない» を見せる (パネルの流儀。再入防止と同じ理由)
+            .disabled(!ReminderExportSupport.isButtonEnabled(doc: minutesDoc) || isExportingReminders)
             .help(ReminderExportSupport.buttonTooltip(doc: minutesDoc))
             Button {
                 showsFollowupDraft = true
@@ -827,10 +839,20 @@ private struct LibraryDetailView: View {
     /// そのまま追加、拒否なら «設定を開く» 付きの案内に切替える。追加の実行は
     /// 既定のリマインダーリストへの書き込みで、端末内のみ (PRIVACY.md «リマインダー»)
     private func exportToReminders() {
+        // 再入防止 — 権限ダイアログの表示中・書き込み中の連打で 2 回走らせない
+        // (同じ項目を二重に追加するため。cubic レビュー指摘)
+        guard !isExportingReminders else { return }
+        let epoch = reminderEpoch
         let actions = ReminderExportSupport.actions(in: minutesDoc)
         let meetingName = entry.recordingURL.deletingPathExtension().lastPathComponent
+        isExportingReminders = true
         Task { @MainActor in
+            defer { isExportingReminders = false }
             await reminderExporter.requestAccess()
+            // 世代照合 — 処理の途中で録画が切り替わっていたら、この結果は
+            // «別の録画の表示» に載るため捨てる (表示だけで、書き込み自体は
+            // 押した録画の分が済んでいる)
+            guard epoch == reminderEpoch else { return }
             guard reminderExporter.status.canWrite else {
                 reminderNotice = ReminderNotice(
                     message: String(localized: "リマインダーへのアクセスが許可されていません (許可すると追加できます)"),
@@ -843,12 +865,15 @@ private struct LibraryDetailView: View {
                 let count = try await reminderExporter.export(items)
                 // «書き出した» 事実だけを計測に載せる (項目の文面・件数は送らない —
                 // «値は列挙に閉じる» 規約。パラメータなしイベントのためカスタム
-                // ディメンション登録も不要 — issue #456)
+                // ディメンション登録も不要 — issue #456)。書き込みが成功した事実は
+                // 表示の世代照合と無関係なので、照合の前に数える
                 UsageAnalytics.reminderExported()
+                guard epoch == reminderEpoch else { return }
                 reminderNotice = ReminderNotice(
                     message: String(localized: "\(count) 件のアクションをリマインダーに追加しました"),
                     offersSettingsLink: false)
             } catch {
+                guard epoch == reminderEpoch else { return }
                 reminderNotice = ReminderNotice(
                     message: (error as? ReminderExporter.ExportError)?.message
                         ?? String(localized: "リマインダーに追加できませんでした"),
