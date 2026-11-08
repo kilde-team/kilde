@@ -499,11 +499,11 @@ Ahora puedes buscar grabaciones desde Spotlight: por nombre, fecha y duración, 
 
 Exportar los elementos de acción del resumen de un acta a Recordatorios (issue #509). Se
 describe solo lo que existe en la implementación (misma política que 0.28.0). «Lo que se
-añade se compone en este Mac; kilde no lo envía a ningún sitio» sigue la PRIVACY.md
+añade se prepara en este Mac; kilde no lo envía a ningún sitio» sigue la PRIVACY.md
 corregida («Reminders», acotado al tráfico propio de kilde — si la lista predeterminada es
 de iCloud, la sincronización con otros dispositivos es de macOS, no de kilde). «Añadir a
 Recordatorios» es el texto localizado del botón.
 
 ```text
-Ya puedes añadir los elementos de acción del resumen de un acta a Recordatorios. Selecciona una grabación con acta (.md) en la biblioteca y pulsa «Añadir a Recordatorios»: los elementos se añaden a tu lista de Recordatorios predeterminada, con la grabación de origen anotada en las notas de cada elemento. El primer uso pide acceso a Recordatorios. kilde solo añade elementos — nunca lee ni modifica los existentes. Lo que se añade se compone en este Mac; kilde no lo envía a ningún sitio. Las funciones de grabación, audio y transcripción no cambian.
+Ya puedes añadir los elementos de acción del resumen de un acta a Recordatorios. Selecciona una grabación con acta (.md) que incluya un resumen en la biblioteca y pulsa «Añadir a Recordatorios»: los elementos se añaden a tu lista de Recordatorios predeterminada, con la grabación de origen anotada en las notas de cada elemento. El primer uso pide acceso a Recordatorios. kilde solo añade elementos — nunca lee ni modifica los existentes. Lo que se añade se prepara en este Mac; kilde no lo envía a ningún sitio. Las funciones de grabación, audio y transcripción no cambian.
 ```

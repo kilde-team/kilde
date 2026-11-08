@@ -500,5 +500,5 @@ reminders list, syncing to other devices is macOS-side and not kilde's). "Add to
 is the localized button text.
 
 ```text
-You can now add the action items from a transcript summary to Reminders. Select a recording with minutes (.md) in the library and press "Add to Reminders": the items go to your default Reminders list, with the source recording noted in each item's notes. The first press asks for Reminders access. kilde only adds items — it never reads or changes your existing reminders. What is added is assembled on this Mac; kilde never sends it anywhere. Recording, audio, and transcription are unchanged.
+You can now add the action items from a transcript summary to Reminders. Select a recording whose minutes (.md) include a summary in the library and press "Add to Reminders": the items go to your default Reminders list, with the source recording noted in each item's notes. The first press asks for Reminders access. kilde only adds items — it never reads or changes your existing reminders. What is added is assembled on this Mac; kilde never sends it anywhere. Recording, audio, and transcription are unchanged.
 ```

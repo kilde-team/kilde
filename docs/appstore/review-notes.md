@@ -26,9 +26,9 @@ microphone, with optional on-device transcription of finished recordings.
   default file name is used.
 - **Reminders (on-button, 0.34.0)**: pressing "Add to Reminders" in the
   library adds the summary's action items to the default Reminders
-  list. macOS has no write-only request API for Reminders (full access is
+  list. macOS has no write-only Reminders request API (full access is
   requested), but **the app only adds items** — never reads, edits, or
-  deletes existing ones. If declined, the library shows an "Open Reminders
+  deletes existing ones. Declined → the library shows an "Open Reminders
   settings" link.
 
 **How to test:**
@@ -40,12 +40,13 @@ microphone, with optional on-device transcription of finished recordings.
 3. (Optional, **macOS 26+**) enable "Transcribe after recording" and record
    a short clip with speech; a Markdown transcript is written next to the
    recording.
-4. (Optional) In the recording library, a recording whose minutes (.md)
-   include a summary shows "Add to Reminders" — pressing it adds those
-   items to the default Reminders list.
+4. (Optional) In the library, a recording with minutes that include a
+   summary **with action items** (create via "Create minutes" or
+   "Summarize after recording") shows "Add to Reminders" — pressing it
+   adds them to the default Reminders list.
 
 Settings (gear icon) holds hotkey, launch at login, meeting
-auto-recording, and the analytics opt-out.
+auto-recording, and analytics opt-out.
 
 **Data handling:** transcription and AI features run **entirely on this
 device** (SpeechTranscriber / Apple Intelligence); no audio, transcript,
@@ -58,29 +59,28 @@ content.
 
 **Meeting auto-recording (off by default):** local detection only; manual
 recordings are never stopped. **Consent:** system audio can include other
-participants' voices — informing them is the user's responsibility.
+participants' voices — informing them is your responsibility.
 
 **In-app purchase — tips (v0.18.0):** optional consumable tips
-(kilde.tip.*) under Settings > "Support this app"; standard StoreKit
-purchase. Nothing is gated.
+(kilde.tip.*) in Settings > "Support this app"; standard StoreKit.
+Nothing is gated.
 
 **In-app purchase — kilde Pro (v0.26.0 summaries, v0.28.0 follow-up
 drafts, v0.29.0 custom instructions):** one non-consumable product
 (kilde.pro) unlocks them all; Pro AI features run on-device and require
-Apple Intelligence, macOS 26+ (without it they stay disabled even after
+Apple Intelligence, macOS 26+ (stays disabled without it, even after
 purchase). Reminders export (0.34.0) is **not** part of Pro. Without
-Pro: "Summarize after recording" is a locked row with a "Pro" badge, and
-"Draft a follow-up" (library; needs minutes (.md) with a summary) is
-locked — clicking them opens an inline purchase panel (price, Buy with
-your sandbox Apple ID, Restore); a "Custom instructions" disclosure in
-Settings (tone, recipients, signature, emphasis, free-form; stays
-on-device) is locked as well. "Summarize after recording" needs
-"Transcribe after recording" enabled (the transcript is the input).
-Without the entitlement, summaries and drafts are skipped with a
-notice. A loading price placeholder means the product is not visible
-yet; reopening the panel retries. The IAP's review screenshot shows the
-locked rows and the panel. **Recording and transcription are currently
-free.**
+Pro, "Summarize after recording" is a locked row with a "Pro" badge and
+the Settings "Custom instructions" disclosure is locked too — clicking
+them opens an inline purchase panel (price, Buy with your sandbox Apple
+ID, Restore); "Draft a follow-up" in the library (needs minutes (.md)
+with a summary) is locked with a tooltip pointing to that purchase
+section. "Summarize after recording" needs "Transcribe after recording"
+enabled (the transcript is the input). Without the entitlement,
+generation is skipped with a notice. A loading price
+placeholder means the product is not visible yet; reopening the panel
+retries. The IAP's review screenshot shows the locked rows and the
+panel. **Recording and transcription are currently free.**
 
 ---
 ## 日本語 (参考訳 — 提出は英語版)
