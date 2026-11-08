@@ -516,5 +516,5 @@ tapa del portátil sigue suspendiendo el Mac» es el límite honesto de IOPMAsse
 se evita la suspensión por inactividad).
 
 ```text
-Mientras grabas con vídeo, la pantalla del Mac ya no se suspende automáticamente. Si te alejas durante la grabación de una reunión, la pantalla sigue encendida, así que la grabación ya no pierde fotogramas ni termina antes por una pantalla apagada. Al detener la grabación, el Mac vuelve al comportamiento normal de suspensión. Las grabaciones de solo audio funcionan igual que antes. Cerrar la tapa del portátil sigue suspendiendo el Mac. Las funciones de grabación, audio y transcripción no cambian.
+Mientras grabas con vídeo, la pantalla del Mac ya no se suspende automáticamente. Si te alejas durante la grabación de una reunión, la pantalla sigue encendida, así que es mucho menos probable que la grabación pierda fotogramas o termine antes por una pantalla apagada. Al detener la grabación, el Mac vuelve normalmente a su comportamiento de suspensión (en raras ocasiones, si la llamada al sistema falla, la suspensión se reanuda en la siguiente grabación). Las grabaciones de solo audio funcionan igual que antes. Cerrar la tapa del portátil sigue suspendiendo el Mac. Las funciones de grabación, audio y transcripción no cambian.
 ```

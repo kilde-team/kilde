@@ -512,5 +512,5 @@ sentence describes the documented failure that disappears (ScreenCaptureKit prod
 frames while the display is off).
 
 ```text
-While recording with video, your Mac's display no longer sleeps automatically. If you step away during a meeting recording, the display stays on, so the recording no longer loses frames or ends early because the display went dark. Stopping the recording restores the usual sleep behavior. Audio-only recordings behave as before. Closing a laptop lid still puts the Mac to sleep. Recording, audio, and transcription features are unchanged.
+While recording with video, your Mac's display no longer sleeps automatically. If you step away during a meeting recording, the display stays on, so a recording is much less likely to lose frames or end early because the display went dark. Stopping the recording restores the usual sleep behavior (in rare cases where the system call fails, sleep resumes at the next recording instead). Audio-only recordings behave as before. Closing a laptop lid still puts the Mac to sleep. Recording, audio, and transcription features are unchanged.
 ```
