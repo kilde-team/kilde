@@ -135,6 +135,14 @@ final class ReminderExporter: ObservableObject {
     /// 権限の状態。起動時は notDetermined を仮置きし、init で実状を読み直す
     @Published private(set) var status: ReminderExportSupport.AccessStatus = .notDetermined
 
+    /// 権限の«要求自体» が失敗したときの案内 (nil は «失敗していない»)。
+    /// **拒否はこれに入らない** — macOS の要求 API は拒否のとき false/許可のとき
+    /// true を返すだけで throw しない。throw されるのは EventKit 側の異常で、
+    /// そのときは status が notDetermined のまま残るため、«拒否» の案内
+    /// (システム設定を開く) を出すと実態と合わなくなる (CodeRabbit 指摘)。
+    /// 案内は «もう一度押すと要求し直す» ことが伝わる文言にしてある
+    @Published private(set) var lastRequestFailure: String?
+
     /// 書き出しに使う EventKit のストア。最初の書き出しのときだけ作る —
     /// EKEventStore の初期化は同期的で時間がかかることがあり、起動経路に置かない
     /// (CalendarTitles.store と同じ理由)
@@ -168,12 +176,25 @@ final class ReminderExporter: ObservableObject {
     /// (拒否済みで呼んでもダイアログは出ない — 案内は UI 側が担う)
     func requestAccess() async {
         refreshStatus()
+        lastRequestFailure = nil
         guard status == .notDetermined else { return }
         let store = self.store ?? EKEventStore()
         self.store = store
-        // macOS 14+ の API。デプロイ対象は 14.0 のため #available は不要
-        // (requestFullAccessToEvents — issue #393 と同じ)
-        _ = try? await store.requestFullAccessToReminders()
+        do {
+            // macOS 14+ の API。デプロイ対象は 14.0 のため #available は不要
+            // (requestFullAccessToEvents — issue #393 と同じ)。**拒否のときは
+            // false が返るだけで throw しない** — throw は EventKit 側の異常
+            _ = try await store.requestFullAccessToReminders()
+        } catch {
+            // 要求自体の失敗。権限の状態は notDetermined のままなので «拒否» とは
+            // 区別して案内する (次の押下でもう一度要求できる)。ログには domain と
+            // code だけを出す (save の catch と同じ CWE-532 の配慮)
+            let nsError = error as NSError
+            Self.logger.error(
+                "reminder access request failed: domain=\(nsError.domain, privacy: .public) code=\(nsError.code)")
+            lastRequestFailure = String(
+                localized: "リマインダーへのアクセスを確認できませんでした (もう一度お試しください)")
+        }
         refreshStatus()
     }
 

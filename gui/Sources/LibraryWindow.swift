@@ -581,8 +581,10 @@ private struct LibraryDetailView: View {
     @State private var minutesDoc: FollowupDraftSupport.MinutesDoc = .notMinutes
     /// フォローアップ下書きシート (issue #464) の表示
     @State private var showsFollowupDraft = false
-    /// «リマインダーへ追加» (issue #509) の EventKit ラッパ。権限の状態の
-    /// 変化 (押下時の要求・システム設定での変更) をボタンの表示に反映する
+    /// «リマインダーへ追加» (issue #509) の EventKit ラッパ。権限の要求と
+    /// 書き出しは押下時にこのラッパを通して行う — ボタンの有無は議事録の内容
+    /// (正規化後のアクションの有無) だけで決まり、権限の状態を表示に反映しない
+    /// («押したときだけ要求» の方針のため。拒否されたときの案内は結果表示が出る)
     @StateObject private var reminderExporter = ReminderExporter()
     /// «リマインダーへ追加» の結果表示 (追加件数・権限の案内)。nil は «表示なし»。
     /// 録画を切り替えたら消す (前の録画の結果が残ると別の議事録の結果と誤読するため)
@@ -853,6 +855,13 @@ private struct LibraryDetailView: View {
             // «別の録画の表示» に載るため捨てる (表示だけで、書き込み自体は
             // 押した録画の分が済んでいる)
             guard epoch == reminderEpoch else { return }
+            if let failure = reminderExporter.lastRequestFailure {
+                // «拒否» ではなく «要求自体が失敗» — 設定を開く案内は出さない
+                // (もう一度押せば要求し直す。CodeRabbit 指摘)
+                reminderNotice = ReminderNotice(
+                    message: failure, offersSettingsLink: false)
+                return
+            }
             guard reminderExporter.status.canWrite else {
                 reminderNotice = ReminderNotice(
                     message: String(localized: "リマインダーへのアクセスが許可されていません (許可すると追加できます)"),

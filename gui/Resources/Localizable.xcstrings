@@ -2,6 +2,35 @@
   "sourceLanguage": "ja",
   "strings": {
     
+      "リマインダーへのアクセスを確認できませんでした (もう一度お試しください)": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Couldn't check Reminders access — please try again"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No se pudo verificar el acceso a Recordatorios — inténtalo de nuevo"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "미리 알림 접근을 확인하지 못했습니다 (다시 시도해 주세요)"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "无法确认提醒事项访问权限（请重试）"
+            }
+          }
+        }
+      },
       "リマインダーへ追加": {
         "extractionState": "manual",
         "localizations": {
@@ -72,7 +101,7 @@
           "es": {
             "stringUnit": {
               "state": "translated",
-              "value": "El resumen de este acta no tiene elementos de acción"
+              "value": "El resumen de esta acta no tiene elementos de acción"
             }
           },
           "ko": {
@@ -180,15 +209,39 @@
         "extractionState": "manual",
         "localizations": {
           "en": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "Added %lld action items to Reminders"
+            "variations": {
+              "plural": {
+                "one": {
+                  "stringUnit": {
+                    "state": "translated",
+                    "value": "Added %lld action item to Reminders"
+                  }
+                },
+                "other": {
+                  "stringUnit": {
+                    "state": "translated",
+                    "value": "Added %lld action items to Reminders"
+                  }
+                }
+              }
             }
           },
           "es": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "Se añadieron %lld elementos de acción a Recordatorios"
+            "variations": {
+              "plural": {
+                "one": {
+                  "stringUnit": {
+                    "state": "translated",
+                    "value": "Se añadió %lld elemento de acción a Recordatorios"
+                  }
+                },
+                "other": {
+                  "stringUnit": {
+                    "state": "translated",
+                    "value": "Se añadieron %lld elementos de acción a Recordatorios"
+                  }
+                }
+              }
             }
           },
           "ko": {
