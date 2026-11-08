@@ -24,6 +24,12 @@ microphone, with optional on-device transcription of finished recordings.
   full access, but **the app only reads events**; data stays on-device. If
   declined — or a lookup is still running when recording starts — the
   default file name is used.
+- **Reminders (on-button, 0.34.0)**: pressing "Add to Reminders" in the
+  library adds the summary's action items to the default Reminders
+  list. macOS has no write-only request API for Reminders (full access is
+  requested), but **the app only adds items** — never reads, edits, or
+  deletes existing ones. If declined, the library shows an "Open Reminders
+  settings" link.
 
 **How to test:**
 
@@ -34,55 +40,47 @@ microphone, with optional on-device transcription of finished recordings.
 3. (Optional, **macOS 26+**) enable "Transcribe after recording" and record
    a short clip with speech; a Markdown transcript is written next to the
    recording.
+4. (Optional) In the recording library, a recording whose minutes (.md)
+   include a summary shows "Add to Reminders" — pressing it adds those
+   items to the default Reminders list.
 
-Rarely changed settings (hotkey, launch at login, meeting auto-recording,
-analytics opt-out, tips, custom instructions) are in the **Settings
-window** (gear icon).
+Settings (gear icon) holds hotkey, launch at login, meeting
+auto-recording, and the analytics opt-out.
 
 **Data handling:** transcription and AI features run **entirely on this
-device** (SpeechTranscriber / Apple Intelligence). No audio, transcript,
+device** (SpeechTranscriber / Apple Intelligence); no audio, transcript,
 summary, or draft text is sent anywhere. A missing language model downloads
-from Apple (standard OS asset; your IP reaches Apple); otherwise it works
-offline. Recordings and transcripts go to `~/Movies` or a user-picked
-folder (never inside the App Sandbox container). Outbound connections: Firebase Analytics (usage analytics),
-Crashlytics (post-crash reports), and those downloads; none carries audio
+from Apple (your IP reaches Apple); otherwise it works offline. Recordings
+go to `~/Movies` or a user-picked folder (never inside the App Sandbox
+container). Outbound connections: Firebase Analytics (usage analytics),
+Crashlytics (crash reports), and those downloads; none carries audio
 content.
 
 **Meeting auto-recording (off by default):** local detection only; manual
-recordings are never stopped.
+recordings are never stopped. **Consent:** system audio can include other
+participants' voices — informing them is the user's responsibility.
 
-**Consent note:** system audio can include other participants'
-voices; informing them is the user's responsibility.
-
-**In-app purchase — tips (v0.18.0):** the optional "Support this app"
-section in the Settings window offers three consumable tips (kilde.tip.*);
-standard StoreKit purchase. Nothing is gated.
+**In-app purchase — tips (v0.18.0):** optional consumable tips
+(kilde.tip.*) under Settings > "Support this app"; standard StoreKit
+purchase. Nothing is gated.
 
 **In-app purchase — kilde Pro (v0.26.0 summaries, v0.28.0 follow-up
-drafts, v0.29.0 custom instructions):** one non-consumable, one-time
-product (kilde.pro) unlocks all of them (AI features run on-device and
-require Apple Intelligence, macOS 26+; without it they stay disabled even
-after purchase).
-
-- *Summaries:* without Pro, "Summarize after recording" is a locked row
-  with a "Pro" badge; clicking it expands an inline purchase panel (price,
-  Buy — StoreKit purchase with your sandbox Apple ID — and
-  Restore). After purchase it becomes the normal toggle. Enable
-  "Transcribe after recording" too (it is the input).
-- *Follow-up drafts (v0.28.0):* in the library window, a recording whose
-  minutes (.md) include a summary shows "Draft a follow-up"; the sheet
-  generates an email or chat draft from that summary (copy button).
-  Without Pro it is locked (tooltip); without Apple Intelligence or a
-  summary it is disabled with the reason as a tooltip.
-- *Custom instructions (v0.29.0):* a "Custom instructions" disclosure in
-  the Settings window (tone, recipients, signature, points to emphasize,
-  free-form) applies to summaries and drafts; the text stays
-  on-device. Without Pro, the panel's locked rows open the purchase panel;
-  without the entitlement, summaries and drafts are skipped with a notice.
-
-**Recording and transcription are currently free.** A loading price
-placeholder means the product is not visible yet; reopening the panel
-retries. The IAP's review screenshot shows the locked rows and the panel.
+drafts, v0.29.0 custom instructions):** one non-consumable product
+(kilde.pro) unlocks them all; Pro AI features run on-device and require
+Apple Intelligence, macOS 26+ (without it they stay disabled even after
+purchase). Reminders export (0.34.0) is **not** part of Pro. Without
+Pro: "Summarize after recording" is a locked row with a "Pro" badge, and
+"Draft a follow-up" (library; needs minutes (.md) with a summary) is
+locked — clicking them opens an inline purchase panel (price, Buy with
+your sandbox Apple ID, Restore); a "Custom instructions" disclosure in
+Settings (tone, recipients, signature, emphasis, free-form; stays
+on-device) is locked as well. "Summarize after recording" needs
+"Transcribe after recording" enabled (the transcript is the input).
+Without the entitlement, summaries and drafts are skipped with a
+notice. A loading price placeholder means the product is not visible
+yet; reopening the panel retries. The IAP's review screenshot shows the
+locked rows and the panel. **Recording and transcription are currently
+free.**
 
 ---
 ## 日本語 (参考訳 — 提出は英語版)
@@ -190,6 +188,19 @@ kilde は進行中の会議を検知して自動で録画できます (オプシ
 上記の通信に含まれることはありません。拒否しても他の機能は通常どおり動きます。
 許可済みでも、録画開始時点で検索が未完了の場合はカレンダー名なしの既定名に
 なります (検索は数秒前に先行するため、実際にはまれです)。
+
+**リマインダーへの追加 (ボタンを押したときだけ、0.34.0 で追加):**
+
+ライブラリの «リマインダーへ追加» を押すと、議事録の要約のアクションアイテムを
+リマインダー (Reminders.app) の既定のリストに追加します。macOS の Reminders には
+書き込み専用の要求 API が無いため要求 (`requestFullAccessToReminders`) は
+フルアクセスになりますが、**アプリは項目の追加だけを行い**、既存の項目の
+読み取り・変更・削除はしません。リマインダーの内容が kilde の通信に含まれる
+ことはありません (既定のリストが iCloud のリマインダーの場合、ほかの端末への
+反映は macOS 側の同期で行われます — kilde の通信ではありません)。拒否された
+場合はライブラリに «リマインダーの設定を開く» の案内が出ます。この機能は
+Pro ではありません (要約の «生成» が Pro で、出来上がった議事録の持ち出しは
+無料です)。
 
 **収録同意について (レビュアー向け):** Kilde はシステム音声を録るため、
 会議の他の参加者の声が入る可能性があります。実際の利用では録画の告知は
