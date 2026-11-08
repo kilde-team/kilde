@@ -109,6 +109,15 @@ enum SelfTest {
             SelfTestSpotlight.run()
             return
         }
+        // KILDE_GUI_SELFTEST_REMINDERS=1: リマインダーへの書き出し (issue #509) の検証。
+        // «アクションアイテム → リマインダー項目の組み立て» «ボタンの有効条件と
+        // ツールチップ» «EventKit 権限の写像» の純関数を確かめる。**実機の
+        // Reminders には書き込まない** (EKReminder の生成・保存は手動確認)。
+        // 実録画を伴わないため録画のスロット (権限・スピーカー) を占有しない
+        if env["KILDE_GUI_SELFTEST_REMINDERS"] == "1" {
+            SelfTestReminders.run()
+            return
+        }
         // KILDE_GUI_SELFTEST_LIBRARY_SEARCH: ライブラリの索引構築 + 全文検索の検証
         // (issue #165)。一時ディレクトリに合成したサイドカー 100 件で実測時間を出す —
         // 実録画を伴わないため録画のスロット (権限・スピーカー) を占有しない

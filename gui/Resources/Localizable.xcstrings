@@ -2,6 +2,349 @@
   "sourceLanguage": "ja",
   "strings": {
     
+      "リマインダーへのアクセスを確認できませんでした (もう一度お試しください)": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Couldn't check Reminders access — please try again"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No se pudo verificar el acceso a Recordatorios — inténtalo de nuevo"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "미리 알림 접근을 확인하지 못했습니다 (다시 시도해 주세요)"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "无法确认提醒事项访问权限（请重试）"
+            }
+          }
+        }
+      },
+      "リマインダーへ追加": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Add to Reminders"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Añadir a Recordatorios"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "미리 알림에 추가"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "添加到提醒事项"
+            }
+          }
+        }
+      },
+      "要約のアクションアイテムを、リマインダーの既定のリストに追加します": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Adds the action items from the summary to your default Reminders list"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Añade los elementos de acción del resumen a tu lista de Recordatorios predeterminada"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "요약의 작업 항목을 미리 알림의 기본 목록에 추가합니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "将摘要中的行动项添加到提醒事项的默认列表"
+            }
+          }
+        }
+      },
+      "この議事録の要約にアクションアイテムはありません": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "The summary of these minutes has no action items"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "El resumen de esta acta no tiene elementos de acción"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "이 회의록의 요약에 작업 항목이 없습니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "此会议纪要的摘要中没有行动项"
+            }
+          }
+        }
+      },
+      "リマインダーへの追加には要約つきの議事録 (.md) が必要です": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Adding to Reminders needs minutes (.md) with a summary"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Para añadir a Recordatorios se necesita un acta (.md) con resumen"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "미리 알림에 추가하려면 요약이 있는 회의록(.md)이 필요합니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "添加到提醒事项需要带摘要的会议纪要 (.md)"
+            }
+          }
+        }
+      },
+      "リマインダーの設定を開く": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Open Reminders settings"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Abrir la configuración de Recordatorios"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "미리 알림 설정 열기"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "打开提醒事项设置"
+            }
+          }
+        }
+      },
+      "リマインダーへのアクセスが許可されていません (許可すると追加できます)": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Reminders access is not allowed — allow access to add items"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "El acceso a Recordatorios no está permitido — permítelo para añadir elementos"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "미리 알림 접근이 허용되지 않았습니다 (허용하면 추가할 수 있습니다)"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "尚未允许访问提醒事项（允许后即可添加）"
+            }
+          }
+        }
+      },
+      "%lld 件のアクションをリマインダーに追加しました": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "variations": {
+              "plural": {
+                "one": {
+                  "stringUnit": {
+                    "state": "translated",
+                    "value": "Added %lld action item to Reminders"
+                  }
+                },
+                "other": {
+                  "stringUnit": {
+                    "state": "translated",
+                    "value": "Added %lld action items to Reminders"
+                  }
+                }
+              }
+            }
+          },
+          "es": {
+            "variations": {
+              "plural": {
+                "one": {
+                  "stringUnit": {
+                    "state": "translated",
+                    "value": "Se añadió %lld elemento de acción a Recordatorios"
+                  }
+                },
+                "other": {
+                  "stringUnit": {
+                    "state": "translated",
+                    "value": "Se añadieron %lld elementos de acción a Recordatorios"
+                  }
+                }
+              }
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "작업 항목 %lld개를 미리 알림에 추가했습니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "已将 %lld 个行动项添加到提醒事项"
+            }
+          }
+        }
+      },
+      "リマインダーに追加できませんでした": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Couldn't add to Reminders"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No se pudo añadir a Recordatorios"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "미리 알림에 추가하지 못했습니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "无法添加到提醒事项"
+            }
+          }
+        }
+      },
+      "既定のリマインダーリストが見つかりません": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Couldn't find the default Reminders list"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No se encontró la lista de Recordatorios predeterminada"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "기본 미리 알림 목록을 찾을 수 없습니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "找不到默认的提醒事项列表"
+            }
+          }
+        }
+      },
+      "リマインダーへのアクセスが許可されていません": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Reminders access is not allowed"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "El acceso a Recordatorios no está permitido"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "미리 알림 접근이 허용되지 않았습니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "尚未允许访问提醒事项"
+            }
+          }
+        }
+      },
       "録画と文字起こしを Spotlight に登録する": {
         "extractionState": "manual",
         "localizations": {

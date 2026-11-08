@@ -67,6 +67,19 @@
 	     だが、OS が読むキーの判定を挟まないために残す -->
 	<key>NSCalendarsUsageDescription</key>
 	<string>検知した会議に重なる予定の題名を録画ファイル名・録画開始通知・議事録の見出しに使うため、カレンダーへアクセスします。kilde は予定の読み取りだけを行い、作成・変更はせず、カレンダーの内容がネットワークに送信されることもありません。</string>
+	<!-- 議事録の要約のアクションアイテムのリマインダーへの追加 (issue #509)。
+	     macOS 14+ では requestFullAccessToReminders が NSRemindersFullAccessUsageDescription
+	     を読む (Reminders には書き込み専用の要求 API が無いため full を要求するしかない)。
+	     kilde は許可されても項目の追加だけを行い、既存項目の読み取り・変更・削除は
+	     しない。«送らない» は kilde 自身の通信に限る — 既定のリストが iCloud の
+	     リマインダーの場合、macOS 側の同期でほかの端末に届くことがあるが、
+	     それは kilde の通信ではない (0.33.0 の Spotlight 文言と同じ限定のしかた) -->
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>議事録の要約のアクションアイテムを、あなたのリマインダーリストに追加するため、リマインダーへアクセスします。kilde は項目の追加だけを行い、既存の項目の読み取り・変更・削除はせず、リマインダーの内容を kilde がネットワークに送信することもありません。</string>
+	<!-- macOS 14 未満 (レガシー要求経路) 用のフォールバック。デプロイ対象は 14.0
+	     だが、OS が読むキーの判定を挟まないために残す (カレンダーの 2 キー構成と同じ) -->
+	<key>NSRemindersUsageDescription</key>
+	<string>議事録の要約のアクションアイテムを、あなたのリマインダーリストに追加するため、リマインダーへアクセスします。kilde は項目の追加だけを行い、既存の項目の読み取り・変更・削除はせず、リマインダーの内容を kilde がネットワークに送信することもありません。</string>
 	<!-- macOS 15+ で画面収録権限ダイアログ/システム設定に表示される説明文字列。
 	     キー名は NSScreenCaptureUsageDescription (ScreenCaptureKit の公式キー) -->
 	<key>NSScreenCaptureUsageDescription</key>

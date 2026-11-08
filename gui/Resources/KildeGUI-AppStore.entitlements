@@ -21,10 +21,14 @@
 	     欠けるとエラーもクラッシュもなく無音のトラックになる -->
 	<key>com.apple.security.device.audio-input</key>
 	<true/>
-	<!-- カレンダー (issue #393)。サンドボックス下で EventKit にアクセスするにはこの
-	     エンタイトルメントが必須。macOS に読み取り専用の許可が無いため要求は
+	<!-- カレンダー (issue #393) とリマインダー (issue #509)。サンドボックス下で
+	     EventKit にアクセスするにはこのエンタイトルメントが必須 (Reminders も
+	     同じキー — 別のキーは無い)。macOS に読み取り専用の許可が無いため要求は
 	     requestFullAccessToEvents (full access) になるが、アプリは読み取りだけを
-	     行い、予定の作成・変更・招待はしない -->
+	     行い、予定の作成・変更・招待はしない。リマインダーも Reminders の
+	     書き込み専用の要求 API が無いため requestFullAccessToReminders (full)
+	     になるが、アプリは項目の追加だけを行い、既存項目の読み取り・変更・
+	     削除はしない -->
 	<key>com.apple.security.personal-information.calendars</key>
 	<true/>
 	<!-- 録画の保存先の既定 (~/Movies)。これが無いとサンドボックス下では

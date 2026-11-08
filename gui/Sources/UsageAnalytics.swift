@@ -456,6 +456,17 @@ enum UsageAnalytics {
         Analytics.logEvent("spotlight_open", parameters: nil)
     }
 
+    /// 要約のアクションアイテムをリマインダーへ書き出した (issue #509)。
+    /// **パラメータなし** — «リマインダーへの書き出しが使われているか» だけを
+    /// 見る。項目の文面・件数・どの録画からかは «名前やパスを送らない» と
+    /// «値は列挙に閉じる» の両契約に反するため載せない (spotlight_open と同じ。
+    /// パラメータの無いイベントは GA4 で自動登録され、カスタム ディメンション
+    /// の追加も不要 — issue #456 の «登録済みディメンションのみ» 規約)
+    static func reminderExported() {
+        guard isEnabled else { return }
+        Analytics.logEvent("reminder_export", parameters: nil)
+    }
+
     /// パラメータなし (または error_kind のみ) のイベント用。録画長などの
     /// バケットを載せる既存 `log` と別にしたのは、Pro のUI 系イベントには
     /// «関連する録画» が無い (ロック行の表示は録画と結び付かない) ため
