@@ -27,8 +27,8 @@ enum SelfTestSleepPrevent {
         var created = 0
         var discarded: [IOPMAssertionID] = []
         let counting = DisplaySleepGuard.Driver(
-            create: { created += 1; return IOPMAssertionID(7) },
-            discard: { discarded.append($0) })
+            create: { created += 1; return (kIOReturnSuccess, IOPMAssertionID(7)) },
+            discard: { discarded.append($0); return kIOReturnSuccess })
         let guardInstance = DisplaySleepGuard(driver: counting)
         check(!guardInstance.isPreventing, "初期状態では保持していない")
 
@@ -57,10 +57,11 @@ enum SelfTestSleepPrevent {
         guardInstance.acquire()
         check(guardInstance.isPreventing && created == 2, "解放後の再取得で取得し直す")
 
-        // MARK: 取得に失敗したとき — best-effort (録画は止めない設計)
+        // MARK: 取得に失敗したとき — best-effort (録画は止めない設計)。
+        // ステータスは警告 (stderr) に載るので、ここでは保持の挙動だけを見る
         let failing = DisplaySleepGuard(driver: DisplaySleepGuard.Driver(
-            create: { nil },
-            discard: { _ in }))
+            create: { (kIOReturnError, nil) },
+            discard: { _ in kIOReturnError }))
         failing.acquire()
         check(!failing.isPreventing, "取得に失敗したら保持しない")
         failing.release()
@@ -71,12 +72,43 @@ enum SelfTestSleepPrevent {
         failing.release()
         check(!failing.isPreventing, "失敗が混ざっても参照カウントは対になる")
 
+        // MARK: 解放に失敗した ID の保持と再試行 (cubic レビュー指摘)。
+        // 失敗を見過ごすと «録画後もディスプレイがスリープしない» が続くため、
+        // 失敗した ID を pendingRelease に保持し、次の acquire()/release() で再試行する
+        var nextID = IOPMAssertionID(20)
+        var discardCalls: [(IOPMAssertionID, IOReturn)] = []
+        var failFirstRelease = true
+        let flaky = DisplaySleepGuard.Driver(
+            create: { nextID += 1; return (kIOReturnSuccess, nextID) },
+            discard: { id in
+                let result: IOReturn = failFirstRelease ? kIOReturnError : kIOReturnSuccess
+                failFirstRelease = false
+                discardCalls.append((id, result))
+                return result
+            })
+        let guarded = DisplaySleepGuard(driver: flaky)
+        guarded.acquire()                       // create → 21
+        guarded.release()                       // discard(21) が失敗 → pendingRelease へ
+        check(!guarded.isPreventing, "解放に失敗したら保持を下ろす (OS 側の再試行に委ねる)")
+        check(discardCalls.map { Self.trace($0) } == ["21:fail"], "最初の解放の失敗がドライバに届く")
+        guarded.acquire()                       // retry discard(21) 成功 → create → 22
+        check(discardCalls.map { Self.trace($0) } == ["21:fail", "21:ok"],
+              "次の取得のときに失敗した ID を再試行する")
+        check(guarded.isPreventing, "再試行のあとに新しい録画の取得が効く")
+        guarded.release()                       // discard(22) は成功
+        check(discardCalls.last.map { Self.trace($0) } == "22:ok", "新しい ID はふつうに解放される")
+
         print("selftest: sleep-prevent checks=\(failures == 0 ? "all passed" : "\(failures) failures")")
         fflush(stdout)
         exit(failures == 0 ? 0 : 1)
     }
 
     // MARK: - 検証ヘルパー
+
+    /// 解放の呼び出し記録を «ID: 成否» の文字列にする (タプルは == で比較できないため)
+    private static func trace(_ call: (IOPMAssertionID, IOReturn)) -> String {
+        "\(call.0):\(call.1 == kIOReturnSuccess ? "ok" : "fail")"
+    }
 
     private static func check(_ condition: Bool, _ label: String) {
         if condition {
