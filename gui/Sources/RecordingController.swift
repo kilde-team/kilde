@@ -30,6 +30,11 @@ final class RecordingController: ObservableObject {
     @Published private(set) var outputURL: URL?
 
     private var recorder: Recorder?
+    /// 録画セッション中のディスプレイのアイドル スリープ防止 (issue #516)。
+    /// start() で映像ありのセッションなら取得し、結果確定 (.completed / .failed) で
+    /// 解放する。ここ (AppDelegate が持つ録画モデル) に置くことで、手動録画と
+    /// 会議の自動録画 (MeetingAutoRecorder) の両経路で効く
+    private let sleepGuard = DisplaySleepGuard()
     /// 終了ハンドラと、紐付くセッション。
     /// セッションを持たないと、別のセッションのハンドラまで発火させてしまう。
     /// `nil` は「まだ始まっていない次のセッション」を意味し、`start()` が引き受ける
@@ -135,6 +140,14 @@ final class RecordingController: ObservableObject {
         windowService = sessionOptions.windowMatches.count == 1
             ? UInt32(sessionOptions.windowMatches[0]).flatMap(WindowService.classify(windowID:))
             : nil
+        // 録画セッションの間だけディスプレイのアイドル スリープを防ぐ (issue #516)。
+        // 消灯中は SCK がフレームを出さないため、離席中のスリープで «フレームの欠落»
+        // と «早期ファイナライズ» が起こる。準備フェーズ (権限確認・デバイス解決・
+        // ストリーム構築) も含めて取得する — 開始直後の消灯は 0 フレームの失敗になるため。
+        // 音声のみの録画は消灯の影響を受けないので効かせない (挙動を変えない)
+        if DisplaySleepGuard.shouldPrevent(wantsVideo: sessionOptions.wantsVideo) {
+            sleepGuard.acquire()
+        }
         let recorder = Recorder(options: sessionOptions)
         self.recorder = recorder
         // **開始前に登録されたハンドラをこのセッションへ移す。** SelfTest は
@@ -234,6 +247,12 @@ final class RecordingController: ObservableObject {
             warnings.append(warning)
         case .completed(let summary):
             isPaused = false
+            // 結果が確定したのでスリープの防止を下ろす (issue #516)。
+            // **endSession ではなくここで解放する** — endSession は完了通知の待ちの
+            // 間に次のセッションが始まったあとに走ることがあり、そこで解放すると
+            // 次のセッションの防止まで消える (DisplaySleepGuard の参照カウントは
+            // この解放と次の start() の取得が重なっても正しく対になる)
+            sleepGuard.release()
             // 実収録時間の確定は **phase 更新の前**。評価依頼 (issue #156) の sink は
             // .finished の willSet の次の MainActor ホップで lastRecordedDuration を
             // 読む — 更新後に計算すると sink が古い値 (0) を見てしまう
@@ -287,6 +306,9 @@ final class RecordingController: ObservableObject {
             }
         case .failed(let error, let partialFileExists):
             isPaused = false
+            // 失敗でも結果は確定 — スリープの防止を下ろす (issue #516、
+            // completed と同じ理由で endSession ではなくここで解放する)
+            sleepGuard.release()
             var message = "\(error)"
             if partialFileExists, let outputURL {
                 message += "\n" + String(localized: "不完全なファイルが残っています: \(outputURL.path)")
