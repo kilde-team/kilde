@@ -502,3 +502,15 @@ is the localized button text.
 ```text
 You can now add the action items from a transcript summary to Reminders. Select a recording whose minutes (.md) include a summary in the library and press "Add to Reminders": the items go to your default Reminders list, with the source recording noted in each item's notes. The first press asks for Reminders access. kilde only adds items — it never reads or changes your existing reminders. What is added is assembled on this Mac; kilde never sends it anywhere. Recording, audio, and transcription are unchanged.
 ```
+
+## What's New (0.35.0)
+
+Preventing display idle sleep while recording (issue #516). Copy states only what ships
+(same policy as 0.34.0). "Closing a laptop lid still puts the Mac to sleep" is the honest
+statement of the IOPMAssertion limit (only idle sleep is prevented); the missing-frames
+sentence describes the documented failure that disappears (ScreenCaptureKit produces no
+frames while the display is off).
+
+```text
+While recording with video, your Mac's display no longer sleeps automatically. If you step away during a meeting recording, the display stays on, so the recording no longer loses frames or ends early because the display went dark. Stopping the recording restores the usual sleep behavior. Audio-only recordings behave as before. Closing a laptop lid still puts the Mac to sleep. Recording, audio, and transcription features are unchanged.
+```

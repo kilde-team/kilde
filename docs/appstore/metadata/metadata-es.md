@@ -507,3 +507,14 @@ Recordatorios» es el texto localizado del botón.
 ```text
 Ya puedes añadir los elementos de acción del resumen de un acta a Recordatorios. Selecciona una grabación con acta (.md) que incluya un resumen en la biblioteca y pulsa «Añadir a Recordatorios»: los elementos se añaden a tu lista de Recordatorios predeterminada, con la grabación de origen anotada en las notas de cada elemento. El primer uso pide acceso a Recordatorios. kilde solo añade elementos — nunca lee ni modifica los existentes. Lo que se añade se prepara en este Mac; kilde no lo envía a ningún sitio. Las funciones de grabación, audio y transcripción no cambian.
 ```
+
+## Novedades (0.35.0)
+
+Evitar la suspensión automática de la pantalla mientras se graba (issue #516). Se
+describe solo lo que existe en la implementación (misma política que 0.34.0). «Cerrar la
+tapa del portátil sigue suspendiendo el Mac» es el límite honesto de IOPMAssertion (solo
+se evita la suspensión por inactividad).
+
+```text
+Mientras grabas con vídeo, la pantalla del Mac ya no se suspende automáticamente. Si te alejas durante la grabación de una reunión, la pantalla sigue encendida, así que la grabación ya no pierde fotogramas ni termina antes por una pantalla apagada. Al detener la grabación, el Mac vuelve al comportamiento normal de suspensión. Las grabaciones de solo audio funcionan igual que antes. Cerrar la tapa del portátil sigue suspendiendo el Mac. Las funciones de grabación, audio y transcripción no cambian.
+```
