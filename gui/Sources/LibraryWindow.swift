@@ -851,18 +851,17 @@ private struct LibraryDetailView: View {
         Task { @MainActor in
             defer { isExportingReminders = false }
             await reminderExporter.requestAccess()
-            // 世代照合 — 処理の途中で録画が切り替わっていたら、この結果は
-            // «別の録画の表示» に載るため捨てる (表示だけで、書き込み自体は
-            // 押した録画の分が済んでいる)
-            guard epoch == reminderEpoch else { return }
             if let failure = reminderExporter.lastRequestFailure {
                 // «拒否» ではなく «要求自体が失敗» — 設定を開く案内は出さない
-                // (もう一度押せば要求し直す。CodeRabbit 指摘)
+                // (もう一度押せば要求し直す。CodeRabbit 指摘)。表示は
+                // «押した時点の録画» の画面にだけ載せる (世代照合)
+                guard epoch == reminderEpoch else { return }
                 reminderNotice = ReminderNotice(
                     message: failure, offersSettingsLink: false)
                 return
             }
             guard reminderExporter.status.canWrite else {
+                guard epoch == reminderEpoch else { return }
                 reminderNotice = ReminderNotice(
                     message: String(localized: "リマインダーへのアクセスが許可されていません (許可すると追加できます)"),
                     offersSettingsLink: true)
@@ -874,8 +873,7 @@ private struct LibraryDetailView: View {
                 let count = try await reminderExporter.export(items)
                 // «書き出した» 事実だけを計測に載せる (項目の文面・件数は送らない —
                 // «値は列挙に閉じる» 規約。パラメータなしイベントのためカスタム
-                // ディメンション登録も不要 — issue #456)。書き込みが成功した事実は
-                // 表示の世代照合と無関係なので、照合の前に数える
+                // ディメンション登録も不要 — issue #456)
                 UsageAnalytics.reminderExported()
                 guard epoch == reminderEpoch else { return }
                 reminderNotice = ReminderNotice(
