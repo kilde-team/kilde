@@ -494,3 +494,16 @@ texto localizado de la app («Biblioteca de grabaciones»).
 ```text
 Ahora puedes buscar grabaciones desde Spotlight: por nombre, fecha y duración, y también por las palabras de la transcripción (se indexan los primeros 100.000 caracteres de cada transcripción). Al elegir un resultado de Spotlight se abre la biblioteca de grabaciones con esa grabación seleccionada (para grabaciones de la ubicación de guardado actual). Lo que kilde registra en el índice se guarda solo en este Mac; kilde no lo envía a ningún sitio. Se puede desactivar en Ajustes > Biblioteca de grabaciones. Las funciones de grabación y transcripción no cambian.
 ```
+
+## Novedades (0.34.0)
+
+Exportar los elementos de acción del resumen de un acta a Recordatorios (issue #509). Se
+describe solo lo que existe en la implementación (misma política que 0.28.0). «Lo que se
+añade se prepara en este Mac; kilde no lo envía a ningún sitio» sigue la PRIVACY.md
+corregida («Reminders», acotado al tráfico propio de kilde — si la lista predeterminada es
+de iCloud, la sincronización con otros dispositivos es de macOS, no de kilde). «Añadir a
+Recordatorios» es el texto localizado del botón.
+
+```text
+Ya puedes añadir los elementos de acción del resumen de un acta a Recordatorios. Selecciona una grabación con acta (.md) que incluya un resumen en la biblioteca y pulsa «Añadir a Recordatorios»: los elementos se añaden a tu lista de Recordatorios predeterminada, con la grabación de origen anotada en las notas de cada elemento. El primer uso pide acceso a Recordatorios. kilde solo añade elementos — nunca lee ni modifica los existentes. Lo que se añade se prepara en este Mac; kilde no lo envía a ningún sitio. Las funciones de grabación, audio y transcripción no cambian.
+```

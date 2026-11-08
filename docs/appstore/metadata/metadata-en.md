@@ -490,3 +490,15 @@ and sends — not Spotlight's own behavior).
 ```text
 Find recordings from Spotlight. Search the library by name, date, and duration — and by the words in the transcript (the first 100,000 characters of a transcript are indexed). Choosing a Spotlight result opens the recording library with that recording selected (for recordings in the current save location). What kilde registers with the index stays on this Mac; kilde never sends it anywhere. It can be turned off under Settings > Recording library. Recording and transcription are unchanged.
 ```
+
+## What's New (0.34.0)
+
+Exporting a transcript summary's action items to Reminders (issue #509). Copy states only
+what ships (same policy as 0.28.0). "kilde never sends it anywhere" follows the corrected
+PRIVACY.md ("Reminders", scoped to kilde's own traffic — if the default list is an iCloud
+reminders list, syncing to other devices is macOS-side and not kilde's). "Add to Reminders"
+is the localized button text.
+
+```text
+You can now add the action items from a transcript summary to Reminders. Select a recording whose minutes (.md) include a summary in the library and press "Add to Reminders": the items go to your default Reminders list, with the source recording noted in each item's notes. The first press asks for Reminders access. kilde only adds items — it never reads or changes your existing reminders. What is added is assembled on this Mac; kilde never sends it anywhere. Recording, audio, and transcription are unchanged.
+```
