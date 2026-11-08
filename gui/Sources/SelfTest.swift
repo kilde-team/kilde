@@ -118,6 +118,15 @@ enum SelfTest {
             SelfTestReminders.run()
             return
         }
+        // KILDE_GUI_SELFTEST_SLEEP_PREVENT=1: ディスプレイのスリープ防止 (issue #516) の
+        // 検証。«映像/音声のみの判定» «取得の参照カウントと解放» «取得失敗時の挙動» を
+        // 偽ドライバで確かめる。**実機のマシンはスリープさせない** (実際のスリープ抑制と
+        // 解放は pmset -g assertions の手動確認)。実録画を伴わないため録画のスロット
+        // (権限・スピーカー) を占有しない
+        if env["KILDE_GUI_SELFTEST_SLEEP_PREVENT"] == "1" {
+            SelfTestSleepPrevent.run()
+            return
+        }
         // KILDE_GUI_SELFTEST_LIBRARY_SEARCH: ライブラリの索引構築 + 全文検索の検証
         // (issue #165)。一時ディレクトリに合成したサイドカー 100 件で実測時間を出す —
         // 実録画を伴わないため録画のスロット (権限・スピーカー) を占有しない
