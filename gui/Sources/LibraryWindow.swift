@@ -581,6 +581,19 @@ private struct LibraryDetailView: View {
     @State private var minutesDoc: FollowupDraftSupport.MinutesDoc = .notMinutes
     /// フォローアップ下書きシート (issue #464) の表示
     @State private var showsFollowupDraft = false
+    /// «リマインダーへ追加» (issue #509) の EventKit ラッパ。権限の状態の
+    /// 変化 (押下時の要求・システム設定での変更) をボタンの表示に反映する
+    @StateObject private var reminderExporter = ReminderExporter()
+    /// «リマインダーへ追加» の結果表示 (追加件数・権限の案内)。nil は «表示なし»。
+    /// 録画を切り替えたら消す (前の録画の結果が残ると別の議事録の結果と誤読するため)
+    @State private var reminderNotice: ReminderNotice?
+
+    /// «リマインダーへ追加» の 1 表示分。message に案内文、offersSettingsLink が
+    /// true のとき «設定を開く» の導線を添える (権限が拒否されている場合のみ)
+    private struct ReminderNotice: Equatable {
+        let message: String
+        let offersSettingsLink: Bool
+    }
 
     /// 表示するセグメント (検索中はヒット順)。行ビューに渡す最小限の形にする
     private struct Row: Identifiable {
@@ -634,6 +647,8 @@ private struct LibraryDetailView: View {
             // 失敗表示も新しい録画のものに引き継ぎ直す (shownFailure の契約は «この録画の» 失敗)
             playback.prepare(url: newURL)
             seedShownFailure()
+            // «リマインダーへ追加» の結果は «この録画の» 結果なので、切替時に消す
+            reminderNotice = nil
         }
         // coordinator の失敗スロット (lastFailure) は «最新の 1 件» — 別の録画が
         // 失敗すると押し出されるため、この録画の «再試行» を出し続けるには
@@ -737,16 +752,41 @@ private struct LibraryDetailView: View {
         }
     }
 
-    /// フォローアップ下書きの導線 (issue #464 — 第二弾 Pro)。議事録 (.md) の要約から
-    /// 参加者へ送るメッセージの下書きを生成する。有効条件とツールチップは
-    /// FollowupDraftSupport に一元化 (セルフテスト対象)。«議事録を作成» と同じ
-    /// «控えめ» 方針 — Pro 未購入の案内はツールチップのみで、購入導線は設定パネル
-    /// にしか置かない
+    /// 議事録の次の一手の導線。«リマインダーへ追加» (issue #509 — 要約の
+    /// アクションアイテムを EventKit Reminders へ書き出す) と «フォローアップを
+    /// 下書き» (issue #464 — 第二弾 Pro)。議事録 (.md) の要約から使える。
+    /// 有効条件とツールチップは FollowupDraftSupport / ReminderExportSupport に
+    /// 一元化 (セルフテスト対象)。«議事録を作成» と同じ «控えめ» 方針 —
+    /// Pro 未購入の案内はツールチップのみで、購入導線は設定パネルにしか置かない
     private var followupBar: some View {
         let unsupportedReason = MeetingSummarizer.unsupportedReason
         let proAllows = pro.license.allows(.followupDraft)
         return HStack {
             Spacer()
+            if let notice = reminderNotice {
+                Text(notice.message)
+                    .font(.caption)
+                    .foregroundStyle(notice.offersSettingsLink ? Color.orange : Color.secondary)
+                    .lineLimit(2)
+                if notice.offersSettingsLink {
+                    // 権限が拒否されているときの導線 (CalendarTitles.openSettings と
+                    // 同じ系統のリマインダー用ペイン)
+                    Button(String(localized: "リマインダーの設定を開く")) {
+                        reminderExporter.openSettings()
+                    }
+                    .buttonStyle(.link)
+                    .font(.caption)
+                }
+            }
+            Button {
+                exportToReminders()
+            } label: {
+                Label(String(localized: "リマインダーへ追加"), systemImage: "checklist")
+            }
+            .controlSize(.small)
+            .buttonStyle(.bordered)
+            .disabled(!ReminderExportSupport.isButtonEnabled(doc: minutesDoc))
+            .help(ReminderExportSupport.buttonTooltip(doc: minutesDoc))
             Button {
                 showsFollowupDraft = true
             } label: {
@@ -778,6 +818,41 @@ private struct LibraryDetailView: View {
                     // 権利がないときは生成を止めて案内を出す — 黙って指示なしで
                     // 生成しないため)
                     instructions: settings().summaryInstructions)
+            }
+        }
+    }
+
+    /// «リマインダーへ追加» の実行 (issue #509)。権限は **この押下のときだけ**
+    /// 要求する (ReminderExporter のクラスコメント)。未確定 → 要求 → 許可なら
+    /// そのまま追加、拒否なら «設定を開く» 付きの案内に切替える。追加の実行は
+    /// 既定のリマインダーリストへの書き込みで、端末内のみ (PRIVACY.md «リマインダー»)
+    private func exportToReminders() {
+        let actions = ReminderExportSupport.actions(in: minutesDoc)
+        let meetingName = entry.recordingURL.deletingPathExtension().lastPathComponent
+        Task { @MainActor in
+            await reminderExporter.requestAccess()
+            guard reminderExporter.status.canWrite else {
+                reminderNotice = ReminderNotice(
+                    message: String(localized: "リマインダーへのアクセスが許可されていません (許可すると追加できます)"),
+                    offersSettingsLink: true)
+                return
+            }
+            do {
+                let items = ReminderExportSupport.items(
+                    fromActions: actions, meetingName: meetingName)
+                let count = try await reminderExporter.export(items)
+                // «書き出した» 事実だけを計測に載せる (項目の文面・件数は送らない —
+                // «値は列挙に閉じる» 規約。パラメータなしイベントのためカスタム
+                // ディメンション登録も不要 — issue #456)
+                UsageAnalytics.reminderExported()
+                reminderNotice = ReminderNotice(
+                    message: String(localized: "\(count) 件のアクションをリマインダーに追加しました"),
+                    offersSettingsLink: false)
+            } catch {
+                reminderNotice = ReminderNotice(
+                    message: (error as? ReminderExporter.ExportError)?.message
+                        ?? String(localized: "リマインダーに追加できませんでした"),
+                    offersSettingsLink: !reminderExporter.status.canWrite)
             }
         }
     }

@@ -9,7 +9,9 @@
 	<!-- カレンダー (issue #393)。非サンドボックスでも、最近の macOS ではこの
 	     エンタイトルメントが無いと EventKit への TCC 許可が黙って拒否される実例が
 	     あるため、Hardened Runtime の直接配布ビルドにも付ける (App Sandbox は無しのまま。
-	     アプリは読み取りだけを行い、予定の作成・変更はしない) -->
+	     カレンダーは読み取りだけを行い、予定の作成・変更はしない。リマインダー
+	     (issue #509) も同じキーで、項目の追加だけを行い既存項目の読み取り・
+	     変更・削除はしない) -->
 	<key>com.apple.security.personal-information.calendars</key>
 	<true/>
 	<!-- ローカル開発ビルド専用 (issue #212)。kilde-dev のような自己署名証明書には Team ID が

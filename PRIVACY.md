@@ -111,6 +111,7 @@ GUI アプリ (直接配布版・Mac App Store 版の両方) は、アプリが�
 | マイク | 選んだマイク・入力デバイス (内蔵マイク、外部マイク、BlackHole などの仮想デバイスを含む) の音声を録るため。入力デバイスを 1 つ以上選んだときだけ要求します |
 | ファイルとフォルダ (保存先) | 録画ファイルを指定の場所に書き込むため |
 | カレンダー | «カレンダーから会議名を使う» を有効にしたとき、検知した会議に重なる予定の題名を録画ファイル名・録画開始通知・議事録の見出しに使うため。macOS の許可は読み書きを含みますが、アプリは読み取りだけを行い、予定の作成・変更・招待はしません。設定で明示的に有効にしたときだけ要求します |
+| リマインダー | «リマインダーへ追加» ボタンを押したとき、議事録の要約のアクションアイテムを、あなたがリマインダー (Reminders.app) で使っている既定のリストに追加するため。macOS の許可は読み書きを含みますが、アプリは項目の追加だけを行い、既存の項目の読み取り・変更・削除はしません。リマインダーの内容がネットワークに送信されることはなく、書き出す内容もこの Mac の中だけで組み立てられます。ボタンを押したときだけ要求します |
 
 これらの権限で得たデータは、上記「録画・録音したデータ」のとおりローカルの
 ファイルにのみ保存されます。
@@ -308,6 +309,7 @@ language models from Apple — see "Network access").
 | Microphone | To record audio from the input devices you select — a built-in or external microphone, or a virtual device such as BlackHole. Requested only when you select at least one input device |
 | Files and folders (save location) | To write recordings to the location you choose |
 | Calendars | When "Use calendar event names" is enabled, to read the title of the event overlapping the detected meeting and use it in the recording file name, the recording-started notification, and the transcript heading. The macOS permission includes read-write access, but the app only reads events and never creates, edits, or sends invitations. Requested only when you explicitly enable it in settings |
+| Reminders | When you press "Add to Reminders", to add the action items from a transcript summary to the default list you use in Reminders. The macOS permission includes read-write access, but the app only adds items and never reads, edits, or deletes existing ones. Reminder contents are never sent over the network, and what is written is assembled entirely on this Mac. Requested only when you press the button |
 
 Data obtained through these permissions is stored only in local files, as
 described above.
