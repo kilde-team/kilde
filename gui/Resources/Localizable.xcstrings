@@ -2,6 +2,354 @@
   "sourceLanguage": "ja",
   "strings": {
     
+      "%@ をゴミ箱に移しました": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Moved “%@” to the Trash"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "«%@» se ha movido a la papelera"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "“%@”을(를) 휴지통으로 이동했습니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "已将“%@”移到废纸篓"
+            }
+          }
+        }
+      },
+      "%@ をゴミ箱に移しました (残ったサイドカー %lld 件は Finder で消してください)": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Moved “%@” to the Trash — %lld transcript files remain, delete them in Finder"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "«%@» se ha movido a la papelera: quedan %lld archivos de transcripción, bórralos en Finder"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "“%@”을(를) 휴지통으로 이동했습니다 — 남은 전사 파일 %lld개를 Finder에서 삭제해 주세요"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "已将“%@”移到废纸篓 — 剩余 %lld 个文稿文件，请在 Finder 中删除"
+            }
+          }
+        }
+      },
+      "%@ をゴミ箱に移します": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Move “%@” to the Trash"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Mover «%@» a la papelera"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "“%@”을(를) 휴지통으로 이동"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "将“%@”移到废纸篓"
+            }
+          }
+        }
+      },
+      "ゴミ箱に移せませんでした — Finder で削除してください (%@)": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Couldn't move to the Trash — delete it in Finder (%@)"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No se pudo mover a la papelera: bórralo en Finder (%@)"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "휴지통으로 이동하지 못했습니다 — Finder에서 삭제해 주세요 (%@)"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "无法移到废纸篓 — 请在 Finder 中删除 (%@)"
+            }
+          }
+        }
+      },
+      "ゴミ箱に移します": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Move to Trash"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Mover a la papelera"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "휴지통으로 이동"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "移到废纸篓"
+            }
+          }
+        }
+      },
+      "ゴミ箱に入れる": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Move to Trash"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Mover a la papelera"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "휴지통으로 이동"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "移到废纸篓"
+            }
+          }
+        }
+      },
+      "ゴミ箱に入れる…": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Move to Trash…"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Mover a la papelera…"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "휴지통으로 이동…"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "移到废纸篓…"
+            }
+          }
+        }
+      },
+      "キャンセル": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Cancel"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Cancelar"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "취소"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "取消"
+            }
+          }
+        }
+      },
+      "文字起こしが進行中のためゴミ箱に移せません": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Can't move to the Trash while transcription is running"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No se puede mover a la papelera mientras se transcribe"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "전사가 진행 중이어서 휴지통으로 이동할 수 없습니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "文稿生成进行中，无法移到废纸篓"
+            }
+          }
+        }
+      },
+      "文字起こしが進行中のため移せません": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Unavailable while transcription is running"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No disponible mientras se transcribe"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "전사가 진행 중이어서 이동할 수 없습니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "文稿生成进行中，无法移动"
+            }
+          }
+        }
+      },
+      "録画と同じ名前の文字起こし・議事録のファイルをゴミ箱に移します": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Move the recording and its same-named transcript and minutes files to the Trash"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Mueve a la papelera la grabación y sus archivos de transcripción y actas del mismo nombre"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "녹화 파일과 같은 이름의 전사·회의록 파일을 휴지통으로 이동합니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "将录像和同名文稿、会议记录文件移到废纸篓"
+            }
+          }
+        }
+      },
+      "録画と、同じ名前の文字起こし・議事録のファイルを一緒に移します。Finder の「ゴミ箱」から「戻す」で復元できます": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "The recording and its same-named transcript and minutes files will be moved together. You can restore them from the Trash in Finder."
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Se moverán juntos la grabación y sus archivos de transcripción y actas con el mismo nombre. Podrás restaurarlos desde la papelera en Finder."
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "녹화 파일과 같은 이름의 전사·회의록 파일이 함께 이동합니다. Finder의 휴지통에서 복원할 수 있습니다."
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "录像和同名文稿、会议记录文件将一起移动。可在 Finder 的废纸篓中恢复。"
+            }
+          }
+        }
+      },
       "リマインダーへのアクセスを確認できませんでした (もう一度お試しください)": {
         "extractionState": "manual",
         "localizations": {

@@ -289,7 +289,7 @@ struct LibraryView: View {
             selectedEntryID = pending
             reveal.pending = nil
         }
-        // «ゴミ箱に入れる» の確認 (issue #523)。録画と同じ stem の文字越し・
+        // «ゴミ箱に入れる» の確認 (issue #523)。録画と同じ stem の文字起こし・
         // 議事録のファイルが一緒に移ることと、«ゴミ箱に戻す» で復元できることを
         // 明示する — «消す» ではなく «移す» であることを言葉の面でも揃える
         .confirmationDialog(
@@ -452,7 +452,7 @@ struct LibraryView: View {
                                         isTranscribing: transcription.isQueuedOrRunning(entry.id))
                             .tag(entry.id)
                             // «ゴミ箱に入れる» は一覧の右クリックからも (issue #523)。
-                            // 文字越しの実行中・待機中の録画は出せない — 処理中の
+                            // 文字起こしの実行中・待機中の録画は出せない — 処理中の
                             // ファイルを消さない (詳細ペインのボタンと同じ判定)
                             .contextMenu {
                                 Button(String(localized: "ゴミ箱に入れる…")) {
@@ -500,13 +500,13 @@ struct LibraryView: View {
     }
 
     /// 確認ダイアログの «ゴミ箱に入れる» での実行。
-    /// 文字越しの実行中・待機中の録画はここでも再確認する — ボタンの無効化は
-    /// «押した時点» の判定で、ダイアログを出している間に «後から文字越し»
+    /// 文字起こしの実行中・待機中の録画はここでも再確認する — ボタンの無効化は
+    /// «押した時点» の判定で、ダイアログを出している間に «後から文字起こし»
     /// が始まっているかもしれない (処理中のファイルは消さない)
     private func moveToTrash(_ entry: LibraryEntry) {
         guard let directory = store.directory else { return }
         guard !transcription.isQueuedOrRunning(entry.recordingURL) else {
-            deleteNotice = String(localized: "文字越しが進行中のためゴミ箱に移せません")
+            deleteNotice = String(localized: "文字起こしが進行中のためゴミ箱に移せません")
             return
         }
         // カスタム保存先 (サンドボックス) は security-scoped bookmark を開いてから
@@ -691,7 +691,7 @@ private struct LibraryDetailView: View {
     /// 反映されない)
     @ObservedObject var pro: ProCoordinator
     let settings: () -> LibraryTranscriptionSettings
-    /// «ゴミ箱に入れる» を押せるか (issue #523)。文字越しの実行中・待機中は
+    /// «ゴミ箱に入れる» を押せるか (issue #523)。文字起こしの実行中・待機中は
     /// 押せない — 処理中のファイルを消さない (一覧のコンテキストメニューと同じ判定)
     let canTrash: Bool
     /// «ゴミ箱に入れる» の押下。確認ダイアログは親 (LibraryView) が出す —
@@ -767,8 +767,8 @@ private struct LibraryDetailView: View {
                     .padding(8)
                     .disabled(!canTrash)
                     .help(canTrash
-                        ? String(localized: "録画と同じ名前の文字越し・議事録のファイルをゴミ箱に移します")
-                        : String(localized: "文字越しが進行中のため移せません"))
+                        ? String(localized: "録画と同じ名前の文字起こし・議事録のファイルをゴミ箱に移します")
+                        : String(localized: "文字起こしが進行中のため移せません"))
                 }
             Divider()
             if entry.segments == nil {

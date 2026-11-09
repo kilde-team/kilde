@@ -38,12 +38,23 @@ enum LibraryRecordingCleanup {
     ///
     /// 対応規則は `RecordingSetup.transcriptSidecar` と同じ:
     /// - stem が一致するサイドカー (`kilde-20261110-090000.json` ↔ `.mov`)
-    /// - 枝番サイドカー (`…-2.json` — 再文字越しの退避。«-数字» だけを見る)
+    /// - 枝番サイドカー (`…-2.json` — 再文字起こしの退避。«-数字» だけを見る)
+    ///
+    /// ただし **別の録画が自分の stem で主張しているサイドカーは対象外** にする
+    /// (CodeRabbit 指摘 — issue #523 の PR #524 レビュー)。ライブラリは
+    /// `kilde-…-2.m4a` のような «枝番の stem を持つ別録画» も 1 録画として
+    /// 一覧に載せる (`LibraryIndex.scan` は録画形式のファイルをすべて載せる) ため、
+    /// `kilde-…-2.json` は «この録画の枝番サイドカー» と «その録画自身のサイドカー»
+    /// の両方の候補になりうる。録画本体 (サイドカー形式でないファイル) の stem と
+    /// 一致したらそちらのものとして残す — «消しすぎない» を優先し、削除側で
+    /// あいまいさを解決する。同じ stem の録画が 2 つ (mov と取り込み音声の m4a 等)
+    /// ある場合も同様で、exact-stem のサイドカーは «残っている方の録画» に
+    /// 残る (両方消すなら 2 回に分けて消えるので、2 回目で主張が消えて回収される)
     ///
     /// 拡張子は **サイドカーの 5 形式** (TranscriptOutputFormat —
     /// `RecordingSetup.transcriptSidecarExtensions`) に絞る。絞らないと
     /// «同じ stem の別録画» (動画と取り込み音声のペア等) まで連れていかす。
-    /// 要約込みの議事録 (.md) もこの 5 形式に含まれるため、«録画 + 文字越し +
+    /// 要約込みの議事録 (.md) もこの 5 形式に含まれるため、«録画 + 文字起こし +
     /// 議事録» が一式で移る。ユーザーが同じフォルダに保存した書き出し
     /// (txt / srt / vtt) も同じ stem なら «この録画のもの» として一緒に移る
     ///
@@ -57,20 +68,44 @@ enum LibraryRecordingCleanup {
         let all = (try? FileManager.default.contentsOfDirectory(
             at: directory, includingPropertiesForKeys: [.isRegularFileKey],
             options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants])) ?? []
+        // «録画の stem» の集合 (この録画以外の、サイドカー形式でない通常ファイル)。
+        // ディレクトリが読めないときは空 — «主張» が分からないなら枝番は
+        // 従来どおりこの録画のものとして扱う (消しすぎ防止の絞り込みは best-effort)
+        let recordingStems = Set(all
+            .filter { url in
+                guard !isSameFile(url, recordingURL) else { return false }
+                guard (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
+                else { return false }
+                return !transcriptExtensions.contains(url.pathExtension.lowercased())
+            }
+            .map { $0.deletingPathExtension().lastPathComponent })
         return all.filter { url in
-            guard url != recordingURL else { return false }
+            guard !isSameFile(url, recordingURL) else { return false }
             guard (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
             else { return false }
             guard transcriptExtensions.contains(url.pathExtension.lowercased()) else {
                 return false
             }
             let candidate = url.deletingPathExtension().lastPathComponent
+            // «別の録画が自分の stem で主張している» サイドカーは残す
+            if recordingStems.contains(candidate) { return false }
             if candidate == stem { return true }
             guard candidate.hasPrefix(suffixSeparator) else { return false }
             let digits = candidate.dropFirst(suffixSeparator.count)
             return !digits.isEmpty && digits.allSatisfy(\.isNumber)
         }
         .sorted { $0.lastPathComponent < $1.lastPathComponent }
+    }
+
+    /// 2 つの URL が同じファイルを指すか。**symlink を解決してから比べる** —
+    /// temporaryDirectory (`/var/folders/…`) と contentsOfDirectory の返す表記
+    /// (`/private/var/folders/…`) は URL 同士の等価で false になるため
+    /// (LibraryView.isSameDirectory / LibraryImport と同じ正規化。表記が混ざると
+    /// «録画本体の除外» が効かず、録画自身が «自分の stem を主張する別録画» に
+    /// 見えてサイドカーを 1 件も集められなくなる)
+    private static func isSameFile(_ lhs: URL, _ rhs: URL) -> Bool {
+        lhs.resolvingSymlinksInPath().standardizedFileURL.path
+            == rhs.resolvingSymlinksInPath().standardizedFileURL.path
     }
 
     /// 録画と伴走ファイルをゴミ箱へ移す。

@@ -9,7 +9,7 @@ import KildeCore
 /// `LibraryRecordingCleanup.Trasher` を «移動先ディレクトリへの moveItem» に
 /// 差し替えて «ゴミ箱に入った» を代用する。UI (コンテキストメニュー・
 /// 確認ダイアログ・プレイヤーの停止) は実機確認の対象。
-/// 実録画・実文字越しが不要のため録画のスロットを占有しない
+/// 実録画・実文字起こしが不要のため録画のスロットを占有しない
 ///
 /// 使い方: `KILDE_GUI_SELFTEST_LIBRARY_DELETE=1 <GUI>` (AppDelegate.runIfRequested から配線)
 @MainActor
@@ -38,14 +38,19 @@ enum SelfTestLibraryDelete {
         let stampA = "20270102-030405"
         let stemA = "kilde-\(stampA)"
         let recordingA = folder.appendingPathComponent("\(stemA).mov")
+        // 枝番の -2.json は **このフォルダでは -2.m4a (別録画) のもの** になる —
+        // 別録画が自分の stem で主張しているサイドカーは伴走に含めない
+        // (companionFiles の refined ルール) ので、A の伴走には入らない。
+        // «枝番が本当に A のもの» のケースは下の checkBranchWithoutTwin で
+        // 別フォルダ (二重録画の無い世界) で検証する
         let companionNames = [
             "\(stemA).json",
-            "\(stemA)-2.json",  // 再文字越しの枝番 (RecordingSetup.transcriptSidecar と同じ規則)
             "\(stemA).md",      // 議事録 (要約込み)
             "\(stemA).srt",
             "\(stemA).txt",
             "\(stemA).vtt",     // ユーザーが同じフォルダに保存した書き出しも «この録画のもの»
         ]
+        let branchSidecar = "\(stemA)-2.json"  // -2.m4a (音声の二重録画) のサイドカー
         let stampB = "20261231-235959"
         let stemB = "kilde-\(stampB)"
         let recordingB = folder.appendingPathComponent("\(stemB).mov")
@@ -55,15 +60,18 @@ enum SelfTestLibraryDelete {
         for name in companionNames {
             createFile(folder.appendingPathComponent(name), bytes: 32)
         }
+        createFile(folder.appendingPathComponent(branchSidecar), bytes: 32)
         createFile(recordingB, bytes: 48)
         createFile(companionB, bytes: 32)
         // «stem が一致 (枝番含む) でもサイドカー形式でない» もの — 音声の二重録画
-        // (-2.m4a) とユーザーの別種ファイル (-3.log) は録画/未関連なので連れていかない
+        // (-2.m4a) とユーザーの別種ファイル (-3.log) は録画/未関連なので連れていかない。
+        // -2.m4a は «枝番 stem の録画» でもあり、-2.json の持ち主になる
         createFile(folder.appendingPathComponent("\(stemA)-2.m4a"), bytes: 16)
         createFile(folder.appendingPathComponent("\(stemA)-3.log"), bytes: 8)
         createFile(folder.appendingPathComponent("メモ.txt"), bytes: 8)
 
-        checkCollection(folder: folder, recordingA: recordingA, stemA: stemA, companionNames: companionNames)
+        checkCollection(folder: folder, recordingA: recordingA, stemA: stemA,
+                        companionNames: companionNames, branchSidecar: branchSidecar)
         // 削除 «前» の一覧と manifest を取っておく — «ゴミ箱へ移した» ことが
         // 一覧と Spotlight の差分に現れることの検証に使う。identifier は走査の
         // URL 表記 (/private/var/…) で組まれるため、比較にも **走査側の表記** を使う
@@ -83,6 +91,7 @@ enum SelfTestLibraryDelete {
         checkAbortOnRecordingFailure(folder: folder, trash: trash)
         checkLeftoverCompanion(folder: folder, trash: trash)
         checkNoCompanion(folder: folder)
+        checkBranchWithoutTwin(folder: folder, trash: trash)
 
         try? FileManager.default.removeItem(at: root)
         print("selftest: library-delete failures=\(failures)")
@@ -91,9 +100,11 @@ enum SelfTestLibraryDelete {
 
     // MARK: 検査
 
-    /// 伴走ファイルの収集。«この録画のもの» だけを集め、対照群に触れないこと
+    /// 伴走ファイルの収集。«この録画のもの» だけを集め、対照群や
+    /// «別録画が主張するサイドカー» に触れないこと
     private static func checkCollection(
-        folder: URL, recordingA: URL, stemA: String, companionNames: [String]) {
+        folder: URL, recordingA: URL, stemA: String, companionNames: [String],
+        branchSidecar: String) {
         let companions = LibraryRecordingCleanup.companionFiles(
             forRecording: recordingA, in: folder)
         let expectedNames = Set(companionNames)
@@ -101,6 +112,8 @@ enum SelfTestLibraryDelete {
               "伴走ファイルはサイドカー一式だけ (実際 \(companions.map(\.lastPathComponent).sorted()))")
         check(!companions.contains(recordingA),
               "録画本体は伴走ファイルに含まれない (moveToTrash の recording と重複させない)")
+        check(!companions.contains { $0.lastPathComponent == branchSidecar },
+              "\(branchSidecar) は «-2.m4a (別録画) のサイドカー» なので伴走に含めない")
     }
 
     /// ゴミ箱移動の本体。stub の Trasher は «移動先ディレクトリへの moveItem» で
@@ -129,7 +142,11 @@ enum SelfTestLibraryDelete {
             options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants])) ?? [])
             .map(\.lastPathComponent)
         check(!remaining.contains { companionNames.contains($0) },
-              "この録画のサイドカー (枝番・書き出し含む) もフォルダから消える")
+              "この録画のサイドカー (書き出し含む) もフォルダから消える")
+        // «-2.json» は «-2.m4a (別録画) のサイドカー» として残り、録画も残る —
+        // «消した録画の代わりに、残った録画が文字越しを失う» を起こさない
+        check(remaining.contains("kilde-20270102-030405-2.json"),
+              "別録画 (-2.m4a) が主張するサイドカー (-2.json) は残る")
         // «-2.m4a» (音声の二重録画) と «-3.log» は «サイドカー形式でない» ので残る
         check(remaining.contains("kilde-20270102-030405-2.m4a"),
               "同じ stem の録画形式 (-2.m4a) は連れていかない")
@@ -142,8 +159,7 @@ enum SelfTestLibraryDelete {
         let trashed = ((try? FileManager.default.contentsOfDirectory(
             at: trash, includingPropertiesForKeys: nil,
             options: [])) ?? []).map(\.lastPathComponent)
-        check(trashed.contains("kilde-20270102-030405.mov")
-                  && trashed.contains("kilde-20270102-030405-2.json"),
+        check(trashed.contains("kilde-20270102-030405.mov"),
               "stub の移動先に «ゴミ箱に入った» ファイルが並ぶ (実際 \(trashed.count) 件)")
     }
 
@@ -196,7 +212,7 @@ enum SelfTestLibraryDelete {
 
     /// サイドカーの 1 件が移せなかったときは打ち切らず、**残りを返す** —
     /// «本体は消えた» 状態では «消えなかったサイドカー» を案内する方が
-    /// 再文字越しの «-2» 重複が生えにくい、という判断の検証
+    /// 再文字起こしの «-2» 重複が生えにくい、という判断の検証
     private static func checkLeftoverCompanion(folder: URL, trash: URL) {
         let stem = "kilde-20270104-050607"
         let recording = folder.appendingPathComponent("\(stem).mov")
@@ -236,6 +252,34 @@ enum SelfTestLibraryDelete {
             forRecording: recording, in: folder)
         check(companions.isEmpty,
               "サイドカーの無い録画の伴走ファイルは空 (実際 \(companions.count) 件)")
+    }
+
+    /// «枝番サイドカーが本当にこの録画のもの» のケース — 二重録画 (枝番 stem の
+    /// 録画) がフォルダに無ければ、`-2.json` は従来どおりこの録画の枝番として
+    /// 一緒に移る (refined ルールが «枝番を一切拾わない» に変わっていないことの担保)
+    private static func checkBranchWithoutTwin(folder: URL, trash: URL) {
+        let stem = "kilde-20270106-070809"
+        let recording = folder.appendingPathComponent("\(stem).mov")
+        let branch = folder.appendingPathComponent("\(stem)-2.json")
+        createFile(recording, bytes: 16)
+        createFile(branch, bytes: 8)
+        let companions = LibraryRecordingCleanup.companionFiles(
+            forRecording: recording, in: folder)
+        check(companions.map(\.lastPathComponent) == [branch.lastPathComponent],
+              "二重録画が無ければ枝番サイドカーは伴走に含まれる (実際 \(companions.map(\.lastPathComponent)))")
+        let stubTrasher: LibraryRecordingCleanup.Trasher = { url in
+            let destination = trash.appendingPathComponent(url.lastPathComponent)
+            try FileManager.default.moveItem(at: url, to: destination)
+            return destination
+        }
+        do {
+            let leftovers = try LibraryRecordingCleanup.moveToTrash(
+                recording: recording, companionFiles: companions, trasher: stubTrasher)
+            check(leftovers.isEmpty && !FileManager.default.fileExists(atPath: branch.path),
+                  "枝番サイドカーも一緒に移る (残り \(leftovers.count) 件)")
+        } catch {
+            check(false, "枝番付きの移動に成功する (エラー \(error))")
+        }
     }
 
     // MARK: 支援
