@@ -157,6 +157,17 @@ final class LibraryPlayerController: ObservableObject {
         player.replaceCurrentItem(with: AVPlayerItem(url: url))
     }
 
+    /// 選択中の録画がゴミ箱へ移されたときに呼ぶ (issue #523)。
+    /// 削除後に AVPlayerItem が実ファイルを参照し続けると «消したのに
+    /// 音だけ流れ続ける» — ウィンドウを閉じたときに pause する
+    /// (init の通知購読) と同じ理由の、選択解除版
+    func stopIfPlaying(url: URL) {
+        guard currentURL == url else { return }
+        currentURL = nil
+        player.pause()
+        player.replaceCurrentItem(with: nil)
+    }
+
     /// 文字起こしのセグメント開始時刻へ移動して再生する。
     /// セグメントの時刻は録画開始からの経過秒で、AVPlayerItem の時間軸と一致する
     func seek(to seconds: TimeInterval) {
@@ -208,6 +219,12 @@ struct LibraryView: View {
     /// このビューが購読する — ウィンドウの再オープンでは rootView が再生成されない
     /// (LibraryWindowController.reveal のコメント) ための受け渡し
     @ObservedObject var reveal: LibraryRevealCoordinator
+    /// «ゴミ箱に入れる» の確認ダイアログの対象 (issue #523)。nil は «出していない»
+    @State private var deleteCandidate: LibraryEntry?
+    @State private var showsDeleteConfirmation = false
+    /// «ゴミ箱へ移す» の結果表示 (成功・失敗)。nil は «表示なし»。録画を
+    /// 切り替えても消さない — «一覧は消えた» 状態で案内も消えると理由が読めない
+    @State private var deleteNotice: String?
 
     private var searching: Bool {
         !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -271,6 +288,27 @@ struct LibraryView: View {
             recomputeResults()
             selectedEntryID = pending
             reveal.pending = nil
+        }
+        // «ゴミ箱に入れる» の確認 (issue #523)。録画と同じ stem の文字越し・
+        // 議事録のファイルが一緒に移ることと、«ゴミ箱に戻す» で復元できることを
+        // 明示する — «消す» ではなく «移す» であることを言葉の面でも揃える
+        .confirmationDialog(
+            deleteCandidate.map {
+                String(localized: "\($0.recordingURL.lastPathComponent) をゴミ箱に移します")
+            } ?? String(localized: "ゴミ箱に移します"),
+            isPresented: $showsDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button(String(localized: "ゴミ箱に入れる"), role: .destructive) {
+                guard let candidate = deleteCandidate else { return }
+                deleteCandidate = nil
+                moveToTrash(candidate)
+            }
+            Button(String(localized: "キャンセル"), role: .cancel) {
+                deleteCandidate = nil
+            }
+        } message: {
+            Text(String(localized: "録画と、同じ名前の文字起こし・議事録のファイルを一緒に移します。Finder の「ゴミ箱」から「戻す」で復元できます"))
         }
     }
 
@@ -413,6 +451,15 @@ struct LibraryView: View {
                                         hitCount: searching ? hitCounts[entry.id] : nil,
                                         isTranscribing: transcription.isQueuedOrRunning(entry.id))
                             .tag(entry.id)
+                            // «ゴミ箱に入れる» は一覧の右クリックからも (issue #523)。
+                            // 文字越しの実行中・待機中の録画は出せない — 処理中の
+                            // ファイルを消さない (詳細ペインのボタンと同じ判定)
+                            .contextMenu {
+                                Button(String(localized: "ゴミ箱に入れる…")) {
+                                    requestDelete(entry)
+                                }
+                                .disabled(transcription.isQueuedOrRunning(entry.id))
+                            }
                     }
                 }
                 .listStyle(.sidebar)
@@ -427,7 +474,9 @@ struct LibraryView: View {
         if let entry = store.entries.first(where: { $0.id == selectedEntryID }) {
             LibraryDetailView(entry: entry, query: searching ? query : "",
                               hits: hits(for: entry), playback: playback,
-                              transcription: transcription, pro: pro, settings: settings)
+                              transcription: transcription, pro: pro, settings: settings,
+                              canTrash: !transcription.isQueuedOrRunning(entry.id),
+                              onTrash: { requestDelete(entry) })
         } else {
             ContentUnavailableCompat(
                 title: String(localized: "録画を選択してください"),
@@ -438,6 +487,71 @@ struct LibraryView: View {
     private func hits(for entry: LibraryEntry) -> [LibrarySearchHit] {
         guard searching else { return [] }
         return results.filter { $0.entryID == entry.id }
+    }
+
+    // MARK: ゴミ箱へ移す (issue #523)
+
+    /// «ゴミ箱に入れる» の確認ダイアログを出す。コンテキストメニューと
+    /// 詳細ペインのボタンの共通の入口
+    private func requestDelete(_ entry: LibraryEntry) {
+        deleteNotice = nil
+        deleteCandidate = entry
+        showsDeleteConfirmation = true
+    }
+
+    /// 確認ダイアログの «ゴミ箱に入れる» での実行。
+    /// 文字越しの実行中・待機中の録画はここでも再確認する — ボタンの無効化は
+    /// «押した時点» の判定で、ダイアログを出している間に «後から文字越し»
+    /// が始まっているかもしれない (処理中のファイルは消さない)
+    private func moveToTrash(_ entry: LibraryEntry) {
+        guard let directory = store.directory else { return }
+        guard !transcription.isQueuedOrRunning(entry.recordingURL) else {
+            deleteNotice = String(localized: "文字越しが進行中のためゴミ箱に移せません")
+            return
+        }
+        // カスタム保存先 (サンドボックス) は security-scoped bookmark を開いてから
+        // 触る — TranscriptionCoordinator.existingSidecar の探索と同じ形。
+        // ~/Movies は entitlement のため bookmark は作られない (nil が返る)
+        var scoped: URL?
+        if let data = TranscriptionCoordinator.directoryBookmarkData(forDirectory: directory) {
+            var stale = false
+            if let resolved = try? URL(
+                resolvingBookmarkData: data,
+                options: .withSecurityScope,
+                relativeTo: nil,
+                bookmarkDataIsStale: &stale),
+                resolved.startAccessingSecurityScopedResource() {
+                scoped = resolved
+            }
+        }
+        defer { scoped?.stopAccessingSecurityScopedResource() }
+        do {
+            let companions = LibraryRecordingCleanup.companionFiles(
+                forRecording: entry.recordingURL, in: directory)
+            let leftovers = try LibraryRecordingCleanup.moveToTrash(
+                recording: entry.recordingURL,
+                companionFiles: companions,
+                trasher: LibraryRecordingCleanup.systemTrasher)
+            // プレイヤーがこの録画を持っていれば止める («消したのに音だけ流れる» 防止)。
+            // 選択を外すと詳細ペインが «録画を選択してください» に代わり、player は
+            // 生き続ける (LibraryPlayerController のコメント) ので、ここでの停止が要る
+            playback.stopIfPlaying(url: entry.recordingURL)
+            // 一覧を作り直して «消えた» を反映 (Spotlight への索引削除は既存の
+            // 差分同期が次の sync で行う — ファイルが無くなった録画は削除対象)。
+            // 選択していた録画なら選択も外す
+            store.reload(directory: directory)
+            if selectedEntryID == entry.id {
+                selectedEntryID = nil
+            }
+            let name = entry.recordingURL.lastPathComponent
+            deleteNotice = leftovers.isEmpty
+                ? String(localized: "\(name) をゴミ箱に移しました")
+                : String(localized: "\(name) をゴミ箱に移しました (残ったサイドカー \(leftovers.count) 件は Finder で消してください)")
+        } catch {
+            // «黙って失敗しない» — 権限の無い保存先・ネットワークボリュームでは
+            // ゴミ箱へ移せないので、Finder での削除を案内する
+            deleteNotice = String(localized: "ゴミ箱に移せませんでした — Finder で削除してください (\(error.localizedDescription))")
+        }
     }
 
     // MARK: ステータス
@@ -458,6 +572,13 @@ struct LibraryView: View {
                 Text("取り込んでいます…")
             } else if let notice = importer.lastNotice {
                 Text(notice)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            // «ゴミ箱へ移す» の結果 (issue #523)。成功の案内も出す — 一覧から
+            // 消えたことは分かるが «サイドカーごと移った» ことは一覧だけでは読めない
+            if let deleteNotice {
+                Text(deleteNotice)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
@@ -570,6 +691,12 @@ private struct LibraryDetailView: View {
     /// 反映されない)
     @ObservedObject var pro: ProCoordinator
     let settings: () -> LibraryTranscriptionSettings
+    /// «ゴミ箱に入れる» を押せるか (issue #523)。文字越しの実行中・待機中は
+    /// 押せない — 処理中のファイルを消さない (一覧のコンテキストメニューと同じ判定)
+    let canTrash: Bool
+    /// «ゴミ箱に入れる» の押下。確認ダイアログは親 (LibraryView) が出す —
+    /// 一覧の右クリックと同じ確認を 1 箇所にまとめるため
+    let onTrash: () -> Void
     /// この録画の «再試行» の対象に表示する失敗。coordinator の lastFailure は
     /// «最新の 1 件» スロットで別の録画の失敗に押し出されるため (cubic 指摘)、
     /// この録画の失敗は表示側で覚える — 消えるのはこの録画の文字起こしの成功時
@@ -627,6 +754,22 @@ private struct LibraryDetailView: View {
             LibraryPlayerView(player: playback.player)
                 .frame(height: 240)
                 .background(Color(nsColor: .windowBackgroundColor))
+                // «ゴミ箱に入れる» (issue #523)。プレイヤーの操作系 (下部のバー) と
+                // 重ならない右上に出す — 詳細ペインに専用のヘッダー行は無いため
+                .overlay(alignment: .topTrailing) {
+                    Button {
+                        onTrash()
+                    } label: {
+                        Label(String(localized: "ゴミ箱に入れる"), systemImage: "trash")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .padding(8)
+                    .disabled(!canTrash)
+                    .help(canTrash
+                        ? String(localized: "録画と同じ名前の文字越し・議事録のファイルをゴミ箱に移します")
+                        : String(localized: "文字越しが進行中のため移せません"))
+                }
             Divider()
             if entry.segments == nil {
                 noTranscriptPane

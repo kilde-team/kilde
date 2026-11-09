@@ -575,6 +575,36 @@ URL» が表記の揺れ (`/var/…` と `/private/var/…`) で一致しなく�
 ドロップしたファイルの読み取りはサンドボックスの drag-and-drop 権限に
 依存するためです。
 
+### ライブラリの «ゴミ箱に入れる» を確かめる (issue #523)
+
+`KILDE_GUI_SELFTEST_LIBRARY_DELETE=1` は録画せず、**録画の整理 (ゴミ箱移動) の
+本体** (伴走ファイルの収集 → 録画 + サイドカー一式のゴミ箱移動 →
+一覧と Spotlight の差分から消える) を一時ディレクトリに合成した録画と
+サイドカーで検証し、終わります。**実録画を伴わない**ため、録画のスロットを
+占有しません:
+
+```sh
+KILDE_GUI_SELFTEST_LIBRARY_DELETE=1 "$APP/Contents/MacOS/KildeGUI"
+# → selftest: library-delete OK: 伴走ファイルはサイドカー一式だけ (実際 6 件)
+#   selftest: library-delete OK: 録画本体は伴走ファイルに含まれない (moveToTrash の recording と重複させない)
+#   selftest: library-delete OK: この録画のサイドカー (枝番・書き出し含む) もフォルダから消える
+#   selftest: library-delete OK: 消えた録画が Spotlight の削除対象になる
+#   …
+#   selftest: library-delete failures=0 (exit 0)
+```
+
+セルフテストのゴミ箱は **実環境のゴミ箱ではなく移動先ディレクトリへの
+`moveItem` に差し替えたもの** です (`LibraryRecordingCleanup.Trasher` の注入点)。
+`FileManager.trashItem` 自体と、**サンドボックス下 (MAS ビルド) で ~/Movies や
+カスタム保存先の録画をゴミ箱へ移せるか** は実機で確認します:
+ライブラリで録画を選び、詳細ペイン右上の «ゴミ箱に入れる» (または一覧の
+右クリック) から **確認ダイアログが出て、実行後に一覧から消え、
+再生中だったら音が止まり、Finder の «ゴミ箱に戻す» で復元できること** を
+確かめてください。文字越しが進行中の録画は «ゴミ箱に入れる» が押せません
+(ツールチップに理由が出ます)。関連ファイル (同じ名前の .json / .md / .txt /
+.srt / .vtt と枝番) が一緒に移ることも Finder で確認してください
+(同じ名前の **録画形式** のファイル、たとえば `-2.m4a` は一緒に移りません)。
+
 ### 設定の引き継ぎ (録画開始時の保存 → 次回起動時の復元) を確かめる (issue #345 / #372)
 
 `KILDE_GUI_SELFTEST_CONFIG_SAVE=1` は録画せず、**設定の引き継ぎ**を検証し、終わります。
