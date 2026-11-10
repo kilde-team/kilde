@@ -151,6 +151,26 @@ enum SelfTest {
             SelfTestLibraryImport.run()
             return
         }
+        // KILDE_GUI_SELFTEST_LIBRARY_DELETE=1: ライブラリの «ゴミ箱へ移す»
+        // (issue #523) の検証。一時ディレクトリで «伴走ファイルの収集 → ゴミ箱移動 →
+        // 一覧と Spotlight の差分から消える» を確かめる。**実環境のゴミ箱は汚さない** —
+        // Trasher を移動先ディレクトリへの moveItem に差し替えて検証するため、
+        // FileManager.trashItem 自体とサンドボックス下の挙動、UI (確認ダイアログ・
+        // プレイヤーの停止) は実機確認。実録画を伴わないため録画のスロットを占有しない
+        if env["KILDE_GUI_SELFTEST_LIBRARY_DELETE"] == "1" {
+            SelfTestLibraryDelete.run()
+            return
+        }
+        // KILDE_GUI_SELFTEST_LIBRARY_DELETE_TRASH=1: « FileManager.trashItem を
+        // 実際に呼ぶ» 検証 (issue #523)。ユーザーに見える Movies へダミー録画を
+        // 1 件作り、systemTrasher (実 trashItem) でゴミ箱へ移して終わる —
+        // サンドボックス (MAS ビルド) 下でのシステムの仲介を確認するための
+        // モード。**ダミーファイルはゴミ箱に残る** (アプリからは戻せない) ので、
+        // 実行後の復元は人手。実録画を伴わないため録画のスロットを占有しない
+        if env["KILDE_GUI_SELFTEST_LIBRARY_DELETE_TRASH"] == "1" {
+            SelfTestLibraryDelete.runRealTrashCheck()
+            return
+        }
         // KILDE_GUI_SELFTEST_SETTINGS=1: «設定» ウィンドウを開いたまま約 20 秒保つ (issue #486)。
         // PANEL と同じ «外部から screencapture -x で撮る» 前提のモード。対応ロケールの
         // 動的列挙 (TranscriptionLocaleCatalog) は Settings 表示時の onAppear で
