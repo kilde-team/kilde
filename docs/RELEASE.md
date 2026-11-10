@@ -350,10 +350,16 @@ spec の該当フィールドが黙って無視されるため、実行前に最
 (m1 self-hosted ランナー、issue #160)**。手元の Mac で実行する下のコマンド群は
 フォールバックとして同じものが動く:
 
-- Actions →「MAS (App Store)」→ Run workflow で 4 モードから選ぶ:
+- Actions →「MAS (App Store)」→ Run workflow で 5 モードから選ぶ:
   - `plan` — spec 生成 + 計画表示 (**API キー不要**。経路の検証用)
   - `apply` — メタデータ反映 (+build 指定で割当て)。**提出はしない**
-  - `submit` — apply に加えて審査へ提出。**dispatch を手で押すことが提出のゲート**
+  - `submit` — apply に加えて審査へ提出。**dispatch を手で押すことが提出のゲート**。
+    スクリーンショットを更新するリリースでは再アップロード直後の asset が
+    «処理中» になり提出が拒されうる (`Asset is being processed` — issue #529) ので、
+    下の `submit-only` の 2 段階を使う
+  - `submit-only` — **スクリーンショットを触らずに** 審査へ提出。`apply` →
+    数分待つ (ASC 側の asset 処理と build の `VALID` を確認) → `submit-only`
+    の順で使う
   - `upload` — MAS ビルドのアーカイブ + ASC へアップロード (m1 の Xcode の
     Apple ID セッションでクラウド署名。`KILDE_ASC_API_KEY*` は使わない)
 - 必要な secrets: `ASC_CI_KEY_B64` / `ASC_CI_KEY_ID` / `ASC_CI_ISSUER`
