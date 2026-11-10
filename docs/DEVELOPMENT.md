@@ -632,6 +632,77 @@ KILDE_GUI_SELFTEST_LIBRARY_DELETE_TRASH=1 "$MAS_APP/Contents/MacOS/KildeGUI"
 ペア) が枝番サイドカーを共有するときも同じで、残る側の録画の文字起こしを
 優先して残します。
 
+### ライブラリの «名前を変更» を確かめる (issue #532)
+
+`KILDE_GUI_SELFTEST_LIBRARY_RENAME=1` は録画せず、**録画の整理 (リネーム) の
+本体** (名前の検証 → 事前の衝突検査 → 録画 + サイドカー一式のリネーム →
+一覧と Spotlight の差分に «旧名の削除 + 新名の追加» として現れる) を
+一時ディレクトリに合成した録画とサイドカーで検証し、終わります。
+**実録画を伴わない**ため、録画のスロットを占有しません:
+
+```sh
+KILDE_GUI_SELFTEST_LIBRARY_RENAME=1 "$APP/Contents/MacOS/KildeGUI"
+# → selftest: library-rename OK: 伴走ファイルは «exact-stem のサイドカー一式» (別録画の枝番サイドカーを含まない) (実際 ["kilde-20270102-030405.json", "kilde-20270102-030405.md", "kilde-20270102-030405.srt", "kilde-20270102-030405.txt", "kilde-20270102-030405.vtt"])
+#   selftest: library-rename OK: 録画本体が新しい stem になる (拡張子と «kilde-» 接頭辞を保つ)
+#   selftest: library-rename OK: 旧名が Spotlight の削除対象になる
+#   selftest: library-rename OK: 新名が Spotlight の索引対象になる (title = 接頭辞ごとの新しい stem)
+#   selftest: library-rename OK: 枝番サイドカーは «kilde-新しい名前-2.json» に移る (枝番と接頭辞を保つ) (実際 ["kilde-枝番会議-2.json", "kilde-枝番会議.mov"])
+#   selftest: library-rename OK: 接頭辞なしの入力には «kilde-» を付けて返す (実際 «kilde-定例会議»)
+#   selftest: library-rename OK: 移動先の stem 衝突は conflict で拒否する (conflict が返る)
+#   selftest: library-rename OK: 衝突のときは 1 件もリネームを試みない (試行 0 件)
+#   selftest: library-rename OK: 録画本体の失敗ではサイドカーに触らない (試行 1 件)
+#   …
+#   selftest: library-rename failures=0 (exit 0)
+```
+
+セルフテストのリネームは **実環境の保存先に触れない** よう、
+`Renamer` を «同じディレクトリ内への moveItem» に差し替えたものです
+(`LibraryRecordingRename.Renamer` の注入点)。`FileManager.moveItem` 自体と
+サンドボックス下での «movies.read-write の範囲内の移動» は
+**`KILDE_GUI_SELFTEST_LIBRARY_RENAME_REAL=1` で実検証できます** —
+ユーザーに見える Movies へダミー録画 (64 バイト) を 1 件作り、
+`systemRenamer` (実 moveItem) でリネームしてから、
+0.36.0 の整理導線 (`systemTrasher`) でゴミ箱へ移して終わります。
+**ダミーファイルは (リネーム後の名前で) ゴミ箱に残ります** (アプリからは
+元に戻せないため、実行後に Finder で戻すか消してください):
+
+```sh
+# 実行するのは **App Store ビルド (KildeGUI-AppStore)** — サンドボックスの
+# 有効なビルドで意味がある検証のため。例: Debug のアーカイブ生成物。
+# 代入の中では glob が展開されないため、`ls -d … | head -1` で実パスを
+# 取ってから使う («$MAS_APP» を引用したまま使うと «*» が残って起動に失敗する)
+MAS_APP=$(ls -dt ~/Library/Developer/Xcode/DerivedData/KildeGUI-*/Build/Products/Debug/KildeGUI.app | head -1)
+echo "$MAS_APP"   # 目的の App Store ビルド (Sparkle を含まない KildeGUI-AppStore) か確認する
+KILDE_GUI_SELFTEST_LIBRARY_RENAME_REAL=1 "$MAS_APP/Contents/MacOS/KildeGUI"
+# → selftest: library-rename-real OK: Movies 内のリネームができた (kilde-…-selftest-rename….mov → kilde-…-selftest-rename…-renamed.mov → ゴミ箱 kilde-…-renamed.mov)
+#   selftest: library-rename-real NOTE: ダミーファイルはゴミ箱に残っています — 復元・削除は Finder でお願いします
+```
+
+**UI を伴う経路** (入力ダイアログ・リネーム後の選択の維持・案内文) は実機で
+確認します: ライブラリで録画を選び、詳細ペイン右上の «名前を変更» (または
+一覧の右クリック) から **現在の名前 (拡張子なし) が入力済みのダイアログが出て、
+新しい名前を入れて実行すると、一覧・詳細・検索が新しい名前に切り替わり、
+選択がリネーム後の録画に維持されること** を確かめてください。
+**«kilde-» の接頭辞はリネームでも保たれます** — ライブラリの一覧対象は
+«kilde- 接頭辞 + 録画形式» (保存先の ~/Movies にはユーザー自身の動画も
+眠るため、kilde の産物だけを見る契約) で、接頭辞を外すとその録画が
+一覧・«最近の録画»・Spotlight から消えてしまうためです
+(«接頭辞ごと入力した» 場合は打ったとおりの名前に整わります)。
+関連ファイル (同じ名前の .json / .md / .txt / .srt / .vtt と枝番) の名前も
+一緒に変わること、拡張子が変わらないことを Finder で確認してください。
+**移動先の名前と衝突する名前** («同じ stem のファイルがフォルダにある») を
+入れると、**何も変わらずに** «同じ名前のファイルがあるため名前を変更できません»
+が出ます。空の名前・`/` や `:` を含む名前・先頭が `.` の名前も、実行時に
+案内が出て止まります。文字起こしが進行中の録画は «名前を変更» が押せません
+(ツールチップに理由が出ます)。**録画中の録画** も «名前を変更» «ゴミ箱に入れる»
+が押せません — 録画を始めて、その録画がライブラリの一覧に現れた状態で
+ボタンが無効になることと、ツールチップに «録画中» の理由が出ることを
+確認してください。リネームの進行中は、詳細ペインの «文字起こしを作成»
+«議事録を作成» «再試行» も押せなくなります («旧名のファイルを処理する
+ジョブ» を作らないため)。Spotlight で新しい名前が引けることの確認は
+«すぐには出ないことがある» (既存の差分同期が次の同期で反映する) ので
+気長に待ってください。
+
 ### 設定の引き継ぎ (録画開始時の保存 → 次回起動時の復元) を確かめる (issue #345 / #372)
 
 `KILDE_GUI_SELFTEST_CONFIG_SAVE=1` は録画せず、**設定の引き継ぎ**を検証し、終わります。

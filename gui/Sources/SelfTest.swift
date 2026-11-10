@@ -171,6 +171,29 @@ enum SelfTest {
             SelfTestLibraryDelete.runRealTrashCheck()
             return
         }
+        // KILDE_GUI_SELFTEST_LIBRARY_RENAME=1: ライブラリの «名前を変更»
+        // (issue #532) の検証。一時ディレクトリで «名前の検証 → 事前の衝突検査 →
+        // 録画 + サイドカー一式のリネーム → 一覧と Spotlight の差分に現れる» を
+        // 確かめる。Renamer を «移動 (名前替え) のみ» の実装に差し替えるため
+        // 実環境の保存先を汚さず、FileManager.moveItem 自体とサンドボックス下の
+        // 挙動は KILDE_GUI_SELFTEST_LIBRARY_RENAME_REAL=1 で実検証する
+        // (ゴミ箱移動の DELETE_TRASH と同じ二段構え)。UI (入力ダイアログ・
+        // 選択の維持) は実機確認。実録画を伴わないため録画のスロットを占有しない
+        if env["KILDE_GUI_SELFTEST_LIBRARY_RENAME"] == "1" {
+            SelfTestLibraryRename.run()
+            return
+        }
+        // KILDE_GUI_SELFTEST_LIBRARY_RENAME_REAL=1: «FileManager.moveItem を
+        // 実際に呼ぶ» 検証 (issue #532)。ユーザーに見える Movies へダミー録画を
+        // 1 件作り、systemRenamer (実 moveItem) でリネームしてから、ゴミ箱へ移して
+        // 終わる — サンドボックス (MAS ビルド) 下で «movies.read-write の範囲内の
+        // moveItem が通るか» を確認するためのモード。**ダミーファイルはゴミ箱に
+        // 残る** (リネーム後の名前で) ので、実行後の復元は人手。実録画を伴わないため
+        // 録画のスロットを占有しない
+        if env["KILDE_GUI_SELFTEST_LIBRARY_RENAME_REAL"] == "1" {
+            SelfTestLibraryRename.runRealRenameCheck()
+            return
+        }
         // KILDE_GUI_SELFTEST_SETTINGS=1: «設定» ウィンドウを開いたまま約 20 秒保つ (issue #486)。
         // PANEL と同じ «外部から screencapture -x で撮る» 前提のモード。対応ロケールの
         // 動的列挙 (TranscriptionLocaleCatalog) は Settings 表示時の onAppear で
