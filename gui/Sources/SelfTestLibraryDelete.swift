@@ -354,7 +354,7 @@ enum SelfTestLibraryDelete {
 
     /// «同じ stem の二重録画 (mov と m4a) が枝番サイドカーを共有する» ケース —
     /// ライブラリは `a-2.json` を «stem-数字» の規則でどちらの録画にも対応づける。
-    /// a.mov を消すとき、残る a.m4a がその文字越しを失わないように枝番サイドカーを
+    /// a.mov を消すとき、残る a.m4a がその文字起こしを失わないように枝番サイドカーを
     /// 守る (CodeRabbit レビュー指摘、issue #525 の PR #526 レビュー)
     private static func checkSharedBranchSidecar(root: URL, trash: URL) {
         let folder = root.appendingPathComponent("保存先2")
@@ -395,7 +395,7 @@ enum SelfTestLibraryDelete {
         let entries = LibraryStore.scan(directory: folder) ?? []
         check(entries.first?.recordingURL.lastPathComponent == m4a.lastPathComponent
               && entries.first?.transcriptURL?.lastPathComponent == branch.lastPathComponent,
-              "残った録画 (m4a) は枝番サイドカーを文字越しとして保持する")
+              "残った録画 (m4a) は枝番サイドカーを文字起こしとして保持する")
     }
 
     /// «録画形式でないファイルは別録画として主張しない» — `kilde-a.log` が
