@@ -42,14 +42,18 @@ App レコード (`com.takezou621.KildeGUI`, Apple ID `6812783176`) の App Stor
 takezou621/asc-submit#1 → PR #2、v0.2.0 以降。spec は `appstore-spec.py`
 が keywords・subtitles も出力し、上限 (キーワード 100 文字・サブタイトル 30 文字)
 を生成時に検証する)。**既定の経路は GitHub Actions の「MAS (App Store)」
-workflow (m1 self-hosted、`plan` / `apply` / `submit` / `upload` の 4 モード。
-詳細と secrets は docs/RELEASE.md「提出の自動化」)**:
+workflow (m1 self-hosted、`plan` / `apply` / `submit` / `submit-only` / `upload` の
+5 モード。詳細と secrets は docs/RELEASE.md「提出の自動化」)**:
 
 1. (ビルドが未アップロードなら) `upload` モードでアーカイブ + アップロード
 2. `apply` モード (version + build 指定) でバージョン作成から説明・新着情報・
    キーワード・サブタイトル・スクリーンショットまで反映。**提出はしない**
-3. 提出してよいタイミングで `submit` モードを実行 (dispatch を手で押すことが
-   提出のゲート)。サブタイトルは app レベルで編集可能な appInfo が必要なため、
+3. 数分待って ASC 側の asset 処理 (スクリーンショット・build) が済んだのを
+   確認してから、`submit-only` モードを実行 (dispatch を手で押すことが
+   提出のゲート)。**スクリーンショットを触らずに** 提出する — 再アップロード直後の
+   asset は «処理中» になるため、`submit` モードの «再アップロード → その場で提出» は
+   `Asset is being processed` で拒否され続ける (0.36.0 実測 — issue #529)。
+   サブタイトルは app レベルで編集可能な appInfo が必要なため、
    バージョン作成の**後**に適用される — run が順序を保証
 4. 効果計測のため、反映日を [metrics.md](metrics.md) に記録する。**同じ ASC
    セッションで分析の CSV エクスポートも済ませる** (ベースライン取得)

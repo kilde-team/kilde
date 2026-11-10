@@ -27,14 +27,18 @@ SSH は `kawai@192.168.2.243` (鍵認証。root には鍵を置いていない)�
 ため、待っても次の試行がまた自分で処理中を作る。0.36.0 実測 — 4 連敗)。**2 段階で送る**:
 
 1. `mode=apply` — メタデータとスクリーンショットを反映 (提出はしない)
-2. 数分待つ (asset の処理完了を待つ。`mode=status` で build が `VALID` になることも確認)
+2. 数分待つ — **ASC でスクリーンショットの asset の «処理中» が消えたこと** を
+   確認してから送る (`mode=status` が見るのは build の状態で、スクショの
+   処理状態ではない — CodeRabbit レビュー指摘。build の `VALID` は別の前提として
+   確認する)。ASC の画面 (バージョンページのスクショ) で確認するのが確実
 3. `mode=submit-only` — **スクリーンショットを触らずに** 審査へ提出する
    (spec から `screenshots` を取り除いて asc-submit に渡す)
 
 `submit` モードは «apply と同じ run で提出まで» の従来経路として残してあるが、
 新着情報・スクショを更新するリリースでは 2 段階を使う。
 
-- `apply` / `submit` モードの `asc-submit run` がステップ単位でジャーナルを記録する
+- `apply` / `submit` / `submit-only` モードの `asc-submit run` がステップ単位で
+  ジャーナルを記録する
   (`plan` / `status` / `doctor` は読み取りのみで記録なし。upload モードは独自スクリプト経由のため対象外)
 - ターミナルから:
 

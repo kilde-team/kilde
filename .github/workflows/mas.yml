@@ -130,8 +130,7 @@ jobs:
             # spec に screenshots が無ければ set_screenshots を呼ばない。
             # «再アップロード → 処理中 → 提出拒否» の自己打ち切りレースを
             # 断つための送り (issue #529)
-            # (1 行で書く — ヒアドキュメントは YAML ブロックスカラーの
-            # インデントを壊すため)
+            # (1 行の python3 -c に収めて step を簡潔にする)
             python3 -c 'import json,sys; p=sys.argv[1]; s=json.load(open(p)); s.pop("screenshots", None); json.dump(s, open(p, "w"), ensure_ascii=False)' "$SPEC_OUT"
           fi
           echo "spec_path=$SPEC_OUT" >> "$GITHUB_ENV"
