@@ -528,3 +528,15 @@ que existe (misma política que 0.35.0). La frase sobre los archivos del mismo n
 ```text
 Ya se pueden mover grabaciones a la papelera desde la biblioteca de grabaciones, para ordenar grabaciones antiguas de reuniones sin abrir Finder. Al mover una grabación también se mueven los archivos de transcripción y actas que comparten su nombre. Las transcripciones que pertenecen a otra grabación se quedan donde están. Las grabaciones en la papelera se pueden restaurar desde la papelera en Finder. No se pueden mover grabaciones que se estén transcribiendo o grabando.
 ```
+
+## Novedades (0.37.0)
+
+Renombrar grabaciones desde la biblioteca (issue #532). El texto solo describe lo que
+existe (misma política que 0.36.0). Las frases sobre los archivos del mismo nombre, las de
+otras grabaciones y la de conflicto (no se cambia nada y la app avisa) describen la
+implementación con exactitud. La frase del prefijo «kilde-» es la declaración honesta del
+contrato de listado de la biblioteca.
+
+```text
+Ya se puede cambiar el nombre de las grabaciones desde la biblioteca de grabaciones, para convertir los nombres automáticos («kilde-<fecha>») en nombres que digan de qué trató cada reunión (se conserva el prefijo «kilde-»). El cambio se aplica al archivo de grabación y a los archivos de transcripción y actas que comparten su nombre; las extensiones no cambian. Los archivos de otras grabaciones no se tocan. Si ya existe un archivo con el mismo nombre, no se cambia nada y la aplicación avisa. No se puede cambiar el nombre de grabaciones que se estén transcribiendo o grabando.
+```

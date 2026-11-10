@@ -525,3 +525,15 @@ sidecar belongs to). The in-progress sentence is the honest statement of the dis
 ```text
 Recordings can now be moved to the Trash from the recording library, so old meeting recordings can be cleaned up without opening Finder. Moving a recording also moves the transcript and minutes files that share its name. Transcripts that belong to another recording stay where they are. Trashed recordings can be restored from the Trash in Finder. Recordings that are being transcribed or recorded cannot be moved.
 ```
+
+## What's New (0.37.0)
+
+Renaming recordings from the library (issue #532). Copy states only what ships
+(same policy as 0.36.0). The same-named files sentence, the other-recordings sentence,
+and the conflict sentence (nothing is renamed and the app tells you) all describe the
+implementation exactly. The "kilde-" prefix sentence is the honest statement of the
+library's listing contract (LibraryStore.scan).
+
+```text
+Recordings can now be renamed from the recording library, so the auto-generated "kilde-<date>" names can become names that say what each meeting was (the leading "kilde-" stays). Renaming applies to the recording file and the transcript and minutes files that share its name; file extensions stay the same. Files of other recordings are not touched. If a file with the same name already exists, nothing is renamed and the app tells you. Recordings that are being transcribed or recorded cannot be renamed.
+```
