@@ -2,6 +2,494 @@
   "sourceLanguage": "ja",
   "strings": {
     
+      "名前を変更…": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Rename…"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Renombrar…"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "이름 변경…"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "重新命名…"
+            }
+          }
+        }
+      },
+      "名前を変更": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Rename"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Renombrar"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "이름 변경"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "重新命名"
+            }
+          }
+        }
+      },
+      "%@ の名前を変更": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Rename “%@”"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Renombrar «%@»"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "“%@” 이름 변경"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "重新命名“%@”"
+            }
+          }
+        }
+      },
+      "新しい名前": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "New name"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Nuevo nombre"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "새 이름"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "新名称"
+            }
+          }
+        }
+      },
+      "録画と、同じ名前の文字起こし・議事録のファイルの名前を一緒に変更します (拡張子は変わりません。接頭辞 «kilde-» は保たれます)": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Renames the recording and its same-named transcript and minutes files together (file extensions stay the same; the “kilde-” prefix is kept)"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Cambia el nombre de la grabación y de sus archivos de transcripción y acta con el mismo nombre a la vez (las extensiones no cambian; se conserva el prefijo «kilde-»)"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "녹화와 같은 이름의 전사·회의록 파일의 이름을 함께 변경합니다 (확장자는 그대로이며 «kilde-» 접두사는 유지됩니다)"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "将录音与同名的转写、会议记录文件一并重命名 (扩展名不变，保留“kilde-”前缀)"
+            }
+          }
+        }
+      },
+      "録画と同じ名前の文字起こし・議事録のファイルの名前を一緒に変更します": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Renames the recording and its same-named transcript and minutes files together"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Cambia el nombre de la grabación y de sus archivos de transcripción y acta con el mismo nombre a la vez"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "녹화와 같은 이름의 전사·회의록 파일의 이름을 함께 변경합니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "将录音与同名的转写、会议记录文件一并重命名"
+            }
+          }
+        }
+      },
+      "文字起こし・録画が進行中のため名前を変更できません": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Can't rename while a transcription or recording is in progress"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No se puede renombrar mientras hay una transcripción o grabación en curso"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "전사 또는 녹화가 진행 중이어서 이름을 변경할 수 없습니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "转写或录制进行中，无法重命名"
+            }
+          }
+        }
+      },
+      "文字起こしが進行中のため名前を変更できません": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Can't rename while a transcription is in progress"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No se puede renombrar mientras hay una transcripción en curso"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "전사가 진행 중이어서 이름을 변경할 수 없습니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "转写进行中，无法重命名"
+            }
+          }
+        }
+      },
+      "録画中のため名前を変更できません": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Can't rename while a recording is in progress"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No se puede renombrar mientras hay una grabación en curso"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "녹화 중이어서 이름을 변경할 수 없습니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "录制进行中，无法重命名"
+            }
+          }
+        }
+      },
+      "その名前は使えません — 空でなく、「/」「:」を含まず、先頭が「.」でない名前を入力してください": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "That name can't be used — enter a non-empty name that contains no “/” or “:” and doesn't start with “.”"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Ese nombre no se puede usar: escribe un nombre no vacío, sin «/» ni «:» y que no empiece por «.»"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "이 이름은 사용할 수 없습니다 — 비어 있지 않고 «/»와 «:»를 포함하지 않으며 «.»로 시작하지 않는 이름을 입력해 주세요"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "该名称无法使用 — 请输入非空、不含“/”和“:”且不以“.”开头的名称"
+            }
+          }
+        }
+      },
+      "名前が変わっていないため何もしませんでした": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "The name didn't change, so nothing was done"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "El nombre no cambió, así que no se hizo nada"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "이름이 변경되지 않아 아무 작업도 하지 않았습니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "名称未更改，因此未做任何操作"
+            }
+          }
+        }
+      },
+      "同じ名前のファイルがあるため名前を変更できません": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Can't rename — a file with that name already exists"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No se puede renombrar: ya existe un archivo con ese nombre"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "같은 이름의 파일이 있어 이름을 변경할 수 없습니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "已存在同名文件，无法重命名"
+            }
+          }
+        }
+      },
+      "保存先フォルダを読めなかったため名前を変更できませんでした": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Couldn't rename because the destination folder couldn't be read"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No se pudo renombrar porque no se pudo leer la carpeta de destino"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "저장 폴더를 읽을 수 없어 이름을 변경하지 못했습니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "无法读取存储文件夹，未能重命名"
+            }
+          }
+        }
+      },
+      "名前を変更できませんでした — Finder で変更してください (%@)": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Couldn't rename — change it in Finder (%@)"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No se pudo renombrar: cámbialo en Finder (%@)"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "이름을 변경하지 못했습니다 — Finder에서 변경해 주세요 (%@)"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "无法重命名 — 请在 Finder 中更改 (%@)"
+            }
+          }
+        }
+      },
+      "%@ を %@ に変更しました": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Renamed “%@” to “%@”"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "«%@» se ha renombrado a «%@»"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "“%@”을(를) “%@”(으)로 변경했습니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "已将“%@”重命名为“%@”"
+            }
+          }
+        }
+      },
+      "%@ を %@ に変更しました (残ったサイドカー %lld 件は旧名のままです — Finder で名前を変更してください)": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "variations": {
+              "plural": {
+                "one": {
+                  "stringUnit": {
+                    "state": "translated",
+                    "value": "Renamed “%@” to “%@” — %lld sidecar file still has the old name, rename it in Finder"
+                  }
+                },
+                "other": {
+                  "stringUnit": {
+                    "state": "translated",
+                    "value": "Renamed “%@” to “%@” — %lld sidecar files still have the old name, rename them in Finder"
+                  }
+                }
+              }
+            }
+          },
+          "es": {
+            "variations": {
+              "plural": {
+                "one": {
+                  "stringUnit": {
+                    "state": "translated",
+                    "value": "«%@» se ha renombrado a «%@»: queda %lld archivo de sidecar con el nombre anterior, renómbralo en Finder"
+                  }
+                },
+                "other": {
+                  "stringUnit": {
+                    "state": "translated",
+                    "value": "«%@» se ha renombrado a «%@»: quedan %lld archivos de sidecar con el nombre anterior, renómbralos en Finder"
+                  }
+                }
+              }
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "“%@”을(를) “%@”(으)로 변경했습니다 — 남은 사이드카 파일 %lld개는 이전 이름입니다 — Finder에서 이름을 변경해 주세요"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "已将“%@”重命名为“%@” — 剩余 %lld 个附属 (sidecar) 文件仍是旧名称，请在 Finder 中重命名"
+            }
+          }
+        }
+      },
       "録画中のためゴミ箱に移せません": {
         "extractionState": "manual",
         "localizations": {

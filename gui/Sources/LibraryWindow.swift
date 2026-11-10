@@ -240,6 +240,24 @@ struct LibraryView: View {
     /// 取り残る/二重に移る (cubic レビュー指摘)。進行中は **すべての削除導線を
     /// 無効化** して移動の収集から完了までを直列化する
     @State private var isDeletingTrash = false
+    /// «名前を変更» のダイアログの対象 (issue #532)。nil は «出していない»
+    @State private var renameCandidate: LibraryEntry?
+    @State private var showsRenameDialog = false
+    /// «名前を変更» の入力 («kilde-» 接頭辞ごと、拡張子なしの stem)。
+    /// ダイアログを開くときに現在の名前で満たす — «今何という名前か» と
+    /// «接頭辞が保たれる» を入力欄で確実にするため
+    @State private var renameText = ""
+    /// «名前を変更» の結果表示 (成功・失敗)。nil は «表示なし»。ゴミ箱移動の
+    /// deleteNotice と分けているのは «整理の 2 導線» の結果が同時に並んでも
+    /// 別の出来事として読めるようにするため (録画を切り替えても消さない —
+    /// deleteNotice と同じ理由)
+    @State private var renameNotice: String?
+    /// リネームが 1 件進行中か (issue #532)。ゴミ箱移動と **直列化** する —
+    /// «同じ stem の録画を移し終わっていない間にリネーム» すると、companionFiles の
+    /// «別録画の主張» 判定が移動前の一覧で行われ、共有サイドカーの扱いが
+    /// あいまいになる (isDeletingTrash が削除同士を直列化するのと同じ理由)。
+    /// 進行中はリネームと削除の **両方** の導線を無効化する
+    @State private var isRenaming = false
     /// «この URL は録画中の出力ファイルか» (issue #523)。録画中の録画は
     /// 一覧にも現れるので、削除導線の無効化と実行時の再確認に使う。
     /// LibraryWindowController が AppDelegate (RecordingController) から
@@ -249,6 +267,15 @@ struct LibraryView: View {
 
     private var searching: Bool {
         !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// «名前を変更» ダイアログのタイトル。対象のファイル名を載せる —
+    /// «どの録画の名前を変えているか» をダイアログだけでも確実にする
+    /// (body の式が重くならないよう、式のまま渡さず事前計算の let を使う)
+    private var renameDialogTitle: String {
+        renameCandidate.map {
+            String(localized: "\($0.recordingURL.lastPathComponent) の名前を変更")
+        } ?? String(localized: "名前を変更")
     }
 
     var body: some View {
@@ -330,6 +357,32 @@ struct LibraryView: View {
             }
         } message: {
             Text(String(localized: "録画と、同じ名前の文字起こし・議事録のファイルを一緒に移します。Finder の「ゴミ箱」から「戻す」で復元できます"))
+        }
+        // «名前を変更» の入力ダイアログ (issue #532)。確認ダイアログ (confirmationDialog)
+        // ではなく alert を使う — 入力欄を置けるのはこちら。TextField を含む
+        // alert は macOS 13+ で動く (デプロイ対象は 14.0)。実行は «名前を変更» ボタン
+        // (role を付けない — destructive ではない: 元に戻す手段はあるし、
+        // «壊す» 操作ではない)。検証と実行は rename(_:to:) の正門で行い、
+        // 案内はステータス行に出る (ゴミ箱移動と同じ «押してから案内» の流儀)。
+        // タイトルは事前に計算した let へ出す — «map ?? 既定値» を式のまま
+        // 渡すと型検査が重くなり «unable to type-check in reasonable time» で
+        // ビルドが落ちる (実測。body を分割しなくて済む最小の分割)
+        .alert(renameDialogTitle, isPresented: $showsRenameDialog) {
+            TextField(String(localized: "新しい名前"), text: $renameText)
+                .autocorrectionDisabled()
+            Button(String(localized: "名前を変更")) {
+                guard let candidate = renameCandidate else { return }
+                renameCandidate = nil
+                rename(candidate, to: renameText)
+            }
+            Button(String(localized: "キャンセル"), role: .cancel) {
+                renameCandidate = nil
+            }
+        } message: {
+            // «接頭辞 «kilde-» は保たれる» をダイアログで先に伝える — ライブラリの
+            // 一覧対象の契約 (LibraryRecordingRename.libraryStem のコメント) で、
+            // 実行後に «kilde- が勝手に付いた» と驚かせないため
+            Text(String(localized: "録画と、同じ名前の文字起こし・議事録のファイルの名前を一緒に変更します (拡張子は変わりません。接頭辞 «kilde-» は保たれます)"))
         }
     }
 
@@ -476,6 +529,17 @@ struct LibraryView: View {
                             // 文字起こしの実行中・待機中の録画は出せない — 処理中の
                             // ファイルを消さない (詳細ペインのボタンと同じ判定)
                             .contextMenu {
+                                // «名前を変更» は «ゴミ箱に入れる» と並ぶ整理の導線
+                                // (issue #532)。«壊す» 操作ではないため «…» を
+                                // 付けず確認ダイアログではなく入力ダイアログが出る。
+                                // 無効化の判定は «ゴミ箱に入れる» と同じ «押した時点»
+                                // の軽い判定 + リネーム・削除の直列化
+                                Button(String(localized: "名前を変更…")) {
+                                    requestRename(entry)
+                                }
+                                .disabled(isDeletingTrash || isRenaming
+                                          || transcription.isQueuedOrRunning(entry.id)
+                                          || canTrashRecording(entry.id))
                                 Button(String(localized: "ゴミ箱に入れる…")) {
                                     requestDelete(entry)
                                 }
@@ -485,7 +549,7 @@ struct LibraryView: View {
                                 // 実行中文字起こしは «押せるが押すと案内が出る» に寄せ、
                                 // 実行時 (moveToTrash) の canonical 再確認が正門になる
                                 // (cubic レビュー指摘)
-                                .disabled(isDeletingTrash
+                                .disabled(isDeletingTrash || isRenaming
                                           || transcription.isQueuedOrRunning(entry.id)
                                           || canTrashRecording(entry.id))
                             }
@@ -504,7 +568,11 @@ struct LibraryView: View {
             LibraryDetailView(entry: entry, query: searching ? query : "",
                               hits: hits(for: entry), playback: playback,
                               transcription: transcription, pro: pro, settings: settings,
-                              canTrash: !isDeletingTrash
+                              canRename: !isDeletingTrash && !isRenaming
+                                  && !transcription.isQueuedOrRunning(entry.id)
+                                  && !canTrashRecording(entry.id),
+                              onRename: { requestRename(entry) },
+                              canTrash: !isDeletingTrash && !isRenaming
                                   && !transcription.isQueuedOrRunning(entry.id)
                                   && !canTrashRecording(entry.id),
                               onTrash: { requestDelete(entry) })
@@ -543,8 +611,10 @@ struct LibraryView: View {
         // 文字起こし» を通してしまう (cubic レビュー指摘)
         // 2 件目の移動を始めない — «同じ stem の録画を続けて削除» すると、
         // 後から始めた方の «別録画の主張» 判定が移動前の一覧で行われ、
-        // 共有サイドカーが取り残る (cubic レビュー指摘)
-        guard !isDeletingTrash else { return }
+        // 共有サイドカーが取り残る (cubic レビュー指摘)。リネームとの直列化も
+        // 同じ理由 (issue #532) — 伴走の収集と «別録画の主張» 判定が
+        // 他の整理操作と重なると、共有サイドカーの扱いがあいまいになる
+        guard !isDeletingTrash && !isRenaming else { return }
         // 正門はここ (実行時点) の canonical 比較 — 描画時の無効化は軽い判定の
         // ため、表記違い (symlink の /var ↔ /private/var、MAS コンテナ内 Movies の
         // symlink など) の «実行中文字起こし» はここで止める (cubic レビュー指摘)
@@ -631,6 +701,134 @@ struct LibraryView: View {
             : String(localized: "\(name) をゴミ箱に移しました (残ったサイドカー \(leftovers.count) 件は Finder で消してください)")
     }
 
+    // MARK: 名前を変更 (issue #532)
+
+    /// «名前を変更» の入力ダイアログを出す。コンテキストメニューと
+    /// 詳細ペインのボタンの共通の入口。入力は現在の名前 (拡張子なし、
+    /// «kilde-» 接頭辞ごと) で満たしておく — «今何という名前か» と
+    /// «接頭辞が保たれる» ことをダイアログで読み取れるようにするため
+    private func requestRename(_ entry: LibraryEntry) {
+        renameNotice = nil
+        renameText = entry.recordingURL.deletingPathExtension().lastPathComponent
+        renameCandidate = entry
+        showsRenameDialog = true
+    }
+
+    /// ダイアログの «名前を変更» での実行。文字起こしと録画の進行中チェックは
+    /// ここでも再確認する — ボタンの無効化は «押した時点» の判定で、ダイアログを
+    /// 出している間に «後から文字起こし» が始まったり、その録画が
+    /// «録画中の出力ファイル» になったりするかもしれない (ゴミ箱移動と同じ正門)。
+    /// 名前の検証 (空・区切り・衝突) はデータ層 (LibraryRecordingRename) が行い、
+    /// 失敗はステータス行の案内に化ける — «押したのに何も起きない» を作らない
+    private func rename(_ entry: LibraryEntry, to newName: String) {
+        guard let directory = store.directory else { return }
+        // canonical 比較と直列化の理由は moveToTrash と同じ —
+        // 表記違いの実行中文字起こしはここで止め、整理操作は 1 件ずつ
+        guard !isDeletingTrash && !isRenaming else { return }
+        guard !transcription.isQueuedOrRunningSameFile(entry.recordingURL) else {
+            renameNotice = String(localized: "文字起こしが進行中のため名前を変更できません")
+            return
+        }
+        guard !canTrashRecording(entry.recordingURL) else {
+            renameNotice = String(localized: "録画中のため名前を変更できません")
+            return
+        }
+        isRenaming = true
+        // security-scoped bookmark の取得と «完了まで開いたまま» の契約は
+        // moveToTrash と同じ (カスタム保存先のサンドボックス権限。~/Movies は
+        // entitlement のため bookmark は作られない)。解放はバックグラウンド
+        // Task の最後 (defer) で行う — ファイル操作を MainActor の外へ出す
+        var scoped: URL?
+        if let data = TranscriptionCoordinator.directoryBookmarkData(forDirectory: directory) {
+            var stale = false
+            if let resolved = try? URL(
+                resolvingBookmarkData: data,
+                options: .withSecurityScope,
+                relativeTo: nil,
+                bookmarkDataIsStale: &stale),
+                resolved.startAccessingSecurityScopedResource() {
+                scoped = resolved
+            }
+        }
+        Task.detached(priority: .userInitiated) { [entry] in
+            defer { scoped?.stopAccessingSecurityScopedResource() }
+            do {
+                let companions = try LibraryRecordingCleanup.companionFiles(
+                    forRecording: entry.recordingURL, in: directory)
+                let oldStem = entry.recordingURL.deletingPathExtension().lastPathComponent
+                // «ライブラリに載る stem» への変換はデータ層の正門 (libraryStem) で
+                // 行う — 一覧の契約 «kilde- 接頭辞 + 録画形式» を保ち、接頭辞を
+                // 外した名前に変えても録画が一覧・最近の録画・Spotlight から
+                // 消えないようにする (LibraryRecordingRename.libraryStem のコメント)
+                let newStem = try LibraryRecordingRename.libraryStem(
+                    fromUserInput: newName, currentStem: oldStem)
+                let leftovers = try LibraryRecordingRename.rename(
+                    recording: entry.recordingURL,
+                    companionFiles: companions,
+                    newStem: newStem,
+                    renamer: LibraryRecordingRename.systemRenamer)
+                // リネーム後の URL は «走査と同じ表記のディレクトリ» (entry.recordingURL
+                // は走査結果) から組む — reload 後の entry.id と表記が揃い、
+                // 選択の維持が URL 同士の一致で効く (LibraryImport が «走査の表記を
+                // そのまま使う» のと同じ理由)
+                let newURL = entry.recordingURL.deletingLastPathComponent()
+                    .appendingPathComponent(
+                        newStem + (entry.recordingURL.pathExtension.isEmpty
+                            ? "" : ".\(entry.recordingURL.pathExtension)"))
+                await MainActor.run {
+                    self.finishRename(entry: entry, newURL: newURL, leftovers: leftovers)
+                    self.isRenaming = false
+                }
+            } catch {
+                // «黙って失敗しない» — 入力の問題 (検証エラー) とフォルダの問題
+                // (衝突・読めない) を分けて案内する。«その他» は権限の無い保存先・
+                // ネットワークボリュームなので Finder での変更を案内する
+                let notice: String
+                switch error as? LibraryRecordingRename.RenameError {
+                case .invalidName:
+                    notice = String(localized: "その名前は使えません — 空でなく、「/」「:」を含まず、先頭が「.」でない名前を入力してください")
+                case .nameUnchanged:
+                    notice = String(localized: "名前が変わっていないため何もしませんでした")
+                case .conflict:
+                    notice = String(localized: "同じ名前のファイルがあるため名前を変更できません")
+                case .directoryUnreadable:
+                    notice = String(localized: "保存先フォルダを読めなかったため名前を変更できませんでした")
+                case nil:
+                    notice = String(localized: "名前を変更できませんでした — Finder で変更してください (\(error.localizedDescription))")
+                }
+                await MainActor.run {
+                    self.renameNotice = notice
+                    self.isRenaming = false
+                }
+            }
+        }
+    }
+
+    /// リネームの成功後の UI 反映 (MainActor)。プレイヤーの停止 → 一覧の
+    /// 再走査 → 選択の維持 → 結果の案内の順に済ませる。
+    /// «選択の維持» は削除と逆の契約 — 録画は消えていないので、
+    /// «詳細を見ていた人» が新しい名前の詳細にそのまま乗り換えられる
+    private func finishRename(entry: LibraryEntry, newURL: URL, leftovers: [URL]) {
+        // プレイヤーが旧 URL を持っていれば止める — reload 後の onChange(of: entry.id)
+        // が新しい URL で差し替えるが、旧 URL を参照した item のまま一瞬
+        // «変えたのに前の名前のファイルが鳴る» 状態になるのを避ける
+        playback.stopIfPlaying(url: entry.recordingURL)
+        // 一覧を作り直して «名前が変わった» を反映 (Spotlight への反映は既存の
+        // 差分同期が行う — «旧名の削除 + 新名の追加» は同期の実行時に現れる)
+        if let directory = store.directory {
+            store.reload(directory: directory)
+        }
+        // 選択をリネーム後の録画へ移す。reload で entries が組み直るまで詳細は
+        // «録画を選択してください» に代わるが、取り込み (issue #416) の
+        // «選択を先に置く» と同じ — 一覧が並ぶと詳細が戻る
+        selectedEntryID = newURL
+        let oldName = entry.recordingURL.lastPathComponent
+        let newName = newURL.lastPathComponent
+        renameNotice = leftovers.isEmpty
+            ? String(localized: "\(oldName) を \(newName) に変更しました")
+            : String(localized: "\(oldName) を \(newName) に変更しました (残ったサイドカー \(leftovers.count) 件は旧名のままです — Finder で名前を変更してください)")
+    }
+
     // MARK: ステータス
 
     private var statusBar: some View {
@@ -656,6 +854,13 @@ struct LibraryView: View {
             // 消えたことは分かるが «サイドカーごと移った» ことは一覧だけでは読めない
             if let deleteNotice {
                 Text(deleteNotice)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            // «名前を変更» の結果 (issue #532)。ゴミ箱移動の案内と分けて並べる —
+            // «整理の 2 導線» の結果が同時に出ても別の出来事として読めるように
+            if let renameNotice {
+                Text(renameNotice)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
@@ -768,6 +973,13 @@ private struct LibraryDetailView: View {
     /// 反映されない)
     @ObservedObject var pro: ProCoordinator
     let settings: () -> LibraryTranscriptionSettings
+    /// «名前を変更» を押せるか (issue #532)。文字起こしの実行中・待機中は
+    /// 押せない — 処理中のファイルの名前を変えない («ゴミ箱に入れる» と同じ判定)。
+    /// ゴミ箱移動とリネームの進行中も押せない (整理操作の直列化)
+    let canRename: Bool
+    /// «名前を変更» の押下。入力ダイアログは親 (LibraryView) が出す —
+    /// 一覧の右クリックと同じダイアログを 1 箇所にまとめるため
+    let onRename: () -> Void
     /// «ゴミ箱に入れる» を押せるか (issue #523)。文字起こしの実行中・待機中は
     /// 押せない — 処理中のファイルを消さない (一覧のコンテキストメニューと同じ判定)
     let canTrash: Bool
@@ -831,21 +1043,37 @@ private struct LibraryDetailView: View {
             LibraryPlayerView(player: playback.player)
                 .frame(height: 240)
                 .background(Color(nsColor: .windowBackgroundColor))
+                // «名前を変更» («ゴミ箱に入れる» と並ぶ整理の導線 — issue #532) と
                 // «ゴミ箱に入れる» (issue #523)。プレイヤーの操作系 (下部のバー) と
-                // 重ならない右上に出す — 詳細ペインに専用のヘッダー行は無いため
+                // 重ならない右上に出す — 詳細ペインに専用のヘッダー行は無いため。
+                // «壊す» 操作が左 («ゴミ箱») に寄る自然な並びにする — リネームは
+                // «整える»、ゴミ箱は «減らす» で、右端を取り消しにくい操作に揃える
                 .overlay(alignment: .topTrailing) {
-                    Button {
-                        onTrash()
-                    } label: {
-                        Label(String(localized: "ゴミ箱に入れる"), systemImage: "trash")
+                    HStack(spacing: 8) {
+                        Button {
+                            onRename()
+                        } label: {
+                            Label(String(localized: "名前を変更"), systemImage: "pencil")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(!canRename)
+                        .help(canRename
+                            ? String(localized: "録画と同じ名前の文字起こし・議事録のファイルの名前を一緒に変更します")
+                            : String(localized: "文字起こし・録画が進行中のため名前を変更できません"))
+                        Button {
+                            onTrash()
+                        } label: {
+                            Label(String(localized: "ゴミ箱に入れる"), systemImage: "trash")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(!canTrash)
+                        .help(canTrash
+                            ? String(localized: "録画と同じ名前の文字起こし・議事録のファイルをゴミ箱に移します")
+                            : String(localized: "文字起こし・録画が進行中のため移せません"))
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
                     .padding(8)
-                    .disabled(!canTrash)
-                    .help(canTrash
-                        ? String(localized: "録画と同じ名前の文字起こし・議事録のファイルをゴミ箱に移します")
-                        : String(localized: "文字起こし・録画が進行中のため移せません"))
                 }
             Divider()
             if entry.segments == nil {
