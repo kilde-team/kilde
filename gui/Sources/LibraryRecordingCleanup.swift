@@ -111,16 +111,17 @@ enum LibraryRecordingCleanup {
         // - 候補の stem が «別録画の stem-数字» (二重録画が枝番サイドカーを
         //   共有するケース — CodeRabbit レビュー指摘、issue #525 の PR #526 レビュー)
         // 守られたサイドカーは伴走に含めない — «消した録画の代わりに、残った
-        // 録画が文字越しを失う» を起こさないため
+        // 録画が文字越しを失う» を起こさないため。
+        // 判定は候補ごとに «末尾の -数字 を 1 回剥がした親 stem» を Set で照合する —
+        // 候補ごとに全 stem を走査すると録画数に対して O(N²) になるため
+        // (cubic レビュー指摘)。«R-数字» に一致する R は、候補の末尾の
+        // -数字 を剥がしたものに限られる (R 自体は数字で終わらない)
         func isClaimedByOtherRecording(_ candidateStem: String) -> Bool {
             if recordingStems.contains(candidateStem) { return true }
-            for otherStem in recordingStems {
-                let otherSuffix = otherStem + "-"
-                guard candidateStem.hasPrefix(otherSuffix) else { continue }
-                let digits = candidateStem.dropFirst(otherSuffix.count)
-                if !digits.isEmpty && digits.allSatisfy(\.isNumber) { return true }
-            }
-            return false
+            guard let range = candidateStem.range(of: "-[0-9]+$", options: .regularExpression)
+            else { return false }
+            let parentStem = String(candidateStem[..<range.lowerBound])
+            return recordingStems.contains(parentStem)
         }
         return all.filter { url in
             guard !isSameFile(url, recordingURL) else { return false }
