@@ -668,8 +668,11 @@ KILDE_GUI_SELFTEST_LIBRARY_RENAME=1 "$APP/Contents/MacOS/KildeGUI"
 
 ```sh
 # 実行するのは **App Store ビルド (KildeGUI-AppStore)** — サンドボックスの
-# 有効なビルドで意味がある検証のため。例: Debug のアーカイブ生成物
-MAS_APP=~/Library/Developer/Xcode/DerivedData/KildeGUI-*/Build/Products/Debug/KildeGUI.app
+# 有効なビルドで意味がある検証のため。例: Debug のアーカイブ生成物。
+# 代入の中では glob が展開されないため、`ls -d … | head -1` で実パスを
+# 取ってから使う («$MAS_APP» を引用したまま使うと «*» が残って起動に失敗する)
+MAS_APP=$(ls -dt ~/Library/Developer/Xcode/DerivedData/KildeGUI-*/Build/Products/Debug/KildeGUI.app | head -1)
+echo "$MAS_APP"   # 目的の App Store ビルド (Sparkle を含まない KildeGUI-AppStore) か確認する
 KILDE_GUI_SELFTEST_LIBRARY_RENAME_REAL=1 "$MAS_APP/Contents/MacOS/KildeGUI"
 # → selftest: library-rename-real OK: Movies 内のリネームができた (kilde-…-selftest-rename….mov → kilde-…-selftest-rename…-renamed.mov → ゴミ箱 kilde-…-renamed.mov)
 #   selftest: library-rename-real NOTE: ダミーファイルはゴミ箱に残っています — 復元・削除は Finder でお願いします
@@ -691,7 +694,12 @@ KILDE_GUI_SELFTEST_LIBRARY_RENAME_REAL=1 "$MAS_APP/Contents/MacOS/KildeGUI"
 入れると、**何も変わらずに** «同じ名前のファイルがあるため名前を変更できません»
 が出ます。空の名前・`/` や `:` を含む名前・先頭が `.` の名前も、実行時に
 案内が出て止まります。文字起こしが進行中の録画は «名前を変更» が押せません
-(ツールチップに理由が出ます)。Spotlight で新しい名前が引けることの確認は
+(ツールチップに理由が出ます)。**録画中の録画** も «名前を変更» «ゴミ箱に入れる»
+が押せません — 録画を始めて、その録画がライブラリの一覧に現れた状態で
+ボタンが無効になることと、ツールチップに «録画中» の理由が出ることを
+確認してください。リネームの進行中は、詳細ペインの «文字起こしを作成»
+«議事録を作成» «再試行» も押せなくなります («旧名のファイルを処理する
+ジョブ» を作らないため)。Spotlight で新しい名前が引けることの確認は
 «すぐには出ないことがある» (既存の差分同期が次の同期で反映する) ので
 気長に待ってください。
 

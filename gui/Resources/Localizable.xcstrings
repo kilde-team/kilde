@@ -2,6 +2,35 @@
   "sourceLanguage": "ja",
   "strings": {
     
+      "名前の変更・ゴミ箱への移動が進行中のため押せません": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Can't click while a rename or move to the Trash is in progress"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No se puede pulsar mientras hay un cambio de nombre o un movimiento a la papelera en curso"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "이름 변경 또는 휴지통 이동이 진행 중이어서 누를 수 없습니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "重命名或移到废纸篓进行中，无法点击"
+            }
+          }
+        }
+      },
       "名前を変更…": {
         "extractionState": "manual",
         "localizations": {
@@ -263,31 +292,31 @@
           }
         }
       },
-      "その名前は使えません — 空でなく、「/」「:」を含まず、先頭が「.」でない名前を入力してください": {
+      "その名前は使えません — 空でなく、「/」「:」を含まず、先頭が「.」でない名前を入力してください (名前が長すぎるときも使えません)": {
         "extractionState": "manual",
         "localizations": {
           "en": {
             "stringUnit": {
               "state": "translated",
-              "value": "That name can't be used — enter a non-empty name that contains no “/” or “:” and doesn't start with “.”"
+              "value": "That name can't be used — enter a non-empty name that contains no “/” or “:”, doesn't start with “.”, and isn't too long"
             }
           },
           "es": {
             "stringUnit": {
               "state": "translated",
-              "value": "Ese nombre no se puede usar: escribe un nombre no vacío, sin «/» ni «:» y que no empiece por «.»"
+              "value": "Ese nombre no se puede usar: escribe un nombre no vacío, sin «/» ni «:», que no empiece por «.» y no sea demasiado largo"
             }
           },
           "ko": {
             "stringUnit": {
               "state": "translated",
-              "value": "이 이름은 사용할 수 없습니다 — 비어 있지 않고 «/»와 «:»를 포함하지 않으며 «.»로 시작하지 않는 이름을 입력해 주세요"
+              "value": "이 이름은 사용할 수 없습니다 — 비어 있지 않고 «/»와 «:»를 포함하지 않으며 «.»로 시작하지 않고 너무 길지 않은 이름을 입력해 주세요"
             }
           },
           "zh-Hans": {
             "stringUnit": {
               "state": "translated",
-              "value": "该名称无法使用 — 请输入非空、不含“/”和“:”且不以“.”开头的名称"
+              "value": "该名称无法使用 — 请输入非空、不含“/”和“:”、不以“.”开头且长度适中的名称"
             }
           }
         }

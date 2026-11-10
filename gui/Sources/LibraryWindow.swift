@@ -568,6 +568,7 @@ struct LibraryView: View {
             LibraryDetailView(entry: entry, query: searching ? query : "",
                               hits: hits(for: entry), playback: playback,
                               transcription: transcription, pro: pro, settings: settings,
+                              isLibraryMutating: isDeletingTrash || isRenaming,
                               canRename: !isDeletingTrash && !isRenaming
                                   && !transcription.isQueuedOrRunning(entry.id)
                                   && !canTrashRecording(entry.id),
@@ -782,19 +783,30 @@ struct LibraryView: View {
             } catch {
                 // «黙って失敗しない» — 入力の問題 (検証エラー) とフォルダの問題
                 // (衝突・読めない) を分けて案内する。«その他» は権限の無い保存先・
-                // ネットワークボリュームなので Finder での変更を案内する
+                // ネットワークボリュームなので Finder での変更を案内する。
+                // «保存先を読めなかった» は 2 経路で来る — rename 前段の
+                // companionFiles (CleanupError.directoryUnreadable) と rename 内の
+                // 衝突検査の走査 (RenameError.directoryUnreadable)。前者を
+                // «その他» に落とすと «Finder で変更してください» に化けて、
+                // «フォルダが消えた・権限が落ちた» という本当の原因が伝わらない
+                // (cubic レビュー指摘 — moveToTrash が CleanupError を区別するのと同じ)
+                let renameError = error as? LibraryRecordingRename.RenameError
+                let cleanupError = error as? LibraryRecordingCleanup.CleanupError
                 let notice: String
-                switch error as? LibraryRecordingRename.RenameError {
-                case .invalidName:
-                    notice = String(localized: "その名前は使えません — 空でなく、「/」「:」を含まず、先頭が「.」でない名前を入力してください")
-                case .nameUnchanged:
-                    notice = String(localized: "名前が変わっていないため何もしませんでした")
-                case .conflict:
-                    notice = String(localized: "同じ名前のファイルがあるため名前を変更できません")
-                case .directoryUnreadable:
+                if renameError == .directoryUnreadable
+                    || cleanupError == .directoryUnreadable {
                     notice = String(localized: "保存先フォルダを読めなかったため名前を変更できませんでした")
-                case nil:
-                    notice = String(localized: "名前を変更できませんでした — Finder で変更してください (\(error.localizedDescription))")
+                } else {
+                    switch renameError {
+                    case .invalidName:
+                        notice = String(localized: "その名前は使えません — 空でなく、「/」「:」を含まず、先頭が「.」でない名前を入力してください (名前が長すぎるときも使えません)")
+                    case .nameUnchanged:
+                        notice = String(localized: "名前が変わっていないため何もしませんでした")
+                    case .conflict:
+                        notice = String(localized: "同じ名前のファイルがあるため名前を変更できません")
+                    default:
+                        notice = String(localized: "名前を変更できませんでした — Finder で変更してください (\(error.localizedDescription))")
+                    }
                 }
                 await MainActor.run {
                     self.renameNotice = notice
@@ -973,6 +985,13 @@ private struct LibraryDetailView: View {
     /// 反映されない)
     @ObservedObject var pro: ProCoordinator
     let settings: () -> LibraryTranscriptionSettings
+    /// ライブラリの整理操作 (リネーム / ゴミ箱移動) が進行中か (issue #532)。
+    /// «文字起こしを作成» «議事録を作成» «再試行» を無効化する — これらは
+    /// **表示中の録画の URL をジョブに載せる** ため、リネームの進行中に押すと
+    /// «旧名のファイル» を処理するジョブが走り、リネームとの競合 (旧名の
+    /// サイドカーが生える・文字起こしが失敗する) を作る (cubic レビュー指摘)。
+    /// 録画は消えていないので押せてしまう、が落とし穴
+    let isLibraryMutating: Bool
     /// «名前を変更» を押せるか (issue #532)。文字起こしの実行中・待機中は
     /// 押せない — 処理中のファイルの名前を変えない («ゴミ箱に入れる» と同じ判定)。
     /// ゴミ箱移動とリネームの進行中も押せない (整理操作の直列化)
@@ -1197,18 +1216,29 @@ private struct LibraryDetailView: View {
                 Label(String(localized: "文字起こしを作成"), systemImage: "waveform")
             }
             .buttonStyle(.bordered)
+            // 整理操作 (リネーム / ゴミ箱移動) の進行中は無効化 — ジョブに載る
+            // recordingURL が «移されつつあるファイル» になるため (isLibraryMutating
+            // のコメント)。理由の案内は無効のときだけ出す (有効時のツールチップは
+            // 従来どおり無し — ボタンの意味はラベルで読める)
+            .disabled(isLibraryMutating)
+            .help(isLibraryMutating
+                ? String(localized: "名前の変更・ゴミ箱への移動が進行中のため押せません")
+                : "")
             Button {
                 enqueue(withSummary: true, snapshot: settings())
             } label: {
                 Label(String(localized: "議事録を作成"), systemImage: "waveform.badge.waveform")
             }
             .buttonStyle(.bordered)
-            .disabled(snapshot.summaryUnsupportedReason != nil || proLocked)
-            .help(snapshot.summaryUnsupportedReason.map { reason in
-                String(localized: "要約には Apple Intelligence が必要です: \(reason)")
-            } ?? (proLocked
-                ? String(localized: "会議の要約は Pro の機能です (設定パネルから購入できます)")
-                : String(localized: "文字起こしの後に要約を生成して Markdown (.md) に載せます (テンプレートは設定パネルの選択を使います)")))
+            .disabled(snapshot.summaryUnsupportedReason != nil || proLocked
+                      || isLibraryMutating)
+            .help(isLibraryMutating
+                ? String(localized: "名前の変更・ゴミ箱への移動が進行中のため押せません")
+                : snapshot.summaryUnsupportedReason.map { reason in
+                    String(localized: "要約には Apple Intelligence が必要です: \(reason)")
+                } ?? (proLocked
+                    ? String(localized: "会議の要約は Pro の機能です (設定パネルから購入できます)")
+                    : String(localized: "文字起こしの後に要約を生成して Markdown (.md) に載せます (テンプレートは設定パネルの選択を使います)")))
         }
     }
 
@@ -1430,6 +1460,9 @@ private struct LibraryDetailView: View {
             Button(String(localized: "再試行")) { transcription.retry(failure) }
                 .buttonStyle(.link)
                 .font(.caption)
+                // 整理操作の進行中は無効化 — «再試行» もジョブにこの録画の URL を
+                // 載せるため («文字起こしを作成» と同じ理由)
+                .disabled(isLibraryMutating)
         }
         .padding(10)
         .frame(maxWidth: 420)

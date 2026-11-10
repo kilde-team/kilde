@@ -81,6 +81,8 @@ enum SelfTestLibraryRename {
         checkValidation()
         checkLibraryStem()
         checkConflict(folder: folder)
+        checkCaseInsensitiveConflict(folder: folder)
+        checkDestinationLength(folder: folder)
         checkAbortOnRecordingFailure(folder: folder)
         checkLeftoverCompanion(folder: folder)
         checkUnreadableDirectory()
@@ -138,11 +140,27 @@ enum SelfTestLibraryRename {
             check(!FileManager.default.fileExists(atPath: dummy.path),
                   "リネーム元の名前は消える")
             // 後始末はゴミ箱経由 — アプリから復元できない削除を勝手にしないため、
-            // 0.36.0 の整理導線 (systemTrasher) で迂回する
-            let trashed = try LibraryRecordingCleanup.systemTrasher(renamed)
-            print("selftest: library-rename-real OK: Movies 内のリネームができた (\(dummy.lastPathComponent) → \(renamed.lastPathComponent) → ゴミ箱 \(trashed.lastPathComponent))")
-            print("selftest: library-rename-real NOTE: ダミーファイルはゴミ箱に残っています — 復元・削除は Finder でお願いします")
-            exit(failures == 0 ? 0 : 1)
+            // 0.36.0 の整理導線 (systemTrasher) で迂回する。リネームと後始末は
+            // 分けて try する — «moveItem が失敗» と «ゴミ箱移動が失敗» で
+            // «手元に残るファイル» が違う (リネーム失敗なら旧名、後始末失敗なら
+            // リネーム後の名前) ので、案内はその名前を正しく示す
+            // (cubic レビュー指摘)
+            do {
+                let trashed = try LibraryRecordingCleanup.systemTrasher(renamed)
+                // «OK» の要約は検査が全部通ったときだけ出す — check() が失敗して
+                // いても «OK» と出ると、出力を読む人やスクリプトが成功と誤認する
+                // (cubic レビュー指摘)。ダミーはゴミ箱に (リネーム後の名前で) 残る
+                if failures == 0 {
+                    print("selftest: library-rename-real OK: Movies 内のリネームができた (\(dummy.lastPathComponent) → \(renamed.lastPathComponent) → ゴミ箱 \(trashed.lastPathComponent))")
+                } else {
+                    print("selftest: library-rename-real FAIL: リネームはできたが検査に \(failures) 件失敗 (ダミーはゴミ箱 \(trashed.lastPathComponent) に移してある)")
+                }
+                print("selftest: library-rename-real NOTE: ダミーファイルはゴミ箱に残っています — 復元・削除は Finder でお願いします")
+                exit(failures == 0 ? 0 : 1)
+            } catch {
+                print("selftest: library-rename-real FAIL: ゴミ箱への移動が失敗 (\(error)) — リネーム済みのダミーファイル \(renamed.path) は手動で消してください")
+                exit(1)
+            }
         } catch {
             print("selftest: library-rename-real FAIL: moveItem が失敗 (\(error)) — ダミーファイル \(dummy.path) は手動で消してください")
             exit(1)
@@ -400,7 +418,7 @@ enum SelfTestLibraryRename {
         // それでも衝突とみなす — «同じ stem の別録画» を作らないため
         let collidee = folder.appendingPathComponent("kilde-衝突.json")
         createFile(collidee, bytes: 8)
-        let attempted = RenameMutexBox<[String]>([])
+        let attempted = MutexBox<[String]>([])
         let neverReached: LibraryRecordingRename.Renamer = { source, _ in
             attempted.with { $0.append(source.lastPathComponent) }
             throw NSError(domain: "kilde-selftest-library-rename", code: 1)
@@ -449,6 +467,97 @@ enum SelfTestLibraryRename {
               "枝番の衝突の相手も無傷で残る")
     }
 
+    /// «大文字小文字が違うだけの既存ファイル» も衝突とみなす — 標準の APFS は
+    /// 大文字小文字を区別しないため、区別して比較すると検査をすり抜けて
+    /// moveItem が後段で失敗し «録画だけ新しい名前» を作りかねない
+    /// (cubic レビュー指摘)。衝突検査は «小文字へ揃えてから比べる» ので、
+    /// 大文字小文字を区別するボリュームでも同じ挙動 («衝突していないのに
+    /// 衝突» 側に倒す) になる
+    private static func checkCaseInsensitiveConflict(folder: URL) {
+        let stem = "kilde-20270112-131415"
+        let recording = folder.appendingPathComponent("\(stem).mov")
+        let companion = folder.appendingPathComponent("\(stem).json")
+        createFile(recording, bytes: 16)
+        createFile(companion, bytes: 8)
+        // «KILDE-» は «kilde-» と大文字小文字が違うだけ — 区別しないボリューム
+        // では同じ名前として振る舞う衝突源
+        let collidee = folder.appendingPathComponent("KILDE-大文字衝突.json")
+        createFile(collidee, bytes: 8)
+        let attempted = MutexBox<[String]>([])
+        let neverReached: LibraryRecordingRename.Renamer = { source, _ in
+            attempted.with { $0.append(source.lastPathComponent) }
+            throw NSError(domain: "kilde-selftest-library-rename", code: 4)
+        }
+        do {
+            _ = try LibraryRecordingRename.rename(
+                recording: recording,
+                companionFiles: [companion],
+                newStem: "kilde-大文字衝突",
+                renamer: neverReached)
+            check(false, "大文字小文字が違うだけの既存ファイルも conflict で拒否する")
+        } catch let error as LibraryRecordingRename.RenameError {
+            check(error == .conflict,
+                  "大文字小文字が違うだけの既存ファイルも conflict で拒否する (\(error) が返る)")
+        } catch {
+            check(false, "大文字小文字が違うだけの既存ファイルも conflict で拒否する (想定外のエラー \(error))")
+        }
+        check(attempted.current.isEmpty,
+              "大文字小文字の衝突でも 1 件もリネームを試みない (試行 \(attempted.current.count) 件)")
+    }
+
+    /// 移動先の **拡張子を含む名前全体** が 255 バイトを超えるときは
+    /// `invalidName` で拒否する — 255 バイトの上限はファイルシステムの
+    /// «1 要素» に掛かるため、«stem だけ 255» を通すと
+    /// «kilde-….mov» の名前全体が 259 バイトになり moveItem が落ちる
+    /// (cubic レビュー指摘)。正門は rename() 内の検査
+    private static func checkDestinationLength(folder: URL) {
+        let stem = "kilde-20270113-141516"
+        let recording = folder.appendingPathComponent("\(stem).mov")
+        let companion = folder.appendingPathComponent("\(stem).json")
+        createFile(recording, bytes: 16)
+        createFile(companion, bytes: 8)
+        // «あ» は 3 バイト。83 文字 = 249 バイト + «kilde-» 6 バイト = 255 (stem)。
+        // «.mov» を足すと 259 バイト → 拒否される
+        let longStem = "kilde-" + String(repeating: "あ", count: 83)
+        let attempted = MutexBox<[String]>([])
+        let neverReached: LibraryRecordingRename.Renamer = { source, _ in
+            attempted.with { $0.append(source.lastPathComponent) }
+            throw NSError(domain: "kilde-selftest-library-rename", code: 5)
+        }
+        do {
+            _ = try LibraryRecordingRename.rename(
+                recording: recording,
+                companionFiles: [companion],
+                newStem: longStem,
+                renamer: neverReached)
+            check(false, "拡張子込みで 255 バイト超の移動先は invalidName で拒否する")
+        } catch let error as LibraryRecordingRename.RenameError {
+            check(error == .invalidName,
+                  "拡張子込みで 255 バイト超の移動先は invalidName で拒否する (\(error) が返る)")
+        } catch {
+            check(false, "拡張子込みで 255 バイト超の移動先は invalidName で拒否する (想定外のエラー \(error))")
+        }
+        check(attempted.current.isEmpty,
+              "長さ超過でも 1 件もリネームを試みない (試行 \(attempted.current.count) 件)")
+        // 境界: «stem 249 バイト + .json» = 254 バイトの伴走は通る
+        // (録画本体 «.mov» = 253 バイト。254 ≤ 255)
+        do {
+            let leftovers = try LibraryRecordingRename.rename(
+                recording: recording,
+                companionFiles: [companion],
+                newStem: "kilde-" + String(repeating: "あ", count: 81),
+                renamer: { source, destination in
+                    try FileManager.default.moveItem(at: source, to: destination)
+                })
+            check(leftovers.isEmpty && FileManager.default.fileExists(
+                atPath: folder.appendingPathComponent(
+                    "kilde-" + String(repeating: "あ", count: 81) + ".mov").path),
+                "«stem + 拡張子» が 255 バイト以内に収まるリネームは通る (残り \(leftovers.count) 件)")
+        } catch {
+            check(false, "«stem + 拡張子» が 255 バイト以内に収まるリネームは通る (エラー \(error))")
+        }
+    }
+
     /// 録画本体が変えられないときは **何も変えずに** throw する —
     /// «本体は新しい名前なのにサイドカーだけ旧名» を作らないための契約。
     /// «サイドカーに触っていない» も試行の記録で確認する (削除の
@@ -459,7 +568,7 @@ enum SelfTestLibraryRename {
         let companion = folder.appendingPathComponent("\(stem).json")
         createFile(recording, bytes: 16)
         createFile(companion, bytes: 8)
-        let attempted = RenameMutexBox<[URL]>([])
+        let attempted = MutexBox<[URL]>([])
         let alwaysFails: LibraryRecordingRename.Renamer = { url, _ in
             attempted.with { $0.append(url) }
             throw NSError(domain: "kilde-selftest-library-rename", code: 2)
@@ -561,12 +670,13 @@ enum SelfTestLibraryRename {
 }
 
 /// テスト用の小さな可変箱 (closure からの書き込みを集めるため)。
-/// SelfTestLibraryDelete の MutexBox と同じ契約 — セルフテストは単一スレッドで
-/// 動くのでロックは要らないが、«closure が外の var を捕まえる» のを避ける。
-/// 名前を変えているのは **型名がモジュールで 1 つ** (アクセス修飾子は
-/// 名前空間を作らない) ので、同名だと SelfTestLibraryDelete 側の定義と
-/// 再定義エラーになるため
-private final class RenameMutexBox<T> {
+/// SelfTestLibraryDelete と同名・同契約 — セルフテストは単一スレッドで動くので
+/// ロックは要らないが、«closure が外の var を捕まえる» のを避ける。
+/// 同名でよいのは **ファイルスコープの `private` 型はファイル単位で見える**
+/// ため (同名の再定義エラーにはならない — swiftc で 2 ファイルの同名
+/// `private final class` を結合して動くことを実測。cubic レビュー指摘で
+/// 初出のコメント «モジュールで 1 つの型名» は誤りだったので訂正)
+private final class MutexBox<T> {
     private var value: T
     init(_ value: T) { self.value = value }
     func with(_ body: (inout T) -> Void) {

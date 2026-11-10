@@ -112,25 +112,42 @@ enum LibraryRecordingRename {
             ? String(currentStem.dropFirst(prefix.count)) : currentStem
         let stem = try validatedStem(from: userPart, currentStem: currentPart)
         let composed = prefix + stem
-        // 長さの上限は **合成後の stem** で判定し直す — ファイルシステムの
-        // 255 バイト制限は «1 要素全体» に掛かるため、«ユーザー部分 255 バイト»
-        // を通すと «kilde-» を付けた瞬間に 261 バイトで moveItem が落ちる
+        // 長さの粗い検査 (stem のみ)。正門は rename() の «拡張子を含む名前全体»
+        // の検査 — ここでは «明らかに長すぎる入力» を companions の走査の前に
+        // 弾くだけを目的にする (境界値の正確な判定は拡張子の長さが絡むため
+        // rename() 側で行う。cubic レビュー指摘 — «stem だけ 255» は
+        // «kilde-….mov» の名前全体で 255 を超えうる)
         guard composed.utf8.count <= 255 else { throw RenameError.invalidName }
         return composed
     }
 
     /// 録画と伴走ファイルを同じ新しい stem へリネームする。
     ///
-    /// 手順は **事前の全冲突突検査 → 録画本体 → 伴走** の順。
-    /// 1. 保存先ディレクトリを走査し、対象以外の既存ファイル (拡張子を問わず) の
+    /// 手順は **移動先の組み立て → 拡張子込みの長さ検査 → 事前の全冲突突検査 →
+    /// 録画本体 → 伴走** の順。
+    /// 1. 対象 (録画 + 伴走) の移動先 URL を先に全部組み立てる — 衝突検査・
+    ///    長さ検査・実行が «同じ移動先» を見るため、組み立てを 1 箇所に寄せる
+    /// 2. **拡張子を含むファイル名全体** が 255 バイトを超えたら `invalidName` を
+    ///    投げる。255 バイトの上限はファイルシステムの «1 要素 (名前全体)» に
+    ///    掛かるため、«stem だけ 255» を通すと `kilde-….mov` の名前全体が
+    ///    259 バイトになり moveItem が «File name too long» で落ちる
+    ///    (cubic レビュー指摘)。`libraryStem` 側の stem だけの検査は «変な入力を
+    ///    早めに弾く» 粗い門で、正門はここ
+    /// 3. 保存先ディレクトリを走査し、対象以外の既存ファイル (拡張子を問わず) の
     ///    stem が «移動先の stem 系» (新しい名前 + 枝番の付け替え後の `-数字`) と
     ///    衝突したら `conflict` を投げる。走査自体が失敗したら
     ///    `directoryUnreadable` を投げる。**この時点では何も変えていない**
-    ///    — «衝突で録画だけ新しい名前» を作らない
-    /// 2. 録画本体をリネーム。失敗したら何も伴走に触らず throw
+    ///    — «衝突で録画だけ新しい名前» を作らない。stem の比較は
+    ///    **小文字へ揃えてから** 行う — 標準の APFS は大文字小文字を
+    ///    区別しないため («Kilde-会議.mov» があるとき «kilde-会議.mov» への
+    ///    リネームは衝突)、区別して比較すると検査をすり抜けて moveItem が
+    ///    後段で失敗し «録画だけ新しい名前» を作りかねない (cubic レビュー指摘)。
+    ///    大文字小文字を区別するボリュームでは «衝突していないのに衝突» 側に
+    ///    倒す — «何も変えない» は誤警告より安全
+    /// 4. 録画本体をリネーム。失敗したら何も伴走に触らず throw
     ///    («本体が残ってサイドカーだけ新しい名前» を作らない — ゴミ箱移動と
     ///    同じ «本体を最初に» の契約)
-    /// 3. 伴走ファイルを順にリネーム。1 件の失敗で打ち切らず最後まで試す —
+    /// 5. 伴走ファイルを順にリネーム。1 件の失敗で打ち切らず最後まで試す —
     ///    «どこまで変わったか» より «残ったものを案内する» を優先する
     ///    (ゴミ箱移動の leftovers と同じ判断)
     ///
@@ -145,26 +162,46 @@ enum LibraryRecordingRename {
     ) throws -> [URL] {
         let directory = recording.deletingLastPathComponent()
         let oldStem = recording.deletingPathExtension().lastPathComponent
-        // «対象の現 URL» の集合 — 衝突検査と «移動先の stem 集合» の計算で
-        // «自分自身» を除外するのに使う。symlink 解決で比べるのは
-        // LibraryRecordingCleanup.isSameFile と同じ理由 (temporaryDirectory の
-        // /var ↔ /private/var の表記ゆれ)
+        // «対象の現 URL» の集合 — 衝突検査で «自分自身» を除外するのに使う。
+        // symlink 解決で比べるのは LibraryRecordingCleanup.isSameFile と同じ理由
+        // (temporaryDirectory の /var ↔ /private/var の表記ゆれ)
         let sources = [recording] + companionFiles
 
-        // 移動先の stem 系。録画本体は newStem、伴走は «旧 stem からの差分» を
+        // 移動先の一覧を先に組み立てる。伴走の stem は «旧 stem からの差分» を
         // 保って付け替える (stem / stem-数字)。exact-stem と枝番だけが
-        // companionFiles の対応なので、suffix は «""» か «"-数字»» しか来ない
-        let destinationStems = Set(sources.map { source -> String in
+        // companionFiles の対応なので、suffix は «""» か «"-数字»» しか来ない。
+        // 規則外の形が来ても dropFirst で落ちはしないように hasPrefix で守る
+        // («変な入力でクラッシュ» より «その stem のまま新しい stem に連なる» 側)
+        var moves: [(source: URL, destination: URL)] = []
+        for source in sources {
             let sourceStem = source.deletingPathExtension().lastPathComponent
-            if sourceStem == oldStem { return newStem }
-            return newStem + sourceStem.dropFirst(oldStem.count)
-        })
+            let suffix: String
+            if sourceStem == oldStem {
+                suffix = ""
+            } else if sourceStem.hasPrefix(oldStem) {
+                suffix = String(sourceStem.dropFirst(oldStem.count))
+            } else {
+                suffix = sourceStem
+            }
+            let extensionPart = source.pathExtension
+            let destinationName = newStem + suffix
+                + (extensionPart.isEmpty ? "" : ".\(extensionPart)")
+            moves.append((source, directory.appendingPathComponent(destinationName)))
+        }
 
-        // 事前の衝突検査。既存ファイル (対象以外、隠しファイルを含む — «衝突しうる
-        // 名前» は隠し分も数えないと moveItem が後で失敗する) の stem が
-        // 移動先と重なったら中断する。拡張子は見ない — «会議.mov がある» 状態で
+        // 長さの事前検査 (拡張子込み — 手順 2)
+        for move in moves where move.destination.lastPathComponent.utf8.count > 255 {
+            throw RenameError.invalidName
+        }
+
+        // 事前の衝突検査 (手順 3)。既存ファイル (対象以外、隠しファイルを含む —
+        // «衝突しうる名前» は隠し分も数えないと moveItem が後で失敗する) の
+        // stem を小文字へ揃えて比べる。拡張子は見ない — «会議.mov がある» 状態で
         // «会議.mp4» へのリネームを通すと、対応規則 (RecordingSetup.transcriptSidecar)
         // が «同じ stem の 2 録画» を作り、サイドカーの持ち主があいまいになる
+        let destinationStems = Set(moves.map {
+            $0.destination.deletingPathExtension().lastPathComponent.lowercased()
+        })
         let all: [URL]
         do {
             all = try FileManager.default.contentsOfDirectory(
@@ -177,28 +214,19 @@ enum LibraryRecordingRename {
             throw RenameError.directoryUnreadable
         }
         for url in all where !sources.contains(where: { isSameFile(url, $0) }) {
-            let stem = url.deletingPathExtension().lastPathComponent
+            let stem = url.deletingPathExtension().lastPathComponent.lowercased()
             if destinationStems.contains(stem) { throw RenameError.conflict }
         }
 
-        // 録画本体を最初に — 失敗したら何も変えずに呼び出し側へ返す
-        let recordingExtension = recording.pathExtension
-        try renamer(recording, directory.appendingPathComponent(
-            newStem + (recordingExtension.isEmpty ? "" : ".\(recordingExtension)")))
-
+        // 実行。moves の先頭は録画本体 — 失敗したら何も変えずに呼び出し側へ返す。
         // 伴走は打ち切らず最後まで試す — 失敗したものは旧名のまま残す
         var leftovers: [URL] = []
-        for companion in companionFiles {
-            let stem = companion.deletingPathExtension().lastPathComponent
-            let suffix = stem.dropFirst(oldStem.count)  // «""» か «"-数字»»
-            let extensionPart = companion.pathExtension
-            let destination = directory.appendingPathComponent(
-                newStem + suffix
-                    + (extensionPart.isEmpty ? "" : ".\(extensionPart)"))
+        for (index, move) in moves.enumerated() {
             do {
-                try renamer(companion, destination)
+                try renamer(move.source, move.destination)
             } catch {
-                leftovers.append(companion)
+                if index == 0 { throw error }
+                leftovers.append(move.source)
             }
         }
         return leftovers
