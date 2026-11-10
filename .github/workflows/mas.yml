@@ -12,10 +12,16 @@ name: MAS (App Store)
 #            **審査への提出はしない**
 #   submit — apply の内容に加えて審査へ提出する。提出判断 (前バージョンの審査結果待ち等)
 #            は人間が行う前提なので、このモードの実行自体がゲート
+#   submit-only — **スクリーンショットを触らずに** 審査へ提出する。前提: 先に mode=apply
+#            を実行して asset が処理済みになっていること。ASC はアップロード直後の
+#            スクリーンショットを «処理中» にするため、submit モードの
+#            «再アップロード → その場で提出» は «Asset is being processed» で
+#            拒否され続ける (0.36.0 実測 — 4 連敗、issue #529)。apply → 数分待つ →
+#            submit-only の 2 段階で提出する
 #   upload — KildeGUI-AppStore をアーカイブして ASC へアップロード (appstore-archive.sh)。
 #            **提出は始まらない**。クラウド署名は ASC API キー (Admin ロール) で行う
 #
-# 必要な secrets (status / apply / submit / upload):
+# 必要な secrets (status / apply / submit / submit-only / upload):
 #   ASC_CI_KEY_B64   CI 専用 **Admin** ロール鍵の .p8 を base64 したもの
 #                    (クラウド署名は Admin 限定。メタデータ書き込みは App Manager でも可 —
 #                    鍵は 1 本にまとめる。開発用の鍵を使い回さない)
@@ -33,7 +39,7 @@ on:
       mode:
         description: "What to do"
         type: choice
-        options: [plan, status, apply, submit, upload]
+        options: [plan, status, apply, submit, submit-only, upload]
         default: plan
       version:
         description: "MAS version (e.g. 0.8.1)"
@@ -117,9 +123,19 @@ jobs:
           fi
           ARGS=(--version "$VERSION")
           [ -n "$BUILD" ] && ARGS+=(--build "$BUILD")
+          SPEC_OUT="dist/appstore/release-$VERSION.json"
           python3 scripts/release/appstore-spec.py "${ARGS[@]}"
-          echo "spec_path=dist/appstore/release-$VERSION.json" >> "$GITHUB_ENV"
-          cat "dist/appstore/release-$VERSION.json"
+          if [ "$MODE" = submit-only ]; then
+            # スクリーンショットを触らない — asc-submit の run_spec は
+            # spec に screenshots が無ければ set_screenshots を呼ばない。
+            # «再アップロード → 処理中 → 提出拒否» の自己打ち切りレースを
+            # 断つための送り (issue #529)
+            # (1 行で書く — ヒアドキュメントは YAML ブロックスカラーの
+            # インデントを壊すため)
+            python3 -c 'import json,sys; p=sys.argv[1]; s=json.load(open(p)); s.pop("screenshots", None); json.dump(s, open(p, "w"), ensure_ascii=False)' "$SPEC_OUT"
+          fi
+          echo "spec_path=$SPEC_OUT" >> "$GITHUB_ENV"
+          cat "$SPEC_OUT"
 
       - name: Show the plan (no API key required)
         if: inputs.mode == 'plan'
@@ -171,7 +187,7 @@ jobs:
           python3 -m asc_submit status "$APP_ID" --version "$VERSION"
 
       - name: Apply metadata (and submit, when mode=submit)
-        if: inputs.mode == 'apply' || inputs.mode == 'submit'
+        if: inputs.mode == 'apply' || inputs.mode == 'submit' || inputs.mode == 'submit-only'
         env:
           MODE: ${{ inputs.mode }}
           PYTHONPATH: asc-submit
@@ -180,11 +196,11 @@ jobs:
           # ここで弾く。doctor はプローブのみで副作用なし)
           python3 -m asc_submit doctor "$APP_ID"
           ARGS=()
-          if [ "$MODE" = submit ]; then
+          if [ "$MODE" = submit ] || [ "$MODE" = submit-only ]; then
             # CI (非 tty) では asc-submit の確認プロンプトは出ない。提出のゲートは
             # この workflow_dispatch を手で押すこと自体なので --yes で確定させる
             ARGS+=(--submit --yes)
-            echo ">>> 審査へ提出します (mode=submit)"
+            echo ">>> 審査へ提出します (mode=$MODE)"
           fi
           python3 -m asc_submit run "$APP_ID" --spec "$spec_path" "${ARGS[@]}"
 
