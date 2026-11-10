@@ -585,18 +585,36 @@ URL» が表記の揺れ (`/var/…` と `/private/var/…`) で一致しなく�
 
 ```sh
 KILDE_GUI_SELFTEST_LIBRARY_DELETE=1 "$APP/Contents/MacOS/KildeGUI"
-# → selftest: library-delete OK: 伴走ファイルはサイドカー一式だけ (実際 6 件)
+# → selftest: library-delete OK: 伴走ファイルはサイドカー一式だけ (実際 ["kilde-20270102-030405.json", "kilde-20270102-030405.md", "kilde-20270102-030405.srt", "kilde-20270102-030405.txt", "kilde-20270102-030405.vtt"])
 #   selftest: library-delete OK: 録画本体は伴走ファイルに含まれない (moveToTrash の recording と重複させない)
-#   selftest: library-delete OK: この録画のサイドカー (枝番・書き出し含む) もフォルダから消える
-#   selftest: library-delete OK: 消えた録画が Spotlight の削除対象になる
+#   selftest: library-delete OK: kilde-20270102-030405-2.json は «-2.m4a (別録画) のサイドカー» なので伴走に含めない
+#   selftest: library-delete OK: この録画のサイドカー (書き出し含む) もフォルダから消える
+#   selftest: library-delete OK: 別録画 (-2.m4a) が主張するサイドカー (-2.json) は残る
+#   selftest: library-delete OK: 消えた録画 A が Spotlight の削除対象になる
+#   selftest: library-delete OK: 録画本体の失敗ではサイドカーに触らない (試行 1 件)
+#   selftest: library-delete OK: 二重録画が無ければ枝番サイドカーは伴走に含まれる (実際 ["kilde-20270106-070809-2.json"])
 #   …
 #   selftest: library-delete failures=0 (exit 0)
 ```
 
 セルフテストのゴミ箱は **実環境のゴミ箱ではなく移動先ディレクトリへの
 `moveItem` に差し替えたもの** です (`LibraryRecordingCleanup.Trasher` の注入点)。
-`FileManager.trashItem` 自体と、**サンドボックス下 (MAS ビルド) で ~/Movies や
-カスタム保存先の録画をゴミ箱へ移せるか** は実機で確認します:
+`FileManager.trashItem` 自体は **`KILDE_GUI_SELFTEST_LIBRARY_DELETE_TRASH=1` で
+実検証できます** — ユーザーに見える Movies へダミー録画 (64 バイト) を 1 件
+作り、`systemTrasher` (実 trashItem) でゴミ箱へ移して終わります。
+**ダミーファイルはゴミ箱に残ります** (アプリからは元に戻せないため、
+実行後に Finder で戻すか消してください)。サンドボックス (MAS ビルド) 下での
+«システムが移動を仲介する» 挙動の確認に使います:
+
+```sh
+KILDE_GUI_SELFTEST_LIBRARY_DELETE_TRASH=1 "$APP/Contents/MacOS/KildeGUI"
+# → selftest: library-delete-trash OK: ~/Movies のファイルをゴミ箱へ移動できた (kilde-…-selftest-trash.mov → /Users/<ユーザー>/.Trash/kilde-…-selftest-trash.mov, reachable=true)
+#   selftest: library-delete-trash NOTE: ダミーファイルはゴミ箱に残っています — 復元・削除は Finder でお願いします
+```
+
+«カスタム保存先 (security-scoped bookmark 経由) の録画をゴミ箱へ移せるか» と
+**UI を伴う経路** (確認ダイアログ・一覧からの消える感じ・プレイヤーの停止) は
+実機で確認します:
 ライブラリで録画を選び、詳細ペイン右上の «ゴミ箱に入れる» (または一覧の
 右クリック) から **確認ダイアログが出て、実行後に一覧から消え、
 再生中だったら音が止まり、Finder の «ゴミ箱に戻す» で復元できること** を

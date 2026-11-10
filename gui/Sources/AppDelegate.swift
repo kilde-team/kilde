@@ -61,6 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// 捕まえると (ライブラリウィンドウの寿命はアプリと同じとはいえ) 循環参照になるため
     private lazy var libraryController: LibraryWindowController = {
         let setup = self.setup
+        let recording = self.recording
         return LibraryWindowController(
             store: LibraryStore(),
             transcription: transcription,
@@ -73,6 +74,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     // カスタム指示 (issue #472)。«実質空» は写像側で nil になる
                     summaryInstructions: setup.composerInstructions,
                     summaryUnsupportedReason: setup.summaryUnsupportedReason)
+            },
+            // «この URL は録画中の出力ファイルか» (issue #523)。録画中の録画は
+            // ライブラリの一覧にも現れるため、削除導線の無効化と実行時の再確認に
+            // 使う — «録画中のファイルを消す» は生きている録画を壊す (cubic 指摘)。
+            // recording を捕まえると libraryController ← closure ← recording で
+            // 循環は作らない (recording は libraryController を持たない)。
+            // URL は表記違い (symlink) を吸収して比べる
+            isRecordingOutput: { url in
+                guard RecordingController.isActive(recording.phase),
+                      let output = recording.outputURL else { return false }
+                return LibraryRecordingCleanup.isSameFile(output, url)
             })
     }()
     /// 自動更新 (issue #122)。Sparkle の起動は環境変数で制御する — 録画系の

@@ -4,11 +4,11 @@ import KildeCore
 /// ライブラリの «ゴミ箱へ移す» (issue #523) の UI 無し検証。
 /// 一時ディレクトリに録画とサイドカーを合成し、
 /// «伴走ファイルの収集 → ゴミ箱移動 → 一覧と Spotlight の差分から消える» を
-/// 確かめる。**実環境のゴミ箱は汚さない** — `FileManager.trashItem` 自体
-/// (とサンドボックス下でのシステムの仲介) は実機確認の対象で、ここでは
-/// `LibraryRecordingCleanup.Trasher` を «移動先ディレクトリへの moveItem» に
-/// 差し替えて «ゴミ箱に入った» を代用する。UI (コンテキストメニュー・
-/// 確認ダイアログ・プレイヤーの停止) は実機確認の対象。
+/// 確かめる。**実環境のゴミ箱は汚さない** — `FileManager.trashItem` 自体は
+/// `KILDE_GUI_SELFTEST_LIBRARY_DELETE_TRASH=1` の «実ゴミ箱チェック» で別に
+/// 検証し (下の runRealTrashCheck)、ここでは `LibraryRecordingCleanup.Trasher`
+/// を «移動先ディレクトリへの moveItem» に差し替えて «ゴミ箱に入った» を代用する。
+/// UI (コンテキストメニュー・確認ダイアログ・プレイヤーの停止) は実機確認の対象。
 /// 実録画・実文字起こしが不要のため録画のスロットを占有しない
 ///
 /// 使い方: `KILDE_GUI_SELFTEST_LIBRARY_DELETE=1 <GUI>` (AppDelegate.runIfRequested から配線)
@@ -33,7 +33,7 @@ enum SelfTestLibraryDelete {
             exit(1)
         }
 
-        // 録画 A: サイドカー一式 (5 形式 + 枝番 + 同フォルダ保存の書き出し)。
+        // 録画 A: サイドカー一式 (5 形式 + 同フォルダ保存の書き出し)。
         // 録画 B: 削除しない対照群。ほかに «stem が一致しても対象外» のファイルを置く
         let stampA = "20270102-030405"
         let stemA = "kilde-\(stampA)"
@@ -65,7 +65,8 @@ enum SelfTestLibraryDelete {
         createFile(companionB, bytes: 32)
         // «stem が一致 (枝番含む) でもサイドカー形式でない» もの — 音声の二重録画
         // (-2.m4a) とユーザーの別種ファイル (-3.log) は録画/未関連なので連れていかない。
-        // -2.m4a は «枝番 stem の録画» でもあり、-2.json の持ち主になる
+        // -2.m4a は «枝番 stem の録画» でもあり、-2.json の持ち主になる。
+        // -3.log は «録画形式でない» のでサイドカー (-3.json が無い) の主張もしない
         createFile(folder.appendingPathComponent("\(stemA)-2.m4a"), bytes: 16)
         createFile(folder.appendingPathComponent("\(stemA)-3.log"), bytes: 8)
         createFile(folder.appendingPathComponent("メモ.txt"), bytes: 8)
@@ -92,21 +93,81 @@ enum SelfTestLibraryDelete {
         checkLeftoverCompanion(folder: folder, trash: trash)
         checkNoCompanion(folder: folder)
         checkBranchWithoutTwin(folder: folder, trash: trash)
+        checkLogDoesNotClaim(folder: folder)
+        checkUnreadableDirectory()
 
         try? FileManager.default.removeItem(at: root)
         print("selftest: library-delete failures=\(failures)")
         exit(failures == 0 ? 0 : 1)
     }
 
+    /// «FileManager.trashItem を実際に呼ぶ» 検証 (`KILDE_GUI_SELFTEST_LIBRARY_DELETE_TRASH=1`)。
+    /// セルフテスト本体は Trasher を差し替えるため trashItem 自体の挙動
+    /// (サンドボックス下でのシステムの仲介 — MAS ビルドの `movies.read-write`
+    /// で ~/Movies のファイルをゴミ箱へ移せるか) を見ない。このモードだけは
+    /// **実環境に触れる**: ダミー録画をユーザーに見える Movies
+    /// (サンドボックスでは `SandboxSupport.userVisibleMoviesDirectory()`、
+    /// それ以外は ~/Movies) に作り、`systemTrasher` でゴミ箱へ移し、結果を出力する。
+    /// ダミーファイルはゴミ箱に残る (アプリからは元に戻せない — 復元は人手) ので、
+    /// **実行のたびにユーザーのゴミ箱に 1 件残る** ことをここでも案内する。
+    /// 実録画を伴わないため録画のスロットを占有しない
+    static func runRealTrashCheck() {
+        // «ユーザーに見える Movies» を使う — サンドボックス下では
+        // FileManager の Movies がコンテナ内を返すことがある (CLAUDE.md §5-17)。
+        // 非サンドボックス (直接配布ビルド) では SandboxSupport が
+        // コンパイル対象外 (#if APPSTORE) なので、FileManager で実 ~/Movies を取る
+        let movies: URL
+        #if APPSTORE
+        movies = SandboxSupport.userVisibleMoviesDirectory()
+        #else
+        movies = FileManager.default.urls(for: .moviesDirectory, in: .userDomainMask).first
+            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Movies")
+        #endif
+        // ダミー名は kilde- 接頭辞の既定名形式 — ライブラリの一覧に «録画» として
+        // 載る形にする (実行中のライブラリに映っても自然な名前にするため)
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        let stamp = formatter.string(from: Date())
+        let dummy = movies.appendingPathComponent("kilde-\(stamp)-selftest-trash.mov")
+        let data = Data(repeating: 1, count: 64)
+        do {
+            try data.write(to: dummy)
+        } catch {
+            print("selftest: library-delete-trash failed to create dummy in \(movies.path): \(error)")
+            exit(1)
+        }
+        do {
+            let trashed = try LibraryRecordingCleanup.systemTrasher(dummy)
+            let existed = (try? trashed.checkResourceIsReachable()) ?? false
+            print("selftest: library-delete-trash OK: ~/Movies のファイルをゴミ箱へ移動できた (\(dummy.lastPathComponent) → \(trashed.path), reachable=\(existed))")
+            print("selftest: library-delete-trash NOTE: ダミーファイルはゴミ箱に残っています — 復元・削除は Finder でお願いします")
+            exit(0)
+        } catch {
+            print("selftest: library-delete-trash FAIL: trashItem が失敗 (\(error)) — ダミーファイル \(dummy.path) は手動で消してください")
+            exit(1)
+        }
+    }
+
     // MARK: 検査
+
+    /// companionFiles を実行して失敗を検査失敗に落とすヘルパー (通常経路は失敗しない)
+    private static func collectCompanions(_ recording: URL, in folder: URL) -> [URL] {
+        do {
+            return try LibraryRecordingCleanup.companionFiles(
+                forRecording: recording, in: folder)
+        } catch {
+            check(false, "companionFiles が失敗しない (\(error))")
+            return []
+        }
+    }
 
     /// 伴走ファイルの収集。«この録画のもの» だけを集め、対照群や
     /// «別録画が主張するサイドカー» に触れないこと
     private static func checkCollection(
         folder: URL, recordingA: URL, stemA: String, companionNames: [String],
         branchSidecar: String) {
-        let companions = LibraryRecordingCleanup.companionFiles(
-            forRecording: recordingA, in: folder)
+        let companions = collectCompanions(recordingA, in: folder)
         let expectedNames = Set(companionNames)
         check(Set(companions.map(\.lastPathComponent)) == expectedNames,
               "伴走ファイルはサイドカー一式だけ (実際 \(companions.map(\.lastPathComponent).sorted()))")
@@ -126,8 +187,7 @@ enum SelfTestLibraryDelete {
             try FileManager.default.moveItem(at: url, to: destination)
             return destination
         }
-        let companions = LibraryRecordingCleanup.companionFiles(
-            forRecording: recordingA, in: folder)
+        let companions = collectCompanions(recordingA, in: folder)
         do {
             let leftovers = try LibraryRecordingCleanup.moveToTrash(
                 recording: recordingA, companionFiles: companions, trasher: stubTrasher)
@@ -144,7 +204,7 @@ enum SelfTestLibraryDelete {
         check(!remaining.contains { companionNames.contains($0) },
               "この録画のサイドカー (書き出し含む) もフォルダから消える")
         // «-2.json» は «-2.m4a (別録画) のサイドカー» として残り、録画も残る —
-        // «消した録画の代わりに、残った録画が文字越しを失う» を起こさない
+        // «消した録画の代わりに、残った録画が文字起こしを失う» を起こさない
         check(remaining.contains("kilde-20270102-030405-2.json"),
               "別録画 (-2.m4a) が主張するサイドカー (-2.json) は残る")
         // «-2.m4a» (音声の二重録画) と «-3.log» は «サイドカー形式でない» ので残る
@@ -183,14 +243,18 @@ enum SelfTestLibraryDelete {
     }
 
     /// 録画本体が移せないときは **何も移さず** throw する —
-    /// «本体が残ってサイドカーだけ消える» を作らないための契約
+    /// «本体が残ってサイドカーだけ消える» を作らないための契約。
+    /// «サイドカーに触っていない» も試行の記録で確認する (cubic レビュー指摘 —
+    /// «呼び出しが無かった» は «失敗しなかった» と違うので、順序の回帰もここで拾う)
     private static func checkAbortOnRecordingFailure(folder: URL, trash: URL) {
         let stem = "kilde-20270103-040506"
         let recording = folder.appendingPathComponent("\(stem).mov")
         let companion = folder.appendingPathComponent("\(stem).json")
         createFile(recording, bytes: 16)
         createFile(companion, bytes: 8)
-        let alwaysFails: LibraryRecordingCleanup.Trasher = { _ in
+        let attempted = MutexBox<[URL]>([])
+        let alwaysFails: LibraryRecordingCleanup.Trasher = { url in
+            attempted.with { $0.append(url) }
             throw NSError(domain: "kilde-selftest-library-delete", code: 1)
         }
         do {
@@ -200,6 +264,9 @@ enum SelfTestLibraryDelete {
         } catch {
             check(true, "録画本体の失敗は throw として返る")
         }
+        let attempts = attempted.current
+        check(attempts == [recording],
+              "録画本体の失敗ではサイドカーに触らない (試行 \(attempts.count) 件)")
         check(FileManager.default.fileExists(atPath: recording.path),
               "録画本体の失敗では録画が残る")
         check(FileManager.default.fileExists(atPath: companion.path),
@@ -248,8 +315,7 @@ enum SelfTestLibraryDelete {
     private static func checkNoCompanion(folder: URL) {
         let recording = folder.appendingPathComponent("kilde-20270105-060708.mp4")
         createFile(recording, bytes: 16)
-        let companions = LibraryRecordingCleanup.companionFiles(
-            forRecording: recording, in: folder)
+        let companions = collectCompanions(recording, in: folder)
         check(companions.isEmpty,
               "サイドカーの無い録画の伴走ファイルは空 (実際 \(companions.count) 件)")
     }
@@ -263,8 +329,7 @@ enum SelfTestLibraryDelete {
         let branch = folder.appendingPathComponent("\(stem)-2.json")
         createFile(recording, bytes: 16)
         createFile(branch, bytes: 8)
-        let companions = LibraryRecordingCleanup.companionFiles(
-            forRecording: recording, in: folder)
+        let companions = collectCompanions(recording, in: folder)
         check(companions.map(\.lastPathComponent) == [branch.lastPathComponent],
               "二重録画が無ければ枝番サイドカーは伴走に含まれる (実際 \(companions.map(\.lastPathComponent)))")
         let stubTrasher: LibraryRecordingCleanup.Trasher = { url in
@@ -279,6 +344,40 @@ enum SelfTestLibraryDelete {
                   "枝番サイドカーも一緒に移る (残り \(leftovers.count) 件)")
         } catch {
             check(false, "枝番付きの移動に成功する (エラー \(error))")
+        }
+    }
+
+    /// «録画形式でないファイルは別録画として主張しない» — `kilde-a.log` が
+    /// 隣にいても `kilde-a.json` は伴走に含まれる (主張の判定は
+    /// LibraryStore.recordingExtensions = 一覧に載る録画形式で絞る。cubic 指摘)
+    private static func checkLogDoesNotClaim(folder: URL) {
+        let stem = "kilde-20270107-090910"
+        let recording = folder.appendingPathComponent("\(stem).mov")
+        let log = folder.appendingPathComponent("\(stem).log")
+        let sidecar = folder.appendingPathComponent("\(stem).json")
+        createFile(recording, bytes: 16)
+        createFile(log, bytes: 8)
+        createFile(sidecar, bytes: 8)
+        let companions = collectCompanions(recording, in: folder)
+        // 走査の URL 表記 (/private/var/…) と組み立てた URL (/var/…) は
+        // URL 同士では一致しないので、ファイル名で比べる
+        check(companions.map(\.lastPathComponent) == [sidecar.lastPathComponent],
+              "録画形式でないファイル (.log) はサイドカーを主張しない (実際 \(companions.map(\.lastPathComponent)))")
+    }
+
+    /// 保存先フォルダが読めなかったときは何も移さず throw する —
+    /// «伴走なし» と誤認して本体だけ移す失敗を作らない (cubic 指摘)。
+    /// フォルダごと消した場合を想定する
+    private static func checkUnreadableDirectory() {
+        let missing = FileManager.default.temporaryDirectory
+            .appendingPathComponent("kilde-selftest-library-delete-missing-\(UUID().uuidString)")
+        do {
+            _ = try LibraryRecordingCleanup.companionFiles(
+                forRecording: missing.appendingPathComponent("kilde-20270108-101112.mov"),
+                in: missing)
+            check(false, "読めないフォルダでは throw する")
+        } catch {
+            check(true, "読めないフォルダでは throw する")
         }
     }
 
@@ -298,4 +397,16 @@ enum SelfTestLibraryDelete {
             print("selftest: library-delete FAIL: \(label)")
         }
     }
+}
+
+/// テスト用の小さな可変箱 (closure からの書き込みを集めるため)。
+/// セルフテストは単一スレッドで動くのでロックは要らないが、
+/// «closure が外の var を捕まえる» のを避ける意図は SelfTestLibraryImport と同じ
+private final class MutexBox<T> {
+    private var value: T
+    init(_ value: T) { self.value = value }
+    func with(_ body: (inout T) -> Void) {
+        body(&value)
+    }
+    var current: T { value }
 }

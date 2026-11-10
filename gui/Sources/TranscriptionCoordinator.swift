@@ -225,6 +225,24 @@ final class TranscriptionCoordinator: ObservableObject {
             || queue.contains { $0.recordingURL == recordingURL }
     }
 
+    /// «同じファイルが実行中・待機中か» を **canonical path で** 判定する (issue #523)。
+    /// ゴミ箱移動の可否判定に使う — 完全一致 (`isQueuedOrRunning`) だけだと、
+    /// ジョブが持つ URL とライブラリの一覧が表記違い (symlink の `/var` ↔
+    /// `/private/var`、MAS コンテナ内 Movies の symlink など) のときに
+    /// «実行中なのに通ってしまい»、移動済みの録画を実行中のジョブが読み続ける
+    /// (cubic レビュー指摘)。`LibraryRecordingCleanup.isSameFile` と同じ
+    /// symlink 解決の比較 «だけ» を使う — 完全一致は canonical 比較に含まれる
+    func isQueuedOrRunningSameFile(_ recordingURL: URL) -> Bool {
+        let canonical = recordingURL.resolvingSymlinksInPath().standardizedFileURL.path
+        if let running = running,
+           running.recordingURL.resolvingSymlinksInPath().standardizedFileURL.path == canonical {
+            return true
+        }
+        return queue.contains {
+            $0.recordingURL.resolvingSymlinksInPath().standardizedFileURL.path == canonical
+        }
+    }
+
     /// «中止»。待機中のジョブを捨て、実行中は Task.cancel() で止める。
     /// running/runPhase は execute の catch 経由でクリアされるまで残す —
     /// ここで即 nil にすると «止まっている途中» に UI が «何もしていない» に見え、

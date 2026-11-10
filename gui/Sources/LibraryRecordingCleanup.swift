@@ -8,12 +8,22 @@ import KildeCore
 /// 復元できるため、誤操作に安全 (確認ダイアログと合わせて 2 重の安全装置)。
 /// «壊れたファイルを残さない» の逆向き («消しすぎない») を守るため、録画本体が
 /// 移せなかったときはサイドカーに触らず投げて戻す — «本体が残ってサイドカー
-/// だけ消える» という半端な状態を作らない。
+/// だけ消える» という半端な状態を作らない。**保存先フォルダが読めなかったときも
+/// 何も移さない** — «サイドカーの候補が分からない» 状態で本体だけ移すと、
+/// 残ったサイドカーが次の走査で «文字越しの無い録画» に見えてしまう
+/// (cubic レビュー指摘 — issue #523 の PR #524 レビュー)
 ///
 /// UI 側 (LibraryView) は @MainActor だが、この enum は Pure 表示の
 /// SpotlightItemFactory と同じ «グローバルアクター推論の無い» 素の enum でよい —
 /// 中身は引数とファイルシステムだけで決まり、UI の状態に触れない
 enum LibraryRecordingCleanup {
+
+    /// ゴミ箱移動の失敗。UI は «保存先を読めなかった» を他の失敗と区別して
+    /// 案内する (フォルダが消えた・権限が落ちた可能性を伝える)
+    enum CleanupError: Error {
+        /// 保存先フォルダの走査に失敗した (何も移さずに戻る)
+        case directoryUnreadable
+    }
 
     /// ゴミ箱移動 1 件の実行者。`FileManager.trashItem` の差し替えポイント —
     /// セルフテストは **実環境のゴミ箱を汚さない** よう、移動先を一時ディレクトリに
@@ -61,22 +71,27 @@ enum LibraryRecordingCleanup {
     /// 録画本体は戻り値に含めない (`moveToTrash` の `recording` と二重に渡すのを
     /// 避けるため)。呼び出し側のサンドボックス権限の取得は UI 側の責務 —
     /// この関数は与えられたディレクトリをそのまま読む
-    static func companionFiles(forRecording recordingURL: URL, in directory: URL) -> [URL] {
+    ///
+    /// - Throws: `CleanupError.directoryUnreadable` — フォルダの走査に失敗した
+    ///   とき。空配列で «伴走なし» と誤認させない (本体だけ移す失敗を作らない)
+    static func companionFiles(forRecording recordingURL: URL, in directory: URL) throws -> [URL] {
         let stem = recordingURL.deletingPathExtension().lastPathComponent
         let suffixSeparator = stem + "-"
         let transcriptExtensions = RecordingSetup.transcriptSidecarExtensions
-        let all = (try? FileManager.default.contentsOfDirectory(
+        let all = try FileManager.default.contentsOfDirectory(
             at: directory, includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants])) ?? []
-        // «録画の stem» の集合 (この録画以外の、サイドカー形式でない通常ファイル)。
-        // ディレクトリが読めないときは空 — «主張» が分からないなら枝番は
-        // 従来どおりこの録画のものとして扱う (消しすぎ防止の絞り込みは best-effort)
+            options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants])
+        // «録画の stem» の集合 (この録画以外の、**一覧に載る録画形式** の通常ファイル)。
+        // «別録画» の判定は LibraryStore.scan と同じ録画形式で絞る — 絞らないと
+        // «kilde-a.log が kilde-a.json を主張する» ような、録画でないファイルに
+        // サイドカーを守られて «一緒に移れない» ことがある (cubic レビュー指摘)。
+        // キャンセル等で読めないファイルは仕方なく無視する (best-effort の絞り込み)
         let recordingStems = Set(all
             .filter { url in
                 guard !isSameFile(url, recordingURL) else { return false }
                 guard (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
                 else { return false }
-                return !transcriptExtensions.contains(url.pathExtension.lowercased())
+                return LibraryStore.recordingExtensions.contains(url.pathExtension.lowercased())
             }
             .map { $0.deletingPathExtension().lastPathComponent })
         return all.filter { url in
@@ -100,10 +115,11 @@ enum LibraryRecordingCleanup {
     /// 2 つの URL が同じファイルを指すか。**symlink を解決してから比べる** —
     /// temporaryDirectory (`/var/folders/…`) と contentsOfDirectory の返す表記
     /// (`/private/var/folders/…`) は URL 同士の等価で false になるため
-    /// (LibraryView.isSameDirectory / LibraryImport と同じ正規化。表記が混ざると
-    /// «録画本体の除外» が効かず、録画自身が «自分の stem を主張する別録画» に
-    /// 見えてサイドカーを 1 件も集められなくなる)
-    private static func isSameFile(_ lhs: URL, _ rhs: URL) -> Bool {
+    /// (LibraryView.isSameDirectory と同じ正規化。表記が混ざると «録画本体の除外»
+    /// が効かず、録画自身が «自分の stem を主張する別録画» に見えてサイドカーを
+    /// 1 件も集められなくなる)。«録画中・文字越し中» の判定 (LibraryView と
+    /// TranscriptionCoordinator.isQueuedOrRunningSameFile) でも同じ理由で使う
+    static func isSameFile(_ lhs: URL, _ rhs: URL) -> Bool {
         lhs.resolvingSymlinksInPath().standardizedFileURL.path
             == rhs.resolvingSymlinksInPath().standardizedFileURL.path
     }

@@ -2,6 +2,64 @@
   "sourceLanguage": "ja",
   "strings": {
     
+      "録画中のためゴミ箱に移せません": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Can't move to the Trash while a recording is in progress"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No se puede mover a la papelera mientras se está grabando"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "녹화가 진행 중이어서 휴지통으로 이동할 수 없습니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "录制进行中，无法移到废纸篓"
+            }
+          }
+        }
+      },
+      "保存先フォルダを読めなかったためゴミ箱に移せませんでした": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Couldn't read the destination folder, so nothing was moved to the Trash"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No se pudo leer la carpeta de destino, así que no se movió nada a la papelera"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "저장 폴더를 읽지 못해 휴지통으로 이동하지 않았습니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "无法读取保存文件夹，未移到废纸篓"
+            }
+          }
+        }
+      },
       "%@ をゴミ箱に移しました": {
         "extractionState": "manual",
         "localizations": {
@@ -35,27 +93,51 @@
         "extractionState": "manual",
         "localizations": {
           "en": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "Moved “%@” to the Trash — %lld transcript files remain, delete them in Finder"
+            "variations": {
+              "plural": {
+                "one": {
+                  "stringUnit": {
+                    "state": "translated",
+                    "value": "Moved “%@” to the Trash — %lld sidecar file remains, delete it in Finder"
+                  }
+                },
+                "other": {
+                  "stringUnit": {
+                    "state": "translated",
+                    "value": "Moved “%@” to the Trash — %lld sidecar files remain, delete them in Finder"
+                  }
+                }
+              }
             }
           },
           "es": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "«%@» se ha movido a la papelera: quedan %lld archivos de transcripción, bórralos en Finder"
+            "variations": {
+              "plural": {
+                "one": {
+                  "stringUnit": {
+                    "state": "translated",
+                    "value": "«%@» se ha movido a la papelera: queda %lld archivo de sidecar, bórralo en Finder"
+                  }
+                },
+                "other": {
+                  "stringUnit": {
+                    "state": "translated",
+                    "value": "«%@» se ha movido a la papelera: quedan %lld archivos de sidecar, bórralos en Finder"
+                  }
+                }
+              }
             }
           },
           "ko": {
             "stringUnit": {
               "state": "translated",
-              "value": "“%@”을(를) 휴지통으로 이동했습니다 — 남은 전사 파일 %lld개를 Finder에서 삭제해 주세요"
+              "value": "“%@”을(를) 휴지통으로 이동했습니다 — 남은 사이드카 파일 %lld개를 Finder에서 삭제해 주세요"
             }
           },
           "zh-Hans": {
             "stringUnit": {
               "state": "translated",
-              "value": "已将“%@”移到废纸篓 — 剩余 %lld 个文稿文件，请在 Finder 中删除"
+              "value": "已将“%@”移到废纸篓 — 剩余 %lld 个附属（sidecar）文件，请在 Finder 中删除"
             }
           }
         }
@@ -263,31 +345,31 @@
           }
         }
       },
-      "文字起こしが進行中のため移せません": {
+      "文字起こし・録画が進行中のため移せません": {
         "extractionState": "manual",
         "localizations": {
           "en": {
             "stringUnit": {
               "state": "translated",
-              "value": "Unavailable while transcription is running"
+              "value": "Unavailable while a transcription or recording is running"
             }
           },
           "es": {
             "stringUnit": {
               "state": "translated",
-              "value": "No disponible mientras se transcribe"
+              "value": "No disponible mientras se transcribe o se graba"
             }
           },
           "ko": {
             "stringUnit": {
               "state": "translated",
-              "value": "전사가 진행 중이어서 이동할 수 없습니다"
+              "value": "전사 또는 녹화가 진행 중이어서 이동할 수 없습니다"
             }
           },
           "zh-Hans": {
             "stringUnit": {
               "state": "translated",
-              "value": "文稿生成进行中，无法移动"
+              "value": "文稿生成或录制进行中，无法移动"
             }
           }
         }
