@@ -518,3 +518,13 @@ se evita la suspensión por inactividad).
 ```text
 Mientras grabas con vídeo, la pantalla del Mac ya no se suspende automáticamente. Si te alejas durante la grabación de una reunión, la pantalla sigue encendida, así que es mucho menos probable que la grabación pierda fotogramas o termine antes por una pantalla apagada. Al detener la grabación, el Mac vuelve normalmente a su comportamiento de suspensión (en raras ocasiones, si la llamada al sistema falla, la suspensión se reanuda en la siguiente grabación). Las grabaciones de solo audio funcionan igual que antes. Cerrar la tapa del portátil sigue suspendiendo el Mac. Las funciones de grabación, audio y transcripción no cambian.
 ```
+
+## Novedades (0.36.0)
+
+Mover grabaciones a la papelera desde la biblioteca (issue #523). El texto solo describe lo
+que existe (misma política que 0.35.0). La frase sobre los archivos del mismo nombre y la de
+«las transcripciones de otra grabación se quedan» describen la implementación con exactitud.
+
+```text
+Ya se pueden mover grabaciones a la papelera desde la biblioteca de grabaciones, para ordenar grabaciones antiguas de reuniones sin abrir Finder. Al mover una grabación también se mueven los archivos de transcripción y actas que comparten su nombre. Las transcripciones que pertenecen a otra grabación se quedan donde están. Las grabaciones en la papelera se pueden restaurar desde la papelera en Finder. No se pueden mover grabaciones que se estén transcribiendo o grabando.
+```

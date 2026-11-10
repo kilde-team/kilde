@@ -514,3 +514,14 @@ frames while the display is off).
 ```text
 While recording with video, your Mac's display no longer sleeps automatically. If you step away during a meeting recording, the display stays on, so a recording is much less likely to lose frames or end early because the display went dark. Stopping the recording restores the usual sleep behavior (in rare cases where the system call fails, sleep resumes at the next recording instead). Audio-only recordings behave as before. Closing a laptop lid still puts the Mac to sleep. Recording, audio, and transcription features are unchanged.
 ```
+
+## What's New (0.36.0)
+
+Moving recordings to the Trash from the library (issue #523). Copy states only what ships
+(same policy as 0.35.0). The same-named transcript/minutes sentence and the other-recording
+sentence both describe the implementation exactly (the delete side resolves which recording a
+sidecar belongs to). The in-progress sentence is the honest statement of the disabled controls.
+
+```text
+Recordings can now be moved to the Trash from the recording library, so old meeting recordings can be cleaned up without opening Finder. Moving a recording also moves the transcript and minutes files that share its name. Transcripts that belong to another recording stay where they are. Trashed recordings can be restored from the Trash in Finder. Recordings that are being transcribed or recorded cannot be moved.
+```
