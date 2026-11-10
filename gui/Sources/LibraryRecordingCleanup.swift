@@ -78,9 +78,18 @@ enum LibraryRecordingCleanup {
         let stem = recordingURL.deletingPathExtension().lastPathComponent
         let suffixSeparator = stem + "-"
         let transcriptExtensions = RecordingSetup.transcriptSidecarExtensions
-        let all = try FileManager.default.contentsOfDirectory(
-            at: directory, includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants])
+        let all: [URL]
+        do {
+            all = try FileManager.default.contentsOfDirectory(
+                at: directory, includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants])
+        } catch {
+            // 生の NSError をそのまま投げると呼び出し側が «読めなかった» を
+            // 区別できず、«Finder で削除してください» の案内に化ける
+            // (CodeRabbit レビュー指摘、issue #525 の PR #526 レビュー) ので、
+            // ここで CleanupError へ畳む
+            throw CleanupError.directoryUnreadable
+        }
         // «録画の stem» の集合 (この録画以外の、**一覧に載る録画形式** の通常ファイル)。
         // «別録画» の判定は LibraryStore.scan と同じ録画形式で絞る — 絞らないと
         // «kilde-a.log が kilde-a.json を主張する» ような、録画でないファイルに
