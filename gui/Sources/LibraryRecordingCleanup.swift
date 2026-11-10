@@ -78,9 +78,18 @@ enum LibraryRecordingCleanup {
         let stem = recordingURL.deletingPathExtension().lastPathComponent
         let suffixSeparator = stem + "-"
         let transcriptExtensions = RecordingSetup.transcriptSidecarExtensions
-        let all = try FileManager.default.contentsOfDirectory(
-            at: directory, includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants])
+        let all: [URL]
+        do {
+            all = try FileManager.default.contentsOfDirectory(
+                at: directory, includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles, .skipsSubdirectoryDescendants])
+        } catch {
+            // 生の NSError をそのまま投げると呼び出し側が «読めなかった» を
+            // 区別できず、«Finder で削除してください» の案内に化ける
+            // (CodeRabbit レビュー指摘、issue #525 の PR #526 レビュー) ので、
+            // ここで CleanupError へ畳む
+            throw CleanupError.directoryUnreadable
+        }
         // «録画の stem» の集合 (この録画以外の、**一覧に載る録画形式** の通常ファイル)。
         // «別録画» の判定は LibraryStore.scan と同じ録画形式で絞る — 絞らないと
         // «kilde-a.log が kilde-a.json を主張する» ような、録画でないファイルに
@@ -94,6 +103,26 @@ enum LibraryRecordingCleanup {
                 return LibraryStore.recordingExtensions.contains(url.pathExtension.lowercased())
             }
             .map { $0.deletingPathExtension().lastPathComponent })
+        // «候補のサイドカーを、この録画以外の録画がライブラリの対応規則で
+        // 自分のものにするか»。transcriptSidecar は «stem 完全一致» と
+        // «stem-数字 の枝番» の両方で対応づけるので、守る対象もその両方:
+        // - 候補の stem が別録画の stem と一致 (mov と取り込み音声 m4a の二重録画が
+        //   同じサイドカーを一覧で共有するケース)
+        // - 候補の stem が «別録画の stem-数字» (二重録画が枝番サイドカーを
+        //   共有するケース — CodeRabbit レビュー指摘、issue #525 の PR #526 レビュー)
+        // 守られたサイドカーは伴走に含めない — «消した録画の代わりに、残った
+        // 録画が文字起こしを失う» を起こさないため。
+        // 判定は候補ごとに «末尾の -数字 を 1 回剥がした親 stem» を Set で照合する —
+        // 候補ごとに全 stem を走査すると録画数に対して O(N²) になるため
+        // (cubic レビュー指摘)。«R-数字» に一致する R は、候補の末尾の
+        // -数字 を剥がしたものに限られる (R 自体は数字で終わらない)
+        func isClaimedByOtherRecording(_ candidateStem: String) -> Bool {
+            if recordingStems.contains(candidateStem) { return true }
+            guard let range = candidateStem.range(of: "-[0-9]+$", options: .regularExpression)
+            else { return false }
+            let parentStem = String(candidateStem[..<range.lowerBound])
+            return recordingStems.contains(parentStem)
+        }
         return all.filter { url in
             guard !isSameFile(url, recordingURL) else { return false }
             guard (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
@@ -102,8 +131,7 @@ enum LibraryRecordingCleanup {
                 return false
             }
             let candidate = url.deletingPathExtension().lastPathComponent
-            // «別の録画が自分の stem で主張している» サイドカーは残す
-            if recordingStems.contains(candidate) { return false }
+            if isClaimedByOtherRecording(candidate) { return false }
             if candidate == stem { return true }
             guard candidate.hasPrefix(suffixSeparator) else { return false }
             let digits = candidate.dropFirst(suffixSeparator.count)
