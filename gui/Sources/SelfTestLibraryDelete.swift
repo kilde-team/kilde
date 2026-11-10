@@ -129,10 +129,14 @@ enum SelfTestLibraryDelete {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyyMMdd-HHmmss"
         let stamp = formatter.string(from: Date())
-        let dummy = movies.appendingPathComponent("kilde-\(stamp)-selftest-trash.mov")
+        // 名前は UUID で一意化し、書き込みは withoutOverwriting — «たまたま同名の
+        // ファイルがあった» ときにそれを壊してからゴミ箱へ移す、を防ぐ
+        // (cubic レビュー指摘。秒精度の固定名は再実行・並行実行・既存ファイルと衝突する)
+        let dummy = movies.appendingPathComponent(
+            "kilde-\(stamp)-selftest-trash-\(UUID().uuidString).mov")
         let data = Data(repeating: 1, count: 64)
         do {
-            try data.write(to: dummy)
+            try data.write(to: dummy, options: .withoutOverwriting)
         } catch {
             print("selftest: library-delete-trash failed to create dummy in \(movies.path): \(error)")
             exit(1)

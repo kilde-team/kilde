@@ -234,6 +234,12 @@ struct LibraryView: View {
     /// «ゴミ箱へ移す» の結果表示 (成功・失敗)。nil は «表示なし»。録画を
     /// 切り替えても消さない — «一覧は消えた» 状態で案内も消えると理由が読めない
     @State private var deleteNotice: String?
+    /// ゴミ箱移動が 1 件進行中か (issue #523)。移動はバックグラウンド Task なので
+    /// 押した直後に次の削除を始められる — «同じ stem の録画を続けて削除» すると
+    /// «別録画の主張» の判定が移動前の一覧で行われ、共有サイドカーが
+    /// 取り残る/二重に移る (cubic レビュー指摘)。進行中は **すべての削除導線を
+    /// 無効化** して移動の収集から完了までを直列化する
+    @State private var isDeletingTrash = false
     /// «この URL は録画中の出力ファイルか» (issue #523)。録画中の録画は
     /// 一覧にも現れるので、削除導線の無効化と実行時の再確認に使う。
     /// LibraryWindowController が AppDelegate (RecordingController) から
@@ -473,7 +479,14 @@ struct LibraryView: View {
                                 Button(String(localized: "ゴミ箱に入れる…")) {
                                     requestDelete(entry)
                                 }
-                                .disabled(transcription.isQueuedOrRunningSameFile(entry.id)
+                                // 無効化は «押した時点» の軽い判定 (完全一致 + 録画中)。
+                                // canonical 比較 (symlink 解決 = IO) を描画ごとの全行で
+                                // 行うとネットワーク保存先で一覧が止まるため、表記違いの
+                                // 実行中文字起こしは «押せるが押すと案内が出る» に寄せ、
+                                // 実行時 (moveToTrash) の canonical 再確認が正門になる
+                                // (cubic レビュー指摘)
+                                .disabled(isDeletingTrash
+                                          || transcription.isQueuedOrRunning(entry.id)
                                           || canTrashRecording(entry.id))
                             }
                     }
@@ -491,7 +504,8 @@ struct LibraryView: View {
             LibraryDetailView(entry: entry, query: searching ? query : "",
                               hits: hits(for: entry), playback: playback,
                               transcription: transcription, pro: pro, settings: settings,
-                              canTrash: !transcription.isQueuedOrRunningSameFile(entry.id)
+                              canTrash: !isDeletingTrash
+                                  && !transcription.isQueuedOrRunning(entry.id)
                                   && !canTrashRecording(entry.id),
                               onTrash: { requestDelete(entry) })
         } else {
@@ -527,6 +541,13 @@ struct LibraryView: View {
         // `/var` ↔ `/private/var`、MAS コンテナ内 Movies の symlink など) ので、
         // canonical path で比べる — 完全一致だと «表記が違うだけで実行中の
         // 文字起こし» を通してしまう (cubic レビュー指摘)
+        // 2 件目の移動を始めない — «同じ stem の録画を続けて削除» すると、
+        // 後から始めた方の «別録画の主張» 判定が移動前の一覧で行われ、
+        // 共有サイドカーが取り残る (cubic レビュー指摘)
+        guard !isDeletingTrash else { return }
+        // 正門はここ (実行時点) の canonical 比較 — 描画時の無効化は軽い判定の
+        // ため、表記違い (symlink の /var ↔ /private/var、MAS コンテナ内 Movies の
+        // symlink など) の «実行中文字起こし» はここで止める (cubic レビュー指摘)
         guard !transcription.isQueuedOrRunningSameFile(entry.recordingURL) else {
             deleteNotice = String(localized: "文字起こしが進行中のためゴミ箱に移せません")
             return
@@ -535,6 +556,7 @@ struct LibraryView: View {
             deleteNotice = String(localized: "録画中のためゴミ箱に移せません")
             return
         }
+        isDeletingTrash = true
         // カスタム保存先 (サンドボックス) は security-scoped bookmark を開いてから
         // 触る — TranscriptionCoordinator.existingSidecar の探索と同じ形。
         // ~/Movies は entitlement のため bookmark は作られない (nil が返る)。
@@ -565,6 +587,7 @@ struct LibraryView: View {
                     trasher: LibraryRecordingCleanup.systemTrasher)
                 await MainActor.run {
                     self.finishMoveToTrash(entry: entry, leftovers: leftovers)
+                    self.isDeletingTrash = false
                 }
             } catch {
                 // «黙って失敗しない» — 権限の無い保存先・ネットワークボリュームでは
@@ -580,6 +603,7 @@ struct LibraryView: View {
                 }
                 await MainActor.run {
                     self.deleteNotice = notice
+                    self.isDeletingTrash = false
                 }
             }
         }

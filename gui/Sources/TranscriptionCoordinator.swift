@@ -231,7 +231,11 @@ final class TranscriptionCoordinator: ObservableObject {
     /// `/private/var`、MAS コンテナ内 Movies の symlink など) のときに
     /// «実行中なのに通ってしまい»、移動済みの録画を実行中のジョブが読み続ける
     /// (cubic レビュー指摘)。`LibraryRecordingCleanup.isSameFile` と同じ
-    /// symlink 解決の比較 «だけ» を使う — 完全一致は canonical 比較に含まれる
+    /// symlink 解決の比較 «だけ» を使う — 完全一致は canonical 比較に含まれる。
+    /// **実行時のゲート専用** — symlink 解決はファイルシステムへ触るため、
+    /// 一覧の描画ごとに全行で呼ぶとネットワーク保存先で MainActor が止まる
+    /// (描画時の無効化は軽い `isQueuedOrRunning` を使い、ここが正門。
+    /// cubic レビュー指摘)
     func isQueuedOrRunningSameFile(_ recordingURL: URL) -> Bool {
         let canonical = recordingURL.resolvingSymlinksInPath().standardizedFileURL.path
         if let running = running,

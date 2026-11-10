@@ -607,7 +607,10 @@ KILDE_GUI_SELFTEST_LIBRARY_DELETE=1 "$APP/Contents/MacOS/KildeGUI"
 «システムが移動を仲介する» 挙動の確認に使います:
 
 ```sh
-KILDE_GUI_SELFTEST_LIBRARY_DELETE_TRASH=1 "$APP/Contents/MacOS/KildeGUI"
+# 実行するのは **App Store ビルド (KildeGUI-AppStore)** — サンドボックスの
+# 有効なビルドで意味がある検証のため。例: Debug のアーカイブ生成物
+MAS_APP=~/Library/Developer/Xcode/DerivedData/KildeGUI-*/Build/Products/Debug/KildeGUI.app
+KILDE_GUI_SELFTEST_LIBRARY_DELETE_TRASH=1 "$MAS_APP/Contents/MacOS/KildeGUI"
 # → selftest: library-delete-trash OK: ~/Movies のファイルをゴミ箱へ移動できた (kilde-…-selftest-trash.mov → /Users/<ユーザー>/.Trash/kilde-…-selftest-trash.mov, reachable=true)
 #   selftest: library-delete-trash NOTE: ダミーファイルはゴミ箱に残っています — 復元・削除は Finder でお願いします
 ```
@@ -624,7 +627,7 @@ KILDE_GUI_SELFTEST_LIBRARY_DELETE_TRASH=1 "$APP/Contents/MacOS/KildeGUI"
 (同じ名前の **録画形式** のファイル、たとえば `-2.m4a` は一緒に移りません)。
 `-2.m4a` のような «枝番 stem の別録画» があるとき、その録画のサイドカー
 (`-2.json`) は «そちらの録画のもの» として残ります — 消した録画の代わりに、
-残った録画が文字越しを失わないためです (二重録画が無ければ `-2.json` は
+残った録画が文字起こしを失わないためです (二重録画が無ければ `-2.json` は
 通常どおり一緒に移ります)。
 
 ### 設定の引き継ぎ (録画開始時の保存 → 次回起動時の復元) を確かめる (issue #345 / #372)

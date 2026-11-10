@@ -10,7 +10,7 @@ import KildeCore
 /// 移せなかったときはサイドカーに触らず投げて戻す — «本体が残ってサイドカー
 /// だけ消える» という半端な状態を作らない。**保存先フォルダが読めなかったときも
 /// 何も移さない** — «サイドカーの候補が分からない» 状態で本体だけ移すと、
-/// 残ったサイドカーが次の走査で «文字越しの無い録画» に見えてしまう
+/// 残ったサイドカーが次の走査で «文字起こしの無い録画» に見えてしまう
 /// (cubic レビュー指摘 — issue #523 の PR #524 レビュー)
 ///
 /// UI 側 (LibraryView) は @MainActor だが、この enum は Pure 表示の
@@ -117,7 +117,7 @@ enum LibraryRecordingCleanup {
     /// (`/private/var/folders/…`) は URL 同士の等価で false になるため
     /// (LibraryView.isSameDirectory と同じ正規化。表記が混ざると «録画本体の除外»
     /// が効かず、録画自身が «自分の stem を主張する別録画» に見えてサイドカーを
-    /// 1 件も集められなくなる)。«録画中・文字越し中» の判定 (LibraryView と
+    /// 1 件も集められなくなる)。«録画中・文字起こし中» の判定 (LibraryView と
     /// TranscriptionCoordinator.isQueuedOrRunningSameFile) でも同じ理由で使う
     static func isSameFile(_ lhs: URL, _ rhs: URL) -> Bool {
         lhs.resolvingSymlinksInPath().standardizedFileURL.path
