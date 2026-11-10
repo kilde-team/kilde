@@ -93,6 +93,7 @@ enum SelfTestLibraryDelete {
         checkLeftoverCompanion(folder: folder, trash: trash)
         checkNoCompanion(folder: folder)
         checkBranchWithoutTwin(folder: folder, trash: trash)
+        checkSharedBranchSidecar(root: root, trash: trash)
         checkLogDoesNotClaim(folder: folder)
         checkUnreadableDirectory()
 
@@ -349,6 +350,52 @@ enum SelfTestLibraryDelete {
         } catch {
             check(false, "枝番付きの移動に成功する (エラー \(error))")
         }
+    }
+
+    /// «同じ stem の二重録画 (mov と m4a) が枝番サイドカーを共有する» ケース —
+    /// ライブラリは `a-2.json` を «stem-数字» の規則でどちらの録画にも対応づける。
+    /// a.mov を消すとき、残る a.m4a がその文字越しを失わないように枝番サイドカーを
+    /// 守る (CodeRabbit レビュー指摘、issue #525 の PR #526 レビュー)
+    private static func checkSharedBranchSidecar(root: URL, trash: URL) {
+        let folder = root.appendingPathComponent("保存先2")
+        do {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        } catch {
+            print("selftest: library-delete failed to create temp dir: \(error)")
+            failures += 1
+            return
+        }
+        let stem = "kilde-20270109-111213"
+        let mov = folder.appendingPathComponent("\(stem).mov")
+        let m4a = folder.appendingPathComponent("\(stem).m4a")
+        let branch = folder.appendingPathComponent("\(stem)-2.json")
+        createFile(mov, bytes: 16)
+        createFile(m4a, bytes: 16)
+        createFile(branch, bytes: 8)
+        let companions = collectCompanions(mov, in: folder)
+        check(companions.isEmpty,
+              "同じ stem の二重録画が主張する枝番サイドカーは伴走に含まれない (実際 \(companions.count) 件)")
+        let stubTrasher: LibraryRecordingCleanup.Trasher = { url in
+            let destination = trash.appendingPathComponent(url.lastPathComponent)
+            try FileManager.default.moveItem(at: url, to: destination)
+            return destination
+        }
+        do {
+            _ = try LibraryRecordingCleanup.moveToTrash(
+                recording: mov, companionFiles: companions, trasher: stubTrasher)
+            check(!FileManager.default.fileExists(atPath: mov.path),
+                  "消した録画 (mov) はフォルダから消える")
+        } catch {
+            check(false, "録画本体だけの移動に成功する (エラー \(error))")
+        }
+        check(FileManager.default.fileExists(atPath: branch.path),
+              "枝番サイドカー (-2.json) は残る")
+        check(FileManager.default.fileExists(atPath: m4a.path),
+              "残った録画 (m4a) は残る")
+        let entries = LibraryStore.scan(directory: folder) ?? []
+        check(entries.first?.recordingURL.lastPathComponent == m4a.lastPathComponent
+              && entries.first?.transcriptURL?.lastPathComponent == branch.lastPathComponent,
+              "残った録画 (m4a) は枝番サイドカーを文字越しとして保持する")
     }
 
     /// «録画形式でないファイルは別録画として主張しない» — `kilde-a.log` が

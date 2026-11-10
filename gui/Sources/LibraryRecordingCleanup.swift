@@ -94,6 +94,25 @@ enum LibraryRecordingCleanup {
                 return LibraryStore.recordingExtensions.contains(url.pathExtension.lowercased())
             }
             .map { $0.deletingPathExtension().lastPathComponent })
+        // «候補のサイドカーを、この録画以外の録画がライブラリの対応規則で
+        // 自分のものにするか»。transcriptSidecar は «stem 完全一致» と
+        // «stem-数字 の枝番» の両方で対応づけるので、守る対象もその両方:
+        // - 候補の stem が別録画の stem と一致 (mov と取り込み音声 m4a の二重録画が
+        //   同じサイドカーを一覧で共有するケース)
+        // - 候補の stem が «別録画の stem-数字» (二重録画が枝番サイドカーを
+        //   共有するケース — CodeRabbit レビュー指摘、issue #525 の PR #526 レビュー)
+        // 守られたサイドカーは伴走に含めない — «消した録画の代わりに、残った
+        // 録画が文字越しを失う» を起こさないため
+        func isClaimedByOtherRecording(_ candidateStem: String) -> Bool {
+            if recordingStems.contains(candidateStem) { return true }
+            for otherStem in recordingStems {
+                let otherSuffix = otherStem + "-"
+                guard candidateStem.hasPrefix(otherSuffix) else { continue }
+                let digits = candidateStem.dropFirst(otherSuffix.count)
+                if !digits.isEmpty && digits.allSatisfy(\.isNumber) { return true }
+            }
+            return false
+        }
         return all.filter { url in
             guard !isSameFile(url, recordingURL) else { return false }
             guard (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
@@ -102,8 +121,7 @@ enum LibraryRecordingCleanup {
                 return false
             }
             let candidate = url.deletingPathExtension().lastPathComponent
-            // «別の録画が自分の stem で主張している» サイドカーは残す
-            if recordingStems.contains(candidate) { return false }
+            if isClaimedByOtherRecording(candidate) { return false }
             if candidate == stem { return true }
             guard candidate.hasPrefix(suffixSeparator) else { return false }
             let digits = candidate.dropFirst(suffixSeparator.count)
