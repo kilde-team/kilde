@@ -535,5 +535,5 @@ implementation exactly. The "kilde-" prefix sentence is the honest statement of 
 library's listing contract (LibraryStore.scan).
 
 ```text
-Recordings can now be renamed from the recording library, so the auto-generated "kilde-<date>" names can become names that say what each meeting was (the leading "kilde-" stays). Renaming applies to the recording file and the transcript and minutes files that share its name; file extensions stay the same. Files of other recordings are not touched. If a file with the same name already exists, nothing is renamed and the app tells you. Recordings that are being transcribed or recorded cannot be renamed.
+Recordings can now be renamed from the recording library, so the auto-generated "kilde-" names (with the date and time) can become names that say what each meeting was (the leading "kilde-" stays). Renaming applies to the recording file and the transcript and minutes files that share its name; file extensions stay the same. Files of other recordings are not touched. If a file with the same name already exists, nothing is renamed and the app tells you. Recordings that are being transcribed or recorded cannot be renamed.
 ```
