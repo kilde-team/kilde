@@ -538,5 +538,5 @@ implementación con exactitud. La frase del prefijo «kilde-» es la declaració
 contrato de listado de la biblioteca.
 
 ```text
-Ya se puede cambiar el nombre de las grabaciones desde la biblioteca de grabaciones, para convertir los nombres automáticos («kilde-<fecha>») en nombres que digan de qué trató cada reunión (se conserva el prefijo «kilde-»). El cambio se aplica al archivo de grabación y a los archivos de transcripción y actas que comparten su nombre; las extensiones no cambian. Los archivos de otras grabaciones no se tocan. Si ya existe un archivo con el mismo nombre, no se cambia nada y la aplicación avisa. No se puede cambiar el nombre de grabaciones que se estén transcribiendo o grabando.
+Ya se puede cambiar el nombre de las grabaciones desde la biblioteca de grabaciones, para convertir los nombres automáticos («kilde-» con fecha y hora) en nombres que digan de qué trató cada reunión (se conserva el prefijo «kilde-»). El cambio se aplica al archivo de grabación y a los archivos de transcripción y actas que comparten su nombre; las extensiones no cambian. Los archivos de otras grabaciones no se tocan. Si ya existe un archivo con el mismo nombre, no se cambia nada y la aplicación avisa. No se puede cambiar el nombre de grabaciones que se estén transcribiendo o grabando.
 ```
