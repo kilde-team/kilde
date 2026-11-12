@@ -540,3 +540,18 @@ contrato de listado de la biblioteca.
 ```text
 Ya se puede cambiar el nombre de las grabaciones desde la biblioteca de grabaciones, para convertir los nombres automáticos («kilde-» con fecha y hora) en nombres que digan de qué trató cada reunión (se conserva el prefijo «kilde-»). El cambio se aplica al archivo de grabación y a los archivos de transcripción y actas que comparten su nombre; las extensiones no cambian. Los archivos de otras grabaciones no se tocan. Si ya existe un archivo con el mismo nombre, no se cambia nada y la aplicación avisa. No se puede cambiar el nombre de grabaciones que se estén transcribiendo o grabando.
 ```
+
+## Novedades (0.38.0)
+
+Cuarta función Pro: preguntas y respuestas sobre la transcripción (issue #540, motor
+kilde-cli-swift#141). El texto solo dice lo que existe (misma política que 0.29.0).
+El botón «Preguntar» (añadido a la barra de detalles de grabaciones con
+transcripción) y las líneas de la transcripción en las que se basa la respuesta (que
+devuelve la ruta de extracción) describen la implementación con exactitud. «Sin
+compra adicional» sigue el contrato del producto único kilde.pro, y «La grabación y
+la transcripción siguen siendo gratuitas» indica con honestidad el reparto
+gratuito/Pro.
+
+```text
+Pro ahora incluye «Preguntas y respuestas». Selecciona una grabación con transcripción en la biblioteca y pregunta desde «Preguntar», y la aplicación busca la respuesta en la transcripción de esa grabación (puedes preguntar cosas como «¿Qué se decidió en esta reunión?» y, en transcripciones largas, también muestra las líneas de la transcripción en las que se basa la respuesta. Procesamiento en el dispositivo con Apple Intelligence; macOS 26 o posterior. No está disponible si Apple Intelligence no está activado). Si ya compraste Pro, funciona sin compra adicional. La grabación y la transcripción son gratuitas actualmente.
+```
