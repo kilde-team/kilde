@@ -72,9 +72,17 @@ struct LibraryQASheet: View {
                 .lineLimit(2...5)
                 .disabled(isAsking)
                 .onChange(of: question) { _, newValue in
-                    let normalized = LibraryQASupport.normalizedQuestion(newValue)
-                    if normalized != newValue {
-                        question = normalized
+                    // 入力 «中» は前後の空白を保つ — 正規化 (trim) を入力ごとに
+                    // 行うと «文末の空白を入れた瞬間に消える» ので質問文が
+                    // 編集しにくい (CodeRabbit レビュー指摘)。上限を超えたときだけ
+                    // 切り詰め、«実質空» の正規化は «答えを得る» の押下時
+                    // (ask の normalizedQuestion) に行う。単一録画版
+                    // (TranscriptQASheet) は trim を入力ごとに行っているが、
+                    // こちらは «押下時に正規化» に寄せた — エンジンの
+                    // normalizeQuestion が最終的な正本なので挙動の差は
+                    // 利用者に見えない
+                    if newValue.count > LibraryQASupport.maxQuestionLength {
+                        question = LibraryQASupport.normalizedQuestion(newValue)
                     }
                 }
 

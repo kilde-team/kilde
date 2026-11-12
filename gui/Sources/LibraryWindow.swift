@@ -272,11 +272,11 @@ struct LibraryView: View {
     /// «ライブラリに質問» のシート (issue #547) を出しているか
     @State private var showsLibraryQA = false
     /// 書き起こしを持つ録画が 1 件以上あるか («ライブラリに質問» の有効条件)。
-    /// LibraryEntry.segments が非 nil かつ非空の録画を数える
+    /// 判定は LibraryQASupport が担う («空白でない本文» を持つセグメントが
+    /// あること — 空 cue だけの SRT / VTT を «文字起こし済み» としないため。
+    /// 写像 (recordings) と判定を共有する)
     private var hasTranscribedRecording: Bool {
-        store.entries.contains { entry in
-            entry.segments.map { !$0.isEmpty } ?? false
-        }
+        store.entries.contains { LibraryQASupport.hasNonEmptySegments($0) }
     }
 
     /// «名前を変更» ダイアログのタイトル。対象のファイル名を載せる —

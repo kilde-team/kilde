@@ -60,19 +60,36 @@ enum LibraryQASupport {
         TranscriptQASupport.normalizedQuestion(raw)
     }
 
+    /// «書き起こしを持つ» 判定の本体。**空白でない本文を持つセグメントが
+    /// 1 つでもあること**を条件にする — SRT / VTT の «空 cue» (本文が空の
+    /// セグメント) だけのサイドカーを «文字起こし済み» とみなすと、ボタンが
+    /// 有効になるのに質問の文脈が空で «意味のない回答 / 空ライブラリ相当の
+    /// 失敗» になるため (cubic レビュー指摘)。ボタンの有効条件と写像の
+    /// 両方でこの判定を共有する
+    static func hasNonEmptySegments(_ entry: LibraryEntry) -> Bool {
+        entry.segments.map { segments in
+            segments.contains { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        } ?? false
+    }
+
     /// ライブラリの録画一覧 (LibraryEntry) をエンジンの `LibraryRecording` へ
-    /// 写像する。**書き起こしを持つ録画だけ**を渡す — 空の録画はエンジンの選定で
-    /// 除外されるが、GUI 側でも落としておくと «ライブラリ全体» の意味が
-    /// 明確になる (検索・根拠の対象はあくまで文字起こし済みの録画)。
-    /// ライブラリの索引 (LibrarySegment) は**話者を保持しない**ため speaker は
-    /// nil (TranscriptQASheet と同じ制約 — 話者の保持は索引の拡張で別 issue)
+    /// 写像する。**«空白でない本文» を持つセグメントのある録画だけ**を渡す
+    /// (上の hasNonEmptySegments と同じ判定 — ボタンの有効条件と写像が
+    /// 満たす録画を揃えるため)。空 cue のセグメントは落とす (質問の文脈に
+    /// 空文字列を混ぜない)。ライブラリの索引 (LibrarySegment) は**話者を
+    /// 保持しない**ため speaker は nil (TranscriptQASheet と同じ制約 —
+    /// 話者の保持は索引の拡張で別 issue)
     static func recordings(from entries: [LibraryEntry]) -> [LibraryRecording] {
         entries.compactMap { entry in
-            guard let segments = entry.segments, !segments.isEmpty else { return nil }
+            guard let segments = entry.segments else { return nil }
+            let usable = segments.filter {
+                !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            }
+            guard !usable.isEmpty else { return nil }
             return LibraryRecording(
                 title: entry.recordingURL.deletingPathExtension().lastPathComponent,
                 recordedAt: entry.recordedAt,
-                segments: segments.map {
+                segments: usable.map {
                     TranscriptSegment(
                         start: $0.start, end: $0.end, text: $0.text, speaker: nil)
                 })

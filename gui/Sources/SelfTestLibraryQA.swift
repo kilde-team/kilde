@@ -122,9 +122,26 @@ enum SelfTestLibraryQA {
             ])
         let mapped = LibraryQASupport.recordings(from: [withoutTranscript, withTranscript])
         check(mapped.count == 1, "recordings maps only transcribed entries")
-        check(mapped[0].segments.count == 2, "recordings maps all segments")
-        check(mapped[0].segments.allSatisfy { $0.speaker == nil },
-              "recordings maps speaker as nil (index keeps no speakers)")
+        // 強制インデックスを避ける — 写像チェックが失敗したときに
+        // セルフテスト自体がクラッシュすると失敗集計と残りの検証が出せない
+        // (cubic レビュー指摘)
+        let first = mapped.first
+        check(first.map { $0.segments.count == 2 } ?? false, "recordings maps all segments")
+        check(first.map { recording in
+            recording.segments.allSatisfy { $0.speaker == nil }
+        } ?? false, "recordings maps speaker as nil (index keeps no speakers)")
+        // 空 cue (空白のみの本文) だけのサイドカーは «文字起こし済み» にしない —
+        // ボタンが有効になるのに質問の文脈が空になるため (cubic レビュー指摘)
+        let emptyCue = LibraryEntry(
+            id: URL(fileURLWithPath: "/tmp/c.mp4"),
+            recordingURL: URL(fileURLWithPath: "/tmp/c.mp4"),
+            transcriptURL: URL(fileURLWithPath: "/tmp/c.json"),
+            recordedAt: Date(),
+            segments: [LibrarySegment(start: 0, end: 2, text: "   ")])
+        check(!LibraryQASupport.hasNonEmptySegments(emptyCue),
+              "empty-cue sidecar is not transcribed")
+        check(LibraryQASupport.recordings(from: [emptyCue]).isEmpty,
+              "recordings drops empty-cue entries")
 
         // 8) エンジンの検索 (LibrarySearch) — 部分一致の純粋照合が GUI 側からも
         //    使える (公開 API)。«実質空» の語は空、ヒット行には時刻接頭辞が付く
@@ -134,8 +151,12 @@ enum SelfTestLibraryQA {
         check(LibrarySearch.search(term: "   ", in: mapped).isEmpty,
               "LibrarySearch returns no results for a whitespace-only term")
 
-        // 9) 計測イベントが Firebase 未初期化で安全な no-op になる
-        //    (qa_* と同じ — 自セルフテストでは configure しない)
+        // 9) 計測イベントが Firebase 未初期化で安全な no-op になる。
+        //    «未初期化» 自体も表明する — Firebase の初期化が回帰すると
+        //    «Debug セルフテストが本番 Firebase に送る» 状態に気づけないため
+        //    (cubic レビュー指摘。Debug は configure しない仕様 — CLAUDE.md §5-22)
+        check(FirebaseApp.app() == nil,
+              "Firebase is not initialized in the self-test process")
         UsageAnalytics.libraryQAStarted()
         UsageAnalytics.libraryQACompleted(processingTime: nil)
         UsageAnalytics.libraryQAFailed(
@@ -177,10 +198,22 @@ enum SelfTestLibraryQA {
     }
 
     /// 実モデルでの質問応答 (任意実行)。合成録画 2 件のライブラリに
-    /// «予算はいくら?» を投げ、回答と根拠を標準出力に出す
+    /// «予算はいくら?» を投げ、回答と根拠を標準出力に出す。
+    /// 権利判定は **ProCoordinator (enabled: false) のライセンス** を使う —
+    /// `license: nil` (CLI 経路) を使うと MAS の未購入ビルドでもゲートを
+    /// 迂回して実モデルを呼び、«権限付き GUI 経路» の検証にならないため
+    /// (SelfTestTranscriptQA.runLiveAnswer と同じ cubic レビュー経緯)。
+    /// MAS の未購入ビルドではゲートが弾くため FAIL ではなく SKIP にする。
+    /// 失敗は check(false) で記録する (直接 failures を触ると
+    /// PASS/FAIL の件数表示がずれるため)
     private static func runLive() async {
+        let license = ProCoordinator(enabled: false).license
+        guard license.allows(.libraryQA) else {
+            print("selftest: library_qa LIVE SKIP: このビルドの権利では Pro 機能がロックされています (MAS ビルド)")
+            return
+        }
         guard MeetingSummarizer.unsupportedReason == nil else {
-            print("selftest: library_qa SKIP live (Apple Intelligence が使えない環境)")
+            print("selftest: library_qa LIVE SKIP: Apple Intelligence が使えない環境")
             return
         }
         let library = [
@@ -198,12 +231,15 @@ enum SelfTestLibraryQA {
         ]
         do {
             let answer = try await LibraryQA.answer(
-                question: "予算はいくら?", recordings: library, license: nil)
+                question: "予算はいくら?", recordings: library, license: license)
             print("selftest: library_qa live answer: \(answer.text)")
             print("selftest: library_qa live excerpts: \(answer.excerpts)")
+        } catch let error as LibraryQA.Unavailable {
+            // 実行時にも非対応を返しうる — «非対応環境は SKIP して
+            // 失敗に数えない» の契約に従う (cubic レビュー指摘)
+            print("selftest: library_qa LIVE SKIP: \(error)")
         } catch {
-            print("selftest: library_qa live FAIL: \(error)")
-            failures += 1
+            check(false, "live generation fails: \(error)")
         }
     }
 }
