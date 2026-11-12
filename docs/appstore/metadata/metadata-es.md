@@ -555,3 +555,18 @@ gratuito/Pro.
 ```text
 Pro ahora incluye «Preguntas y respuestas». Selecciona una grabación con transcripción en la biblioteca y pregunta desde «Preguntar», y la aplicación busca la respuesta en la transcripción de esa grabación (puedes preguntar cosas como «¿Qué se decidió en esta reunión?» y, en transcripciones largas, también muestra las líneas de la transcripción en las que se basa la respuesta. Procesamiento en el dispositivo con Apple Intelligence; macOS 26 o posterior. No está disponible si Apple Intelligence no está activado). Si ya compraste Pro, funciona sin compra adicional. La grabación y la transcripción son gratuitas actualmente.
 ```
+
+## Novedades (0.39.0)
+
+La quinta función Pro: preguntas y búsqueda en toda la biblioteca (issue #547, motor kilde-cli-swift#145).
+El texto solo describe lo que está implementado (misma política que 0.38.0). El botón «Preguntar a la
+biblioteca» (añadido a la barra de búsqueda de la ventana de la biblioteca — activo solo cuando hay una
+grabación transcrita), las fuentes de la respuesta (qué reunión y qué líneas — los extractos «reunión:
+línea» que devuelve el motor) y «las grabaciones que contienen tus términos de búsqueda se priorizan»
+(el campo de búsqueda se pasa como términos de selección) son descripciones exactas de la implementación.
+«Sin compra adicional» sigue el contrato de un solo producto kilde.pro, y «La grabación y la transcripción
+son actualmente gratuitas» indica honestamente la línea entre lo gratuito y Pro.
+
+```text
+Pro ahora incluye «Preguntar a la biblioteca». Desde «Preguntar a la biblioteca» en la biblioteca de grabaciones, la app busca la respuesta a través de varias grabaciones transcritas y también muestra las fuentes de la respuesta (en qué reunión y en qué líneas se basa). Puedes preguntar cosas como «¿Qué se decidió en estas reuniones?» y, si escribes palabras en el campo de búsqueda, se priorizan las grabaciones que las contienen. Procesamiento en el dispositivo con Apple Intelligence; macOS 26 o posterior. No disponible si Apple Intelligence no está activado. Si ya compraste Pro, funciona sin compra adicional. La grabación y la transcripción son actualmente gratuitas.
+```
