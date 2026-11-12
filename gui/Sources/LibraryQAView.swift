@@ -82,7 +82,13 @@ struct LibraryQASheet: View {
                     // normalizeQuestion が最終的な正本なので挙動の差は
                     // 利用者に見えない
                     if newValue.count > LibraryQASupport.maxQuestionLength {
-                        question = LibraryQASupport.normalizedQuestion(newValue)
+                        // 上限超過のときは **切り詰めだけ** を行う — trim まで
+                        // 行うと «文末の空白を入れた瞬間に消える» が上限超過の
+                        // 編集でも起き、この変更の意図 («入力中は空白を保つ»)
+                        // と矛盾するため (cubic 再レビュー指摘)。trim は
+                        // «答えを得る» の押下時 (ask の normalizedQuestion) に
+                        // 限定する
+                        question = String(newValue.prefix(LibraryQASupport.maxQuestionLength))
                     }
                 }
 
