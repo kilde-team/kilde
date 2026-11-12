@@ -58,7 +58,7 @@ struct TranscriptQASheet: View {
                         .controlSize(.small)
                 }
             }
-            Text(String(localized: "この録画の書き起こしについて質問します (端末内で処理します)"))
+            Text(String(localized: "この録画の文字起こしについて質問します (端末内で処理します)"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -72,6 +72,16 @@ struct TranscriptQASheet: View {
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(2...5)
                 .disabled(isAsking)
+                // 入力欄で上限を適用する — 超過分を «答えを得る» の押下時に黙って
+                // 切り捨てない (cubic レビュー指摘。エンジンの
+                // TranscriptQA.maxQuestionLength と同じ値 — TranscriptQASupport の
+                // コメント参照)
+                .onChange(of: question) { _, newValue in
+                    let normalized = TranscriptQASupport.normalizedQuestion(newValue)
+                    if normalized != newValue {
+                        question = normalized
+                    }
+                }
 
             if isAsking {
                 ProgressView(value: progress)
@@ -108,9 +118,12 @@ struct TranscriptQASheet: View {
                     .disabled(isAsking)
                 }
                 Spacer()
+                // «閉じる» は実行中でも押せる — 押すとシートが閉じて onDisappear が
+                // 実行をキャンセルする («閉じたらキャンセルでよい» の契約)。
+                // 実行中に無効化すると «途中で止めて閉じる» 手段がなくなり、
+                // この契約と矛盾するため (cubic レビュー指摘)
                 Button(String(localized: "閉じる")) { dismiss() }
                     .buttonStyle(.borderless)
-                    .disabled(isAsking)
             }
 
             if let failureText {
@@ -164,7 +177,7 @@ struct TranscriptQASheet: View {
                     }
                     if TranscriptQASupport.hasExcerpts(answer) {
                         Divider()
-                        Text(String(localized: "根拠 (書き起こしの行)"))
+                        Text(String(localized: "根拠 (文字起こしの行)"))
                             .font(.caption.bold())
                             .foregroundStyle(.secondary)
                         ForEach(Array(answer.excerpts.enumerated()), id: \.offset) { _, line in

@@ -115,7 +115,7 @@ enum SelfTestTranscriptQA {
             text: "月曜 10 時にリリース",
             excerpts: ["[10:05] リリースは月曜 10 時でいきます"])
         check(TranscriptQASupport.clipboardText(for: grounded)
-              == "月曜 10 時にリリース\n\n—\n根拠 (書き起こしの行):\n[10:05] リリースは月曜 10 時でいきます",
+              == "月曜 10 時にリリース\n\n—\n根拠 (文字起こしの行):\n[10:05] リリースは月曜 10 時でいきます",
               "clipboard text appends the excerpt section when grounded")
 
         // 7) 計測イベント (qa_*) は Firebase 未初期化 (セルフテスト) で
@@ -135,7 +135,17 @@ enum SelfTestTranscriptQA {
             await runLiveAnswer()
 
             // 長い書き起こし (チャンク分割で抽出経路に分岐する長さ) でも回答が
-            // 得られることを確かめる。«抜粋が返る» こと自体はモデル依存 (抽出が
+            // 得られることを確かめる。権利判定は runLiveAnswer と同じ —
+            // MAS 未購入ビルドではゲートが弾くため FAIL ではなく SKIP にする
+            // (このブロックは権利チェックを持たず、Unavailable 以外のエラーは
+            // check(false) に落ちるため、判定を先に済ませる)
+            let longLicense = ProCoordinator(enabled: false).license
+            guard longLicense.allows(.transcriptQA) else {
+                print("selftest: qa LIVE (long) SKIP: このビルドの権利では Pro 機能がロックされています (MAS ビルド)")
+                print("selftest: qa PASS=\(total - failures) FAIL=\(failures)")
+                exit(failures == 0 ? 0 : 1)
+            }
+            // «抜粋が返る» こと自体はモデル依存 (抽出が
             // 空を返すと «見つからない» が正しい挙動) のため表明にせず、
             // **抜粋が返ったときその行は書き起こしの描画行に存在する**
             // (エンジンの原文照合 — kilde-cli-swift#143) ことだけを縛る。
@@ -155,7 +165,7 @@ enum SelfTestTranscriptQA {
                     question: "ポータルのリニューアルの時期はいつに決まりましたか?",
                     transcript: longTranscript,
                     title: "抽出経路の検証",
-                    license: ProCoordinator(enabled: false).license)
+                    license: longLicense)
                 check(!qa.text.isEmpty, "long transcript QA produced a non-empty reply")
                 let renderedLines = Set(longTranscript.map { segment in
                     "[\(Int(segment.start) / 60):\(String(format: "%02d", Int(segment.start) % 60))] \(segment.text)"

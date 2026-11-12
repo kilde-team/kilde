@@ -45,7 +45,7 @@ enum TranscriptQASupport {
         if !hasTranscript {
             return String(localized: "質問応答には文字起こしが必要です («文字起こしを作成» で作れます)")
         }
-        return String(localized: "録った会議の書き起こしについて質問して、答えを得ます (端末内で処理します)")
+        return String(localized: "録った会議の文字起こしについて質問して、答えを得ます (端末内で処理します)")
     }
 
     /// シートの «答えを得る» ボタンの有効条件。質問が «実質空» (空白のみ) のときは
@@ -82,7 +82,7 @@ enum TranscriptQASupport {
     /// 根拠が無い (全体を直接見た短い回答) ときは本文のみ
     static func clipboardText(for answer: TranscriptAnswer) -> String {
         guard hasExcerpts(answer) else { return answer.text }
-        return answer.text + "\n\n—\n" + "根拠 (書き起こしの行):\n"
+        return answer.text + "\n\n—\n" + "根拠 (文字起こしの行):\n"
             + answer.excerpts.joined(separator: "\n")
     }
 }

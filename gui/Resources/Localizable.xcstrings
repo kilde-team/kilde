@@ -60,7 +60,7 @@
           }
         }
       },
-      "この録画の書き起こしについて質問します (端末内で処理します)": {
+      "この録画の文字起こしについて質問します (端末内で処理します)": {
         "extractionState": "manual",
         "localizations": {
           "en": {
@@ -89,7 +89,7 @@
           }
         }
       },
-      "録った会議の書き起こしについて質問して、答えを得ます (端末内で処理します)": {
+      "録った会議の文字起こしについて質問して、答えを得ます (端末内で処理します)": {
         "extractionState": "manual",
         "localizations": {
           "en": {
@@ -379,7 +379,7 @@
           }
         }
       },
-      "根拠 (書き起こしの行)": {
+      "根拠 (文字起こしの行)": {
         "extractionState": "manual",
         "localizations": {
           "en": {
@@ -8737,31 +8737,31 @@
           }
         }
       },
-    "要約とフォローアップの下書きに、ここで指定した内容が反映されます (処理は端末内で完結し、入力が外部に送られることはありません)": {
+    "要約・フォローアップの下書き・質問応答に、ここで指定した内容が反映されます (処理は端末内で完結し、入力が外部に送られることはありません)": {
         "extractionState": "manual",
         "localizations": {
           "en": {
             "stringUnit": {
               "state": "translated",
-              "value": "Your instructions are applied to meeting summaries and follow-up drafts (processed entirely on-device; nothing you enter leaves your Mac)"
+              "value": "Your instructions are applied to meeting summaries, follow-up drafts, and Q&A (processed entirely on-device; nothing you enter leaves your Mac)"
             }
           },
           "es": {
             "stringUnit": {
               "state": "translated",
-              "value": "Tus instrucciones se aplican a los resúmenes y borradores de seguimiento (procesado íntegramente en el dispositivo; nada de lo que escribas sale de tu Mac)"
+              "value": "Tus instrucciones se aplican a los resúmenes, borradores de seguimiento y preguntas y respuestas (procesado íntegramente en el dispositivo; nada de lo que escribas sale de tu Mac)"
             }
           },
           "ko": {
             "stringUnit": {
               "state": "translated",
-              "value": "여기서 지정한 내용이 요약과 후속 메시지 초안에 반영됩니다(기기에서 처리되며 입력이 외부로 전송되지 않습니다)"
+              "value": "여기서 지정한 내용이 요약, 후속 메시지 초안, 질문 응답에 반영됩니다(기기에서 처리되며 입력이 외부로 전송되지 않습니다)"
             }
           },
           "zh-Hans": {
             "stringUnit": {
               "state": "translated",
-              "value": "此处指定的内容将应用于会议摘要和后续跟进草稿（全部在本机处理，输入不会发送到外部）"
+              "value": "此处指定的内容将应用于会议摘要、后续跟进草稿和问答（全部在本机处理，输入不会发送到外部）"
             }
           }
         }

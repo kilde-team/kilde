@@ -390,7 +390,7 @@ struct SettingsPaneView: View {
                     .font(.caption)
                     .bold()
             }
-            Text("要約とフォローアップの下書きに、ここで指定した内容が反映されます (処理は端末内で完結し、入力が外部に送られることはありません)")
+            Text("要約・フォローアップの下書き・質問応答に、ここで指定した内容が反映されます (処理は端末内で完結し、入力が外部に送られることはありません)")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
