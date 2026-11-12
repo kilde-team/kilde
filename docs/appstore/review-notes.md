@@ -49,7 +49,7 @@ auto-recording, and analytics opt-out.
 
 **Data handling:** transcription and AI features run **entirely on this
 device** (SpeechTranscriber / Apple Intelligence); no audio, transcript,
-or AI-generated text is sent anywhere. A missing language model downloads
+summary, draft, or Q&A text is sent anywhere by the app. A missing language model downloads
 from Apple (your IP reaches Apple); otherwise it works offline. Recordings
 go to `~/Movies` or a user-picked folder (never inside the App Sandbox
 container). Outbound connections: Firebase Analytics (usage analytics),
@@ -123,8 +123,9 @@ Intelligence が使えない環境・要約のない録画では理由がツー�
 (長い文字起こしでは区間ごとに答えを探します。要約と同じ Apple Intelligence の
 オンデバイス処理で、質問と文字起こしは端末の外へ送られません)。未購入では
 ロックされツールチップで設定パネルへの購入を案内し、Apple Intelligence が
-使えない環境・文字起こしの無い録画では理由がツールチップに出ます (文字起こしは
-«文字起こしを作成» で作れます)。
+使えない環境でも同じく理由がツールチップに出ます。文字起こしの無い録画では
+«質問する» ボタン自体が出ないため («文字起こしを作成» で作ってから使える)、
+その案内はボタンのツールチップには現れません。
 
 Kilde はメニューバーから使う画面録画アプリで、システム音声とマイクを録音でき、
 録画の文字起こし (オプション) を備えています。
