@@ -107,7 +107,12 @@ packages:
     # v0.23.0 に対する v0.23.1 の差分は抽出の抜粋照合の修正
     # (kilde-cli-swift#143 — モデルが時刻接頭辞を落とした抜粋を返す実測への対応。
     # 本文が一意なときは接頭辞を復元して採用)
-    exactVersion: 0.23.1
+    # v0.24.0: 第五弾 Pro «ライブラリ横断の検索・質問応答» (kilde-cli-swift#145 —
+    # GUI の kilde#547 が消費)。LibrarySearch (部分一致の純粋照合) と
+    # LibraryQA.answer (録画ごとの関連行の抽出 → 統合回答。選定は質問語・検索語の
+    # ヒットスコアで最大 6 件、集約素材に全体の文字数予算) と ProFeature.libraryQA、
+    # KilError.Code.libraryQAEmptyQuestion / libraryQAEmptyLibrary が増えた
+    exactVersion: 0.24.0
   # GUI の自動更新 (issue #122)。Sparkle 2 のバイナリターゲット (macOS 12+) で、
   # リンクすると Sparkle.framework が Contents/Frameworks に埋め込まれる。
   # バージョンを固定する理由は kilde-cli-swift と同じ: 浮動参照だと上流の push が

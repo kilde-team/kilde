@@ -449,6 +449,43 @@ enum UsageAnalytics {
         return "model_error"
     }
 
+    // MARK: - ライブラリ横断の質問応答 (第五弾 Pro — issue #547 / エンジン kilde-cli-swift#145)
+
+    /// qa_* と同じ位置づけの Pro 機能の実利用計測。両チャネルで発火
+    /// (直接配布版は Pro 無料開放のため質問応答だけが計測される)。
+    /// 質問の内容・録画の件数は計測しない (PRIVACY.md «会話の内容は送らない»
+    /// と同じ方針 — パラメータに載せる値は件数・区分のみ。登録済みディメンション
+    /// の規約 — issue #456 — のため新しいパラメータは持たない)
+    static func libraryQAStarted() {
+        logParameterless("library_qa_start")
+    }
+
+    static func libraryQACompleted(processingTime: TimeInterval?) {
+        log("library_qa_complete", recordingDuration: nil, processingTime: processingTime)
+    }
+
+    /// **キャンセルは呼び出し側 (LibraryQASheet) が除外する**
+    /// (qa_* と同じ «キャンセルは失敗に数えない» 方針)
+    static func libraryQAFailed(_ error: Error, processingTime: TimeInterval?) {
+        log("library_qa_fail", recordingDuration: nil, processingTime: processingTime,
+            errorKind: libraryQAErrorKind(error))
+    }
+
+    /// 失敗種別。qaErrorKind と同じ規約 (専用コードは libraryQA.* に対応)
+    private static func libraryQAErrorKind(_ error: Error) -> String {
+        if let e = error as? KilError {
+            switch e.code {
+            case .licenseRequired: return "license_required"
+            case .libraryQAEmptyQuestion: return "empty_question"
+            case .libraryQAEmptyLibrary: return "empty_library"
+            default: return "engine_error"
+            }
+        }
+        if error is LibraryQA.Unavailable { return "unsupported_environment" }
+        if error is CancellationError { return "cancelled" }
+        return "model_error"
+    }
+
     // MARK: - ライブラリの文字起こしの持ち出し (issue #493)
 
     /// 無料機能 (ライブラリ) の実利用計測。両チャネルで発火する。

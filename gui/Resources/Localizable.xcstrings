@@ -8997,7 +8997,298 @@
             }
           }
         }
+      },
+      "ライブラリへの質問": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Ask the Library"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Preguntar a la biblioteca"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "라이브러리에 질문"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "向资料库提问"
+            }
+          }
+        }
+      },
+      "ライブラリに質問": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Ask the Library"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Preguntar a la biblioteca"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "라이브러리에 질문"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "向资料库提问"
+            }
+          }
+        }
+      },
+      "ライブラリ内の録画 (%lld 件) を横断して質問します (端末内で処理します)": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Ask across %lld recordings in the library (processed on device)"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Pregunta a través de %lld grabaciones de la biblioteca (se procesa en el dispositivo)"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "라이브러리의 녹화 %lld개를 넘어 질문합니다 (기기 내에서 처리합니다)"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "跨资料库中的 %lld 个录像提问（在设备上处理）"
+            }
+          }
+        }
+      },
+      "これらの会議で決まったことは?": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "What was decided in these meetings?"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "¿Qué se decidió en estas reuniones?"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "이 회의들에서 결정된 것은?"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "这些会议决定了什么？"
+            }
+          }
+        }
+      },
+      "ライブラリへの質問には Apple Intelligence が必要です: %@": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Asking the library requires Apple Intelligence: %@"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Preguntar a la biblioteca requiere Apple Intelligence: %@"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "라이브러리에 질문하려면 Apple Intelligence가 필요합니다: %@"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "向资料库提问需要 Apple 智能：%@"
+            }
+          }
+        }
+      },
+      "ライブラリへの質問は Pro の機能です (設定パネルから購入できます)": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Asking the library is a Pro feature (purchase from the settings panel)"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Preguntar a la biblioteca es una función Pro (compre desde el panel de ajustes)"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "라이브러리에 질문은 Pro 기능입니다 (설정 패널에서 구입할 수 있습니다)"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "向资料库提问是 Pro 功能（可从设置面板购买）"
+            }
+          }
+        }
+      },
+      "ライブラリへの質問には文字起こし済みの録画が必要です («文字起こしを作成» で作れます)": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Asking the library needs a transcribed recording (create with “Create Transcript”)"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Preguntar a la biblioteca necesita una grabación transcrita (créela con «Crear transcripción»)"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "라이브러리에 질문하려면 전사된 녹화가 필요합니다 («전사 만들기»에서 만들 수 있습니다)"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "向资料库提问需要已转录的录像（可通过“创建转录”创建）"
+            }
+          }
+        }
+      },
+      "ライブラリ内の複数の録画を横断して質問し、根拠つきで答えを得ます (端末内で処理します)": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Ask across multiple recordings in the library and get answers with sources (processed on device)"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Pregunta a través de varias grabaciones de la biblioteca y obtén respuestas con fuentes (se procesa en el dispositivo)"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "라이브러리의 여러 녹화를 넘어 질문하고 근거와 함께 답을 얻습니다 (기기 내에서 처리합니다)"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "跨资料库中的多个录像提问，获得带依据的回答（在设备上处理）"
+            }
+          }
+        }
+      },
+      "根拠 (会議と行)": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Sources (meetings and lines)"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Fuentes (reuniones y líneas)"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "근거 (회의 및 행)"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "依据（会议与行）"
+            }
+          }
+        }
+      },
+      "ライブラリへの質問を実行できませんでした": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Could not ask the library"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No se pudo preguntar a la biblioteca"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "라이브러리에 질문을 실행할 수 없습니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "无法向资料库提问"
+            }
+          }
+        }
       }
+
   },
   "version": "1.0"
 }
