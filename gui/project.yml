@@ -99,7 +99,12 @@ packages:
     # ComposerInstructions (トーン・宛先・署名・強調ポイント・自由記述。入口の
     # sanitized で «実質空» は nil 化) と summarize / compose の instructions: 引数、
     # ProFeature.customInstructions (元の機能 + カスタム指示の 2 段目ゲート) が増えた
-    exactVersion: 0.22.0
+    # v0.23.0: 第四弾 Pro «書き起こしの質問応答» (kilde-cli-swift#141 — kilde#540 が消費)。
+    # TranscriptQA.answer (書き起こし + 質問 → 回答。1 チャンクは直接回答、
+    # 複数チャンクは関連行の抽出 → 統合回答。ゲートは summarize と同じ契約で、
+    # 非空のカスタム指示には customInstructions の 2 段目) と ProFeature.transcriptQA、
+    # KilError.Code.qaEmptyQuestion / qaEmptyTranscript が増えた
+    exactVersion: 0.23.1
   # GUI の自動更新 (issue #122)。Sparkle 2 のバイナリターゲット (macOS 12+) で、
   # リンクすると Sparkle.framework が Contents/Frameworks に埋め込まれる。
   # バージョンを固定する理由は kilde-cli-swift と同じ: 浮動参照だと上流の push が
