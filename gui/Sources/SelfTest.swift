@@ -100,6 +100,16 @@ enum SelfTest {
             SelfTestTranscriptQA.run()
             return
         }
+        // KILDE_GUI_SELFTEST_LIBRARY_QA=1: ライブラリ横断の検索・質問応答
+        // (issue #547 — 第五弾 Pro) の検証。エンジンのゲート (kilde-cli-swift#145)
+        // と、ボタンの可否・«答えを得る» の有効条件・質問と検索語の正規化・
+        // 録画列の写像・コピー全文の組み立てを確かめる。モデル生成の実呼び出しは
+        // 扱わない (KILDE_GUI_SELFTEST_LIBRARY_QA_LIVE で任意実行)。
+        // 実録画を伴わないため録画のスロット (権限・スピーカー) を占有しない
+        if env["KILDE_GUI_SELFTEST_LIBRARY_QA"] == "1" {
+            SelfTestLibraryQA.run()
+            return
+        }
         // KILDE_GUI_SELFTEST_COMPOSER_INSTRUCTIONS=1: カスタム指示 (issue #472 —
         // 第三弾 Pro) の検証。RecordingSetup 入力の写像 («実質空» = nil) と、
         // エンジンの 2 段目ゲート (kilde-cli-swift#139 — 非空の指示に

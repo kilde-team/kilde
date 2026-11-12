@@ -66,7 +66,10 @@ jobs:
           # GUI の kilde#540 が消費。TranscriptQA / ProFeature.transcriptQA /
           # qaEmptyQuestion / qaEmptyTranscript。v0.23.1 は抽出の抜粋照合の
           # 修正 kilde-cli-swift#143 を含む)
-          ref: v0.23.1
+          # v0.24.0: 第五弾 Pro «ライブラリ横断の検索・質問応答»
+          # (kilde-cli-swift#145 — GUI の kilde#547 が消費。LibrarySearch /
+          # LibraryQA / ProFeature.libraryQA / libraryQA.* のエラーコード)
+          ref: v0.24.0
           # private リポジトリ: GITHUB_TOKEN は他リポジトリを読めないため
           # fine-grained PAT (contents:read) を使う
           token: ${{ secrets.KILDE_CLI_SWIFT_TOKEN }}

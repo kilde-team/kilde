@@ -269,6 +269,16 @@ struct LibraryView: View {
         !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    /// «ライブラリに質問» のシート (issue #547) を出しているか
+    @State private var showsLibraryQA = false
+    /// 書き起こしを持つ録画が 1 件以上あるか («ライブラリに質問» の有効条件)。
+    /// 判定は LibraryQASupport が担う («空白でない本文» を持つセグメントが
+    /// あること — 空 cue だけの SRT / VTT を «文字起こし済み» としないため。
+    /// 写像 (recordings) と判定を共有する)
+    private var hasTranscribedRecording: Bool {
+        store.entries.contains { LibraryQASupport.hasNonEmptySegments($0) }
+    }
+
     /// «名前を変更» ダイアログのタイトル。対象のファイル名を載せる —
     /// «どの録画の名前を変えているか» をダイアログだけでも確実にする
     /// (body の式が重くならないよう、式のまま渡さず事前計算の let を使う)
@@ -441,6 +451,40 @@ struct LibraryView: View {
             .help(Transcriber.isSupported
                 ? String(localized: "既存の音声・動画ファイルを選んで保存先にコピーし、文字起こしします (元のファイルはそのままです)")
                 : String(localized: "文字起こしは macOS 26 以降で利用できます"))
+            // «ライブラリに質問» (issue #547 — 第五弾 Pro)。検索欄の横に置く —
+            // «検索で絞り込んだうえで質問» を 1 つの流れにするため (検索語は
+            // エンジンの選定 (searchTerms) に渡り、ヒットのある録画が優先される)。
+            // 有効条件と無効理由は LibraryQASupport («環境 → Pro → 書き起こし» の順)
+            Button {
+                showsLibraryQA = true
+            } label: {
+                Label(String(localized: "ライブラリに質問"), systemImage: "books.vertical")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(!LibraryQASupport.isButtonEnabled(
+                hasTranscribedRecording: hasTranscribedRecording,
+                appleIntelligenceUnavailableReason: MeetingSummarizer.unsupportedReason,
+                proAllows: pro.license.allows(.libraryQA)))
+            .help(LibraryQASupport.buttonTooltip(
+                hasTranscribedRecording: hasTranscribedRecording,
+                appleIntelligenceUnavailableReason: MeetingSummarizer.unsupportedReason,
+                proAllows: pro.license.allows(.libraryQA)))
+        }
+        // «ライブラリに質問» のシート (issue #547)。ボタンが有効なのは
+        // 書き起こし済みの録画があるときだけなので、録画列は常に非空
+        // (無効のまま開かれる経路は無い — TranscriptQASheet の sheet と同じ考え方)
+        .sheet(isPresented: $showsLibraryQA) {
+            LibraryQASheet(
+                recordings: LibraryQASupport.recordings(from: store.entries),
+                license: pro.license,
+                // 検索欄の語 «実質空» は nil («絞り込みなし» — エンジンは
+                // 質問語だけで選定する)
+                searchTerms: LibraryQASupport.searchTerms(from: query),
+                // カスタム指示 (issue #472)。«実質空» は写像側で nil。権利の
+                // 確認はシート側 ask() の pre-check が担う (TranscriptQASheet と
+                // 同じ契約)
+                instructions: settings().summaryInstructions)
         }
     }
 

@@ -16,7 +16,7 @@ App Store Connect で、このファイルは定義・手順・月次台帳**。
 | 4 | App Store の評価数 | MAS 版の評価 (レーティング) の累計件数 | App Store Connect → 分析 (概要の App Store 評価) と「評価とレビュー」(星別の件数) | **30** (#161 の出口条件) |
 | 5 | チャネル別の内訳 | `recording_complete` の `channel` パラメータとユーザー プロパティ `distribution_channel` (`mas` / `direct`) の分布 | Firebase コンソール (イベントのパラメータ / ユーザー プロパティ) | 目標なし (参考値) |
 | 6 | Pro 転換ファネル (参考) | `pro_upsell_view` → `pro_purchase_start` → `pro_unlocked` の各ユーザー数 (0.27.0 以降。**エピック #174 の出口条件 «有料転換 2%» の正本は ASC の IAP 販売数 ÷ DL** — GA4 側はアプリ内ファネルの相対的な離脱を読むために使う) | Firebase コンソール → イベント (各イベントのユーザー数) | **2%** (#174 の出口条件。判定は ASC 側で) |
-| 7 | Pro 機能の利用 (参考) | `summary_complete` を 1 回以上送ったユーザー数 ÷ 同じ窓で `transcription_complete` を送ったユーザー数 (0.27.0 以降。要約は Pro の本体機能で、転換後の価値を測る基礎)。0.28.0 からは第二弾 Pro «フォローアップの下書き» の `followup_complete` ユーザー数も同じ窓で記録する。0.29.0 の第三弾 Pro «カスタム指示» は既存の `summary_*` / `followup_*` に乗る。0.38.0 からは第四弾 Pro «書き起こしの質問応答» の `qa_complete` ユーザー数も同じ窓で記録する (登録済みディメンションのみの規約 — issue #456。`qa_*` のパラメータも `processing_time` と `error_kind` のみ) | Firebase コンソール → イベント (各イベントのユーザー数) | 未定 (指標 3 と同じくベースライン取得後) |
+| 7 | Pro 機能の利用 (参考) | `summary_complete` を 1 回以上送ったユーザー数 ÷ 同じ窓で `transcription_complete` を送ったユーザー数 (0.27.0 以降。要約は Pro の本体機能で、転換後の価値を測る基礎)。0.28.0 からは第二弾 Pro «フォローアップの下書き» の `followup_complete` ユーザー数も同じ窓で記録する。0.29.0 の第三弾 Pro «カスタム指示» は既存の `summary_*` / `followup_*` に乗る。0.38.0 からは第四弾 Pro «書き起こしの質問応答» の `qa_complete` ユーザー数も同じ窓で記録する。0.39.0 からは第五弾 Pro «ライブラリ横断の質問応答» の `library_qa_complete` ユーザー数も同じ窓で記録する (登録済みディメンションのみの規約 — issue #456。`qa_*` / `library_qa_*` のパラメータも `processing_time` と `error_kind` のみ) | Firebase コンソール → イベント (各イベントのユーザー数) | 未定 (指標 3 と同じくベースライン取得後) |
 
 ## 送っているイベントとユーザー プロパティ
 
@@ -33,7 +33,11 @@ App Store Connect で、このファイルは定義・手順・月次台帳**。
   下書き› の利用。パラメータは `processing_time`・`error_kind`)、
   `qa_start` / `qa_complete` / `qa_fail` (0.38.0〜。第四弾 Pro «書き起こしの
   質問応答» の利用。パラメータは `followup_*` と同じ `processing_time`・
-  `error_kind` — 新しいカスタム ディメンションは不要)、`pro_upsell_view` /
+  `error_kind` — 新しいカスタム ディメンションは不要)、
+  `library_qa_start` / `library_qa_complete` / `library_qa_fail` (0.39.0〜。
+  第五弾 Pro «ライブラリ横断の質問応答» の利用。パラメータは `qa_*` と同じ
+  `processing_time`・`error_kind` — 新しいカスタム ディメンションは不要)、
+  `pro_upsell_view` /
   `pro_purchase_start` / `pro_purchase_cancel` / `pro_purchase_pending` /
   `pro_purchase_fail` / `pro_unlocked` / `pro_restore_fail` (0.27.0〜。**MAS 版のみ
   発火** — 直接配布版は Pro 無料開放で購入 UI が存在しないため。パラメータは
