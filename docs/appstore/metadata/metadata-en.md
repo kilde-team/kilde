@@ -537,3 +537,17 @@ library's listing contract (LibraryStore.scan).
 ```text
 Recordings can now be renamed from the recording library, so the auto-generated "kilde-" names (with the date and time) can become names that say what each meeting was (the leading "kilde-" stays). Renaming applies to the recording file and the transcript and minutes files that share its name; file extensions stay the same. Files of other recordings are not touched. If a file with the same name already exists, nothing is renamed and the app tells you. Recordings that are being transcribed or recorded cannot be renamed.
 ```
+
+## What's New (0.38.0)
+
+The fourth Pro feature, transcript Q&A (issue #540, engine kilde-cli-swift#141).
+Copy states only what ships (same policy as 0.29.0). The "Ask" button (added to the
+detail bar of recordings with a transcript) and the transcript lines the answer is
+based on (returned by the extraction path) are exact descriptions of the
+implementation. "No additional purchase" follows the single-product kilde.pro
+contract, and "Recording and transcription are currently free" states the free/Pro
+line-up honestly.
+
+```text
+Pro now includes "Q&A". Select a recording in the library and ask from "Ask", and the app looks for the answer in that recording's transcript (you can ask things like "What was decided in this meeting?", and for long transcripts it also shows the transcript lines the answer is based on. On-device processing with Apple Intelligence; macOS 26 or later). If you already purchased Pro, it works with no additional purchase. Recording and transcription are currently free.
+```
