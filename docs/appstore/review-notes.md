@@ -9,7 +9,7 @@ App Store Connect の App Review Information → Notes に貼る文案。
 ## English (paste into App Review Notes)
 
 Kilde is a menu bar screen recorder that also records system audio and the
-microphone, with optional on-device transcription of finished recordings.
+microphone, with optional on-device transcription.
 
 **Permissions requested during review testing:**
 
@@ -41,8 +41,9 @@ microphone, with optional on-device transcription of finished recordings.
    a short clip with speech; a Markdown transcript is written next to the
    recording.
 4. (Optional) In the library, a recording with minutes that include a
-   summary **with action items** shows "Add to Reminders" — pressing it
-   adds them to the default Reminders list.
+   summary **with action items** (create via "Summarize after
+   recording") shows "Add to Reminders" — pressing it adds them to the
+   default list.
 
 Settings (gear icon) holds hotkey, launch at login, meeting
 auto-recording, and analytics opt-out.
@@ -78,7 +79,7 @@ locked with a tooltip pointing to that purchase section.
 "Summarize after recording" needs "Transcribe after recording"
 enabled (the transcript is the input). Without the entitlement,
 generation is skipped with a notice. A loading price
-placeholder means the product is not visible yet; reopening the panel
+placeholder means the product is not visible; reopening the panel
 retries. The IAP's review screenshot shows the locked rows and the
 panel. **Recording and transcription are currently free.**
 
@@ -119,8 +120,9 @@ Intelligence が使えない環境・要約のない録画では理由がツー�
 
 *質問応答 (v0.38.0):* ライブラリウィンドウで、文字起こしを持つ録画の詳細に
 «質問する» ボタンが出ます。シートで質問を入力して実行すると、その録画の
-文字起こしから答えを探して表示し、根拠になる文字起こしの行も一緒に示します
-(長い文字起こしでは区間ごとに答えを探します。要約と同じ Apple Intelligence の
+文字起こしから答えを探して表示します (長い文字起こしでは区間ごとに関連する行を
+抜き出してから答え、根拠になる文字起こしの行も一緒に示します。短い文字起こしでは
+全体を直接見るため根拠の表示は出ません。要約と同じ Apple Intelligence の
 オンデバイス処理で、質問と文字起こしは端末の外へ送られません)。未購入では
 ロックされツールチップで設定パネルへの購入を案内し、Apple Intelligence が
 使えない環境でも同じく理由がツールチップに出ます。文字起こしの無い録画では

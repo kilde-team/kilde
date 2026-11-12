@@ -549,5 +549,5 @@ contract, and "Recording and transcription are currently free" states the free/P
 line-up honestly.
 
 ```text
-Pro now includes "Q&A". Select a recording in the library and ask from "Ask", and the app looks for the answer in that recording's transcript (you can ask things like "What was decided in this meeting?", and for long transcripts it also shows the transcript lines the answer is based on. On-device processing with Apple Intelligence; macOS 26 or later). If you already purchased Pro, it works with no additional purchase. Recording and transcription are currently free.
+Pro now includes "Q&A". Select a recording with a transcript in the library and ask from "Ask", and the app looks for the answer in that recording's transcript (you can ask things like "What was decided in this meeting?", and for long transcripts it also shows the transcript lines the answer is based on. On-device processing with Apple Intelligence; macOS 26 or later. Unavailable when Apple Intelligence is not enabled). If you already purchased Pro, it works with no additional purchase. Recording and transcription are currently free.
 ```

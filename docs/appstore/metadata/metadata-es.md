@@ -553,5 +553,5 @@ la transcripción siguen siendo gratuitas» indica con honestidad el reparto
 gratuito/Pro.
 
 ```text
-Pro ahora incluye «Preguntas y respuestas». Selecciona una grabación en la biblioteca y pregunta desde «Preguntar», y la aplicación busca la respuesta en la transcripción de esa grabación (puedes preguntar cosas como «¿Qué se decidió en esta reunión?» y, en transcripciones largas, también muestra las líneas de la transcripción en las que se basa la respuesta. Procesamiento en el dispositivo con Apple Intelligence; macOS 26 o posterior). Si ya compraste Pro, funciona sin compra adicional. La grabación y la transcripción siguen siendo gratuitas.
+Pro ahora incluye «Preguntas y respuestas». Selecciona una grabación con transcripción en la biblioteca y pregunta desde «Preguntar», y la aplicación busca la respuesta en la transcripción de esa grabación (puedes preguntar cosas como «¿Qué se decidió en esta reunión?» y, en transcripciones largas, también muestra las líneas de la transcripción en las que se basa la respuesta. Procesamiento en el dispositivo con Apple Intelligence; macOS 26 o posterior. No está disponible si Apple Intelligence no está activado). Si ya compraste Pro, funciona sin compra adicional. La grabación y la transcripción son gratuitas actualmente.
 ```
