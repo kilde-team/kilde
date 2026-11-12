@@ -114,8 +114,12 @@ enum SelfTestTranscriptQA {
         let grounded = TranscriptAnswer(
             text: "月曜 10 時にリリース",
             excerpts: ["[10:05] リリースは月曜 10 時でいきます"])
+        // 期待値の見出しも同じ localized 呼び出しで組み立てる —
+        // アプリの表示言語に依らず成立させる (clipboardText はカタログの訳語を
+        // 使うため、日本語リテラルとの直接比較は非 ja 環境で壊れる)
         check(TranscriptQASupport.clipboardText(for: grounded)
-              == "月曜 10 時にリリース\n\n—\n根拠 (文字起こしの行):\n[10:05] リリースは月曜 10 時でいきます",
+              == "月曜 10 時にリリース\n\n—\n"
+                  + String(localized: "根拠 (文字起こしの行)") + ":\n[10:05] リリースは月曜 10 時でいきます",
               "clipboard text appends the excerpt section when grounded")
 
         // 7) 計測イベント (qa_*) は Firebase 未初期化 (セルフテスト) で

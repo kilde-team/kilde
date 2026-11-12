@@ -82,7 +82,11 @@ enum TranscriptQASupport {
     /// 根拠が無い (全体を直接見た短い回答) ときは本文のみ
     static func clipboardText(for answer: TranscriptAnswer) -> String {
         guard hasExcerpts(answer) else { return answer.text }
-        return answer.text + "\n\n—\n" + "根拠 (文字起こしの行):\n"
+        // 見出しはカタログの訳語を使う — コピー文面がアプリの表示言語に追従する
+        // ため (コロンと改行は訳語の外に置く)。キーはシート表示と同じ
+        // «根拠 (文字起こしの行)» (CodeRabbit レビュー指摘)
+        return answer.text + "\n\n—\n"
+            + String(localized: "根拠 (文字起こしの行)") + ":\n"
             + answer.excerpts.joined(separator: "\n")
     }
 }
