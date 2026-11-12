@@ -551,3 +551,18 @@ line-up honestly.
 ```text
 Pro now includes "Q&A". Select a recording with a transcript in the library and ask from "Ask", and the app looks for the answer in that recording's transcript (you can ask things like "What was decided in this meeting?", and for long transcripts it also shows the transcript lines the answer is based on. On-device processing with Apple Intelligence; macOS 26 or later. Unavailable when Apple Intelligence is not enabled). If you already purchased Pro, it works with no additional purchase. Recording and transcription are currently free.
 ```
+
+## What's New (0.39.0)
+
+The fifth Pro feature, library-wide search and Q&A (issue #547, engine kilde-cli-swift#145).
+Copy states only what ships (same policy as 0.38.0). The "Ask the Library" button (added
+to the library window's search bar — enabled only when a transcribed recording exists),
+the sources of the answer (which meeting and which lines — the "meeting: line" excerpts
+returned by the engine), and "recordings containing your search terms are prioritized"
+(the search box is passed as selection search terms) are exact descriptions of the
+implementation. "No additional purchase" follows the single-product kilde.pro contract,
+and "Recording and transcription are currently free" states the free/Pro line-up honestly.
+
+```text
+Pro now includes "Ask the Library". From "Ask the Library" in the recording library, the app looks for the answer across multiple transcribed recordings and also shows the sources of the answer (which meeting and which lines it is based on). You can ask things like "What was decided in these meetings?", and if you type words in the search box, recordings containing them are prioritized. On-device processing with Apple Intelligence; macOS 26 or later. Unavailable when Apple Intelligence is not enabled. If you already purchased Pro, it works with no additional purchase. Recording and transcription are currently free.
+```
