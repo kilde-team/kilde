@@ -1016,6 +1016,8 @@ private struct LibraryDetailView: View {
     @State private var minutesDoc: FollowupDraftSupport.MinutesDoc = .notMinutes
     /// フォローアップ下書きシート (issue #464) の表示
     @State private var showsFollowupDraft = false
+    /// 質問応答シート (issue #540 — 第四弾 Pro) の表示
+    @State private var showsTranscriptQA = false
     /// «リマインダーへ追加» (issue #509) の EventKit ラッパ。権限の要求と
     /// 書き出しは押下時にこのラッパを通して行う — ボタンの有無は議事録の内容
     /// (正規化後のアクションの有無) だけで決まり、権限の状態を表示に反映しない
@@ -1098,13 +1100,14 @@ private struct LibraryDetailView: View {
             if entry.segments == nil {
                 noTranscriptPane
             } else {
-                // 議事録 (.md) を持つ録画では、下書きの導線 (issue #464) を
-                // セグメント列の上に置く。他形式のサイドカーでは機能が成り立たない
-                // ためバーごと出さない (FollowupDraftSupport.loadMinutesDoc の契約)
-                if minutesDoc != .notMinutes {
-                    followupBar
-                    Divider()
-                }
+                // «質問する» の導線 (issue #540 — 第四弾 Pro) をセグメント列の上に
+                // 置く。質問応答は**要約 (.md) を必要としない**ため、書き起こしを
+                // 持つ録画なら常にバーを出す (フォローアップより広い録画で使える)。
+                // «リマインダーへ追加» «フォローアップを下書き» (issue #509 / #464) は
+                // 議事録 (.md) の要約が必要なため、あるときだけ出す
+                // (FollowupDraftSupport.loadMinutesDoc の契約)
+                transcriptActionsBar
+                Divider()
                 segmentList
             }
         }
@@ -1242,14 +1245,17 @@ private struct LibraryDetailView: View {
         }
     }
 
-    /// 議事録の次の一手の導線。«リマインダーへ追加» (issue #509 — 要約の
-    /// アクションアイテムを EventKit Reminders へ書き出す) と «フォローアップを
-    /// 下書き» (issue #464 — 第二弾 Pro)。議事録 (.md) の要約から使える。
-    /// 有効条件とツールチップは FollowupDraftSupport / ReminderExportSupport に
-    /// 一元化 (セルフテスト対象)。«議事録を作成» と同じ «控えめ» 方針 —
-    /// Pro 未購入の案内はツールチップのみで、購入導線は設定パネルにしか置かない
-    private var followupBar: some View {
+    /// 書き起こしの次の一手の導線。«質問する» (issue #540 — 第四弾 Pro) と
+    /// «リマインダーへ追加» (issue #509 — 要約のアクションアイテムを EventKit
+    /// Reminders へ書き出す) と «フォローアップを下書き» (issue #464 — 第二弾 Pro)。
+    /// 質問は書き起こしがあれば使え、リマインダーと下書きは議事録 (.md) の要約から
+    /// 使える。有効条件とツールチップは TranscriptQASupport /
+    /// FollowupDraftSupport / ReminderExportSupport に一元化 (セルフテスト対象)。
+    /// «議事録を作成» と同じ «控えめ» 方針 — Pro 未購入の案内はツールチップのみで、
+    /// 購入導線は設定パネルにしか置かない
+    private var transcriptActionsBar: some View {
         let unsupportedReason = MeetingSummarizer.unsupportedReason
+        let proAllowsQA = pro.license.allows(.transcriptQA)
         let proAllows = pro.license.allows(.followupDraft)
         return HStack {
             Spacer()
@@ -1269,34 +1275,73 @@ private struct LibraryDetailView: View {
                 }
             }
             Button {
-                exportToReminders()
+                showsTranscriptQA = true
             } label: {
-                Label(String(localized: "リマインダーへ追加"), systemImage: "checklist")
+                Label(String(localized: "質問する"), systemImage: "questionmark.bubble")
             }
             .controlSize(.small)
             .buttonStyle(.bordered)
-            // 実行中は無効化する — «押せるのに押しても何も起きない» より
-            // «押せない» を見せる (パネルの流儀。再入防止と同じ理由)
-            .disabled(!ReminderExportSupport.isButtonEnabled(doc: minutesDoc) || isExportingReminders)
-            .help(ReminderExportSupport.buttonTooltip(doc: minutesDoc))
-            Button {
-                showsFollowupDraft = true
-            } label: {
-                Label(String(localized: "フォローアップを下書き"), systemImage: "envelope")
+            // このバーは書き起こしを持つ録画のときしか出ないため、
+            // hasTranscript は常に true (無効理由は環境と Pro 権利だけ)
+            .disabled(!TranscriptQASupport.isButtonEnabled(
+                hasTranscript: true,
+                appleIntelligenceUnavailableReason: unsupportedReason,
+                proAllows: proAllowsQA))
+            .help(TranscriptQASupport.buttonTooltip(
+                hasTranscript: true,
+                appleIntelligenceUnavailableReason: unsupportedReason,
+                proAllows: proAllowsQA))
+            if minutesDoc != .notMinutes {
+                Button {
+                    exportToReminders()
+                } label: {
+                    Label(String(localized: "リマインダーへ追加"), systemImage: "checklist")
+                }
+                .controlSize(.small)
+                .buttonStyle(.bordered)
+                // 実行中は無効化する — «押せるのに押しても何も起きない» より
+                // «押せない» を見せる (パネルの流儀。再入防止と同じ理由)
+                .disabled(!ReminderExportSupport.isButtonEnabled(doc: minutesDoc) || isExportingReminders)
+                .help(ReminderExportSupport.buttonTooltip(doc: minutesDoc))
+                Button {
+                    showsFollowupDraft = true
+                } label: {
+                    Label(String(localized: "フォローアップを下書き"), systemImage: "envelope")
+                }
+                .controlSize(.small)
+                .buttonStyle(.bordered)
+                .disabled(!FollowupDraftSupport.isButtonEnabled(
+                    doc: minutesDoc,
+                    appleIntelligenceUnavailableReason: unsupportedReason,
+                    proAllows: proAllows))
+                .help(FollowupDraftSupport.buttonTooltip(
+                    doc: minutesDoc,
+                    appleIntelligenceUnavailableReason: unsupportedReason,
+                    proAllows: proAllows))
             }
-            .controlSize(.small)
-            .buttonStyle(.bordered)
-            .disabled(!FollowupDraftSupport.isButtonEnabled(
-                doc: minutesDoc,
-                appleIntelligenceUnavailableReason: unsupportedReason,
-                proAllows: proAllows))
-            .help(FollowupDraftSupport.buttonTooltip(
-                doc: minutesDoc,
-                appleIntelligenceUnavailableReason: unsupportedReason,
-                proAllows: proAllows))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
+        .sheet(isPresented: $showsTranscriptQA) {
+            // ボタンが有効なのは書き起こしを持つ録画のときだけなので、
+            // シートの内容は常に書き起こしを持てる (無効のまま開かれる経路は無い)。
+            // ライブラリの索引 (LibrarySegment) は**話者を保持しない**ため、
+            // エンジンの TranscriptSegment への写像は speaker: nil になる —
+            // «誰が言ったか» を問う質問の精度は落ちるが、本文ベースの質問応答は
+            // 成立する。話者の保持はライブラリ索引の拡張で別 issue に切り出す
+            TranscriptQASheet(
+                transcript: (entry.segments ?? []).map {
+                    TranscriptSegment(
+                        start: $0.start, end: $0.end, text: $0.text, speaker: nil)
+                },
+                title: entry.recordingURL.deletingPathExtension().lastPathComponent,
+                license: pro.license,
+                // カスタム指示 (issue #472)。«実質空» は写像側で nil。権利の
+                // 確認はシート側 ask() の pre-check が担う (非空の指示に権利が
+                // ないときは実行を止めて案内を出す — 黙って指示なしで実行しない
+                // ため。FollowupDraftSheet と同じ契約)
+                instructions: settings().summaryInstructions)
+        }
         .sheet(isPresented: $showsFollowupDraft) {
             // ボタンが有効なのは .summary のときだけなので、シートの内容は常に
             // 要約を持てる (無効のまま開かれる経路は無い)

@@ -408,6 +408,47 @@ enum UsageAnalytics {
         return "model_error"
     }
 
+    // MARK: - 書き起こしの質問応答 (第四弾 Pro — issue #540 / エピック #174)
+
+    /// followup_* と同じ位置づけの Pro 機能の実利用計測。両チャネルで発火
+    /// (直接配布版は Pro 無料開放のため質問応答だけが計測される)。
+    /// 質問の内容は計測しない (PRIVACY.md «会話の内容は送らない» と同じ方針 —
+    /// パラメータに載せる値は件数・区分のみ)
+
+    /// 質問応答の実行を開始した (ボタンの有効条件 — 書き起こしあり・
+    /// Apple Intelligence・Pro 権利 — を通ったシートで «答えを得る» を押したとき。
+    /// エンジンのゲートはこの後にある)
+    static func qaStarted() {
+        logParameterless("qa_start")
+    }
+
+    /// 質問応答が完了した
+    static func qaCompleted(processingTime: TimeInterval?) {
+        log("qa_complete", recordingDuration: nil, processingTime: processingTime)
+    }
+
+    /// 質問応答が失敗した。**キャンセルは呼び出し側 (TranscriptQASheet) が
+    /// 除外する** (followup_* と同じ «キャンセルは失敗に数えない» 方針)
+    static func qaFailed(_ error: Error, processingTime: TimeInterval?) {
+        log("qa_fail", recordingDuration: nil, processingTime: processingTime,
+            errorKind: qaErrorKind(error))
+    }
+
+    /// 質問応答の失敗種別 (followupErrorKind と同じ規約)
+    private static func qaErrorKind(_ error: Error) -> String {
+        if let e = error as? KilError {
+            switch e.code {
+            case .licenseRequired: return "license_required"
+            case .qaEmptyQuestion: return "empty_question"
+            case .qaEmptyTranscript: return "empty_transcript"
+            default: return "engine_error"
+            }
+        }
+        if error is TranscriptQA.Unavailable { return "unsupported_environment" }
+        if error is CancellationError { return "cancelled" }
+        return "model_error"
+    }
+
     // MARK: - ライブラリの文字起こしの持ち出し (issue #493)
 
     /// 無料機能 (ライブラリ) の実利用計測。両チャネルで発火する。

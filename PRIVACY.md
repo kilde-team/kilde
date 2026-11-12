@@ -1,6 +1,6 @@
 # プライバシーポリシー / Privacy Policy
 
-最終更新日 / Last updated: 2026-11-08
+最終更新日 / Last updated: 2026-11-12
 
 対象: kilde (macOS 用の画面・音声録画アプリ `Kilde` と `kilde` コマンドライン)
 
@@ -45,13 +45,15 @@ Spotlight からのオープンの利用状況 (Spotlight の結果からアプ�
 件数、どの録画から書き出したか (録画のファイル名・保存先) は含まれません。**
 会議の要約機能 (Pro) の利用状況 (要約の開始・完了・失敗・生成されなかった
 理由の区分と処理時間の区分)、フォローアップの下書き機能 (Pro) の利用状況
-(下書きの開始・完了・失敗の回数、処理時間の区分と失敗の種別)、Mac App Store 版の
+(下書きの開始・完了・失敗の回数、処理時間の区分と失敗の種別)、書き起こしの
+質問応答機能 (Pro) の利用状況 (質問の開始・完了・失敗の回数、処理時間の区分と
+失敗の種別。0.38.0 以降)、Mac App Store 版の
 Pro 購入導線の利用状況
 (ロックの表示、購入の開始とその結果 — 完了・キャンセル・承認待ち・失敗 —、
 権利の付与、購入の復元の失敗、それぞれの回数と失敗の種別) も同じ利用統計に
-含まれます。**書き起こしたテキストや要約・フォローアップの下書きの内容、
-録画・サイドカーのファイル名・保存先、購入の価格・金額・トランザクション ID は
-含まれません。**
+含まれます。**書き起こしたテキストや要約・フォローアップの下書き・質問応答の
+質問と回答の内容、録画・サイドカーのファイル名・保存先、購入の価格・金額・
+トランザクション ID は含まれません。**
 `kilde` コマンドラインは解析を行いません。
 
 GUI アプリ (直接配布版・Mac App Store 版の両方) は、アプリが異常終了 (クラッシュ) した
@@ -238,12 +240,15 @@ meeting-summary feature (Pro) — counts of summary starts, completions, and
 failures, coarse buckets for processing time and recording length, the kind of
 failure, and the reason a summary was skipped — usage of the follow-up-draft
 feature (Pro) — counts of draft starts, completions, and failures, coarse
-buckets for processing time, and the kind of failure — and usage of the Pro
+buckets for processing time, and the kind of failure — usage of the transcript
+question-and-answer feature (Pro) — counts of question starts, completions, and
+failures, coarse buckets for processing time, and the kind of failure
+(0.38.0 or later) — and usage of the Pro
 purchase flow in the Mac App Store version — counts of lock-row displays, purchase
 starts and their outcomes (completion, cancellation, pending approval, or
 failure), entitlement grants, and failed purchase restores, plus the kind of
 failure — are also part of the same usage statistics. **It never
-includes transcript, summary, or follow-up-draft text or the names or
+includes transcript, summary, follow-up-draft, or question-and-answer text or the names or
 locations of recording or sidecar files, which app was picked for
 app-specific audio capture (no app names or bundle IDs), the bundle IDs or
 titles of captured windows, or any purchase prices, amounts, or transaction
