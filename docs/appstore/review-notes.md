@@ -73,12 +73,10 @@ on-device and require Apple Intelligence, macOS 26+ (stays disabled
 without it, even after purchase). Reminders export (0.34.0) is **not**
 part of Pro. Without Pro, "Summarize after recording" is a locked row
 with a "Pro" badge and the Settings "Custom instructions" disclosure is
-locked too — clicking them opens an inline purchase panel (price, Buy
-with your sandbox Apple ID, Restore); "Draft a follow-up" and "Ask" in
-the library (needing minutes (.md) with a summary, or a transcript) are
-locked with a tooltip pointing to that purchase section. "Ask the Library"
-(v0.39.0, in the library window's search bar — enabled only when a
-transcribed recording exists) follows the same lock/tooltip pattern.
+locked too — clicking them opens an inline purchase panel (price, Buy,
+Restore); "Draft a follow-up", "Ask", and "Ask the Library" (v0.39.0, in
+the library window's search bar) are locked with a tooltip pointing to
+that purchase section.
 "Summarize after recording" needs "Transcribe after recording"
 enabled (the transcript is the input). Without the entitlement,
 generation is skipped with a notice. A loading price
