@@ -16,7 +16,7 @@ App Store Connect で、このファイルは定義・手順・月次台帳**。
 | 4 | App Store の評価数 | MAS 版の評価 (レーティング) の累計件数 | App Store Connect → 分析 (概要の App Store 評価) と「評価とレビュー」(星別の件数) | **30** (#161 の出口条件) |
 | 5 | チャネル別の内訳 | `recording_complete` の `channel` パラメータとユーザー プロパティ `distribution_channel` (`mas` / `direct`) の分布 | Firebase コンソール (イベントのパラメータ / ユーザー プロパティ) | 目標なし (参考値) |
 | 6 | Pro 転換ファネル (参考) | `pro_upsell_view` → `pro_purchase_start` → `pro_unlocked` の各ユーザー数 (0.27.0 以降。**エピック #174 の出口条件 «有料転換 2%» の正本は ASC の IAP 販売数 ÷ DL** — GA4 側はアプリ内ファネルの相対的な離脱を読むために使う) | Firebase コンソール → イベント (各イベントのユーザー数) | **2%** (#174 の出口条件。判定は ASC 側で) |
-| 7 | Pro 機能の利用 (参考) | `summary_complete` を 1 回以上送ったユーザー数 ÷ 同じ窓で `transcription_complete` を送ったユーザー数 (0.27.0 以降。要約は Pro の本体機能で、転換後の価値を測る基礎)。0.28.0 からは第二弾 Pro «フォローアップの下書き» の `followup_complete` ユーザー数も同じ窓で記録する。0.29.0 の第三弾 Pro «カスタム指示» は既存の `summary_*` / `followup_*` に乗る。0.38.0 からは第四弾 Pro «書き起こしの質問応答» の `qa_complete` ユーザー数も同じ窓で記録する。0.39.0 からは第五弾 Pro «ライブラリ横断の質問応答» の `library_qa_complete` ユーザー数も同じ窓で記録する (登録済みディメンションのみの規約 — issue #456。`qa_*` / `library_qa_*` のパラメータも `processing_time` と `error_kind` のみ) | Firebase コンソール → イベント (各イベントのユーザー数) | 未定 (指標 3 と同じくベースライン取得後) |
+| 7 | Pro 機能の利用 (参考) | `summary_complete` を 1 回以上送ったユーザー数 ÷ 同じ窓で `transcription_complete` を送ったユーザー数 (0.27.0 以降。要約は Pro の本体機能で、転換後の価値を測る基礎)。0.28.0 からは第二弾 Pro «フォローアップの下書き» の `followup_complete` ユーザー数も同じ窓で記録する。0.29.0 の第三弾 Pro «カスタム指示» は既存の `summary_*` / `followup_*` に乗る。0.38.0 からは第四弾 Pro «書き起こしの質問応答» の `qa_complete` ユーザー数も同じ窓で記録する。0.39.0 からは第五弾 Pro «ライブラリ横断の質問応答» の `library_qa_complete` ユーザー数も同じ窓で記録する。0.40.0 からは第六弾 Pro «質問応答の連続対話» の `qa_chat_complete` ユーザー数も同じ窓で記録する (登録済みディメンションのみの規約 — issue #456。`qa_*` / `library_qa_*` / `qa_chat_*` のパラメータも `processing_time` と `error_kind` のみ) | Firebase コンソール → イベント (各イベントのユーザー数) | 未定 (指標 3 と同じくベースライン取得後) |
 
 ## 送っているイベントとユーザー プロパティ
 
@@ -37,6 +37,12 @@ App Store Connect で、このファイルは定義・手順・月次台帳**。
   `library_qa_start` / `library_qa_complete` / `library_qa_fail` (0.39.0〜。
   第五弾 Pro «ライブラリ横断の質問応答» の利用。パラメータは `qa_*` と同じ
   `processing_time`・`error_kind` — 新しいカスタム ディメンションは不要)、
+  `qa_chat_start` / `qa_chat_complete` / `qa_chat_fail` (0.40.0〜。第六弾 Pro
+  «質問応答の連続対話» の利用 — **追質問だけ**を数え、初問は `qa_*` /
+  `library_qa_*` が数える。両シート (単一録画・ライブラリ横断) 共通のイベント名 —
+  «どのシートか» は初問のイベントで分かる。パラメータは `qa_*` と同じ
+  `processing_time`・`error_kind`。`qa_chat_fail` の `error_kind` は両シートの
+  コード (`qa.*` / `libraryQA.*`) を写像する)、
   `pro_upsell_view` /
   `pro_purchase_start` / `pro_purchase_cancel` / `pro_purchase_pending` /
   `pro_purchase_fail` / `pro_unlocked` / `pro_restore_fail` (0.27.0〜。**MAS 版のみ
@@ -137,7 +143,7 @@ OAuth クライアントはこのスコープについて Google の審査を通
    正本** — GA4 はアプリ内の離脱点を見る参考値)。Pro 機能の利用
    (`summary_complete` と `transcription_complete` のユーザー数、0.28.0 以降は
    `followup_complete` のユーザー数も) も記録する (指標 7。0.38.0 からは
-   `qa_complete` のユーザー数も)
+   `qa_complete`、0.40.0 からは `qa_chat_complete` のユーザー数も)
 4. App Store Connect: 評価の累計件数と平均を記録する (指標 4)
 5. [appstore/metadata/metrics.md](appstore/metadata/metrics.md) の
    ASC 週次台帳が埋まっていれば、その月の初回 DL 合計を台帳の「気づき」に添える

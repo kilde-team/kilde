@@ -112,7 +112,11 @@ packages:
     # LibraryQA.answer (録画ごとの関連行の抽出 → 統合回答。選定は質問語・検索語の
     # ヒットスコアで最大 6 件、集約素材に全体の文字数予算) と ProFeature.libraryQA、
     # KilError.Code.libraryQAEmptyQuestion / libraryQAEmptyLibrary が増えた
-    exactVersion: 0.24.0
+    # v0.25.0: 第六弾 Pro «質問応答の連続対話» (kilde-cli-swift#147 —
+    # GUI の kilde#556 が消費)。QATurn (履歴の 1 往復) と TranscriptQA.answer /
+    # LibraryQA.answer の history パラメータ、ProFeature.qaChat が増えた。
+    # 追質問はエンジン側で履歴を正規化・予算に収めて prompt に載せる
+    exactVersion: 0.25.0
   # GUI の自動更新 (issue #122)。Sparkle 2 のバイナリターゲット (macOS 12+) で、
   # リンクすると Sparkle.framework が Contents/Frameworks に埋め込まれる。
   # バージョンを固定する理由は kilde-cli-swift と同じ: 浮動参照だと上流の push が

@@ -122,14 +122,53 @@ enum SelfTestTranscriptQA {
                   + String(localized: "根拠 (文字起こしの行)") + ":\n[10:05] リリースは月曜 10 時でいきます",
               "clipboard text appends the excerpt section when grounded")
 
-        // 7) 計測イベント (qa_*) は Firebase 未初期化 (セルフテスト) で
-        //    呼んでも安全な no-op になること (followup_* と同じ線引き)
+        // 7) 計測イベント (qa_* / qa_chat_*) は Firebase 未初期化 (セルフテスト) で
+        //    呼んでも安全な no-op になること (followup_* と同じ線引き)。
+        //    «未初期化» をイベント送信の**前に**表明する — 初期化が回帰したとき、
+        //    セルフテストのイベントが本番 Firebase に飛ぶ前に失敗を見つけるため
+        //    (SelfTestLibraryQA と同じ順序 — cubic レビュー指摘)
+        check(FirebaseApp.app() == nil,
+              "qa analytics calls keep Firebase uninitialized")
         UsageAnalytics.qaStarted()
         UsageAnalytics.qaCompleted(processingTime: nil)
         UsageAnalytics.qaFailed(
             KilError.failure(.qaEmptyQuestion, "selftest"), processingTime: nil)
-        check(FirebaseApp.app() == nil,
-              "qa analytics calls keep Firebase uninitialized")
+        // 追質問の計測 (qa_chat_* — issue #556) も同じ線引き
+        UsageAnalytics.qaChatStarted()
+        UsageAnalytics.qaChatCompleted(processingTime: nil)
+        UsageAnalytics.qaChatFailed(
+            KilError.failure(.qaEmptyQuestion, "selftest"), processingTime: nil)
+        check(true, "qa_* and qa_chat_* events are safe no-ops without Firebase")
+
+        // 7.5) 連続対話 (issue #556 — 第六弾 Pro) のゲート: 追質問 (正規化後に
+        //      履歴が残っている呼び出し) で qaChat の権利が無いと licenseRequired、
+        //      権利があれば通る (**空の書き起こし**でモデルを呼ばない構成)。
+        //      初問 (履歴なし) と «実質空» の往復だけの履歴は qaChat を要求しない
+        //      (第四弾のゲートのまま — «質問応答» と «連続対話» の線引き)
+        check(await chatGateFires(
+                  history: [QATurn(question: "決定事項は?", answer: "リリース日を決めた")],
+                  for: LicenseContext(entitlement: .licenseKey(LicenseKeyClaims(
+                      v: 1, id: "selftest",
+                      features: [ProFeature.transcriptQA.rawValue])))),
+              "chat gate fires for a follow-up without qaChat entitlement")
+        check(await !chatGateFires(
+                  history: [QATurn(question: "決定事項は?", answer: "リリース日を決めた")],
+                  for: LicenseContext(entitlement: .licenseKey(LicenseKeyClaims(
+                      v: 1, id: "selftest",
+                      features: [ProFeature.transcriptQA.rawValue, ProFeature.qaChat.rawValue])))),
+              "chat gate passes for a follow-up with qaChat entitlement")
+        check(await !chatGateFires(
+                  history: [],
+                  for: LicenseContext(entitlement: .licenseKey(LicenseKeyClaims(
+                      v: 1, id: "selftest",
+                      features: [ProFeature.transcriptQA.rawValue])))),
+              "first question does not require qaChat")
+        check(await !chatGateFires(
+                  history: [QATurn(question: "   \n", answer: "回答")],
+                  for: LicenseContext(entitlement: .licenseKey(LicenseKeyClaims(
+                      v: 1, id: "selftest",
+                      features: [ProFeature.transcriptQA.rawValue])))),
+              "effectively empty history does not require qaChat")
 
         // 8) 実モデルの呼び出し (KILDE_GUI_SELFTEST_QA_LIVE=1 のときのみ)。
         //    Apple Intelligence が使える実機で回答が実際に生成できることを
@@ -239,6 +278,26 @@ enum SelfTestTranscriptQA {
         do {
             _ = try await TranscriptQA.answer(
                 question: "決定事項は?", transcript: [], license: license)
+            return false
+        } catch let error as KilError {
+            return error.code == .licenseRequired
+        } catch {
+            return false
+        }
+    }
+
+    /// 連続対話 (履歴つき) の呼び出しで licenseRequired が投げられるか
+    /// (gateFires の履歴つき版 — issue #556)。**空の書き起こし**を渡すため
+    /// モデルは呼ばれない。第四弾のゲートと第六弾のゲートはどちらも
+    /// 可用性チェックより前に置かれており、権利が足りないときは必ずここで弾かれ、
+    /// 通るときは可用性・空検査へ進む
+    private static func chatGateFires(
+        history: [QATurn], for license: LicenseContext?
+    ) async -> Bool {
+        do {
+            _ = try await TranscriptQA.answer(
+                question: "その件の詳細は?", transcript: [],
+                history: history, license: license)
             return false
         } catch let error as KilError {
             return error.code == .licenseRequired

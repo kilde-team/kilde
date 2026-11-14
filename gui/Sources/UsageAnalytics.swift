@@ -486,6 +486,57 @@ enum UsageAnalytics {
         return "model_error"
     }
 
+    // MARK: - 質問応答の連続対話 (第六弾 Pro — issue #556 / エンジン kilde-cli-swift#147)
+
+    /// qa_* / library_qa_* と同じ位置づけの Pro 機能の実利用計測で、
+    /// **追質問 (履歴つきの呼び出し) だけ**を数える — 初問は既存の qa_* /
+    /// library_qa_* が数えるため、この 3 イベントが «連続対話の利用» を意味する。
+    /// **両シート (単一録画・ライブラリ横断) 共通** — «どのシートか» は初問の
+    /// イベントで分かるため、イベント数を増やさない (qa_* と library_qa_* が
+    /// 分かれているのは初問の対象が違うから。追質問の対象は «前の回答» で、
+    /// 機能区分の意味が薄れる)。qa_* と同じパラメータのみ
+    /// (processing_time / error_kind — 登録済みディメンションのみの規約 issue #456)。
+    /// 質問の内容は計測しない (PRIVACY.md «会話の内容は送らない»)
+
+    /// 追質問の実行を開始した («答えを得る» を押したとき、履歴が 1 往復以上)
+    static func qaChatStarted() {
+        logParameterless("qa_chat_start")
+    }
+
+    /// 追質問への回答が完了した
+    static func qaChatCompleted(processingTime: TimeInterval?) {
+        log("qa_chat_complete", recordingDuration: nil, processingTime: processingTime)
+    }
+
+    /// 追質問が失敗した。**キャンセルは呼び出し側 (TranscriptQASheet /
+    /// LibraryQASheet) が除外する** (qa_* と同じ «キャンセルは失敗に数えない» 方針)
+    static func qaChatFailed(_ error: Error, processingTime: TimeInterval?) {
+        log("qa_chat_fail", recordingDuration: nil, processingTime: processingTime,
+            errorKind: qaChatErrorKind(error))
+    }
+
+    /// 追質問の失敗種別。`qa_chat_*` は両シート共通のため、第四弾 (`qa.*`) と
+    /// 第五弾 (`libraryQA.*`) の**両方の**コードを写像する — 単一録画版の
+    /// `qaErrorKind` だけを使うと、ライブラリ追質問の `LibraryQA.Unavailable` が
+    /// `model_error` に潰れる (cubic レビュー指摘)。パラメータの語彙
+    /// (`license_required` / `empty_question` / `unsupported_environment` /
+    /// `cancelled` / `model_error`) は `qaErrorKind` と同じ
+    private static func qaChatErrorKind(_ error: Error) -> String {
+        if let e = error as? KilError {
+            switch e.code {
+            case .licenseRequired: return "license_required"
+            case .qaEmptyQuestion, .libraryQAEmptyQuestion: return "empty_question"
+            case .qaEmptyTranscript: return "empty_transcript"
+            case .libraryQAEmptyLibrary: return "empty_library"
+            default: return "engine_error"
+            }
+        }
+        if error is TranscriptQA.Unavailable { return "unsupported_environment" }
+        if error is LibraryQA.Unavailable { return "unsupported_environment" }
+        if error is CancellationError { return "cancelled" }
+        return "model_error"
+    }
+
     // MARK: - ライブラリの文字起こしの持ち出し (issue #493)
 
     /// 無料機能 (ライブラリ) の実利用計測。両チャネルで発火する。
