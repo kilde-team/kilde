@@ -122,8 +122,13 @@ enum SelfTestTranscriptQA {
                   + String(localized: "根拠 (文字起こしの行)") + ":\n[10:05] リリースは月曜 10 時でいきます",
               "clipboard text appends the excerpt section when grounded")
 
-        // 7) 計測イベント (qa_*) は Firebase 未初期化 (セルフテスト) で
-        //    呼んでも安全な no-op になること (followup_* と同じ線引き)
+        // 7) 計測イベント (qa_* / qa_chat_*) は Firebase 未初期化 (セルフテスト) で
+        //    呼んでも安全な no-op になること (followup_* と同じ線引き)。
+        //    «未初期化» をイベント送信の**前に**表明する — 初期化が回帰したとき、
+        //    セルフテストのイベントが本番 Firebase に飛ぶ前に失敗を見つけるため
+        //    (SelfTestLibraryQA と同じ順序 — cubic レビュー指摘)
+        check(FirebaseApp.app() == nil,
+              "qa analytics calls keep Firebase uninitialized")
         UsageAnalytics.qaStarted()
         UsageAnalytics.qaCompleted(processingTime: nil)
         UsageAnalytics.qaFailed(
@@ -133,8 +138,7 @@ enum SelfTestTranscriptQA {
         UsageAnalytics.qaChatCompleted(processingTime: nil)
         UsageAnalytics.qaChatFailed(
             KilError.failure(.qaEmptyQuestion, "selftest"), processingTime: nil)
-        check(FirebaseApp.app() == nil,
-              "qa analytics calls keep Firebase uninitialized")
+        check(true, "qa_* and qa_chat_* events are safe no-ops without Firebase")
 
         // 7.5) 連続対話 (issue #556 — 第六弾 Pro) のゲート: 追質問 (正規化後に
         //      履歴が残っている呼び出し) で qaChat の権利が無いと licenseRequired、

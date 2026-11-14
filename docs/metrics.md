@@ -37,6 +37,12 @@ App Store Connect で、このファイルは定義・手順・月次台帳**。
   `library_qa_start` / `library_qa_complete` / `library_qa_fail` (0.39.0〜。
   第五弾 Pro «ライブラリ横断の質問応答» の利用。パラメータは `qa_*` と同じ
   `processing_time`・`error_kind` — 新しいカスタム ディメンションは不要)、
+  `qa_chat_start` / `qa_chat_complete` / `qa_chat_fail` (0.40.0〜。第六弾 Pro
+  «質問応答の連続対話» の利用 — **追質問だけ**を数え、初問は `qa_*` /
+  `library_qa_*` が数える。両シート (単一録画・ライブラリ横断) 共通のイベント名 —
+  «どのシートか» は初問のイベントで分かる。パラメータは `qa_*` と同じ
+  `processing_time`・`error_kind`。`qa_chat_fail` の `error_kind` は両シートの
+  コード (`qa.*` / `libraryQA.*`) を写像する)、
   `pro_upsell_view` /
   `pro_purchase_start` / `pro_purchase_cancel` / `pro_purchase_pending` /
   `pro_purchase_fail` / `pro_unlocked` / `pro_restore_fail` (0.27.0〜。**MAS 版のみ

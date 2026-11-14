@@ -109,6 +109,27 @@ struct TranscriptQASheet: View {
                     .progressViewStyle(.linear)
             }
 
+            // 質問の入力欄 (履歴の下 — チャットの入力位置)。縦方向に伸びる
+            // (長い質問も折り返して見える)。«この会議で決まったことは?» のような
+            // 書き方の例を prompt に出す
+            TextField(
+                String(localized: "この会議で決まったことは?"),
+                text: $question,
+                axis: .vertical)
+                .textFieldStyle(.roundedBorder)
+                .lineLimit(2...5)
+                .disabled(isAsking)
+                // 入力欄で上限を適用する — 超過分を «答えを得る» の押下時に黙って
+                // 切り捨てない (cubic レビュー指摘。エンジンの
+                // TranscriptQA.maxQuestionLength と同じ値 — TranscriptQASupport の
+                // コメント参照)
+                .onChange(of: question) { _, newValue in
+                    let normalized = TranscriptQASupport.normalizedQuestion(newValue)
+                    if normalized != newValue {
+                        question = normalized
+                    }
+                }
+
             HStack(spacing: 8) {
                 Button {
                     ask()

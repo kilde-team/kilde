@@ -512,7 +512,29 @@ enum UsageAnalytics {
     /// LibraryQASheet) が除外する** (qa_* と同じ «キャンセルは失敗に数えない» 方針)
     static func qaChatFailed(_ error: Error, processingTime: TimeInterval?) {
         log("qa_chat_fail", recordingDuration: nil, processingTime: processingTime,
-            errorKind: qaErrorKind(error))
+            errorKind: qaChatErrorKind(error))
+    }
+
+    /// 追質問の失敗種別。`qa_chat_*` は両シート共通のため、第四弾 (`qa.*`) と
+    /// 第五弾 (`libraryQA.*`) の**両方の**コードを写像する — 単一録画版の
+    /// `qaErrorKind` だけを使うと、ライブラリ追質問の `LibraryQA.Unavailable` が
+    /// `model_error` に潰れる (cubic レビュー指摘)。パラメータの語彙
+    /// (`license_required` / `empty_question` / `unsupported_environment` /
+    /// `cancelled` / `model_error`) は `qaErrorKind` と同じ
+    private static func qaChatErrorKind(_ error: Error) -> String {
+        if let e = error as? KilError {
+            switch e.code {
+            case .licenseRequired: return "license_required"
+            case .qaEmptyQuestion, .libraryQAEmptyQuestion: return "empty_question"
+            case .qaEmptyTranscript: return "empty_transcript"
+            case .libraryQAEmptyLibrary: return "empty_library"
+            default: return "engine_error"
+            }
+        }
+        if error is TranscriptQA.Unavailable { return "unsupported_environment" }
+        if error is LibraryQA.Unavailable { return "unsupported_environment" }
+        if error is CancellationError { return "cancelled" }
+        return "model_error"
     }
 
     // MARK: - ライブラリの文字起こしの持ち出し (issue #493)
