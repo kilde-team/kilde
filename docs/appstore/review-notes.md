@@ -20,14 +20,13 @@ microphone, with optional on-device transcription.
   still works (video + system audio).
 - **Calendar (opt-in, auto-recording only)**: applies a matched event title
   to the file name, the start notification, and the transcript
-  heading. macOS has no read-only calendar permission (the request is full
-  access), but **the app only reads events**; data stays on-device. If
-  declined (or a lookup is still running at start), the default file name
+  heading. macOS has no read-only calendar request (full access), but **the app only reads events**; data stays on-device. If
+  declined (or a lookup is still running at start), the default name
   is used.
 - **Reminders (on-button, 0.34.0)**: pressing "Add to Reminders" in the
   library adds the summary's action items to the default Reminders
-  list. macOS has no write-only Reminders request API (full access is
-  requested), but **the app only adds items** — never reads, edits, or
+  list. macOS has no write-only Reminders request API (full
+  access), but **the app only adds items** — never reads, edits, or
   deletes existing ones. Declined → the library shows an "Open Reminders
   settings" link.
 
@@ -62,35 +61,36 @@ recordings are never stopped. **Consent:** system audio can include other
 participants' voices — informing them is your responsibility.
 
 **In-app purchase — tips (v0.18.0):** optional consumable tips
-(kilde.tip.*) in Settings > "Support this app"; standard StoreKit.
-Nothing is gated.
+(kilde.tip.*) in Settings > "Support this app"; standard StoreKit,
+nothing gated.
 
 **In-app purchase — kilde Pro (v0.26.0 summaries, v0.28.0 follow-up
 drafts, v0.29.0 custom instructions, v0.38.0 transcript Q&A,
-v0.39.0 library-wide Q&A):** one non-consumable product (kilde.pro)
-unlocks them all; Pro AI features run
+v0.39.0 library-wide Q&A, v0.40.0 follow-up Q&A):** one non-consumable
+product (kilde.pro) unlocks them all; Pro AI features run
 on-device and require Apple Intelligence, macOS 26+ (stays disabled
-without it, even after purchase). Reminders export (0.34.0) is **not**
+without it). Reminders export (0.34.0) is **not**
 part of Pro. Without Pro, "Summarize after recording" is a locked row
 with a "Pro" badge and the Settings "Custom instructions" disclosure is
 locked too — clicking them opens an inline purchase panel (price, Buy,
-Restore); "Draft a follow-up", "Ask", and "Ask the Library" (v0.39.0, in
-the library window's search bar) are locked with a tooltip pointing to
-that purchase section.
+Restore); "Draft a follow-up", "Ask", and "Ask the Library" are locked
+(tooltip points there). In the Q&A sheets, follow-up questions pass
+the previous Q&A as context; the history stays in the sheet only
+(never on disk).
 "Summarize after recording" needs "Transcribe after recording"
 enabled (the transcript is the input). Without the entitlement,
 generation is skipped with a notice. A loading price
 placeholder means the product is not visible; reopening the panel
-retries. The IAP's review screenshot shows the locked rows and the
+retries. The IAP review screenshot shows the locked rows and
 panel. **Recording and transcription are currently free.**
 
 ---
 ## 日本語 (参考訳 — 提出は英語版)
 
-**アプリ内課金 — kilde Pro・会議の要約 (v0.26.0) とフォローアップの下書き (v0.28.0)、カスタム指示 (v0.29.0)、質問応答 (v0.38.0)、ライブラリへの質問 (v0.39.0):**
+**アプリ内課金 — kilde Pro・会議の要約 (v0.26.0) とフォローアップの下書き (v0.28.0)、カスタム指示 (v0.29.0)、質問応答 (v0.38.0)、ライブラリへの質問 (v0.39.0)、質問応答の連続対話 (v0.40.0):**
 
-会議の要約・フォローアップの下書き・カスタム指示・質問応答・ライブラリへの質問が有料機能で、**同じ非消耗型
-kilde.pro (日本では ¥2,800 の買い切り) 1 商品で 5 機能すべてがアンロック**
+会議の要約・フォローアップの下書き・カスタム指示・質問応答・ライブラリへの質問・質問応答の連続対話が有料機能で、**同じ非消耗型
+kilde.pro (日本では ¥2,800 の買い切り) 1 商品で 6 機能すべてがアンロック**
 されます。
 未購入の間、パネルの文字起こしセクションの «録画後に要約も作る» は «Pro» バッジ付きの
 ロック行に置き換わります。クリックするとインラインの購入導線が開き、App Store から
@@ -102,7 +102,7 @@ kilde.pro (日本では ¥2,800 の買い切り) 1 商品で 5 機能すべて�
 «要約とフォローアップのカスタム指示» も «Pro» バッジ付きのロック行になり、
 クリックで同じ購入導線を開きます。権利を失ったあとは指示を無視して生成するのではなく、
 要約ごとスキップして案内を出します。**録画と文字起こしは現在無料** — Pro の対象は
-この 5 機能です。レビュー環境で価格が取得できない場合 (商品がまだ見えない)
+この 6 機能です。レビュー環境で価格が取得できない場合 (商品がまだ見えない)
 は «読み込み中» のプレースホルダになります — 想定された挙動で、IAP の審査用
 スクリーンショットにロック行と導線を示してあります。
 
@@ -141,6 +141,13 @@ Intelligence が使えない環境・要約のない録画では理由がツー�
 書き起こし済みの録画が無い環境では購入案内が先に出る — LibraryQASupport の
 判定順)。Apple Intelligence が使えない環境では購入後もボタンは無効のままです
 (空 cue だけのサイドカーは «書き起こし済み» に数えません)。
+
+*質問応答の連続対話 (v0.40.0):* «質問する» / «ライブラリに質問» のシートで、
+答えを踏まえた追質問 («その金額は?» «じゃあ B社の件は?» など) ができます。
+シートは過去の質問と答えを履歴として残し、追質問はこれらを文脈にエンジンへ渡します
+(要約と同じ Apple Intelligence のオンデバイス処理)。履歴はシートの寿命で、
+シートを閉じると消えます (ディスクには書きません)。«コピー» は最新の答えと
+根拠が対象です。
 
 Kilde はメニューバーから使う画面録画アプリで、システム音声とマイクを録音でき、
 録画の文字起こし (オプション) を備えています。

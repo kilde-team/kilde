@@ -566,3 +566,18 @@ and "Recording and transcription are currently free" states the free/Pro line-up
 ```text
 Pro now includes "Ask the Library". From "Ask the Library" in the recording library, the app looks for the answer across multiple transcribed recordings and also shows the sources of the answer (which meeting and which lines it is based on). You can ask things like "What was decided in these meetings?", and if you type words in the search box, recordings containing them are prioritized. On-device processing with Apple Intelligence; macOS 26 or later. Unavailable when Apple Intelligence is not enabled. If you already purchased Pro, it works with no additional purchase. Recording and transcription are currently free.
 ```
+
+## What's New (0.40.0)
+
+The sixth Pro feature, follow-up questions in the Q&A sheets (issue #556, engine kilde-cli-swift#147).
+Copy states only what ships (same policy as 0.38.0 / 0.39.0). Asking follow-ups with the previous
+questions and answers as context (the engine's `history` — `QATurn`), the history staying in the
+sheet and disappearing when the sheet is closed (the conversation is not persisted), and "Copy"
+targeting the latest answer and its sources (the "Ask again" label was removed in favor of
+continuous asking) are exact descriptions of the implementation. "No additional purchase" follows
+the single-product kilde.pro contract, and "Recording and transcription are currently free" states
+the free/Pro line-up honestly.
+
+```text
+Pro now includes follow-up questions in the Q&A sheets. After an answer, you can ask a follow-up like "What was that amount?" — the previous questions and answers are passed along as context. They stay in the sheet as a history and disappear when you close it. "Copy" copies the latest answer and its sources. On-device processing with Apple Intelligence; macOS 26 or later. Unavailable when Apple Intelligence is not enabled. If you already purchased Pro, it works with no additional purchase. Recording and transcription are currently free.
+```
