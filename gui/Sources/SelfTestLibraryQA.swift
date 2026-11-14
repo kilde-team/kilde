@@ -161,7 +161,42 @@ enum SelfTestLibraryQA {
         UsageAnalytics.libraryQACompleted(processingTime: nil)
         UsageAnalytics.libraryQAFailed(
             KilError.failure(.licenseRequired, "selftest"), processingTime: nil)
-        check(true, "library_qa_* events are safe no-ops without Firebase")
+        // 追質問の計測 (qa_chat_* — issue #556。両シート共通のイベント名) も
+        // 同じ線引き
+        UsageAnalytics.qaChatStarted()
+        UsageAnalytics.qaChatCompleted(processingTime: nil)
+        UsageAnalytics.qaChatFailed(
+            KilError.failure(.licenseRequired, "selftest"), processingTime: nil)
+        check(true, "library_qa_* and qa_chat_* events are safe no-ops without Firebase")
+
+        // 9.5) 連続対話 (issue #556 — 第六弾 Pro) のゲート: 追質問で qaChat の
+        //      権利が無いと licenseRequired、権利があれば通る (**空のライブラリ**
+        //      でモデルを呼ばない構成)。初問 (履歴なし) と «実質空» の往復だけの
+        //      履歴は qaChat を要求しない (第五弾のゲートのまま)
+        check(await chatGateFires(
+                  history: [QATurn(question: "予算の話は?", answer: "100万円です")],
+                  for: LicenseContext(entitlement: .licenseKey(LicenseKeyClaims(
+                      v: 1, id: "selftest",
+                      features: [ProFeature.libraryQA.rawValue])))),
+              "chat gate fires for a follow-up without qaChat entitlement")
+        check(await !chatGateFires(
+                  history: [QATurn(question: "予算の話は?", answer: "100万円です")],
+                  for: LicenseContext(entitlement: .licenseKey(LicenseKeyClaims(
+                      v: 1, id: "selftest",
+                      features: [ProFeature.libraryQA.rawValue, ProFeature.qaChat.rawValue])))),
+              "chat gate passes for a follow-up with qaChat entitlement")
+        check(await !chatGateFires(
+                  history: [],
+                  for: LicenseContext(entitlement: .licenseKey(LicenseKeyClaims(
+                      v: 1, id: "selftest",
+                      features: [ProFeature.libraryQA.rawValue])))),
+              "first question does not require qaChat")
+        check(await !chatGateFires(
+                  history: [QATurn(question: "   \n", answer: "回答")],
+                  for: LicenseContext(entitlement: .licenseKey(LicenseKeyClaims(
+                      v: 1, id: "selftest",
+                      features: [ProFeature.libraryQA.rawValue])))),
+              "effectively empty history does not require qaChat")
 
         await finish(status: "library_qa")
     }
@@ -173,6 +208,28 @@ enum SelfTestLibraryQA {
         do {
             _ = try await LibraryQA.answer(
                 question: "決定事項は?", recordings: [], license: license)
+            return false
+        } catch let error as KilError {
+            return error.code == .licenseRequired
+        } catch is LibraryQA.Unavailable {
+            return false
+        } catch {
+            return false
+        }
+    }
+
+    /// 連続対話 (履歴つき) の呼び出しで licenseRequired が投げられるか
+    /// (gateFires の履歴つき版 — issue #556)。**空のライブラリ**を渡すため
+    /// モデルは呼ばれない。第五弾のゲートと第六弾のゲートはどちらも
+    /// 可用性チェックより前に置かれており、権利が足りないときは必ずここで弾かれ、
+    /// 通るときは可用性・空検査へ進む
+    private static func chatGateFires(
+        history: [QATurn], for license: LicenseContext?
+    ) async -> Bool {
+        do {
+            _ = try await LibraryQA.answer(
+                question: "その件の詳細は?", recordings: [],
+                history: history, license: license)
             return false
         } catch let error as KilError {
             return error.code == .licenseRequired

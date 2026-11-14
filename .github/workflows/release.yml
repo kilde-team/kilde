@@ -69,7 +69,11 @@ jobs:
           # v0.24.0: 第五弾 Pro «ライブラリ横断の検索・質問応答»
           # (kilde-cli-swift#145 — GUI の kilde#547 が消費。LibrarySearch /
           # LibraryQA / ProFeature.libraryQA / libraryQA.* のエラーコード)
-          ref: v0.24.0
+          # v0.25.0: 第六弾 Pro «質問応答の連続対話»
+          # (kilde-cli-swift#147 — GUI の kilde#556 が消費。QATurn /
+          # TranscriptQA.answer・LibraryQA.answer の history /
+          # ProFeature.qaChat)
+          ref: v0.25.0
           # private リポジトリ: GITHUB_TOKEN は他リポジトリを読めないため
           # fine-grained PAT (contents:read) を使う
           token: ${{ secrets.KILDE_CLI_SWIFT_TOKEN }}

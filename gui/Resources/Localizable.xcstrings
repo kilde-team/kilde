@@ -263,35 +263,6 @@
           }
         }
       },
-      "質問し直す": {
-        "extractionState": "manual",
-        "localizations": {
-          "en": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "Ask again"
-            }
-          },
-          "es": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "Preguntar de nuevo"
-            }
-          },
-          "ko": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "다시 질문하기"
-            }
-          },
-          "zh-Hans": {
-            "stringUnit": {
-              "state": "translated",
-              "value": "重新提问"
-            }
-          }
-        }
-      },
       "質問を入力してください": {
         "extractionState": "manual",
         "localizations": {

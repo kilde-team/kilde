@@ -2,17 +2,25 @@ import AppKit
 import SwiftUI
 import KildeCore
 
-/// ライブラリ横断の質問応答のシート (issue #547 — 第五弾 Pro)。ライブラリ内の
-/// 複数の録画を横断して «この 2 週間の会議で予算の話は出た?» のように質問し、
-/// 根拠 («会議名: 行») つきで答えを得る。生成の実体はエンジンの
-/// `LibraryQA.answer` (kilde-cli-swift#145) — Apple Intelligence のオンデバイス
-/// 処理で、入力を外部に送らない。
+/// ライブラリ横断の質問応答のシート (issue #547 — 第五弾 Pro。連続対話は
+/// issue #556 — 第六弾 Pro)。ライブラリ内の複数の録画を横断して
+/// «この 2 週間の会議で予算の話は出た?» のように質問し、根拠 («会議名: 行»)
+/// つきで答えを得る。生成の実体はエンジンの `LibraryQA.answer`
+/// (kilde-cli-swift#145 / #147) — Apple Intelligence のオンデバイス処理で、
+/// 入力を外部に送らない。
 ///
 /// 単一録画版 (TranscriptQASheet — issue #540) と同じ契約: 生成はこのシート内の
 /// Task で直接呼び、シートを閉じたらキャンセル (CancellationError は失敗に
-/// 数えない)。質問を変えて何度でも実行できる (前の回答は新しい質問の実行時に消す)。
-/// エンジン側は «録画ごとの抽出 → 統合回答» の複数回のモデル呼び出しになる
-/// (進捗はエンジンの onProgress を受けて値で見せる)
+/// 数えない)。
+///
+/// 0.40.0 から**連続対話** (issue #556 — エンジン kilde-cli-swift#147): 以前の
+/// «前の回答は新しい質問の実行時に消す» をやめ、«質問 → 回答» をシート内の履歴に
+/// 積み、新しい質問は履歴を `history` としてエンジンに渡す («その会議についてもっと
+/// 詳しく» «じゃあ B社の件は?» のような追質問が前の文脈を踏まえる)。履歴の正規化と
+/// 上限切り詰め (新しいものから 4 往復) はエンジン側 (QATurn.normalizeHistory /
+/// fittingHistory)。**録画の選定 (`LibraryQA.selectRecordings`) は履歴を使わない**
+/// (質問語と検索語のみ — エンジンの契約)。履歴はシートの寿命 — 閉じたら消える。
+/// 失敗した質問は履歴に積まない (単一録画版と同じ)
 struct LibraryQASheet: View {
     /// 質問の対象になる録画列 (**書き起こしを持つ録画だけ** — LibraryQASupport.recordings
     /// が保証する。ボタンの有効条件も «書き起こし済み 1 件以上» で開く経路を守る)
@@ -30,9 +38,18 @@ struct LibraryQASheet: View {
     /// (TranscriptQASheet と同じ契約)
     var instructions: ComposerInstructions? = nil
 
+    /// 履歴の 1 項目。単一録画版 (TranscriptQASheet.ChatEntry) と同じ構成 —
+    /// エンジンには `QATurn` (question + 回答本文) として渡し、表示は根拠つき
+    private struct ChatEntry: Identifiable {
+        let id = UUID()
+        let question: String
+        let answer: LibraryAnswer
+    }
+
     @Environment(\.dismiss) private var dismiss
     @State private var question = ""
-    @State private var answer: LibraryAnswer?
+    /// これまでの «質問 → 回答»。新しい質問の実行時に消さない (issue #556)
+    @State private var entries: [ChatEntry] = []
     @State private var isAsking = false
     /// 生成の進捗 (0.0〜1.0)。エンジンの onProgress から来る — «録画 × チャンク»
     /// の抽出が複数回のモデル呼び出しになるため、indeterminate ではなく値で見せる
@@ -43,6 +60,8 @@ struct LibraryQASheet: View {
     /// 実行中の Task。シートを閉じたらキャンセルする (TranscriptQASheet と同じ —
     /// 保持しないと閉じた後もモデル呼び出しが走り続ける)
     @State private var askTask: Task<Void, Never>?
+    /// 履歴の末尾へのスクロール anchor (ScrollViewReader 用の固定 id)
+    private let bottomAnchor = "library-qa-bottom"
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -62,35 +81,27 @@ struct LibraryQASheet: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            // 質問の入力欄。単一録画版と同じ «上限を入力欄で適用»
-            // («答えを得る» の押下時に黙って切り捨てない)
-            TextField(
-                String(localized: "これらの会議で決まったことは?"),
-                text: $question,
-                axis: .vertical)
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(2...5)
-                .disabled(isAsking)
-                .onChange(of: question) { _, newValue in
-                    // 入力 «中» は前後の空白を保つ — 正規化 (trim) を入力ごとに
-                    // 行うと «文末の空白を入れた瞬間に消える» ので質問文が
-                    // 編集しにくい (CodeRabbit レビュー指摘)。上限を超えたときだけ
-                    // 切り詰め、«実質空» の正規化は «答えを得る» の押下時
-                    // (ask の normalizedQuestion) に行う。単一録画版
-                    // (TranscriptQASheet) は trim を入力ごとに行っているが、
-                    // こちらは «押下時に正規化» に寄せた — エンジンの
-                    // normalizeQuestion が最終的な正本なので挙動の差は
-                    // 利用者に見えない
-                    if newValue.count > LibraryQASupport.maxQuestionLength {
-                        // 上限超過のときは **切り詰めだけ** を行う — trim まで
-                        // 行うと «文末の空白を入れた瞬間に消える» が上限超過の
-                        // 編集でも起き、この変更の意図 («入力中は空白を保つ»)
-                        // と矛盾するため (cubic 再レビュー指摘)。trim は
-                        // «答えを得る» の押下時 (ask の normalizedQuestion) に
-                        // 限定する
-                        question = String(newValue.prefix(LibraryQASupport.maxQuestionLength))
+            // 履歴 («質問 → 回答» の積み重ね — 新しい往復が下)。初問前は
+            // スペースを取らない。進捗と入力欄は履歴の下 (画面の下側) に置く —
+            // 単一録画版 (TranscriptQASheet) と同じ «チャット» の流れ
+            if !entries.isEmpty {
+                historyView
+            }
+
+            if let failureText {
+                VStack(alignment: .leading, spacing: 2) {
+                    Label(failureText, systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
+                    if let failureDetail {
+                        Text(failureDetail)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
                     }
                 }
+                .font(.caption)
+                .fixedSize(horizontal: false, vertical: true)
+            }
 
             if isAsking {
                 ProgressView(value: progress)
@@ -101,11 +112,7 @@ struct LibraryQASheet: View {
                 Button {
                     ask()
                 } label: {
-                    Label(
-                        answer == nil
-                            ? String(localized: "答えを得る")
-                            : String(localized: "質問し直す"),
-                        systemImage: "sparkles")
+                    Label(String(localized: "答えを得る"), systemImage: "sparkles")
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!LibraryQASupport.isAskEnabled(
@@ -113,9 +120,11 @@ struct LibraryQASheet: View {
                 .help(LibraryQASupport.isAskEnabled(question: question, isAsking: isAsking)
                     ? ""
                     : String(localized: "質問を入力してください"))
-                if let answer {
+                // «コピー» は**最新の回答** (根拠 «会議名: 行» つき) を対象にする
+                // (issue #556 — 単一録画版と同じ対象。履歴全体のコピーは対象外)
+                if let last = entries.last {
                     Button {
-                        copy(answer)
+                        copy(last.answer)
                     } label: {
                         Label(
                             hasCopied
@@ -134,24 +143,6 @@ struct LibraryQASheet: View {
                     .buttonStyle(.borderless)
             }
 
-            if let failureText {
-                VStack(alignment: .leading, spacing: 2) {
-                    Label(failureText, systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.orange)
-                    if let failureDetail {
-                        Text(failureDetail)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .textSelection(.enabled)
-                    }
-                }
-                .font(.caption)
-                .fixedSize(horizontal: false, vertical: true)
-            }
-
-            if let answer {
-                answerView(answer)
-            }
             Spacer(minLength: 0)
         }
         .padding(16)
@@ -163,82 +154,122 @@ struct LibraryQASheet: View {
         }
     }
 
-    /// 回答の表示。本文と、根拠 («会議名: 行») があるときだけ根拠セクション。
-    /// 根拠はライブラリ版では常に集まる契約 («見つからない» のときだけ空) —
-    /// «どの会議の根拠か» が 1 文字列で分かる形で並べる
-    private func answerView(_ answer: LibraryAnswer) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Divider()
+    /// 履歴の表示。新しい回答が積まれたら末尾へスクロールする
+    /// (単一録画版と同じ — withAnimation なし)
+    private var historyView: some View {
+        ScrollViewReader { proxy in
             ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
-                    if answer.text.isEmpty {
-                        // エンジンが空の回答を返す経路は無い契約だが、
-                        // «空の本文» をそのまま出すより案内を出す (防御)
-                        Text(String(localized: "答えが得られませんでした"))
-                            .font(.body)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text(answer.text)
-                            .font(.body)
-                            .textSelection(.enabled)
-                            .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(entries) { entry in
+                        entryView(entry)
                     }
-                    if LibraryQASupport.hasExcerpts(answer) {
-                        Divider()
-                        Text(String(localized: "根拠 (会議と行)"))
-                            .font(.caption.bold())
-                            .foregroundStyle(.secondary)
-                        ForEach(Array(answer.excerpts.enumerated()), id: \.offset) { _, line in
-                            Text(line)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .textSelection(.enabled)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
+                    Color.clear
+                        .frame(height: 1)
+                        .id(bottomAnchor)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .onChange(of: entries.count) { _, _ in
+                proxy.scrollTo(bottomAnchor, anchor: .bottom)
+            }
+        }
+    }
+
+    /// 履歴の 1 往復。質問 (キャプション) と回答 (本文 + 根拠)。
+    /// 根拠はライブラリ版では常に集まる契約 («見つからない» のときだけ空) —
+    /// «どの会議の根拠か» が 1 文字列で分かる形で並べる
+    private func entryView(_ entry: ChatEntry) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Divider()
+            Label {
+                Text(entry.question)
+                    .font(.caption.bold())
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: "questionmark.bubble")
+                    .foregroundStyle(.secondary)
+            }
+            if entry.answer.text.isEmpty {
+                // エンジンが空の回答を返す経路は無い契約だが、
+                // «空の本文» をそのまま出すより案内を出す (防御)
+                Text(String(localized: "答えが得られませんでした"))
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text(entry.answer.text)
+                    .font(.body)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if LibraryQASupport.hasExcerpts(entry.answer) {
+                Text(String(localized: "根拠 (会議と行)"))
+                    .font(.caption.bold())
+                    .foregroundStyle(.secondary)
+                ForEach(Array(entry.answer.excerpts.enumerated()), id: \.offset) { _, line in
+                    Text(line)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }
 
     /// 質問を実行する。«答えを得る» ボタンは Task を askTask に入れて保持する —
-    /// onDisappear からのキャンセルのため (TranscriptQASheet.ask と同じ流儀)
+    /// onDisappear からのキャンセルのため (TranscriptQASheet.ask と同じ流儀)。
+    /// 履歴がある (追質問の) ときは計測を `qa_chat_*` に切り替える — 初問は
+    /// `library_qa_*` のまま (両シートで共通の追質問イベント名 —
+    /// UsageAnalytics.qaChatStarted の doc コメント参照)
     private func ask() {
         let normalized = LibraryQASupport.normalizedQuestion(question)
         // «実質空» はボタンの有効条件で防いでいるが、防御としてここでも返す
         guard !normalized.isEmpty, !isAsking else { return }
         isAsking = true
         progress = 0
-        answer = nil
         failureText = nil
         failureDetail = nil
         hasCopied = false
+        let isFollowUp = !entries.isEmpty
         // カスタム指示の権利をここでも確認する (TranscriptQASheet.ask と同じ
         // pre-check — issue #472)。«指示したのに指示なしで黙って実行される» を
         // 避ける。エンジンの 2 段目ゲート (kilde-cli-swift#145) が最終防護
         if let instructions, !instructions.isEmpty,
            !license.allows(.customInstructions) {
-            // 権利不足の離脱を計測に残す (qa_* と同じ組)
-            UsageAnalytics.libraryQAStarted()
-            UsageAnalytics.libraryQAFailed(
-                KilError.failure(
-                    KilError.Code.licenseRequired,
-                    "カスタム指示には kilde Pro の権利が必要です"),
-                processingTime: nil)
+            // 権利不足の離脱を計測に残す (qa_* / qa_chat_* と同じ組)
+            let licenseError = KilError.failure(
+                KilError.Code.licenseRequired,
+                "カスタム指示には kilde Pro の権利が必要です")
+            if isFollowUp {
+                UsageAnalytics.qaChatStarted()
+                UsageAnalytics.qaChatFailed(licenseError, processingTime: nil)
+            } else {
+                UsageAnalytics.libraryQAStarted()
+                UsageAnalytics.libraryQAFailed(licenseError, processingTime: nil)
+            }
             failureText = String(localized: "カスタム指示は使えませんでした")
             failureDetail = String(localized: "kilde Pro の購入または購入の復元が必要です")
             isAsking = false
             return
         }
-        UsageAnalytics.libraryQAStarted()
+        if isFollowUp {
+            UsageAnalytics.qaChatStarted()
+        } else {
+            UsageAnalytics.libraryQAStarted()
+        }
         let startedAt = Date()
+        // 履歴をエンジンの型へ写す (回答本文だけを文脈に使う — 根拠 excerpts は
+        // 載せない。正規化・上限切り詰め・予算への収めはエンジン側が担う。
+        // **選定は履歴を使わない** — 質問語と検索語のみ、というエンジンの契約)
+        let history = entries.map { QATurn(question: $0.question, answer: $0.answer.text) }
         askTask = Task {
             do {
                 let generated = try await LibraryQA.answer(
                     question: normalized,
                     recordings: recordings,
                     searchTerms: searchTerms,
+                    history: history,
                     license: license,
                     instructions: instructions,
                     onProgress: { value in
@@ -248,17 +279,30 @@ struct LibraryQASheet: View {
                             progress = min(max(value, 0), 1)
                         }
                     })
-                answer = generated
+                // 成功した質問だけを履歴に積む (失敗した質問は積まない —
+                // 単一録画版と同じ)。質問欄はクリアする
+                entries.append(ChatEntry(question: normalized, answer: generated))
+                question = ""
                 hasCopied = false
-                UsageAnalytics.libraryQACompleted(
-                    processingTime: Date().timeIntervalSince(startedAt))
+                if isFollowUp {
+                    UsageAnalytics.qaChatCompleted(
+                        processingTime: Date().timeIntervalSince(startedAt))
+                } else {
+                    UsageAnalytics.libraryQACompleted(
+                        processingTime: Date().timeIntervalSince(startedAt))
+                }
             } catch is CancellationError {
                 // シートを閉じた場合は失敗に数えない (qa_* と同じ方針)
             } catch {
                 failureText = String(localized: "ライブラリへの質問を実行できませんでした")
                 failureDetail = String(describing: error)
-                UsageAnalytics.libraryQAFailed(
-                    error, processingTime: Date().timeIntervalSince(startedAt))
+                if isFollowUp {
+                    UsageAnalytics.qaChatFailed(
+                        error, processingTime: Date().timeIntervalSince(startedAt))
+                } else {
+                    UsageAnalytics.libraryQAFailed(
+                        error, processingTime: Date().timeIntervalSince(startedAt))
+                }
             }
             isAsking = false
         }
