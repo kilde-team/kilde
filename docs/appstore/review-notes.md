@@ -15,11 +15,11 @@ microphone, with optional on-device transcription.
 - **Screen Recording**: required for the screen **and system audio (which
   can include other participants' voices)**. After granting it,
   **restart the app** (macOS activates it after a relaunch).
-- **Microphone**: records **your own voice**. You can decline it; recording
+- **Microphone**: records **your own voice**. Decline is fine; recording
   still works (video + system audio).
 - **Calendar (opt-in, auto-recording only)**: applies a matched event title
   to the file name, the start notification, and the transcript heading.
-  macOS has no read-only calendar request (full access), but **the app only
+  macOS has no read-only calendar API (full access), but **the app only
   reads events**; data stays on-device. If declined (or if a lookup is still running at
   start), the default name is used.
 - **Reminders (on-button, 0.34.0)**: "Add to Reminders" in the library adds
@@ -37,17 +37,17 @@ microphone, with optional on-device transcription.
 3. (Optional, **macOS 26+**) enable "Transcribe after recording" and record
    a short spoken clip; a Markdown transcript is written next to it.
 4. (Optional) A library recording whose minutes include a summary with
-   action items shows "Add to Reminders" — it adds them to the default list.
+   action items (create via "Summarize after recording") shows "Add to
+   Reminders" — it adds them to the default list.
 
 Settings (gear) holds hotkey, launch at login, meeting auto-recording,
 and analytics opt-out.
 
 **Data handling:** transcription and AI features run **entirely on this
 device** (SpeechTranscriber / Apple Intelligence); no audio, transcript,
-summary, draft, Q&A, or translation text is uploaded. A
-missing language model downloads from Apple (your IP reaches Apple);
-otherwise it works offline. Recordings go to `~/Movies` or a user-picked
-folder (never inside the App Sandbox container). Outbound connections:
+summary, draft, Q&A, or translation text is uploaded. A missing language model downloads from Apple; otherwise it works
+offline. Recordings go to `~/Movies` or a user-picked
+folder (never inside the App Sandbox container). Outbound:
 Firebase Analytics (usage analytics), Crashlytics (crash reports), and
 those downloads; none carries audio.
 
@@ -64,19 +64,19 @@ v0.28.0, custom instructions v0.29.0, transcript Q&A v0.38.0,
 library-wide Q&A v0.39.0, follow-up Q&A v0.40.0, transcript translation
 v0.41.0):** one non-consumable product (kilde.pro) unlocks them all; Pro
 AI features run on-device and require Apple Intelligence, macOS 26+
-(stays disabled without it). Reminders export (0.34.0) is **not** part
+(disabled without it). Reminders export (0.34.0) is **not** part
 of Pro. Without Pro, "Summarize after recording" is a locked row with a
 "Pro" badge and the Settings "Custom instructions" disclosure is locked
 too — clicking them opens an inline purchase panel (price, Buy,
 Restore); "Draft a follow-up", "Ask", "Ask the Library", and "Translate"
 are locked (tooltip points there). "Translate" picks a target language
 and keeps time markers; the translation text stays on the device. In the Q&A sheets,
-follow-up questions pass the previous Q&A as context; the history stays
-in the sheet only (never on disk). "Summarize after recording" needs
+follow-ups pass the previous Q&A as context; history stays in the
+sheet only (never on disk). "Summarize after recording" needs
 "Transcribe after recording" enabled (the transcript is the input).
 Without the entitlement, generation is skipped with a notice. A loading
-price placeholder means the product is not visible; reopening retries. The IAP review screenshot shows the locked
-rows and panel. **Recording and transcription are currently free.**
+price placeholder means the product is not visible; reopen retries. The IAP review screenshot shows the locked rows and
+panel. **Recording and transcription are currently free.**
 
 ---
 ## 日本語 (参考訳 — 提出は英語版)
