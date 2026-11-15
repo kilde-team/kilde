@@ -149,6 +149,11 @@ struct TranscriptTranslateSheet: View {
         .onChange(of: language) { _, _ in
             translatedText = nil
             hasCopied = false
+            // 直前の失敗表示も消す — «別の言語を選んだ時点で前の試行は無効» の
+            // モデル。残っていると新しい試行の前に古いエラーが見える
+            // (cubic レビュー指摘 — issue #564)
+            failureText = nil
+            failureDetail = nil
         }
         .onDisappear {
             // シートを閉じたら実行をキャンセルする (結果は使わないため。

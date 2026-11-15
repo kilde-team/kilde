@@ -46,10 +46,11 @@ App Store Connect で、このファイルは定義・手順・月次台帳**。
   `translation_start` / `translation_complete` / `translation_fail` (0.41.0〜。
   第七弾 Pro «書き起こしの翻訳» の利用。パラメータは `qa_*` と同じ
   `processing_time`・`error_kind` — 新しいカスタム ディメンションは不要。
-  `translation_fail` の `error_kind` はエンジンのコード (`translate.*`) と
-  `qaErrorKind` と同じ語彙 (`license_required` / `empty_transcript` /
-  `unsupported_environment` / `cancelled` / `engine_error` / `model_error`)
-  を使う)、
+  `translation_fail` の `error_kind` は **`translateErrorKind` の列挙が正本**
+  (`license_required` / `empty_transcript` / `unsupported_environment` /
+  `cancelled` / `engine_error` / `model_error` — 翻訳には «質問» が無いため
+  `qaErrorKind` のうち `empty_question` は発生しない部分集合。語彙そのものは
+  登録済みディメンションの `error_kind` に使える値だけ)、
   `pro_upsell_view` /
   `pro_purchase_start` / `pro_purchase_cancel` / `pro_purchase_pending` /
   `pro_purchase_fail` / `pro_unlocked` / `pro_restore_fail` (0.27.0〜。**MAS 版のみ
