@@ -585,3 +585,19 @@ indica honestamente la línea entre lo gratuito y Pro.
 ```text
 Pro ahora incluye preguntas de seguimiento en las hojas de preguntas y respuestas. Después de una respuesta, puedes hacer una pregunta de seguimiento como «¿Cuál era ese importe?» — las preguntas y respuestas anteriores se pasan como contexto. Se quedan en la hoja como historial y desaparecen al cerrarla. «Copiar» copia la última respuesta y sus fuentes. Procesamiento en el dispositivo con Apple Intelligence; macOS 26 o posterior. No disponible si Apple Intelligence no está activado. Si ya compraste Pro, funciona sin compra adicional. La grabación y la transcripción son actualmente gratuitas.
 ```
+
+## Novedades (0.41.0)
+
+La séptima función Pro: traducción de transcripciones (issue #564, motor kilde-cli-swift#149).
+El texto solo describe lo que está implementado (misma política que 0.38.0-0.40.0). Traducir la
+transcripción de una reunión al idioma elegido desde el botón «Traducir» de una grabación (la barra
+de acciones de la transcripción — cableado del issue #564), las marcas de tiempo que se mantienen
+para leer cada línea junto al original (la instrucción del motor — kilde-cli-swift#149), y el último
+idioma usado que queda como predeterminado (TranscriptTranslateSupport.lastLanguage — memoria en
+UserDefaults) son descripciones exactas de la implementación. «Sin compra adicional» sigue el
+contrato de un solo producto kilde.pro, y «La grabación y la transcripción son actualmente gratuitas»
+indica honestamente la línea entre lo gratuito y Pro.
+
+```text
+Pro ahora incluye la traducción de transcripciones. Desde «Traducir» en una grabación, puedes traducir la transcripción de una reunión grabada al idioma que elijas (japonés / inglés / chino simplificado / coreano / español). Las marcas de tiempo se mantienen, así que cada línea traducida se puede corresponder con el original. Copia la traducción completa, y el último idioma usado queda como predeterminado la próxima vez. Procesado en el dispositivo con Apple Intelligence; macOS 26 o posterior. No disponible si Apple Intelligence no está activado. Si ya compraste Pro, funciona sin compra adicional. La grabación y la transcripción son actualmente gratuitas.
+```
