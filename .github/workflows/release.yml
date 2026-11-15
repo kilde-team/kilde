@@ -73,7 +73,11 @@ jobs:
           # (kilde-cli-swift#147 — GUI の kilde#556 が消費。QATurn /
           # TranscriptQA.answer・LibraryQA.answer の history /
           # ProFeature.qaChat)
-          ref: v0.25.0
+          # v0.26.0: 第七弾 Pro «書き起こしの翻訳»
+          # (kilde-cli-swift#149 — GUI の kilde#564 が消費。TranscriptTranslator /
+          # TranslationLanguage / ProFeature.translation /
+          # translateEmptyTranscript)
+          ref: v0.26.0
           # private リポジトリ: GITHUB_TOKEN は他リポジトリを読めないため
           # fine-grained PAT (contents:read) を使う
           token: ${{ secrets.KILDE_CLI_SWIFT_TOKEN }}

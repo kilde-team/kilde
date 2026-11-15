@@ -537,6 +537,50 @@ enum UsageAnalytics {
         return "model_error"
     }
 
+    // MARK: - 書き起こしの翻訳 (第七弾 Pro — issue #564 / エンジン kilde-cli-swift#149)
+
+    /// qa_* と同じ位置づけの Pro 機能の実利用計測。パラメータは qa_* と同じ
+    /// (processing_time / error_kind — 登録済みディメンションのみの規約 issue #456)。
+    /// 翻訳先の言語は計測しない (言語コードは登録済みディメンションに無いため
+    /// 送れない — «登録済みディメンションのみ» の枠内で «翻訳の利用» だけを
+    /// 数える。翻訳の内容は PRIVACY.md «会話の内容は送らない» と同じ線引きで
+    /// 送らない)
+
+    /// 翻訳の実行を開始した («翻訳する» を押したとき)
+    static func translationStarted() {
+        logParameterless("translation_start")
+    }
+
+    /// 翻訳が完了した
+    static func translationCompleted(processingTime: TimeInterval?) {
+        log("translation_complete", recordingDuration: nil, processingTime: processingTime)
+    }
+
+    /// 翻訳が失敗した。**キャンセルは呼び出し側 (TranscriptTranslateSheet) が
+    /// 除外する** (qa_* と同じ «キャンセルは失敗に数えない» 方針)
+    static func translationFailed(_ error: Error, processingTime: TimeInterval?) {
+        log("translation_fail", recordingDuration: nil, processingTime: processingTime,
+            errorKind: translateErrorKind(error))
+    }
+
+    /// 翻訳の失敗種別。パラメータの語彙 (`license_required` / `empty_transcript` /
+    /// `unsupported_environment` / `cancelled` / `model_error`) は `qaErrorKind` と
+    /// 同じ («登録済みディメンション» の `error_kind` に使える語彙を増やさない)。
+    /// エンジンの専用コードは `.translateEmptyTranscript` のみ — 翻訳には
+    /// «質問» が無いため `qaEmptyQuestion` に相当する経路も無い
+    private static func translateErrorKind(_ error: Error) -> String {
+        if let e = error as? KilError {
+            switch e.code {
+            case .licenseRequired: return "license_required"
+            case .translateEmptyTranscript: return "empty_transcript"
+            default: return "engine_error"
+            }
+        }
+        if error is TranscriptTranslator.Unavailable { return "unsupported_environment" }
+        if error is CancellationError { return "cancelled" }
+        return "model_error"
+    }
+
     // MARK: - ライブラリの文字起こしの持ち出し (issue #493)
 
     /// 無料機能 (ライブラリ) の実利用計測。両チャネルで発火する。

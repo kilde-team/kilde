@@ -1062,6 +1062,8 @@ private struct LibraryDetailView: View {
     @State private var showsFollowupDraft = false
     /// 質問応答シート (issue #540 — 第四弾 Pro) の表示
     @State private var showsTranscriptQA = false
+    /// «翻訳» シート (issue #564 — 第七弾 Pro)
+    @State private var showsTranslate = false
     /// «リマインダーへ追加» (issue #509) の EventKit ラッパ。権限の要求と
     /// 書き出しは押下時にこのラッパを通して行う — ボタンの有無は議事録の内容
     /// (正規化後のアクションの有無) だけで決まり、権限の状態を表示に反映しない
@@ -1300,6 +1302,7 @@ private struct LibraryDetailView: View {
     private var transcriptActionsBar: some View {
         let unsupportedReason = MeetingSummarizer.unsupportedReason
         let proAllowsQA = pro.license.allows(.transcriptQA)
+        let proAllowsTranslation = pro.license.allows(.translation)
         let proAllows = pro.license.allows(.followupDraft)
         return HStack {
             Spacer()
@@ -1335,6 +1338,27 @@ private struct LibraryDetailView: View {
                 hasTranscript: true,
                 appleIntelligenceUnavailableReason: unsupportedReason,
                 proAllows: proAllowsQA))
+            // «翻訳» (issue #564 — 第七弾 Pro)。«質問する» と同じ «書き起こしが
+            // あれば使える» 導線で、書き起こしの次の一手として並べる。
+            // hasTranscript は «空白でない本文を持つセグメント» の実判定
+            // («本文が空の cue だけ» の索引で «押した後に必ず失敗» を避ける)
+            Button {
+                showsTranslate = true
+            } label: {
+                Label(String(localized: "翻訳"), systemImage: "translate")
+            }
+            .controlSize(.small)
+            .buttonStyle(.bordered)
+            .disabled(!TranscriptTranslateSupport.isButtonEnabled(
+                hasTranscript: TranscriptTranslateSupport.hasTranslatableTranscript(
+                    (entry.segments ?? []).map(\.text)),
+                appleIntelligenceUnavailableReason: unsupportedReason,
+                proAllows: proAllowsTranslation))
+            .help(TranscriptTranslateSupport.buttonTooltip(
+                hasTranscript: TranscriptTranslateSupport.hasTranslatableTranscript(
+                    (entry.segments ?? []).map(\.text)),
+                appleIntelligenceUnavailableReason: unsupportedReason,
+                proAllows: proAllowsTranslation))
             if minutesDoc != .notMinutes {
                 Button {
                     exportToReminders()
@@ -1385,6 +1409,21 @@ private struct LibraryDetailView: View {
                 // ないときは実行を止めて案内を出す — 黙って指示なしで実行しない
                 // ため。FollowupDraftSheet と同じ契約)
                 instructions: settings().summaryInstructions)
+        }
+        .sheet(isPresented: $showsTranslate) {
+            // «質問する» と同じ前提: ボタンが有効なのは «空白でない本文» を持つ
+            // 書き起こしのある録画のときだけ。ライブラリの索引 (LibrarySegment) は
+            // **話者を保持しない**ため、エンジンの TranscriptSegment への写像は
+            // speaker: nil になる — «話者名は原文のまま» の契約は «話者が分かる
+            // ときだけ» で、ライブラリ経路では時刻表示だけが残る (QA «質問する» と
+            // 同じ制約。話者の保持はライブラリ索引の拡張で別 issue — #566)
+            TranscriptTranslateSheet(
+                transcript: (entry.segments ?? []).map {
+                    TranscriptSegment(
+                        start: $0.start, end: $0.end, text: $0.text, speaker: nil)
+                },
+                title: entry.recordingURL.deletingPathExtension().lastPathComponent,
+                license: pro.license)
         }
         .sheet(isPresented: $showsFollowupDraft) {
             // ボタンが有効なのは .summary のときだけなので、シートの内容は常に
