@@ -38,7 +38,7 @@ enum TranscriptTranslateSupport {
         if !hasTranscript {
             return String(localized: "翻訳には文字起こしが必要です («文字起こしを作成» で作れます)")
         }
-        return String(localized: "録った会議の書き起こしを、選んだ言語へ翻訳します (端末内で処理します)")
+        return String(localized: "録った会議の文字起こしを、選んだ言語へ翻訳します (端末内で処理します)")
     }
 
     /// «翻訳できる書き起こしがある» の実判定。**配列の存在だけでは不十分** —
@@ -67,28 +67,51 @@ enum TranscriptTranslateSupport {
     /// アプリの表示言語に対応する既定の翻訳先。初回 (記憶が無いとき) だけ使う。
     /// エンジンの `TranslationLanguage` は GUI の対応ロケールと揃えた閉じた
     /// 列挙のため、対応する言語コードへの写像だけで済む。
-    /// **対応しないロケール (fr など) のときは日本語に倒す** — アプリの開発言語が
-    /// ja で、未対応ロケールではどの言語を既定にしても同程度に妥当なため
-    /// («対応していない» を別の既定で示す必要も無い)
+    /// **繁体字 (zh-Hant) は «対応しないロケール» として日本語に倒す** —
+    /// アプリが対応している中国語は簡体字 (zh-Hans) のみで、繁体字の利用者に
+    /// 簡体字を既定として選ばせるのは «対応言語への写像» ではないため
+    /// (cubic レビュー指摘 — issue #564)。その他の未対応ロケール (fr など) も
+    /// 日本語に倒す — アプリの開発言語が ja で、未対応ロケールではどの言語を
+    /// 既定にしても同程度に妥当なため («対応していない» を別の既定で示す
+    /// 必要も無い)
     static func defaultLanguage(for locale: Locale) -> TranslationLanguage {
         switch locale.language.languageCode?.identifier {
         case "en": return .english
         case "es": return .spanish
         case "ko": return .korean
-        case "zh": return .simplifiedChinese
+        case "zh":
+            return locale.language.script?.identifier == "Hant"
+                ? .japanese : .simplifiedChinese
         default: return .japanese
         }
     }
 
+    /// 初回の翻訳先 («アプリが実際に表示に使っている言語» に対応するケース)。
+    /// **`Locale.current` は使わない** — こちらは«地域設定»も反映するため、
+    /// 表示言語と地域が違う利用者 (言語 en・地域 JP など) で既定がずれる
+    /// (cubic レビュー指摘 — issue #564)。`Bundle.main.preferredLocalizations`
+    /// は «利用者の言語設定 ∩ アプリの対応ロケール» の順序リストで、
+    /// 先頭が実際に表示に使われる言語。取り得ないとき (空リスト) は
+    /// アプリの開発言語 ja に倒す
+    static var initialLanguage: TranslationLanguage {
+        let preferred = Bundle.main.preferredLocalizations.first ?? "ja"
+        return defaultLanguage(for: Locale(identifier: preferred))
+    }
+
     /// «最後に使った言語» を取得する。記憶が無い・値が現在の列挙に無い
-    /// (削除されたケースなど) ときは表示言語に対応する既定に倒す。
-    /// UserDefaults を引数に取るのはセルフテスト用 (隔離スイートを渡せる)
-    static func lastLanguage(in defaults: UserDefaults) -> TranslationLanguage {
+    /// (削除されたケースなど) ときは `fallback` に倒す。
+    /// UserDefaults を引数に取るのはセルフテスト用 (隔離スイートを渡せる)。
+    /// `fallback` を引数にするのは検証を**決定的**にするため — «既定に倒す» が
+    /// 環境の表示言語に依存すると、セルフテストが «どの実装でも通る» 形に
+    /// なってしまう (cubic レビュー指摘 — issue #564)
+    static func lastLanguage(
+        in defaults: UserDefaults, fallback: TranslationLanguage
+    ) -> TranslationLanguage {
         if let raw = defaults.string(forKey: lastLanguageKey),
            let language = TranslationLanguage(rawValue: raw) {
             return language
         }
-        return defaultLanguage(for: .current)
+        return fallback
     }
 
     /// «最後に使った言語» を記憶する («翻訳する» の送信時に呼ぶ —
@@ -100,9 +123,10 @@ enum TranscriptTranslateSupport {
         defaults.set(language.rawValue, forKey: lastLanguageKey)
     }
 
-    /// 実行時に使う窓口 (UserDefaults.standard)
+    /// 実行時に使う窓口 (UserDefaults.standard)。fallback は «アプリの表示言語に
+    /// 対応するケース» (`initialLanguage`)
     static var lastLanguage: TranslationLanguage {
-        get { lastLanguage(in: .standard) }
+        get { lastLanguage(in: .standard, fallback: initialLanguage) }
         set { persistLastLanguage(newValue, in: .standard) }
     }
 }

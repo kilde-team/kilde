@@ -57,7 +57,7 @@ struct TranscriptTranslateSheet: View {
                         .controlSize(.small)
                 }
             }
-            Text(String(localized: "この録画の書き起こしを、選んだ言語へ翻訳します (端末内で処理します)"))
+            Text(String(localized: "この録画の文字起こしを、選んだ言語へ翻訳します (端末内で処理します)"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -116,7 +116,7 @@ struct TranscriptTranslateSheet: View {
                 // 再入防止 («実行中は押せない» — TranscriptQASheet の
                 // isAskEnabled と同じ流儀。書き起こしは有効条件で保証済み)
                 .disabled(isTranslating)
-                if translatedText != nil {
+                if translatedText?.isEmpty == false {
                     Button {
                         copyTranslation()
                     } label: {
@@ -142,6 +142,14 @@ struct TranscriptTranslateSheet: View {
         }
         .padding(16)
         .frame(width: 560, height: 520)
+        // 言語を変えたら«前の言語の結果» は無効化する — 英語の翻訳が表示されたまま
+        // スペイン語を選ぶと、«今選んでいる言語の結果» が表示されているように
+        // 読め、«コピー» も前の言語の結果を掴む (CodeRabbit レビュー指摘 —
+        // issue #564)。«結果は 1 件、選んでいる言語のもの» のモデルを保つ
+        .onChange(of: language) { _, _ in
+            translatedText = nil
+            hasCopied = false
+        }
         .onDisappear {
             // シートを閉じたら実行をキャンセルする (結果は使わないため。
             // CancellationError は fail に数えない — translate の catch 参照)

@@ -97,19 +97,45 @@ enum SelfTestTranslate {
         //    «最後に使った言語» を書き換えてはいけない)
         let suiteName = "selftest.transcript-translate.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
-        // 記憶が無いときは既定 (表示言語に対応) に倒す。既定は 5 種のどれか
-        check(TranslationLanguage.allCases.contains(
-                  TranscriptTranslateSupport.lastLanguage(in: defaults)),
-              "unset language falls back to a valid default")
+        // «表示言語への写像» (`defaultLanguage(for:)` は純粋関数なので
+        // ロケールを固定して決定的に検証する)。未対応ロケール (fr) と繁体字
+        // (zh-Hant) は日本語に倒す («対応ロケールへの写像» ではないため)
+        check(TranscriptTranslateSupport.defaultLanguage(
+                  for: Locale(identifier: "ja")) == .japanese,
+              "default language for ja is japanese")
+        check(TranscriptTranslateSupport.defaultLanguage(
+                  for: Locale(identifier: "en")) == .english,
+              "default language for en is english")
+        check(TranscriptTranslateSupport.defaultLanguage(
+                  for: Locale(identifier: "es")) == .spanish,
+              "default language for es is spanish")
+        check(TranscriptTranslateSupport.defaultLanguage(
+                  for: Locale(identifier: "ko")) == .korean,
+              "default language for ko is korean")
+        check(TranscriptTranslateSupport.defaultLanguage(
+                  for: Locale(identifier: "zh-Hans")) == .simplifiedChinese,
+              "default language for zh-Hans is simplified Chinese")
+        check(TranscriptTranslateSupport.defaultLanguage(
+                  for: Locale(identifier: "zh-Hant")) == .japanese,
+              "default language for zh-Hant (unsupported) falls back to japanese")
+        check(TranscriptTranslateSupport.defaultLanguage(
+                  for: Locale(identifier: "fr")) == .japanese,
+              "default language for an unsupported locale falls back to japanese")
+        // «記憶が無いとき» は fallback (引数) に倒る — fallback を引数に取ることで
+        // «どの実装でも通る» にならず、期待値を固定して検証する
+        check(TranscriptTranslateSupport.lastLanguage(
+                  in: defaults, fallback: .spanish) == .spanish,
+              "unset language falls back to the given fallback")
         // 記憶した言語がそのまま復元される («翻訳する» の送信時の記憶)
-        TranscriptTranslateSupport.persistLastLanguage(.spanish, in: defaults)
-        check(TranscriptTranslateSupport.lastLanguage(in: defaults) == .spanish,
+        TranscriptTranslateSupport.persistLastLanguage(.korean, in: defaults)
+        check(TranscriptTranslateSupport.lastLanguage(
+                  in: defaults, fallback: .spanish) == .korean,
               "persisted language is restored")
-        // 壊れた値 (削除されたケースの rawValue など) は既定に倒す
+        // 壊れた値 (削除されたケースの rawValue など) は fallback に倒る
         defaults.set("fr-CA", forKey: TranscriptTranslateSupport.lastLanguageKey)
-        check(TranslationLanguage.allCases.contains(
-                  TranscriptTranslateSupport.lastLanguage(in: defaults)),
-              "stale raw value falls back to a valid default")
+        check(TranscriptTranslateSupport.lastLanguage(
+                  in: defaults, fallback: .english) == .english,
+              "stale raw value falls back to the given fallback")
         defaults.removePersistentDomain(forName: suiteName)
 
         // 6) 計測イベント (translation_*) は Firebase 未初期化 (セルフテスト) で

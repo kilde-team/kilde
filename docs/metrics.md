@@ -48,7 +48,8 @@ App Store Connect で、このファイルは定義・手順・月次台帳**。
   `processing_time`・`error_kind` — 新しいカスタム ディメンションは不要。
   `translation_fail` の `error_kind` はエンジンのコード (`translate.*`) と
   `qaErrorKind` と同じ語彙 (`license_required` / `empty_transcript` /
-  `unsupported_environment` / `cancelled` / `model_error`) を使う)、
+  `unsupported_environment` / `cancelled` / `engine_error` / `model_error`)
+  を使う)、
   `pro_upsell_view` /
   `pro_purchase_start` / `pro_purchase_cancel` / `pro_purchase_pending` /
   `pro_purchase_fail` / `pro_unlocked` / `pro_restore_fail` (0.27.0〜。**MAS 版のみ

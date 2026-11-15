@@ -30,7 +30,7 @@
           }
         }
       },
-      "この録画の書き起こしを、選んだ言語へ翻訳します (端末内で処理します)": {
+      "この録画の文字起こしを、選んだ言語へ翻訳します (端末内で処理します)": {
         "extractionState": "manual",
         "localizations": {
           "en": {
@@ -48,13 +48,13 @@
           "ko": {
             "stringUnit": {
               "state": "translated",
-              "value": "이 녹음의 전사 글을 선택한 언어로 번역합니다 (이 Mac에서 처리합니다)"
+              "value": "이 녹화의 텍스트 변환을 선택한 언어로 번역합니다 (이 Mac에서 처리합니다)"
             }
           },
           "zh-Hans": {
             "stringUnit": {
               "state": "translated",
-              "value": "将此录制的文字记录翻译成所选语言（在本机处理）"
+              "value": "将这条录制的转写内容翻译成所选语言（在此 Mac 上处理）"
             }
           }
         }
@@ -239,7 +239,7 @@
           "en": {
             "stringUnit": {
               "state": "translated",
-              "value": "Translation needs a transcript (create one with \"Create Transcript\")"
+              "value": "Translation needs a transcript (create one with \"Create transcript\")"
             }
           },
           "es": {
@@ -251,18 +251,18 @@
           "ko": {
             "stringUnit": {
               "state": "translated",
-              "value": "번역에는 전사 글이 필요합니다 («전사 글 만들기»에서 만들 수 있습니다)"
+              "value": "번역에는 텍스트 변환이 필요합니다 («텍스트 변환 만들기»에서 만들 수 있습니다)"
             }
           },
           "zh-Hans": {
             "stringUnit": {
               "state": "translated",
-              "value": "翻译需要文字记录（可通过“创建文字记录”生成）"
+              "value": "翻译需要转写内容（可通过“创建转写”生成）"
             }
           }
         }
       },
-      "録った会議の書き起こしを、選んだ言語へ翻訳します (端末内で処理します)": {
+      "録った会議の文字起こしを、選んだ言語へ翻訳します (端末内で処理します)": {
         "extractionState": "manual",
         "localizations": {
           "en": {
@@ -280,13 +280,13 @@
           "ko": {
             "stringUnit": {
               "state": "translated",
-              "value": "녹음한 회의의 전사 글을 선택한 언어로 번역합니다 (이 Mac에서 처리합니다)"
+              "value": "녹화한 회의의 텍스트 변환을 선택한 언어로 번역합니다 (이 Mac에서 처리합니다)"
             }
           },
           "zh-Hans": {
             "stringUnit": {
               "state": "translated",
-              "value": "将已录制会议的文字记录翻译成所选语言（在本机处理）"
+              "value": "将已录制会议的转写内容翻译成所选语言（在此 Mac 上处理）"
             }
           }
         }
