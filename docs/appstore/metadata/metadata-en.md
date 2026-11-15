@@ -581,3 +581,18 @@ the free/Pro line-up honestly.
 ```text
 Pro now includes follow-up questions in the Q&A sheets. After an answer, you can ask a follow-up like "What was that amount?" — the previous questions and answers are passed along as context. They stay in the sheet as a history and disappear when you close it. "Copy" copies the latest answer and its sources. On-device processing with Apple Intelligence; macOS 26 or later. Unavailable when Apple Intelligence is not enabled. If you already purchased Pro, it works with no additional purchase. Recording and transcription are currently free.
 ```
+
+## What's New (0.41.0)
+
+The seventh Pro feature, transcript translation (issue #564, engine kilde-cli-swift#149).
+Copy states only what ships (same policy as 0.38.0-0.40.0). Translating a meeting's transcript
+into a chosen language from the Translate button on a recording (the transcript action bar —
+issue #564 wiring), time markers staying as-is so lines read next to the original (the engine's
+instruction — kilde-cli-swift#149), and the last used language becoming the default next time
+(TranscriptTranslateSupport.lastLanguage — a UserDefaults-backed memory) are exact descriptions
+of the implementation. "No additional purchase" follows the single-product kilde.pro contract,
+and "Recording and transcription are currently free" states the free/Pro line-up honestly.
+
+```text
+Pro now includes transcript translation. From "Translate" on a recording, translate a recorded meeting's transcript into the language you choose (Japanese / English / Simplified Chinese / Korean / Spanish). Time markers stay as-is, so lines read side by side with the original. Copy the translation in full, and the last language you used becomes the default next time. On-device processing with Apple Intelligence; macOS 26 or later. Unavailable when Apple Intelligence is not enabled. If you already purchased Pro, it works with no additional purchase. Recording and transcription are currently free.
+```

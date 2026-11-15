@@ -7,7 +7,6 @@ App Store Connect の App Review Information → Notes に貼る文案。
 ---
 
 ## English (paste into App Review Notes)
-
 Kilde is a menu bar screen recorder that also records system audio and the
 microphone, with optional on-device transcription.
 
@@ -15,33 +14,30 @@ microphone, with optional on-device transcription.
 
 - **Screen Recording**: required for the screen **and system audio (which
   can include other participants' voices)**. After granting it,
-  **restart the app** — macOS activates it only after a relaunch.
+  **restart the app** (macOS activates it after a relaunch).
 - **Microphone**: records **your own voice**. You can decline it; recording
   still works (video + system audio).
 - **Calendar (opt-in, auto-recording only)**: applies a matched event title
-  to the file name, the start notification, and the transcript
-  heading. macOS has no read-only calendar request (full access), but **the app only reads events**; data stays on-device. If
-  declined (or a lookup is still running at start), the default name
-  is used.
-- **Reminders (on-button, 0.34.0)**: pressing "Add to Reminders" in the
-  library adds the summary's action items to the default Reminders
-  list. macOS has no write-only Reminders request API (full
-  access), but **the app only adds items** — never reads, edits, or
-  deletes existing ones. Declined → the library shows an "Open Reminders
-  settings" link.
+  to the file name, the start notification, and the transcript heading.
+  macOS has no read-only calendar request (full access), but **the app only
+  reads events**; data stays on-device. If declined, the default name is
+  used.
+- **Reminders (on-button, 0.34.0)**: "Add to Reminders" in the library adds
+  the summary's action items to the default Reminders list. macOS has no
+  write-only Reminders request (full access), but **the app only adds items**
+  — never reads, edits, or deletes existing ones. Declined → the library
+  shows an "Open Reminders settings" link.
 
 **How to test:**
 
 1. Open Kilde from the menu bar icon.
 2. Choose a display (or window), audio sources, and a destination (default
-   `~/Movies`). Record a few seconds and stop — the file appears in the
-   destination and in "Recent recordings".
+   `~/Movies`). Record a few seconds and stop — the file appears there and
+   in "Recent recordings".
 3. (Optional, **macOS 26+**) enable "Transcribe after recording" and record
-   a short clip with speech; a Markdown transcript is written next to the
-   recording.
-4. (Optional) In the library, a recording with minutes that include a
-   summary **with action items** (create via "Summarize after
-   recording") shows "Add to Reminders" — pressing it adds them to the
+   a short clip with speech; a Markdown transcript is written next to it.
+4. (Optional) A library recording whose minutes include a summary with
+   action items shows "Add to Reminders" — pressing it adds them to the
    default list.
 
 Settings (gear icon) holds hotkey, launch at login, meeting
@@ -49,12 +45,12 @@ auto-recording, and analytics opt-out.
 
 **Data handling:** transcription and AI features run **entirely on this
 device** (SpeechTranscriber / Apple Intelligence); no audio, transcript,
-summary, draft, or Q&A text is sent anywhere by the app. A missing language model downloads
-from Apple (your IP reaches Apple); otherwise it works offline. Recordings
-go to `~/Movies` or a user-picked folder (never inside the App Sandbox
-container). Outbound connections: Firebase Analytics (usage analytics),
-Crashlytics (crash reports), and those downloads; none carries audio
-content.
+summary, draft, Q&A, or translation text is sent anywhere by the app. A
+missing language model downloads from Apple (your IP reaches Apple);
+otherwise it works offline. Recordings go to `~/Movies` or a user-picked
+folder (never inside the App Sandbox container). Outbound connections:
+Firebase Analytics (usage analytics), Crashlytics (crash reports), and
+those downloads; none carries audio content.
 
 **Meeting auto-recording (off by default):** local detection only; manual
 recordings are never stopped. **Consent:** system audio can include other
@@ -64,33 +60,32 @@ participants' voices — informing them is your responsibility.
 (kilde.tip.*) in Settings > "Support this app"; standard StoreKit,
 nothing gated.
 
-**In-app purchase — kilde Pro (v0.26.0 summaries, v0.28.0 follow-up
-drafts, v0.29.0 custom instructions, v0.38.0 transcript Q&A,
-v0.39.0 library-wide Q&A, v0.40.0 follow-up Q&A):** one non-consumable
-product (kilde.pro) unlocks them all; Pro AI features run
-on-device and require Apple Intelligence, macOS 26+ (stays disabled
-without it). Reminders export (0.34.0) is **not**
-part of Pro. Without Pro, "Summarize after recording" is a locked row
-with a "Pro" badge and the Settings "Custom instructions" disclosure is
-locked too — clicking them opens an inline purchase panel (price, Buy,
-Restore); "Draft a follow-up", "Ask", and "Ask the Library" are locked
-(tooltip points there). In the Q&A sheets, follow-up questions pass
-the previous Q&A as context; the history stays in the sheet only
-(never on disk).
-"Summarize after recording" needs "Transcribe after recording"
-enabled (the transcript is the input). Without the entitlement,
-generation is skipped with a notice. A loading price
-placeholder means the product is not visible; reopening the panel
-retries. The IAP review screenshot shows the locked rows and
-panel. **Recording and transcription are currently free.**
+**In-app purchase — kilde Pro (summaries v0.26.0, follow-up drafts
+v0.28.0, custom instructions v0.29.0, transcript Q&A v0.38.0,
+library-wide Q&A v0.39.0, follow-up Q&A v0.40.0, transcript translation
+v0.41.0):** one non-consumable product (kilde.pro) unlocks them all; Pro
+AI features run on-device and require Apple Intelligence, macOS 26+
+(stays disabled without it). Reminders export (0.34.0) is **not** part
+of Pro. Without Pro, "Summarize after recording" is a locked row with a
+"Pro" badge and the Settings "Custom instructions" disclosure is locked
+too — clicking them opens an inline purchase panel (price, Buy,
+Restore); "Draft a follow-up", "Ask", "Ask the Library", and "Translate"
+are locked (tooltip points there). "Translate" picks a target language
+and keeps time markers; nothing leaves the device. In the Q&A sheets,
+follow-up questions pass the previous Q&A as context; the history stays
+in the sheet only (never on disk). "Summarize after recording" needs
+"Transcribe after recording" enabled (the transcript is the input).
+Without the entitlement, generation is skipped with a notice. A loading
+price placeholder means the product is not visible; reopening retries. The IAP review screenshot shows the locked
+rows and panel. **Recording and transcription are currently free.**
 
 ---
 ## 日本語 (参考訳 — 提出は英語版)
 
-**アプリ内課金 — kilde Pro・会議の要約 (v0.26.0) とフォローアップの下書き (v0.28.0)、カスタム指示 (v0.29.0)、質問応答 (v0.38.0)、ライブラリへの質問 (v0.39.0)、質問応答の連続対話 (v0.40.0):**
+**アプリ内課金 — kilde Pro・会議の要約 (v0.26.0) とフォローアップの下書き (v0.28.0)、カスタム指示 (v0.29.0)、質問応答 (v0.38.0)、ライブラリへの質問 (v0.39.0)、質問応答の連続対話 (v0.40.0)、書き起こしの翻訳 (v0.41.0):**
 
-会議の要約・フォローアップの下書き・カスタム指示・質問応答・ライブラリへの質問・質問応答の連続対話が有料機能で、**同じ非消耗型
-kilde.pro (日本では ¥2,800 の買い切り) 1 商品で 6 機能すべてがアンロック**
+会議の要約・フォローアップの下書き・カスタム指示・質問応答・ライブラリへの質問・質問応答の連続対話・書き起こしの翻訳が有料機能で、**同じ非消耗型
+kilde.pro (日本では ¥2,800 の買い切り) 1 商品で 7 機能すべてがアンロック**
 されます。
 未購入の間、パネルの文字起こしセクションの «録画後に要約も作る» は «Pro» バッジ付きの
 ロック行に置き換わります。クリックするとインラインの購入導線が開き、App Store から
@@ -102,7 +97,7 @@ kilde.pro (日本では ¥2,800 の買い切り) 1 商品で 6 機能すべて�
 «要約とフォローアップのカスタム指示» も «Pro» バッジ付きのロック行になり、
 クリックで同じ購入導線を開きます。権利を失ったあとは指示を無視して生成するのではなく、
 要約ごとスキップして案内を出します。**録画と文字起こしは現在無料** — Pro の対象は
-この 6 機能です。レビュー環境で価格が取得できない場合 (商品がまだ見えない)
+この 7 機能です。レビュー環境で価格が取得できない場合 (商品がまだ見えない)
 は «読み込み中» のプレースホルダになります — 想定された挙動で、IAP の審査用
 スクリーンショットにロック行と導線を示してあります。
 
