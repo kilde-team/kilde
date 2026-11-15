@@ -116,14 +116,20 @@ enum SelfTestTranslate {
         //    呼んでも安全な no-op になること (qa_* と同じ線引き)。
         //    «未初期化» をイベント送信の**前に**表明する (SelfTestTranscriptQA と
         //    同じ順序 — 初期化が回帰したとき、セルフテストのイベントが本番
-        //    Firebase に飛ぶ前に失敗を見つけるため)
-        check(FirebaseApp.app() == nil,
-              "translate analytics calls keep Firebase uninitialized")
-        UsageAnalytics.translationStarted()
-        UsageAnalytics.translationCompleted(processingTime: nil)
-        UsageAnalytics.translationFailed(
-            KilError.failure(.translateEmptyTranscript, "selftest"), processingTime: nil)
-        check(true, "translation_* events are safe no-ops without Firebase")
+        //    Firebase に飛ぶ前に失敗を見つけるため)。初期化済みのときは
+        //    «回帰の検出» で止まり、**このブロックのイベント送信は行わない** —
+        //    セルフテストの no-op 検証が本番 Firebase にデータを混入させては
+        //    いけないため (cubic レビュー指摘)
+        if FirebaseApp.app() != nil {
+            check(false, "translate analytics calls keep Firebase uninitialized")
+        } else {
+            check(true, "translate analytics calls keep Firebase uninitialized")
+            UsageAnalytics.translationStarted()
+            UsageAnalytics.translationCompleted(processingTime: nil)
+            UsageAnalytics.translationFailed(
+                KilError.failure(.translateEmptyTranscript, "selftest"), processingTime: nil)
+            check(true, "translation_* events are safe no-ops without Firebase")
+        }
 
         // 7) 実モデルの呼び出し (KILDE_GUI_SELFTEST_TRANSLATE_LIVE=1 のときのみ)。
         //    Apple Intelligence が使える実機で翻訳が実際に生成できることを確かめる。

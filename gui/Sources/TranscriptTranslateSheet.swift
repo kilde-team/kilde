@@ -156,6 +156,11 @@ struct TranscriptTranslateSheet: View {
         guard !isTranslating else { return }
         isTranslating = true
         progress = 0
+        // 前回の翻訳は«開始時に消す» — 再翻訳 (言語を変え直すなど) が失敗したとき
+        // 前回の結果が残っていると «失敗したのに前の言語の結果が表示されている»
+        // と誤認するため (cubic レビュー指摘 — issue #564)。QA シートの履歴と
+        // 違い、このシートの結果は «1 件» のモデルなので消してよい
+        translatedText = nil
         failureText = nil
         failureDetail = nil
         hasCopied = false

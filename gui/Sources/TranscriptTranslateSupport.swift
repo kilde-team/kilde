@@ -41,6 +41,21 @@ enum TranscriptTranslateSupport {
         return String(localized: "録った会議の書き起こしを、選んだ言語へ翻訳します (端末内で処理します)")
     }
 
+    /// «翻訳できる書き起こしがある» の実判定。**配列の存在だけでは不十分** —
+    /// «セグメントは並んでいるが本文がすべて空» («字幕の cue だけ作られた» 索引) は
+    /// 翻訳の入力にならず、ボタンを有効にすると «押した後に必ず失敗» になる。
+    /// «空白でない本文が 1 つでもある» ことを持って書き起こしの存在とする
+    /// (cubic レビュー指摘 — issue #564)。引数は**本文の文字列列**にする —
+    /// 呼び出し側 (ライブラリの索引) が持つのは `LibrarySegment` で、
+    /// エンジンの `TranscriptSegment` への写像は «質問する» と同じく
+    /// `speaker: nil` になる (話者は索引に無いため。時刻表示は start から
+    /// 機械的に組み立つため保持される — 話者の保持は別 issue #566)
+    static func hasTranslatableTranscript(_ texts: [String]) -> Bool {
+        texts.contains {
+            !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+    }
+
     /// «最後に使った言語» の UserDefaults キー。設定パネルには置かない —
     /// «1 回設定すればよい» 機能ではなく «翻訳のたびに選ぶ» ものだが、
     /// **直前の選択が既定になっている**だけで«毎回選び直す» 操作を避ける

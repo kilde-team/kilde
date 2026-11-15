@@ -1339,7 +1339,9 @@ private struct LibraryDetailView: View {
                 appleIntelligenceUnavailableReason: unsupportedReason,
                 proAllows: proAllowsQA))
             // «翻訳» (issue #564 — 第七弾 Pro)。«質問する» と同じ «書き起こしが
-            // あれば使える» 導線で、書き起こしの次の一手として並べる
+            // あれば使える» 導線で、書き起こしの次の一手として並べる。
+            // hasTranscript は «空白でない本文を持つセグメント» の実判定
+            // («本文が空の cue だけ» の索引で «押した後に必ず失敗» を避ける)
             Button {
                 showsTranslate = true
             } label: {
@@ -1348,11 +1350,13 @@ private struct LibraryDetailView: View {
             .controlSize(.small)
             .buttonStyle(.bordered)
             .disabled(!TranscriptTranslateSupport.isButtonEnabled(
-                hasTranscript: true,
+                hasTranscript: TranscriptTranslateSupport.hasTranslatableTranscript(
+                    (entry.segments ?? []).map(\.text)),
                 appleIntelligenceUnavailableReason: unsupportedReason,
                 proAllows: proAllowsTranslation))
             .help(TranscriptTranslateSupport.buttonTooltip(
-                hasTranscript: true,
+                hasTranscript: TranscriptTranslateSupport.hasTranslatableTranscript(
+                    (entry.segments ?? []).map(\.text)),
                 appleIntelligenceUnavailableReason: unsupportedReason,
                 proAllows: proAllowsTranslation))
             if minutesDoc != .notMinutes {
@@ -1407,8 +1411,12 @@ private struct LibraryDetailView: View {
                 instructions: settings().summaryInstructions)
         }
         .sheet(isPresented: $showsTranslate) {
-            // «質問する» と同じ前提: ボタンが有効なのは書き起こしを持つ録画の
-            // ときだけなので、シートの内容は常に書き起こしを持てる
+            // «質問する» と同じ前提: ボタンが有効なのは «空白でない本文» を持つ
+            // 書き起こしのある録画のときだけ。ライブラリの索引 (LibrarySegment) は
+            // **話者を保持しない**ため、エンジンの TranscriptSegment への写像は
+            // speaker: nil になる — «話者名は原文のまま» の契約は «話者が分かる
+            // ときだけ» で、ライブラリ経路では時刻表示だけが残る (QA «質問する» と
+            // 同じ制約。話者の保持はライブラリ索引の拡張で別 issue — #566)
             TranscriptTranslateSheet(
                 transcript: (entry.segments ?? []).map {
                     TranscriptSegment(
