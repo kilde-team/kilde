@@ -45,8 +45,8 @@ and analytics opt-out.
 
 **Data handling:** transcription and AI features run **entirely on this
 device** (SpeechTranscriber / Apple Intelligence); no audio, transcript,
-summary, draft, Q&A, or translation text is uploaded. A missing language model downloads from Apple; otherwise it works
-offline. Recordings go to `~/Movies` or a user-picked
+summary, draft, Q&A, or translation text is uploaded. A missing language model downloads from Apple (your IP reaches Apple);
+otherwise it works offline. Recordings go to `~/Movies` or a user-picked
 folder (never inside the App Sandbox container). Outbound:
 Firebase Analytics (usage analytics), Crashlytics (crash reports), and
 those downloads; none carries audio.
