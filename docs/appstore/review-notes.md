@@ -20,10 +20,10 @@ microphone, with optional on-device transcription.
 - **Calendar (opt-in, auto-recording only)**: applies a matched event title
   to the file name, the start notification, and the transcript heading.
   macOS has no read-only calendar request (full access), but **the app only
-  reads events**; data stays on-device. If declined, the default name is
-  used.
+  reads events**; data stays on-device. If declined (or if a lookup is still running at
+  start), the default name is used.
 - **Reminders (on-button, 0.34.0)**: "Add to Reminders" in the library adds
-  the summary's action items to the default Reminders list. macOS has no
+  summary action items to the default Reminders list. macOS has no
   write-only Reminders request (full access), but **the app only adds items**
   — never reads, edits, or deletes existing ones. Declined → the library
   shows an "Open Reminders settings" link.
@@ -35,22 +35,21 @@ microphone, with optional on-device transcription.
    `~/Movies`). Record a few seconds and stop — the file appears there and
    in "Recent recordings".
 3. (Optional, **macOS 26+**) enable "Transcribe after recording" and record
-   a short clip with speech; a Markdown transcript is written next to it.
+   a short spoken clip; a Markdown transcript is written next to it.
 4. (Optional) A library recording whose minutes include a summary with
-   action items shows "Add to Reminders" — pressing it adds them to the
-   default list.
+   action items shows "Add to Reminders" — it adds them to the default list.
 
-Settings (gear icon) holds hotkey, launch at login, meeting
-auto-recording, and analytics opt-out.
+Settings (gear) holds hotkey, launch at login, meeting auto-recording,
+and analytics opt-out.
 
 **Data handling:** transcription and AI features run **entirely on this
 device** (SpeechTranscriber / Apple Intelligence); no audio, transcript,
-summary, draft, Q&A, or translation text is sent anywhere by the app. A
+summary, draft, Q&A, or translation text is uploaded. A
 missing language model downloads from Apple (your IP reaches Apple);
 otherwise it works offline. Recordings go to `~/Movies` or a user-picked
 folder (never inside the App Sandbox container). Outbound connections:
 Firebase Analytics (usage analytics), Crashlytics (crash reports), and
-those downloads; none carries audio content.
+those downloads; none carries audio.
 
 **Meeting auto-recording (off by default):** local detection only; manual
 recordings are never stopped. **Consent:** system audio can include other
@@ -71,7 +70,7 @@ of Pro. Without Pro, "Summarize after recording" is a locked row with a
 too — clicking them opens an inline purchase panel (price, Buy,
 Restore); "Draft a follow-up", "Ask", "Ask the Library", and "Translate"
 are locked (tooltip points there). "Translate" picks a target language
-and keeps time markers; nothing leaves the device. In the Q&A sheets,
+and keeps time markers; the translation text stays on the device. In the Q&A sheets,
 follow-up questions pass the previous Q&A as context; the history stays
 in the sheet only (never on disk). "Summarize after recording" needs
 "Transcribe after recording" enabled (the transcript is the input).
