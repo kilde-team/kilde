@@ -1,6 +1,296 @@
 {
   "sourceLanguage": "ja",
   "strings": {
+      "翻訳": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Translate"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Traducir"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "번역"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "翻译"
+            }
+          }
+        }
+      },
+      "この録画の書き起こしを、選んだ言語へ翻訳します (端末内で処理します)": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Translates this recording's transcript into the language you choose (processed on this Mac)"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Traduce la transcripción de esta grabación al idioma que elijas (procesado en este Mac)"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "이 녹음의 전사 글을 선택한 언어로 번역합니다 (이 Mac에서 처리합니다)"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "将此录制的文字记录翻译成所选语言（在本机处理）"
+            }
+          }
+        }
+      },
+      "翻訳先": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Target language"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Idioma de destino"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "번역 언어"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "目标语言"
+            }
+          }
+        }
+      },
+      "翻訳する": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Translate"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Traducir"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "번역하기"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "翻译"
+            }
+          }
+        }
+      },
+      "翻訳を実行できませんでした": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Couldn't translate"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No se pudo traducir"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "번역을 실행할 수 없었습니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "无法执行翻译"
+            }
+          }
+        }
+      },
+      "翻訳できませんでした": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No translation was produced"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "No se obtuvo traducción"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "번역 결과가 없습니다"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "未能生成翻译"
+            }
+          }
+        }
+      },
+      "翻訳には Apple Intelligence が必要です: %@": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Translation requires Apple Intelligence: %@"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Traducir requiere Apple Intelligence: %@"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "번역에는 Apple Intelligence가 필요합니다: %@"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "翻译需要 Apple Intelligence：%@"
+            }
+          }
+        }
+      },
+      "翻訳は Pro の機能です (設定パネルから購入できます)": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Translation is a Pro feature (purchase it from the settings panel)"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Traducir es una función Pro (puedes comprarla desde el panel de ajustes)"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "번역은 Pro 기능입니다 (설정 패널에서 구매할 수 있습니다)"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "翻译是 Pro 功能（可在设置面板购买）"
+            }
+          }
+        }
+      },
+      "翻訳には文字起こしが必要です («文字起こしを作成» で作れます)": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Translation needs a transcript (create one with \"Create Transcript\")"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Traducir necesita una transcripción (puedes crearla con «Crear transcripción»)"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "번역에는 전사 글이 필요합니다 («전사 글 만들기»에서 만들 수 있습니다)"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "翻译需要文字记录（可通过“创建文字记录”生成）"
+            }
+          }
+        }
+      },
+      "録った会議の書き起こしを、選んだ言語へ翻訳します (端末内で処理します)": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Translates the transcript of a recorded meeting into the language you choose (processed on this Mac)"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Traduce la transcripción de la reunión grabada al idioma que elijas (procesado en este Mac)"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "녹음한 회의의 전사 글을 선택한 언어로 번역합니다 (이 Mac에서 처리합니다)"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "将已录制会议的文字记录翻译成所选语言（在本机处理）"
+            }
+          }
+        }
+      },
     
       "質問する": {
         "extractionState": "manual",

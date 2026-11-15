@@ -110,6 +110,16 @@ enum SelfTest {
             SelfTestLibraryQA.run()
             return
         }
+        // KILDE_GUI_SELFTEST_TRANSLATE=1: 書き起こしの翻訳 (issue #564 — 第七弾 Pro)
+        // の検証。エンジンのゲート (kilde-cli-swift#149) と、ボタンの可否・
+        // 翻訳先の言語の既定と «最後に使った言語» の記憶を確かめる。
+        // モデル生成の実呼び出しは扱わない (KILDE_GUI_SELFTEST_TRANSLATE_LIVE で
+        // 任意実行)。実録画を伴わないため録画のスロット (権限・スピーカー) を
+        // 占有しない
+        if env["KILDE_GUI_SELFTEST_TRANSLATE"] == "1" {
+            SelfTestTranslate.run()
+            return
+        }
         // KILDE_GUI_SELFTEST_COMPOSER_INSTRUCTIONS=1: カスタム指示 (issue #472 —
         // 第三弾 Pro) の検証。RecordingSetup 入力の写像 («実質空» = nil) と、
         // エンジンの 2 段目ゲート (kilde-cli-swift#139 — 非空の指示に

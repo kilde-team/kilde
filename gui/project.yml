@@ -116,7 +116,12 @@ packages:
     # GUI の kilde#556 が消費)。QATurn (履歴の 1 往復) と TranscriptQA.answer /
     # LibraryQA.answer の history パラメータ、ProFeature.qaChat が増えた。
     # 追質問はエンジン側で履歴を正規化・予算に収めて prompt に載せる
-    exactVersion: 0.25.0
+    # v0.26.0: 第七弾 Pro «書き起こしの翻訳» (kilde-cli-swift#149 —
+    # GUI の kilde#564 が消費)。TranscriptTranslator.translate (書き起こしを
+    # TranslationLanguage (ja/en/zh-Hans/ko/es) へチャンクごとに翻訳。map のみ。
+    # プレーンな respond(to:) で行構造を保つ) と TranslationLanguage、
+    # ProFeature.translation、KilError.Code.translateEmptyTranscript が増えた
+    exactVersion: 0.26.0
   # GUI の自動更新 (issue #122)。Sparkle 2 のバイナリターゲット (macOS 12+) で、
   # リンクすると Sparkle.framework が Contents/Frameworks に埋め込まれる。
   # バージョンを固定する理由は kilde-cli-swift と同じ: 浮動参照だと上流の push が
