@@ -120,13 +120,16 @@ struct TranscriptQASheet: View {
                 .lineLimit(2...5)
                 .disabled(isAsking)
                 // 入力欄で上限を適用する — 超過分を «答えを得る» の押下時に黙って
-                // 切り捨てない (cubic レビュー指摘。エンジンの
-                // TranscriptQA.maxQuestionLength と同じ値 — TranscriptQASupport の
-                // コメント参照)
+                // 切り捨てない (cubic レビュー指摘)。«入力中» は前後の空白を
+                // **保持する** — 入力ごとに trim を行うと «文末の空白を入れた
+                // 瞬間に消える» ので質問文が編集できなくなる (issue #573
+                // «Recording Library "Ask ?" doesn't accept spaces» の原因。
+                // «実質空» の判定は «答えを得る» の押下時 (ask の
+                // normalizedQuestion) に行う — LibraryQASheet と同じ流儀)
                 .onChange(of: question) { _, newValue in
-                    let normalized = TranscriptQASupport.normalizedQuestion(newValue)
-                    if normalized != newValue {
-                        question = normalized
+                    let clipped = TranscriptQASupport.normalizedInput(newValue)
+                    if clipped != newValue {
+                        question = clipped
                     }
                 }
 
