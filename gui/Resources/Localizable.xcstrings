@@ -10699,7 +10699,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "没有录制"
+            "value": "没有录像"
           }
         }
       }
@@ -10892,7 +10892,7 @@
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "转写 %lld 条"
+            "value": "转写内容 %lld 条"
           }
         }
       }
