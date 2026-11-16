@@ -916,18 +916,20 @@ final class RecordingSetup: ObservableObject {
         frontmatter += "recording: \(recordingURL.lastPathComponent)\n---\n\n"
 
         guard let body = try? String(contentsOf: sidecarURL, encoding: .utf8) else {
-            return (nil, "文字起こしの .md を読めませんでした: \(sidecarURL.path)")
+            // note は設定パネルの案内に出るため String(localized:) で包む
+            // (生文字列だと en でも ja 文が出る — issue #571)
+            return (nil, String(localized: "文字起こしの .md を読めませんでした: \(sidecarURL.path)"))
         }
         let destination = directory
             .appendingPathComponent(sidecarURL.lastPathComponent)
         if FileManager.default.fileExists(atPath: destination.path) {
-            return (nil, "書き出し先に同名のファイルがあるためスキップしました: \(destination.lastPathComponent)")
+            return (nil, String(localized: "書き出し先に同名のファイルがあるためスキップしました: \(destination.lastPathComponent)"))
         }
         do {
             try (frontmatter + body).write(to: destination, atomically: true, encoding: .utf8)
             return (destination, nil)
         } catch {
-            return (nil, "議事録を書き出せませんでした: \(destination.path) (\(error.localizedDescription))")
+            return (nil, String(localized: "議事録を書き出せませんでした: \(destination.path) (\(error.localizedDescription))"))
         }
     }
 
