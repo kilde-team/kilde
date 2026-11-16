@@ -396,19 +396,32 @@ enum SelfTestLibrarySearch {
                 atPath: directory.appendingPathComponent("\(item.stem).\(item.format)").path,
                 contents: sidecars[item.format]?.data(using: .utf8))
         }
+        // «語: » 接頭辞を含む従来 (話者なし) の本文。語彙外の «注意: » は
+        // 話者にしない (cubic レビュー指摘) — 本文全体が残ることを検証する。
+        // 文字列を 1 つの定数にまとめるのは、合成と期待値が同じ行から
+        // 出ることを保証するため (ズレると検証が通らなくなる)
+        let legacyNoticeLine = "[00:00:00] 注意: 予算です"
+        FileManager.default.createFile(
+            atPath: directory.appendingPathComponent("kilde-legacy-notice.mov").path,
+            contents: Data())
+        FileManager.default.createFile(
+            atPath: directory.appendingPathComponent("kilde-legacy-notice.txt").path,
+            contents: (legacyNoticeLine + "\n[00:00:10] 締め切りは月末です\n")
+                .data(using: .utf8))
         let entries = LibraryStore.scan(directory: directory) ?? []
-        check(entries.count == stems.count,
+        // 従来 (話者なし) の «語: » 接頭辞のサイドカー 1 件も走査対象
+        check(entries.count == stems.count + 1,
               "話者つきサイドカー \(stems.count) 形式を走査できる (実際 \(entries.count) 件)")
-        // キーは **サイドカーの拡張子** — entry.id は録画本体 (.mov など) を指すため
-        // 録画の拡張子をキーにすると全件が «mov» に潰れ、形式ごとの照合ができない
-        let byExtension = Dictionary(entries.compactMap { entry -> (String, LibraryEntry)? in
-            guard let sidecarExtension = entry.transcriptURL?.pathExtension.lowercased() else {
-                return nil
-            }
-            return (sidecarExtension, entry)
+        // キーは **録画の stem** — entry.id は録画本体 (.mov など) を指し、stem は
+        // サイドカーの stem と一致する (TranscriptWriter.sidecarURL の契約)。
+        // サイドカーの拡張子をキーにしないのは、txt が 2 件 (話者つき + 従来の
+        // «語: » ケースに潰れて形式ごとの照合ができなくなるため (実測)
+        let byStem = Dictionary(entries.compactMap { entry -> (String, LibraryEntry)? in
+            let stem = entry.id.deletingPathExtension().lastPathComponent
+            return (stem, entry)
         }, uniquingKeysWith: { first, _ in first })
         for item in stems {
-            guard let entry = byExtension[item.format] else {
+            guard let entry = byStem[item.stem] else {
                 check(false, "話者つき索引 (\(item.format)) が走査で取れる")
                 continue
             }
@@ -424,9 +437,25 @@ enum SelfTestLibrarySearch {
         }
         // 検索: 話者は本文に混ざらないため «本文の語» のヒット数は形式数と
         // 一致し、«話者ラベル» は本文検索に載らない
+        // 従来の «語: » 接頭辞は話者にならない — «注意: » を含む行全体が
+        // 本文のまま残る (後方互換。cubic レビュー指摘の回帰検証)
+        let legacySegments = entries.first {
+            $0.id.deletingPathExtension().lastPathComponent == "kilde-legacy-notice"
+        }
+            .map { $0.segments ?? [] } ?? []
+        check(legacySegments.count == 2,
+              "«語: » で始まる従来サイドカーが 2 セグメント (実際 \(legacySegments.count) 件)")
+        check(legacySegments.first.map { $0.speaker == nil } ?? false,
+              "«注意: » の行は話者にしない (実際 \(legacySegments.first?.speaker ?? "nil"))")
+        check(legacySegments.first?.text == String(legacyNoticeLine.dropFirst("[00:00:00] ".count)),
+              "«注意: » の本文が欠けない (実際 «\(legacySegments.first?.text ?? "")»)")
+        check(legacySegments.dropFirst().first?.speaker == nil,
+              "2 番目のセグメントも話者 nil (実際 \(legacySegments.dropFirst().first?.speaker ?? "nil"))")
+
         let speakerIndex = LibraryIndex(entries: entries)
         let budget = speakerIndex.search("予算")
-        check(budget.count == stems.count,
+        // 従来サイドカーの «注意: 予算です» も本文に残るためヒットに数える
+        check(budget.count == stems.count + 1,
               "話者つき索引で «予算» が \(stems.count) 件ヒット (実際 \(budget.count) 件)")
         check(speakerIndex.search("自分").isEmpty,
               "話者ラベルは本文検索に載らない («自分» は 0 件)")

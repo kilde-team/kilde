@@ -159,16 +159,22 @@ enum LibraryTranscriptParser {
     /// «話者: 本文» の接頭辞を切り出す (issue #566)。TranscriptFormatter が話者を
     /// `"\(speaker): "` の **1 回だけ**本文の先頭に付ける契約のため、
     /// **最初の `": "`** で分割する。話者の無い行は `(nil, 行全体)` を返す。
-    /// 既知の限界: 本文自体が «語: » で始まる従来サイドカー (話者なし) は、
-    /// この形式では «話者» と区別できないため話者付きに読める —
-    /// 書き出し側の契約 (話者は先頭に 1 回だけ) をパース側がそのまま写した結果。
-    /// エンジンのラベル («自分» / «相手») は `: ` を含まないため実害はない
+    /// **話者ラベルはエンジンの語彙 (`SpeakerLabel` の «自分» / «相手» —
+    /// `transcribeWithSpeakers` の既定割当) に限って受理する** (cubic レビュー指摘)。
+    /// 任意の «語: » 接頭辞を話者とすると、話者の無い従来サイドカーの本文
+    /// («注意: 予算です» など) から «注意» を話者として奪い、検索・QA・翻訳の
+    /// 本文が欠ける。実在する話者ラベルはこの語彙だけ (CLI の TranscriptionRun と
+    /// GUI の TranscriptionCoordinator はどちらも speakers を明示しない既定割当のみ)
+    /// なので、他の語彙は元の行をそのまま返す — 従来と同じ本文になる
     static func splitSpeakerPrefix(_ line: String) -> (speaker: String?, body: String) {
         guard let colon = line.range(of: ": ") else { return (nil, line) }
-        let speaker = String(line[line.startIndex..<colon.lowerBound])
+        let candidate = String(line[line.startIndex..<colon.lowerBound])
             .trimmingCharacters(in: .whitespaces)
-        guard !speaker.isEmpty else { return (nil, line) }
-        return (speaker, String(line[colon.upperBound...]))
+        // 語彙の正本はエンジンの SpeakerLabel — GUI 側で語彙を抱え込まない
+        guard candidate == SpeakerLabel.me || candidate == SpeakerLabel.other else {
+            return (nil, line)
+        }
+        return (candidate, String(line[colon.upperBound...]))
     }
 
     /// `start --> end` の 1 行を分解する。右辺は vtt で cue 設定 (align:start 等) が
@@ -228,7 +234,10 @@ enum LibraryTranscriptParser {
                 }
                 // 最初のトークンだけを時刻とし、**残り全体**を話者にする (issue #566) —
                 // 話者ラベル自体に空白が入っても切り捨てないため。
-                // maxSplits: 1 で «時刻以降» を 1 つの部分文字列として受け取る
+                // maxSplits: 1 で «時刻以降» を 1 つの部分文字列として受け取る。
+                // splitSpeakerPrefix と違い **語彙照合をしない** — 見出し位置の
+                // «残り全体 = 話者» は形式上曖昧さが無く (本文の «語: » 接頭辞と
+                // 違い誤認の入口が無い)、絞ると語彙外のラベルを黙って捨てるだけになる
                 let rest = trimmed.dropFirst(3).trimmingCharacters(in: .whitespaces)
                 let tokens = rest.split(maxSplits: 1, whereSeparator: { $0.isWhitespace })
                 guard let token = tokens.first, let start = parseClock(token) else { continue }
