@@ -50,6 +50,10 @@ extension SelfTest {
                 error: SummaryModelStubError.multiline,
                 expected: "1 行目の原因"),
             NoteCase(
+                name: "CRLF の生エラーも最初の 1 行に整える (行末に \\r を残さない)",
+                error: SummaryModelStubError.crlf,
+                expected: "1 行目の原因"),
+            NoteCase(
                 name: "120 字を超える理由は «…» で打ち切る",
                 error: SummaryModelStubError.long(String(repeating: "あ", count: 130)),
                 expected: String(repeating: "あ", count: 120) + "…"),
@@ -76,8 +80,10 @@ extension SelfTest {
 private enum SummaryModelStubError: Error, CustomStringConvertible {
     /// contextWindowSizeExceeded 相当 (要約のコンテキスト超過の代表)
     case contextWindowSizeExceeded
-    /// 複数行の description
+    /// 複数行の description (LF)
     case multiline
+    /// 複数行の description (CRLF — Windows 由来のエラー文を想定)
+    case crlf
     /// 長文の description
     case long(String)
 
@@ -87,6 +93,8 @@ private enum SummaryModelStubError: Error, CustomStringConvertible {
             return "contextWindowSizeExceeded (テスト用の生エラー)"
         case .multiline:
             return "1 行目の原因\n2 行目の詳細\n3 行目の詳細"
+        case .crlf:
+            return "1 行目の原因\r\n2 行目の詳細\r\n3 行目の詳細"
         case .long(let text):
             return text
         }
