@@ -67,6 +67,20 @@ enum TranscriptQASupport {
                 .prefix(maxQuestionLength))
     }
 
+    /// 質問入力欄の «入力中» に使う正規化 (issue #573)。**前後の空白を保持する**
+    /// — 入力ごとに trim を行うと «文末の空白を入れた瞬間に消える» ので質問文が
+    /// 編集できない (issue #573 «Ask ? doesn't accept spaces» の原因。単一録画版
+    /// だけ従来の «入力ごと trim» のままだった — 横断版 LibraryQASheet は
+    /// «押下時に正規化» へ直す済み)。上限超過のときだけ切り詰める — 超過分を
+    /// «答えを得る» の押下時に黙って切り捨てない (cubic レビュー指摘)。
+    /// «実質空» の判定 (trim) は押下時の `normalizedQuestion` が担う — エンジンの
+    /// normalizeQuestion が最終的な正本。横断版 (LibraryQASheet) もこの関数を
+    /// 使う (両シートで «入力中の規約» を 1 つに寄せるため。LibraryQASupport の
+    /// `normalizedQuestion` と同じ «こちらへ委譲» の流儀)
+    static func normalizedInput(_ raw: String) -> String {
+        String(raw.prefix(maxQuestionLength))
+    }
+
     /// 回答に添える «根拠» の見出し行。エンジンの `TranscriptAnswer.excerpts` は
     /// **抽出経路 (長い書き起こし) だけ**非空 — 短い書き起こしは全体を 1 回で
     /// 見ているため根拠の抜き出しが存在しない (エンジンの契約)。空のときは

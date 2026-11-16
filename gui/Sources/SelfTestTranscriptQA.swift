@@ -106,6 +106,24 @@ enum SelfTestTranscriptQA {
               == TranscriptQASupport.maxQuestionLength,
               "normalized question truncates over the limit")
 
+        // 5.5) «入力中» の正規化 (issue #573 — «Ask ? doesn't accept spaces» の
+        //      回帰)。入力ごとの trim は «文末の空白を入れた瞬間に消える» ため
+        //      質問文が編集できない — 入力中は **空白をそのまま保持** し、
+        //      上限超過だけを切り詰める (trim は «答えを得る» の押下時の
+        //      normalizedQuestion が担う)
+        check(TranscriptQASupport.normalizedInput("  決定事項は? \n") == "  決定事項は? \n",
+              "normalizedInput keeps whitespace while typing (issue #573)")
+        check(TranscriptQASupport.normalizedInput("   ") == "   ",
+              "normalizedInput does not collapse whitespace-only input")
+        let overInputLimit = String(
+            repeating: "い", count: TranscriptQASupport.maxQuestionLength + 50)
+        check(TranscriptQASupport.normalizedInput(overInputLimit).count
+              == TranscriptQASupport.maxQuestionLength,
+              "normalizedInput clips to the limit without trimming")
+        check(TranscriptQASupport.normalizedInput(overInputLimit)
+              == overInputLimit.prefix(TranscriptQASupport.maxQuestionLength),
+              "normalizedInput keeps whitespace inside the clipped prefix")
+
         // 6) コピー全文 — 根拠 (excerpts) があるときだけ «根拠» の行を続ける。
         //    根拠はエンジンの抽出経路 (長い書き起こし) だけ返る契約
         let plain = TranscriptAnswer(text: "月曜 10 時にリリース", excerpts: [])
