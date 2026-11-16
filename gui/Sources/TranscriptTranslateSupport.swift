@@ -47,9 +47,9 @@ enum TranscriptTranslateSupport {
     /// «空白でない本文が 1 つでもある» ことを持って書き起こしの存在とする
     /// (cubic レビュー指摘 — issue #564)。引数は**本文の文字列列**にする —
     /// 呼び出し側 (ライブラリの索引) が持つのは `LibrarySegment` で、
-    /// エンジンの `TranscriptSegment` への写像は «質問する» と同じく
-    /// `speaker: nil` になる (話者は索引に無いため。時刻表示は start から
-    /// 機械的に組み立つため保持される — 話者の保持は別 issue #566)
+    /// 索引は話者も保持するようになったため (issue #566)、エンジンの
+    /// `TranscriptSegment` への写像で «質問する» と同様に `speaker:` も渡される
+    /// (時刻表示は start から機械的に組み立つため従来どおり保持される)
     static func hasTranslatableTranscript(_ texts: [String]) -> Bool {
         texts.contains {
             !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty

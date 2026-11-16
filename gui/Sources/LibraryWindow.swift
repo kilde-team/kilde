@@ -1393,14 +1393,14 @@ private struct LibraryDetailView: View {
         .sheet(isPresented: $showsTranscriptQA) {
             // ボタンが有効なのは書き起こしを持つ録画のときだけなので、
             // シートの内容は常に書き起こしを持てる (無効のまま開かれる経路は無い)。
-            // ライブラリの索引 (LibrarySegment) は**話者を保持しない**ため、
-            // エンジンの TranscriptSegment への写像は speaker: nil になる —
-            // «誰が言ったか» を問う質問の精度は落ちるが、本文ベースの質問応答は
-            // 成立する。話者の保持はライブラリ索引の拡張で別 issue に切り出す
+            // ライブラリの索引も話者を保持するようになったため (issue #566)、
+            // «誰が言ったか» を問う質問にも話者が渡る — エンジンのプロンプト行
+            // «[時刻] 話者: 本文» が組み立てられる。話者の無い従来録画は
+            // 索引の speaker が nil のため従来どおり nil (後方互換)
             TranscriptQASheet(
                 transcript: (entry.segments ?? []).map {
                     TranscriptSegment(
-                        start: $0.start, end: $0.end, text: $0.text, speaker: nil)
+                        start: $0.start, end: $0.end, text: $0.text, speaker: $0.speaker)
                 },
                 title: entry.recordingURL.deletingPathExtension().lastPathComponent,
                 license: pro.license,
@@ -1412,15 +1412,14 @@ private struct LibraryDetailView: View {
         }
         .sheet(isPresented: $showsTranslate) {
             // «質問する» と同じ前提: ボタンが有効なのは «空白でない本文» を持つ
-            // 書き起こしのある録画のときだけ。ライブラリの索引 (LibrarySegment) は
-            // **話者を保持しない**ため、エンジンの TranscriptSegment への写像は
-            // speaker: nil になる — «話者名は原文のまま» の契約は «話者が分かる
-            // ときだけ» で、ライブラリ経路では時刻表示だけが残る (QA «質問する» と
-            // 同じ制約。話者の保持はライブラリ索引の拡張で別 issue — #566)
+            // 書き起こしのある録画のときだけ。ライブラリの索引も話者を保持する
+            // (issue #566) ので «話者名は原文のまま» の契約がライブラリ経路でも
+            // 効き、翻訳結果に話者名が現れる。話者の無い従来録画は nil のまま
+            // (時刻表示は従来どおり start から組み立てる)
             TranscriptTranslateSheet(
                 transcript: (entry.segments ?? []).map {
                     TranscriptSegment(
-                        start: $0.start, end: $0.end, text: $0.text, speaker: nil)
+                        start: $0.start, end: $0.end, text: $0.text, speaker: $0.speaker)
                 },
                 title: entry.recordingURL.deletingPathExtension().lastPathComponent,
                 license: pro.license)

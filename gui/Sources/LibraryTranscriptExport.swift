@@ -37,9 +37,11 @@ enum LibraryTranscriptExport {
     private static let cueTimingQuantum: TimeInterval = 0.001
 
     /// ライブラリ表示中のセグメント列を指定形式へ整形する。
-    /// LibrarySegment には話者ラベルが無い (LibraryTranscriptParser が捨てる) ので
-    /// speaker nil の TranscriptSegment に写してエンジンの整形器に渡す —
-    /// «話者の有無で出力が変わる» ことが無いように GUI 側で写像を 1 箇所に集める。
+    /// 索引は話者を保持するようになったが (issue #566)、**書き出しでは話者を
+    /// 載せない** — 書き出し形式 (txt / srt / vtt) への話者の反映は本 issue の
+    /// スコープ外のため、speaker nil の TranscriptSegment に写してエンジンの
+    /// 整形器に渡す («話者の有無で出力が変わらない» 従来の挙動を保つ)。
+    /// GUI 側で写像を 1 箇所に集めるのは写像の重複を避けるため。
     /// `throws` はエンジン render の契約 (json のエンコード失敗)。supportedFormats の
     /// 範囲では起きないが、書き出しの失敗を黙って捨てないため throws のまま運ぶ
     static func formatted(_ segments: [LibrarySegment],
@@ -67,7 +69,8 @@ enum LibraryTranscriptExport {
 
     /// «[HH:MM:SS] 本文» の 1 行 = 1 セグメント (txt サイドカーと同じ形)。
     /// **全文コピー** (issue #493) の実体。formatted(as: .txt) と同じ出力だが
-    /// throw しない — コピー経路 (パネルを持たない呼び出し) のための非 throwing 入口
+    /// throw しない — コピー経路 (パネルを持たない呼び出し) のための非 throwing 入口。
+    /// こちらも formatted と同じ «話者を載せない» 写像 (issue #566 のスコープ外)
     static func plainText(_ segments: [LibrarySegment]) -> String {
         TranscriptFormatter.plainText(segments.map { segment in
             TranscriptSegment(start: segment.start, end: segment.end, text: segment.text)

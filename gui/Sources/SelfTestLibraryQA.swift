@@ -105,8 +105,9 @@ enum SelfTestLibraryQA {
         check(LibraryQASupport.searchTerms(from: "予算 締め切り") == ["予算", "締め切り"],
               "searchTerms splits the query")
 
-        // 7) 録画列の写像 — **書き起こしを持つ録画だけ**。ライブラリの索引は
-        //    話者を保持しないため speaker は nil
+        // 7) 録画列の写像 — **書き起こしを持つ録画だけ**。ライブラリの索引が
+        //    保持した話者 (issue #566) は TranscriptSegment へも渡る。
+        //    話者の無いセグメントは従来どおり nil (後方互換)
         let withoutTranscript = LibraryEntry(
             id: URL(fileURLWithPath: "/tmp/a.mp4"),
             recordingURL: URL(fileURLWithPath: "/tmp/a.mp4"),
@@ -117,7 +118,7 @@ enum SelfTestLibraryQA {
             transcriptURL: URL(fileURLWithPath: "/tmp/b.json"),
             recordedAt: Date(),
             segments: [
-                LibrarySegment(start: 0, end: 2, text: "予算は100万円です"),
+                LibrarySegment(start: 0, end: 2, text: "予算は100万円です", speaker: "自分"),
                 LibrarySegment(start: 2, end: 4, text: "締め切りは来週です"),
             ])
         let mapped = LibraryQASupport.recordings(from: [withoutTranscript, withTranscript])
@@ -127,9 +128,14 @@ enum SelfTestLibraryQA {
         // (cubic レビュー指摘)
         let first = mapped.first
         check(first.map { $0.segments.count == 2 } ?? false, "recordings maps all segments")
+        // 話者つきセグメントは話者を渡し、話者の無いセグメントは nil のまま
+        // (cubic レビュー指摘の «強制インデックスを避ける» に従い、件数の
+        // 検証と同じクロージャの中で添字に触る)
         check(first.map { recording in
-            recording.segments.allSatisfy { $0.speaker == nil }
-        } ?? false, "recordings maps speaker as nil (index keeps no speakers)")
+            recording.segments.count == 2
+                && recording.segments[0].speaker == "自分"
+                && recording.segments[1].speaker == nil
+        } ?? false, "recordings maps speaker from the index (nil stays nil)")
         // 空 cue (空白のみの本文) だけのサイドカーは «文字起こし済み» にしない —
         // ボタンが有効になるのに質問の文脈が空になるため (cubic レビュー指摘)
         let emptyCue = LibraryEntry(
