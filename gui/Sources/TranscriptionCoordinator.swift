@@ -358,11 +358,6 @@ final class TranscriptionCoordinator: ObservableObject {
             // coordinator は AppDelegate がアプリ生存中ずっと持つので、実行期間の
             // 保持で寿命が変わることはない (cancelAll の hung 観測 Task と同じ流儀)
             guard let self else { return }
-            // この実行の失敗が要約の段階で起きたか (下の catch で fail に伝える —
-            // 要約の失敗で transcription_fail を二重に送らないためのフラグ)。
-            // Swift の catch は do と別スコープで do 内の変数が見えないため、
-            // do の外 (Task 直下) で宣言する
-            var failedDuringSummary = false
             do {
                 // ロケール自動判定 (kilde#409)。トラックごとに解決する。断続失敗の自動再試行
                 // (runRecognition) は同じロケール列を使う。利用者による «再試行« (execute の
@@ -426,8 +421,13 @@ final class TranscriptionCoordinator: ObservableObject {
                 try Task.checkCancellation()
 
                 // 要約の生成 (issue #163)。文字起こしの後に、サイドカーの**書き出しの前**に
-                // 行う — 失敗・キャンセル時に «要約の無い» 中途半端なファイルを残さないため
-                // (エンジンの TranscriptionRun と同じ順序)。
+                // 行う (エンジンの TranscriptionRun と同じ順序)。要約の生成に**失敗**しても
+                // ジョブは失敗にしない — «要約が失敗しても文字起こしは残るべき» (kilde#575) を
+                // エンジン (kilde-cli-swift#151 — TranscriptionRun.Outcome.completed の
+                // summaryFailure) と同じ契約として GUI 側でも実装する。失敗の事実は
+                // 既存の summaryNote 経路 («要約は生成できませんでした (…)» 案内) で伝える。
+                // **中止したときだけ**従来どおりサイドカーを書かない («中止時は出力
+                // ファイルを書かない» 契約 — issue #577 でも変えない)
                 var summary: MeetingSummary?
                 var summaryNote: String?
                 if let template = job.summaryTemplate {
@@ -469,7 +469,6 @@ final class TranscriptionCoordinator: ObservableObject {
                             self.setPhase(.summarizing(progress: 0), for: job)
                             try Task.checkCancellation()
                             let summaryStartedAt = Date()
-                            failedDuringSummary = true
                             do {
                                 summary = try await MeetingSummarizer.summarize(
                                     transcript: segments,
@@ -482,25 +481,50 @@ final class TranscriptionCoordinator: ObservableObject {
                                         }
                                     })
                             } catch {
-                                // キャンセルは失敗に数えない (fail がジョブ単位の
-                                // transcription_cancel を送る — 文字起こし側と同じ方針)。
-                                // 失敗はここで要約のイベントとして数え、再送出した
-                                // 先の fail では transcription_fail を送らせない
-                                // (文字起こし自体は成功しているため二重計上になる)
-                                if !(error is CancellationError) {
-                                    UsageAnalytics.summaryFailed(
-                                        error, recordingDuration: job.recordingDuration,
-                                        processingTime: Date().timeIntervalSince(summaryStartedAt))
+                                // «中止» だけは従来どおり投げ直す — «中止時は出力ファイルを
+                                // 書かない» 契約 (issue #577 でも変えない)。fail は
+                                // CancellationError と TranscriptionError.cancelled の両方を
+                                // «中止» とみなす (cancelled 判定と同じ表現) ので、ここでも
+                                // 両方を握りつぶさない — 片方だけだと «中止したのにサイドカー
+                                // が残る» になりうる (cubic レビュー指摘 — PR #585)。
+                                // summarize が TranscriptionError.cancelled を投げる経路は
+                                // 現状無いはずだが、fail 側の判定と同じ構造で閉じておく
+                                if error is CancellationError { throw error }
+                                if let transcriptionError = error as? TranscriptionError,
+                                   case .cancelled = transcriptionError {
+                                    throw error
                                 }
-                                throw error
+                                // 要約だけの失敗はジョブを失敗にしない (issue #577 —
+                                // «要約が失敗しても文字起こしは残るべき» (kilde#575)。
+                                // エンジン kilde-cli-swift#151 と同じ契約)。文字起こしは
+                                // 完了しているのでサイドカーを要約なしで保存し、事実は
+                                // 既存の summaryNote 経路 («要約は生成できませんでした (…)»
+                                // 案内) で伝える。理由の整形はエンジンと同じ優先順位
+                                // (summaryFailureNote(of:)) — 同じ事実を CLI と GUI で
+                                // 同じ文言にするため
+                                summaryNote = "要約は生成できませんでした (\(Self.summaryFailureNote(of: error)))"
+                                // 失敗はここで要約のイベントとして数える。throw しないので
+                                // 先の fail は transcription_fail を送らない — 文字起こし
+                                // 自体の成功と二重計上にならない (従来の«再送出» 指摘と同じ方針)
+                                UsageAnalytics.summaryFailed(
+                                    error, recordingDuration: job.recordingDuration,
+                                    processingTime: Date().timeIntervalSince(summaryStartedAt))
                             }
-                            failedDuringSummary = false
-                            UsageAnalytics.summaryCompleted(
-                                recordingDuration: job.recordingDuration,
-                                processingTime: Date().timeIntervalSince(summaryStartedAt))
+                            if summary != nil {
+                                UsageAnalytics.summaryCompleted(
+                                    recordingDuration: job.recordingDuration,
+                                    processingTime: Date().timeIntervalSince(summaryStartedAt))
+                            }
                         }
                     }
                 }
+
+                // 書き出しの直前にも«中止»を確認する (エンジンの PR kilde-cli-swift#57 と
+                // 同じ指摘 — cubic レビュー指摘 PR #585)。要約の長い道中で届いた«中止»を
+                // ここで拾わないと «中止したのにサイドカーが残る» になる («中止時は出力
+                // ファイルを書かない» 契約)。要約の失敗 → 保存 と 中止 が重なったときは
+                // 中止を優先する
+                try Task.checkCancellation()
 
                 // TranscriptWriter.write は **最後に 1 回だけ原子的に書く**
                 // (一時ファイル + rename)。キャンセルでここへ届かなければサイドカーは
@@ -517,7 +541,7 @@ final class TranscriptionCoordinator: ObservableObject {
                 self.finish(job: job, sidecarURL: writtenURL,
                             summary: summary, summaryNote: summaryNote)
             } catch {
-                self.fail(job: job, error: error, summaryFailure: failedDuringSummary)
+                self.fail(job: job, error: error)
             }
         }
     }
@@ -859,11 +883,12 @@ final class TranscriptionCoordinator: ObservableObject {
         pump()
     }
 
-    /// - Parameter summaryFailure: 文字起こしの**後**の要約の段階で失敗したか。
-    ///   このとき文字起こし自体は成功しているので、計測の transcription_fail は
-    ///   送らない (要約の失敗は summary_fail として既に送られている — 二重計上の
-    ///   防止。表示・再試行などの残りの挙動は変わらない)
-    private func fail(job: Job, error: Error, summaryFailure: Bool = false) {
+    /// 実行の失敗を確定させる («中止» は失敗に数えない — CancellationError と
+    /// TranscriptionError.cancelled を«中止»とみなす)。要約だけの失敗は実行側で
+    /// summaryNote («要約は生成できませんでした (…)») にして続行するため、ここに
+    /// 届く要約まわりのエラーは«中止»だけになった (issue #577)。
+    /// hung 観測で止まった実行はこの関数を通らないため、cancelAll 側で送る
+    private func fail(job: Job, error: Error) {
         guard running?.id == job.id else { return }
         let processingTime = takeProcessingTime()
         stopExecutingScopedAccess()
@@ -906,7 +931,7 @@ final class TranscriptionCoordinator: ObservableObject {
         if cancelled {
             UsageAnalytics.transcriptionCancelled(
                 recordingDuration: job.recordingDuration, processingTime: processingTime)
-        } else if !summaryFailure {
+        } else {
             UsageAnalytics.transcriptionFailed(
                 error: error, recordingDuration: job.recordingDuration,
                 processingTime: processingTime)
@@ -973,6 +998,38 @@ final class TranscriptionCoordinator: ObservableObject {
             current = underlying
         }
         return false
+    }
+
+    /// 要約の失敗を «エラーの種類が分かる短い理由» に整える (summaryNote の括弧内)。
+    /// エンジン (kilde-cli-swift#151 の TranscriptionRun.summaryFailureReason) と
+    /// 同じ優先順位に揃える — 同じ失敗の事実を CLI と GUI で同じ文言にするため:
+    /// - `MeetingSummarizer.Unavailable` は事前案内 (unsupportedReason) と同じ理由を
+    ///   そのまま使う («要約は生成できませんでした (…)» の既存 note と文言が揃う)
+    /// - `KilError` は ja の既定文言 (description。GUI は code でローカライズできるが、
+    ///   note は既存の案内と同じ ja 既定で十分)
+    /// - それ以外 (Foundation Models の生エラー) は description
+    /// 生エラー文は複数行・長文になりうるため**最初の 1 行に整え、長いものは «…» で
+    /// 打ち切る** — 通知とライブラリの 1 行 note を壊さないため。規則の合否は
+    /// セルフテスト (KILDE_GUI_SELFTEST_SUMMARY_NOTE=1、SelfTestSummaryNote) が縛る
+    static func summaryFailureNote(of error: Error) -> String {
+        let reason: String
+        switch error {
+        case let unavailable as MeetingSummarizer.Unavailable:
+            reason = unavailable.reason
+        case let kilError as KilError:
+            reason = kilError.description
+        default:
+            reason = String(describing: error)
+        }
+        // 最初の 1 行だけ載せる (複数行エラーが note を壊さないように)。
+        // 区切りは isnewline — split(separator: "\n") だと «\r\n» の \r が行末に
+        // 残って通知・ライブラリの note に改行が混入する (cubic レビュー指摘 —
+        // PR #585)
+        let firstLine = reason
+            .split(maxSplits: 1, omittingEmptySubsequences: false, whereSeparator: { $0.isNewline })
+            .first.map(String.init) ?? reason
+        // 120 字は «1 行 note に収める» ための目安 (エンジンと同じ値)
+        return firstLine.count > 120 ? firstLine.prefix(120) + "…" : firstLine
     }
 
     /// 文字起こし失敗の統合ログ。subsystem は Debug と Release でバンドル ID が
