@@ -77,7 +77,10 @@ jobs:
           # (kilde-cli-swift#149 — GUI の kilde#564 が消費。TranscriptTranslator /
           # TranslationLanguage / ProFeature.translation /
           # translateEmptyTranscript)
-          ref: v0.26.0
+          # v0.27.0: «要約の生成に失敗してもサイドカーを保存する»
+          # (kilde-cli-swift#151 — GUI の kilde#577 が消費。
+          # TranscriptionRun.Outcome.completed の summaryFailure)
+          ref: v0.27.0
           # private リポジトリ: GITHUB_TOKEN は他リポジトリを読めないため
           # fine-grained PAT (contents:read) を使う
           token: ${{ secrets.KILDE_CLI_SWIFT_TOKEN }}

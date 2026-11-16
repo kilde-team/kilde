@@ -121,7 +121,13 @@ packages:
     # TranslationLanguage (ja/en/zh-Hans/ko/es) へチャンクごとに翻訳。map のみ。
     # プレーンな respond(to:) で行構造を保つ) と TranslationLanguage、
     # ProFeature.translation、KilError.Code.translateEmptyTranscript が増えた
-    exactVersion: 0.26.0
+    # v0.27.0: «要約の生成に失敗してもサイドカーを保存する» (kilde-cli-swift#151 —
+    # GUI の kilde#577 が消費)。TranscriptionRun.Outcome.completed の
+    # summaryFailure (要約の生成に失敗したときの短い理由。nil は要約なし・成功の
+    # いずれか) が増えた。GUI は TranscriptionCoordinator で同じ契約 («要約は
+    # 生成できませんでした (…)» の note を既存経路で出す) を実装し、中止時は
+    # 従来どおりサイドカーを書かない
+    exactVersion: 0.27.0
   # GUI の自動更新 (issue #122)。Sparkle 2 のバイナリターゲット (macOS 12+) で、
   # リンクすると Sparkle.framework が Contents/Frameworks に埋め込まれる。
   # バージョンを固定する理由は kilde-cli-swift と同じ: 浮動参照だと上流の push が

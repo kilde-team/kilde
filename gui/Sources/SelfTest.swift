@@ -329,6 +329,15 @@ enum SelfTest {
         if env["KILDE_GUI_SELFTEST_TRANSCRIBE_RETRY"] == "1" {
             reportTranscriptionRetryRules()
         }
+        // KILDE_GUI_SELFTEST_SUMMARY_NOTE=1: 要約の失敗を伝える note 経路 (issue #577)。
+        // **実録画・実文字起こし・Apple Intelligence を伴わない** (TRANSCRIBE_RETRY と
+        // 同じ規則検査。SelfTestSummaryNote.swift)。«要約が失敗しても文字起こしは
+        // 残る» (kilde#575) のうち、ユーザーに届く note の文言規則を合成エラーで縛る。
+        // 生成そのものの失敗はモデルに依存して決定的に引き起こせないため、ここでは
+        // «どんなエラーがどんな 1 行になるか» のみを確認する
+        if env["KILDE_GUI_SELFTEST_SUMMARY_NOTE"] == "1" {
+            reportSummaryNoteRules()
+        }
         // KILDE_GUI_SELFTEST_UPDATE=1: Sparkle 自動更新の配線と設定を確かめる (issue #122)。
         // 終了は reportUpdateSetup の中 (canCheckForUpdates の待ちがあるため)。
         // App Store ビルドには Sparkle が無い (issue #126) のでこの検証は対象外

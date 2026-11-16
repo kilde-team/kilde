@@ -884,6 +884,15 @@ v0.3 までは「`130` 割り込み」としていたが、v0.4 で廃止した�
   して権利なしなら «文字起こしは成功・要約はスキップ + 案内» にし (Apple
   Intelligence 不可の案内と同じ扱い)、エンジンのゲートが最終防護になる。
   `licenseProvider` の既定は «権利なし» (フェイルセーフ)
+- **生成の途中の失敗** (issue #577): エンジン (kilde-cli-swift#151 —
+  `TranscriptionRun.Outcome.completed` の `summaryFailure`) と同じ契約で、要約の
+  生成に**失敗**してもジョブは失敗にせず文字起こしのサイドカーを保存し、
+  «要約は生成できませんでした (理由)» を既存の summaryNote 経路 (完了通知と
+  ライブラリの note) で伝える。**キャンセルしたときだけ**従来どおりサイドカーを
+  書かない («キャンセルで出力ファイルが残らない» の根拠は変わらない)。
+  note の文言規則 (エンジンと同じ優先順位 — Unavailable / KilError / 生エラーの
+  1 行・120 字打ち切り) はセルフテスト `KILDE_GUI_SELFTEST_SUMMARY_NOTE=1`
+  が縛る
 - セルフテスト `KILDE_GUI_SELFTEST_PRO=1` がエンジンのゲートとビルドごとの初期権利を
   縛る (StoreKit の実トランザクションは実機確認)
 
