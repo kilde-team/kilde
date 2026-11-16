@@ -163,7 +163,10 @@ struct SettingsPaneView: View {
                     // 選ぶ導線が無かった。未取得の言語は文字起こし実行時にモデルの
                     // 取得が走る (TranscriptionCoordinator) ので «未取得» を併記する
                     ForEach(localeCatalog.entries) { entry in
-                        Text(entry.installed ? entry.label : entry.label + " (未取得)")
+                        // «未取得» の接尾は連結だと xcstrings を引かない (生文字列は
+                        // LocalizedStringKey にならない) ので String(localized:) で
+                        // 案内語だけをローカライズする (issue #571)
+                        Text(entry.installed ? entry.label : entry.label + " (" + String(localized: "未取得") + ")")
                             .tag(String?.some(entry.id))
                     }
                     // 手で編集した config.json に他の言語が入っているときは、

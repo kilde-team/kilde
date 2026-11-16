@@ -152,7 +152,9 @@ final class TranscriptionLocaleCatalog: ObservableObject {
             // «端末の言語設定»。非対応のときは実行時に録音からの判定へフォールバック
             // する (TranscriptionCoordinator) — その挙動をここで案内する
             if !deviceLocaleSupported {
-                return "この Mac の言語 (\(deviceLocaleIdentifier)) は文字起こしに対応していません。«端末の言語設定» のときは録音から言語を判定します (判定できないときは文字起こししません)"
+                // String(localized:) を明示する — 生文字列の return は xcstrings を
+                // 引かず、設定パネルの警告文が en でも ja 文のまま出るため (issue #571)
+                return String(localized: "この Mac の言語 (\(deviceLocaleIdentifier)) は文字起こしに対応していません。«端末の言語設定» のときは録音から言語を判定します (判定できないときは文字起こししません)")
             }
             return nil
         }
@@ -160,7 +162,7 @@ final class TranscriptionLocaleCatalog: ObservableObject {
         // «自動» 以外の明示選択が対応一覧に無い (手編集値が非対応の可能性)。
         // 実行時は modelAssetStatus の .unsupported で落ちるため、ここで先に気づけるようにする
         if let selected, !containsNormalized(selected) {
-            return "選択中の言語 (\(selected)) はこの環境の文字起こしに対応していない可能性があります。別の言語を選んでください"
+            return String(localized: "選択中の言語 (\(selected)) はこの環境の文字起こしに対応していない可能性があります。別の言語を選んでください")
         }
         return nil
     }

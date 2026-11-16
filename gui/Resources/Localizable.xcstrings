@@ -9572,7 +9572,1051 @@
             }
           }
         }
+      },
+    "ライブラリ": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Library"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Biblioteca"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "라이브러리"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "资料库"
+          }
+        }
       }
+    },
+    "録画後に要約も作る": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Summarize transcript after recording"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resumir la transcripción tras la grabación"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "녹화 후 요약도 생성"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "录制后也生成摘要"
+          }
+        }
+      }
+    },
+    "文字起こしの後に、会議の要点・決定事項・アクションを生成して Markdown の先頭に載せます (オンデバイス処理。Apple Intelligence を使用)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Generates key points, decisions, and action items from the meeting after transcription and puts them at the top of the Markdown file (on-device processing using Apple Intelligence)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Genera los puntos clave, las decisiones y las acciones de la reunión después de la transcripción y los pone al principio del archivo Markdown (procesamiento en el dispositivo con Apple Intelligence)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "텍스트 변환 후 회의의 요점·결정 사항·액션 항목을 생성하여 Markdown 파일 앞부분에 넣습니다 (기기 내 처리. Apple Intelligence 사용)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "转写后生成会议的要点、决定事项和行动项，并放在 Markdown 文件的开头（设备内处理，使用 Apple Intelligence）"
+          }
+        }
+      }
+    },
+    "録音の告知文をコピー": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy recording notice"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copiar aviso de grabación"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "녹음 안내문 복사"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制录制告知文本"
+          }
+        }
+      }
+    },
+    "会議のチャットに貼れる録音の告知文をクリップボードにコピーします": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copies the recording notice, ready to paste into the meeting chat, to the clipboard"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copia al portapapeles el aviso de grabación, listo para pegar en el chat de la reunión"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "회의 채팅에 붙여넣을 수 있는 녹음 안내문을 클립보드에 복사합니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将可粘贴到会议聊天的录制告知文本复制到剪贴板"
+          }
+        }
+      }
+    },
+    "この録画の文字起こしは実行中 (または待機中) です": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcription for this recording is running (or queued)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La transcripción de esta grabación está en curso (o en espera)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 녹화의 텍스트 변환이 실행 중 (또는 대기 중)입니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此录制的转写正在运行（或排队中）"
+          }
+        }
+      }
+    },
+    "この録画を文字起こしして要約も生成する (出力は .md)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcribe this recording and generate a summary as well (output is .md)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcribe esta grabación y genera también un resumen (la salida es .md)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 녹화를 텍스트 변환하고 요약도 생성합니다 (출력은 .md)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "转写此录制并生成摘要（输出为 .md）"
+          }
+        }
+      }
+    },
+    "この録画を文字起こしする": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcribe this recording"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcribir esta grabación"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 녹화를 텍스트 변환합니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "转写此录制"
+          }
+        }
+      }
+    },
+    "録音の告知文": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recording notice"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aviso de grabación"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "녹음 안내문"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "录制告知文本"
+          }
+        }
+      }
+    },
+    "端末の言語設定 (非対応 — 録音から判定)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Device language (unsupported — detected from the recording)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Idioma del dispositivo (no compatible — se detecta de la grabación)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기 언어 (미지원 — 녹음에서 판정)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设备语言（不支持 — 从录音判定）"
+          }
+        }
+      }
+    },
+    "未取得": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "not downloaded"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "sin descargar"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다운로드되지 않음"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未下载"
+          }
+        }
+      }
+    },
+    "言語を指定すると録音全体をその言語で文字起こしします。トラックごとに言語を判定するには「自動 (録音から判定)」を選んでください": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When a language is selected, the whole recording is transcribed in that language. To detect the language for each track, choose Automatic (detect from recording)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Al elegir un idioma, toda la grabación se transcribe en ese idioma. Para detectar el idioma de cada pista, elige Automático (detectar de la grabación)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "언어를 지정하면 녹음 전체를 해당 언어로 텍스트 변환합니다. 트랙마다 언어를 판정하려면 자동 (녹음에서 감지)를 선택하세요"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "指定语言后，整段录音将以该语言转写。要为每个轨道检测语言，请选择自动（从录音检测）"
+          }
+        }
+      }
+    },
+    "話者ラベルを付けるには上の «録音» で «ソースごとに分離» を選んでください": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "To label speakers, choose Separate per source under Recording above"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Para etiquetar a los hablantes, elige Separar por fuente en Grabación más arriba"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "화자 라벨을 붙이려면 위의 녹음에서 소스별로 분리를 선택하세요"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要标注说话人，请在上方录音中选择按来源分轨"
+          }
+        }
+      }
+    },
+    "テンプレート": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Template"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plantilla"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "템플릿"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "模板"
+          }
+        }
+      }
+    },
+    "汎用": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "General"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "General"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "범용"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "通用"
+          }
+        }
+      }
+    },
+    "定例会議": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recurring meeting"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reunión recurrente"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "정기 회의"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "例会"
+          }
+        }
+      }
+    },
+    "商談": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sales meeting"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reunión comercial"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "비즈니스 미팅"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "商务洽谈"
+          }
+        }
+      }
+    },
+    "面接": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interview"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entrevista"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "면접"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "面试"
+          }
+        }
+      }
+    },
+    "要約をつけると出力は Markdown (.md) になります": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "With a summary, the output is Markdown (.md)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Con resumen, la salida es Markdown (.md)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "요약을 넣으면 출력은 Markdown (.md)이 됩니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加摘要后，输出为 Markdown (.md)"
+          }
+        }
+      }
+    },
+    "議事録の書き出し先": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notes export folder"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carpeta para exportar las notas"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "회의록 내보내기 위치"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "会议记录导出位置"
+          }
+        }
+      }
+    },
+    "なし": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "None"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ninguna"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "없음"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无"
+          }
+        }
+      }
+    },
+    "解除": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quitar"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "해제"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除"
+          }
+        }
+      }
+    },
+    "文字起こしした .md をこのフォルダにも書き出します (出力形式が Markdown のとき。要約も含まれます)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Also exports the transcribed .md file to this folder (when the output format is Markdown; includes the summary)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "También exporta el .md transcrito a esta carpeta (cuando el formato de salida es Markdown; incluye el resumen)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "텍스트 변환한 .md를 이 폴더에도 내보냅니다 (출력 형식이 Markdown일 때. 요약도 포함)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "也会将转写的 .md 导出到此文件夹（输出格式为 Markdown 时。包含摘要）"
+          }
+        }
+      }
+    },
+    "既定に戻す": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore default"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restaurar valor por defecto"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기본값으로 되돌리기"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复默认"
+          }
+        }
+      }
+    },
+    "この文案は «録音の告知文をコピー» ボタンでも使われます。録音の同意は利用者の責任で取得してください": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This text is also used by the Copy recording notice button. Obtain consent for recording at your own responsibility"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este texto también lo usa el botón Copiar aviso de grabación. Obtén el consentimiento para grabar bajo tu responsabilidad"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 문안은 녹음 안내문 복사 버튼에서도 사용됩니다. 녹음 동의는 이용자 책임 하에 취득해 주세요"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此文本也会用于复制录制告知文本按钮。请自行负责取得录音同意"
+          }
+        }
+      }
+    },
+    "文字起こしと要約を保存しました": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcript and summary saved"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Transcripción y resumen guardados"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "텍스트 변환과 요약을 저장했습니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已保存转写文本和摘要"
+          }
+        }
+      }
+    },
+    "書き出し先を変更しました。ただし記録できなかったため、次にアプリを起動したときは書き出しません": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export folder changed, but it could not be saved, so nothing will be exported on the next app launch"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carpeta de exportación cambiada, pero no se pudo guardar, así que en el siguiente inicio de la app no se exportará"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내보내기 위치를 변경했습니다. 하지만 기록하지 못해 다음에 앱을 시작할 때는 내보내지 않습니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已更改导出位置，但未能记录，下次启动应用时将不会导出"
+          }
+        }
+      }
+    },
+    "文字起こしの .md を読めませんでした: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not read the transcript .md: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo leer el .md de la transcripción: %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "텍스트 변환 .md을 읽지 못했습니다: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法读取转写的 .md：%@"
+          }
+        }
+      }
+    },
+    "書き出し先に同名のファイルがあるためスキップしました: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skipped because a file with the same name already exists in the export folder: %@"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Se omitió porque ya existe un archivo con el mismo nombre en la carpeta de exportación: %@"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "내보내기 위치에 같은 이름의 파일이 있어 건너뛰었습니다: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "因导出位置已存在同名文件而跳过：%@"
+          }
+        }
+      }
+    },
+    "議事録を書き出せませんでした: %@ (%@)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not export the notes: %@ (%@)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudieron exportar las notas: %@ (%@)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "회의록을 내보내지 못했습니다: %@ (%@)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法导出会议记录：%@ (%@)"
+          }
+        }
+      }
+    },
+    "要約は生成できませんでした (%@)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The summary could not be generated (%@)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo generar el resumen (%@)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "요약을 생성하지 못했습니다 (%@)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法生成摘要（%@）"
+          }
+        }
+      }
+    },
+    "要約は生成できませんでした (kilde Pro の購入または購入の復元が必要です)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The summary could not be generated (a kilde Pro purchase or purchase restoration is required)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudo generar el resumen (se requiere comprar kilde Pro o restaurar una compra)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "요약을 생성하지 못했습니다 (kilde Pro 구매 또는 구매 복원이 필요합니다)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法生成摘要（需要购买 kilde Pro 或恢复购买）"
+          }
+        }
+      }
+    },
+    "カスタム指示は使えませんでした (kilde Pro の購入または購入の復元が必要です)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom instructions could not be used (a kilde Pro purchase or purchase restoration is required)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se pudieron usar las instrucciones personalizadas (se requiere comprar kilde Pro o restaurar una compra)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "사용자 지정 지시를 사용하지 못했습니다 (kilde Pro 구매 또는 구매 복원이 필요합니다)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法使用自定义指令（需要购买 kilde Pro 或恢复购买）"
+          }
+        }
+      }
+    },
+    "端末の言語 (%@) は文字起こしに対応しておらず、録音からの言語判定もできませんでした。メニューバーのパネルから «設定» を開き、«文字起こしの詳細» で対応言語を選んでください": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The device language (%@) is not supported for transcription and the language could not be detected from the recording. Open Settings from the menu bar panel and choose a supported language under Transcription details"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El idioma del dispositivo (%@) no es compatible con la transcripción y el idioma no se pudo detectar de la grabación. Abre Ajustes desde el panel de la barra de menús y elige un idioma compatible en Detalles de transcripción"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "기기 언어 (%@)는 텍스트 변환이 지원되지 않고 녹음에서 언어 판정도 하지 못했습니다. 메뉴 막대 패널에서 설정을 열고 텍스트 변환 세부 설정에서 지원 언어를 선택해 주세요"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设备语言（%@）不支持转写，也无法从录音中判定语言。请从菜单栏面板打开设置，在转写详细设置中选择支持的语言"
+          }
+        }
+      }
+    },
+    "この Mac の言語 (%@) は文字起こしに対応していません。«端末の言語設定» のときは録音から言語を判定します (判定できないときは文字起こししません)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The language of this Mac (%@) is not supported for transcription. With Device language, the language is detected from the recording (transcription is skipped if it cannot be detected)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El idioma de este Mac (%@) no es compatible con la transcripción. Con Idioma del dispositivo, el idioma se detecta de la grabación (no se transcribe si no se puede detectar)"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이 Mac의 언어 (%@)는 텍스트 변환이 지원되지 않습니다. 기기 언어일 때는 녹음에서 언어를 판정합니다 (판정할 수 없으면 텍스트 변환하지 않습니다)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此 Mac 的语言（%@）不支持转写。选择设备语言时将从录音中判定语言（无法判定时不进行转写）"
+          }
+        }
+      }
+    },
+    "選択中の言語 (%@) はこの環境の文字起こしに対応していない可能性があります。別の言語を選んでください": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The selected language (%@) may not be supported for transcription on this machine. Choose another language"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El idioma seleccionado (%@) podría no ser compatible con la transcripción en esta máquina. Elige otro idioma"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "선택한 언어 (%@)는 이 환경의 텍스트 변환이 지원되지 않을 수 있습니다. 다른 언어를 선택해 주세요"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所选语言（%@）在此环境中可能不支持转写。请选择其他语言"
+          }
+        }
+      }
+    }
 
   },
   "version": "1.0"

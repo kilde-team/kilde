@@ -434,7 +434,9 @@ final class TranscriptionCoordinator: ObservableObject {
                     // Apple Intelligence 無効などの環境では録画・文字起こしを成功させたまま
                     // 要約だけをスキップし、理由を案内として運ぶ (issue #163 «無効な環境での案内»)
                     if let reason = MeetingSummarizer.unsupportedReason {
-                        summaryNote = "要約は生成できませんでした (\(reason))"
+                        // String(localized:) を明示する — 生文字列の代入は xcstrings を
+                        // 引かず、en などの UI でも ja 文がそのまま通知に載るため (issue #571)
+                        summaryNote = String(localized: "要約は生成できませんでした (\(reason))")
                         UsageAnalytics.summarySkipped(
                             .unsupportedEnvironment, recordingDuration: job.recordingDuration)
                     } else {
@@ -446,7 +448,7 @@ final class TranscriptionCoordinator: ObservableObject {
                         // エンジンのゲート (licenseRequired) はこの前段判定の最終防護
                         let license = self.licenseProvider()
                         if !license.allows(.summary) {
-                            summaryNote = "要約は生成できませんでした (kilde Pro の購入または購入の復元が必要です)"
+                            summaryNote = String(localized: "要約は生成できませんでした (kilde Pro の購入または購入の復元が必要です)")
                             UsageAnalytics.summarySkipped(
                                 .proRequired, recordingDuration: job.recordingDuration)
                         } else if let instructions = job.summaryInstructions,
@@ -457,7 +459,7 @@ final class TranscriptionCoordinator: ObservableObject {
                             // ゲートの前段判定 — 要約自体は権利があれば続行できるが、
                             // «指示したのに指示なしで生成される» は誤変換より質が悪い
                             // ので、要約ごとスキップして案内する方針に揃える)
-                            summaryNote = "カスタム指示は使えませんでした (kilde Pro の購入または購入の復元が必要です)"
+                            summaryNote = String(localized: "カスタム指示は使えませんでした (kilde Pro の購入または購入の復元が必要です)")
                             UsageAnalytics.summarySkipped(
                                 .proRequired, recordingDuration: job.recordingDuration)
                         } else {
@@ -1039,7 +1041,9 @@ struct UnsupportedDeviceLocaleError: LocalizedError, CustomStringConvertible {
     let localeIdentifier: String
 
     var errorDescription: String? {
-        "端末の言語 (\(localeIdentifier)) は文字起こしに対応しておらず、録音からの言語判定もできませんでした。メニューバーのパネルから «設定» を開き、«文字起こしの詳細» で対応言語を選んでください"
+        // NSError の errorDescription は案内ダイアログにそのまま出るため
+        // String(localized:) で包む (生文字列だと en でも ja 文が出る — issue #571)
+        String(localized: "端末の言語 (\(localeIdentifier)) は文字起こしに対応しておらず、録音からの言語判定もできませんでした。メニューバーのパネルから «設定» を開き、«文字起こしの詳細» で対応言語を選んでください")
     }
 
     var description: String {
