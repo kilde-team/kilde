@@ -596,3 +596,11 @@ and "Recording and transcription are currently free" states the free/Pro line-up
 ```text
 Pro now includes transcript translation. From "Translate" on a recording with a transcript, translate the meeting's transcript into the language you choose (Japanese / English / Simplified Chinese / Korean / Spanish). Time markers stay as-is, so each translated line can be matched to the original. Copy the translation in full, and the last language you used becomes the default next time. On-device processing with Apple Intelligence; macOS 26 or later. Unavailable when Apple Intelligence is not enabled. If you already purchased Pro, it works with no additional purchase. Recording and transcription are currently free.
 ```
+
+## What's New (0.42.0)
+
+A fix-and-improvement release (issues #566, #571-#575). Copy states only what ships (same policy as 0.38.0-0.41.0). "The transcription is saved even when summary generation fails" (issue #575 — engine kilde-cli-swift#151 / PR #152 with kilde#577 wiring; previously a failed summary also meant no transcript file; "cancelled recordings still write no file" follows the DESIGN.md section 4 contract), "speaker names appear in the result" (issue #566 — the Ask, Translate, and Ask the Library paths; applies to transcripts that carry speaker labels, earlier recordings unchanged), and the four library fixes (issues #571/#572/#573/#574 — PRs #582/#583/#584/#586) are exact descriptions. "Recording and transcription are currently free" continues the MONETIZATION.md section 8 line-up statement. No new Pro feature, so no Pro wording is touched.
+
+```text
+This release improves recording and the library. When summary generation fails, the transcription is now saved (previously, a failed summary also meant no transcript file. Cancelling a recording still writes no file, as before). "Ask", "Translate", and "Ask the Library" now show speaker names in their results, so questions about who said what — and translations read next to the original — come out clearer (applies to transcripts that include speaker labels). Also fixed around the library: the wording when used in languages other than Japanese (search field, count, empty state), spaces not being accepted in the "Ask" field, and the volume slider overlapping the Rename and Move to Trash buttons. Recording and transcription are currently free.
+```
