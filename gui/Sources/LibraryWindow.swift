@@ -1110,38 +1110,17 @@ private struct LibraryDetailView: View {
             LibraryPlayerView(player: playback.player)
                 .frame(height: 240)
                 .background(Color(nsColor: .windowBackgroundColor))
-                // «名前を変更» («ゴミ箱に入れる» と並ぶ整理の導線 — issue #532) と
-                // «ゴミ箱に入れる» (issue #523)。プレイヤーの操作系 (下部のバー) と
-                // 重ならない右上に出す — 詳細ペインに専用のヘッダー行は無いため。
-                // «壊す» 操作が左 («ゴミ箱») に寄る自然な並びにする — リネームは
-                // «整える»、ゴミ箱は «減らす» で、右端を取り消しにくい操作に揃える
-                .overlay(alignment: .topTrailing) {
-                    HStack(spacing: 8) {
-                        Button {
-                            onRename()
-                        } label: {
-                            Label(String(localized: "名前を変更"), systemImage: "pencil")
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .disabled(!canRename)
-                        .help(canRename
-                            ? String(localized: "録画と同じ名前の文字起こし・議事録のファイルの名前を一緒に変更します")
-                            : String(localized: "文字起こし・録画が進行中のため名前を変更できません"))
-                        Button {
-                            onTrash()
-                        } label: {
-                            Label(String(localized: "ゴミ箱に入れる"), systemImage: "trash")
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                        .disabled(!canTrash)
-                        .help(canTrash
-                            ? String(localized: "録画と同じ名前の文字起こし・議事録のファイルをゴミ箱に移します")
-                            : String(localized: "文字起こし・録画が進行中のため移せません"))
-                    }
-                    .padding(8)
-                }
+                // «名前を変更» «ゴミ箱に入れる» はプレイヤーに重ねない — AVPlayerView の
+                // 操作系は **録画領域の端に浮かぶ** (macOS 26 実測: 音量スライダーが
+                // 右上に出る。左上には «画面へ書き出し» 系のボタン、下端には再生バー)。
+                // 以前は右上への overlay で «操作系と重ならない» つもりで置いていたが、
+                // 音量スライダーと重なる (issue #574)。AVPlayerView が使わない隅は
+                // 無いため、プレイヤーの下の専用行に移す。
+                // «ゴミ箱に入れる» (issue #523) はサイドカーの無い録画こそ整理対象に
+                // なるため、この行は文字起こしの有無に関係なく出す («名前を変更» も
+                // 同じ行 — issue #532 の «整理の導線» として並べる)
+            Divider()
+            organizeBar
             Divider()
             if entry.segments == nil {
                 noTranscriptPane
@@ -1289,6 +1268,43 @@ private struct LibraryDetailView: View {
                     ? String(localized: "会議の要約は Pro の機能です (設定パネルから購入できます)")
                     : String(localized: "文字起こしの後に要約を生成して Markdown (.md) に載せます (テンプレートは設定パネルの選択を使います)")))
         }
+    }
+
+    /// «名前を変更» «ゴミ箱へ移動» の行 (issue #574)。以前はプレイヤー右上への
+    /// overlay だったが、AVPlayerView の操作系 (macOS 26 の音量スライダー) と
+    /// 重なるため **プレイヤーの下の行**へ移した。文字起こしが無い録画こそ
+    /// «ゴミ箱へ移動» の整理対象になるため、行は本文 (noTranscriptPane /
+    /// transcriptActionsBar) の分岐の **前** に出す — どちらの録画でも
+    /// 整理の導線が消えない («名前を変更» issue #532 / «ゴミ箱へ移動» issue #523)。
+    /// 右寄せ («ゴミ箱» を右端に置く取消しにくい並び) は以前の配置を受け継ぐ
+    private var organizeBar: some View {
+        HStack(spacing: 8) {
+            Spacer()
+            Button {
+                onRename()
+            } label: {
+                Label(String(localized: "名前を変更"), systemImage: "pencil")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(!canRename)
+            .help(canRename
+                ? String(localized: "録画と同じ名前の文字起こし・議事録のファイルの名前を一緒に変更します")
+                : String(localized: "文字起こし・録画が進行中のため名前を変更できません"))
+            Button {
+                onTrash()
+            } label: {
+                Label(String(localized: "ゴミ箱に入れる"), systemImage: "trash")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(!canTrash)
+            .help(canTrash
+                ? String(localized: "録画と同じ名前の文字起こし・議事録のファイルをゴミ箱に移します")
+                : String(localized: "文字起こし・録画が進行中のため移せません"))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
     }
 
     /// 書き起こしの次の一手の導線。«質問する» (issue #540 — 第四弾 Pro) と
