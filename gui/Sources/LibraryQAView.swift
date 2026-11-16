@@ -120,14 +120,14 @@ struct LibraryQASheet: View {
                 .onChange(of: question) { _, newValue in
                     // 入力 «中» は前後の空白を保つ — 正規化 (trim) を入力ごとに
                     // 行うと «文末の空白を入れた瞬間に消える» ので質問文が
-                    // 編集しにくい (CodeRabbit レビュー指摘。この «押下時に
-                    // 正規化» の規約は TranscriptQASupport.normalizedInput に
-                    // 関数として切り出した — 単一録画版 (TranscriptQASheet) も
-                    // issue #573 «Ask ? doesn't accept spaces» の修正でこちらに
-                    // 揃えた。«実質空» の正規化は «答えを得る» の押下時
-                    // (ask の normalizedQuestion) — エンジンの normalizeQuestion
-                    // が最終的な正本なので挙動の差は利用者に見えない)
-                    let clipped = TranscriptQASupport.normalizedInput(newValue)
+                    // 編集しにくい (CodeRabbit レビュー指摘)。**入力中に行うのは
+                    // 上限での切り詰めだけ** (`normalizedInput` — trim をしない)。
+                    // trim («実質空» 化) は «答えを得る» の押下時 (ask の
+                    // `normalizedQuestion`) が担う — エンジンの normalizeQuestion
+                    // が最終的な正本なので挙動の差は利用者に見えない。
+                    // 単一録画版 (TranscriptQASheet) も issue #573 «Ask ? doesn't
+                    // accept spaces» の修正で同じ規約に揃えた
+                    let clipped = LibraryQASupport.normalizedInput(newValue)
                     if clipped != newValue {
                         question = clipped
                     }

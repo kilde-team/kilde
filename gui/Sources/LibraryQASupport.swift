@@ -60,6 +60,14 @@ enum LibraryQASupport {
         TranscriptQASupport.normalizedQuestion(raw)
     }
 
+    /// 質問入力欄の «入力中» の正規化。`TranscriptQASupport.normalizedInput` への
+    /// 委譲 — この窓口 (normalizedQuestion / isAskEnabled) と同じ «こちらへ寄せる»
+    /// 流儀で、呼び出し側 (LibraryQASheet) が TranscriptQASupport を直接
+    /// 呼ばずに済むようにする (cubic レビュー指摘 — issue #573)
+    static func normalizedInput(_ raw: String) -> String {
+        TranscriptQASupport.normalizedInput(raw)
+    }
+
     /// «書き起こしを持つ» 判定の本体。**空白でない本文を持つセグメントが
     /// 1 つでもあること**を条件にする — SRT / VTT の «空 cue» (本文が空の
     /// セグメント) だけのサイドカーを «文字起こし済み» とみなすと、ボタンが
