@@ -895,7 +895,13 @@ struct LibraryView: View {
                 Text("読み込み中…")
             } else {
                 let withTranscript = store.entries.count { $0.segments != nil }
-                Text("\(store.entries.count) 件の録画 · 文字起こし \(withTranscript) 件")
+                // 2 つの単一引数キーに分ける (issue #572)。xcstrings の複数形 variations は
+                // 1 キー 1 つの整数引数にしか紐づかないため、«1 recording · 1 transcript» の
+                // ように英語の単数形を両方の数で正しく出すには引数を分ける必要がある。
+                // 連結でも ja の表示 («N 件の録画 · 文字起こし N 件») は従来どおり
+                Text(String(localized: "\(store.entries.count) 件の録画")
+                     + " · "
+                     + String(localized: "文字起こし \(withTranscript) 件"))
             }
             if importer.isImporting {
                 ProgressView()
@@ -1620,7 +1626,11 @@ private struct LibraryDetailView: View {
             // このヘッダーの «全文をコピー» と行の «このセグメントをコピー» で足りる
             HStack(spacing: 8) {
                 if !query.isEmpty {
-                    Text(String(localized: "ヒット \(rows.count) 件 / 全 \(entry.segments?.count ?? 0) セグメント"))
+                    // こちらも単一引数キーに分割 (issue #572 — ステータスバーと同じ理由。
+                    // 複数形 variations が 2 つの %lld で効くようにするため)
+                    Text(String(localized: "ヒット \(rows.count) 件")
+                         + " / "
+                         + String(localized: "全 \(entry.segments?.count ?? 0) セグメント"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
