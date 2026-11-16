@@ -1005,11 +1005,21 @@ enum SelfTest {
                 fail("isLocaleSupported(\(other)) が true になりませんでした")
             }
             // 3) 案内文のマーカー。EXPECT_FAILURE_TEXT で使う断片が errorDescription に
-            //    含まれることを見る — 案内文を変えたときにテストの部分列が空振りするのを防ぐ
+            //    含まれることを見る — 案内文を変えたときにテストの部分列が空振りするのを防ぐ。
+            //    案内文はローカライズされるようになった (issue #571) ので、言語非依存の
+            //    条件は «非空で identifier を含む» までにし、ja 断片の照合は実行言語が
+            //    ja のときだけ行う (EXPECT_FAILURE_TEXT の既定断片は ja 文。開発機は
+            //    ja 前提なので drift 検出の効力は落とさない — cubic レビュー指摘)
             let error = UnsupportedDeviceLocaleError(localeIdentifier: fakeNormalized)
-            let marker = "録音からの言語判定もできませんでした"
-            guard error.errorDescription?.contains(marker) == true else {
-                fail("UnsupportedDeviceLocaleError の案内文にマーカー «\(marker)» がありません: \(error.description)")
+            let description = error.errorDescription
+            guard let description, !description.isEmpty, description.contains(fakeNormalized) else {
+                fail("UnsupportedDeviceLocaleError の案内文が空か identifier «\(fakeNormalized)» を含みません: \(error.description)")
+            }
+            if Locale.preferredLanguages.first?.hasPrefix("ja") == true {
+                let marker = "録音からの言語判定もできませんでした"
+                guard description.contains(marker) else {
+                    fail("UnsupportedDeviceLocaleError の案内文にマーカー «\(marker)» がありません: \(error.description)")
+                }
             }
             print("selftest: locale guidance ok (fake=\(fakeNormalized), other=\(other), marker ok)")
             fflush(stdout)
