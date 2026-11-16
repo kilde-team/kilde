@@ -18,6 +18,20 @@ struct LibrarySegment: Equatable, Sendable {
     let start: TimeInterval
     let end: TimeInterval
     let text: String
+    /// 話者ラベル (issue #566)。サイドカーに話者の書かれた録画 (トラック別文字起こしの
+    /// «自分» / «相手» — エンジン SpeakerLabel、TranscriptFormatter が書く形式) でのみ
+    /// 非 nil。話者の無い従来録画は従来どおり nil (後方互換)。初期値 nil を付けた
+    /// **明示的な init** にするのは、既存の呼び出し (`LibrarySegment(start:end:text:)`)
+    /// を変えずに済ませるため — メンバー毎 init に Optional を足すと全呼び出し箇所の
+    /// 修正が要るが、話者の有無はパース結果で決まるので呼び出し側に波及させない
+    let speaker: String?
+
+    init(start: TimeInterval, end: TimeInterval, text: String, speaker: String? = nil) {
+        self.start = start
+        self.end = end
+        self.text = text
+        self.speaker = speaker
+    }
 }
 
 /// ライブラリの 1 録画分。サイドカーが無い (または読めない) 録画は segments が nil —
@@ -79,18 +93,21 @@ enum LibraryTranscriptParser {
 
     // MARK: - json (TranscriptSegment 配列)
 
-    /// TranscriptionCoordinator が KildeCore.TranscriptSegment を書く。speaker 以外の
-    /// start / end / text だけを取り出す (未定義キーは Decodable が無視する)
+    /// TranscriptionCoordinator が KildeCore.TranscriptSegment を書く。speaker も
+    /// 受ける (issue #566) — TranscriptSegment の Codable 契約では speaker は
+    /// **非 nil のときだけキーが出る**ため、Optional で受ければ «キーが無い»
+    /// 従来の json は nil になる (後方互換。未定義キーは Decodable が無視する)
     private struct JSONSegment: Decodable {
         let start: TimeInterval
         let end: TimeInterval
         let text: String
+        let speaker: String?
     }
 
     private static func parseJSON(_ raw: String) -> [LibrarySegment]? {
         guard let data = raw.data(using: .utf8),
               let decoded = try? JSONDecoder().decode([JSONSegment].self, from: data) else { return nil }
-        return decoded.map { LibrarySegment(start: $0.start, end: $0.end, text: $0.text) }
+        return decoded.map { LibrarySegment(start: $0.start, end: $0.end, text: $0.text, speaker: $0.speaker) }
     }
 
     // MARK: - srt / vtt (タイムスタンプ行 → 本文)
@@ -123,12 +140,35 @@ enum LibraryTranscriptParser {
                               _ bodyLines: inout [String]) {
         // LibrarySegment のプロパティは let のため、本文を載せた値を新しく作る
         if let segment = pending {
+            // 話者は cue 本文の **1 行目**に «話者: » の形でしか付かない
+            // (TranscriptFormatter.cueText が `"\(speaker): " + text` を書く契約)。
+            // 1 行目から切り出して残りを本文にする — 話者を本文に残すと
+            // «質問する» / «翻訳» の写像で speaker を別に渡せず、エンジンの
+            // プロンプト行 «[時刻] 話者: 本文» でラベルが 2 重になる (issue #566)
+            let head = bodyLines.first.map(Self.splitSpeakerPrefix)
+            let body = ([head?.body ?? ""] + bodyLines.dropFirst())
+                .joined(separator: " ")
             segments.append(LibrarySegment(
                 start: segment.start, end: segment.end,
-                text: bodyLines.joined(separator: " ")))
+                text: body, speaker: head?.speaker))
         }
         pending = nil
         bodyLines = []
+    }
+
+    /// «話者: 本文» の接頭辞を切り出す (issue #566)。TranscriptFormatter が話者を
+    /// `"\(speaker): "` の **1 回だけ**本文の先頭に付ける契約のため、
+    /// **最初の `": "`** で分割する。話者の無い行は `(nil, 行全体)` を返す。
+    /// 既知の限界: 本文自体が «語: » で始まる従来サイドカー (話者なし) は、
+    /// この形式では «話者» と区別できないため話者付きに読める —
+    /// 書き出し側の契約 (話者は先頭に 1 回だけ) をパース側がそのまま写した結果。
+    /// エンジンのラベル («自分» / «相手») は `: ` を含まないため実害はない
+    static func splitSpeakerPrefix(_ line: String) -> (speaker: String?, body: String) {
+        guard let colon = line.range(of: ": ") else { return (nil, line) }
+        let speaker = String(line[line.startIndex..<colon.lowerBound])
+            .trimmingCharacters(in: .whitespaces)
+        guard !speaker.isEmpty else { return (nil, line) }
+        return (speaker, String(line[colon.upperBound...]))
     }
 
     /// `start --> end` の 1 行を分解する。右辺は vtt で cue 設定 (align:start 等) が
@@ -145,34 +185,36 @@ enum LibraryTranscriptParser {
     // MARK: - txt ([HH:MM:SS] 本文)
 
     /// `[HH:MM:SS] 話者: 本文` (TranscriptFormatter.plain) の 1 行 = 1 セグメント。
-    /// 話者は現在 nil 固定なので捨てる
+    /// 話者は時刻の直後の本文から «話者: » の接頭辞を切り出して復元する (issue #566)。
+    /// 話者の無い行は従来どおり nil
     private static func parsePlain(lines: [String]) -> [LibrarySegment]? {
-        var starts: [TimeInterval] = []
-        var texts: [String] = []
+        var parsed: [(start: TimeInterval, text: String, speaker: String?)] = []
         for line in lines {
             // .whitespacesAndNewlines: CRLF ファイルで行末の \r が本文に残るのを防ぐ (parseTimed と同じ理由)
             let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             guard trimmed.hasPrefix("["), let close = trimmed.firstIndex(of: "]") else { continue }
             guard let start = parseClock(trimmed[trimmed.index(after: trimmed.startIndex)..<close]) else { continue }
-            let body = trimmed[trimmed.index(after: close)...].drop(while: { $0.isWhitespace })
-            starts.append(start)
-            texts.append(String(body))
+            let whole = trimmed[trimmed.index(after: close)...].drop(while: { $0.isWhitespace })
+            let (speaker, body) = Self.splitSpeakerPrefix(String(whole))
+            parsed.append((start, body, speaker))
         }
-        guard !starts.isEmpty else { return nil }
-        return zip(starts, texts).enumerated().map { offset, pair in
+        guard !parsed.isEmpty else { return nil }
+        return parsed.enumerated().map { offset, item in
             // end は「次セグメントの開始」を入れる (txt に終了時刻は無い)。最後は start のまま
-            let end = offset + 1 < starts.count ? starts[offset + 1] : pair.0
-            return LibrarySegment(start: pair.0, end: end, text: pair.1)
+            let end = offset + 1 < parsed.count ? parsed[offset + 1].start : item.start
+            return LibrarySegment(start: item.start, end: end, text: item.text, speaker: item.speaker)
         }
     }
 
     // MARK: - md (## HH:MM:SS 見出し + 本文)
 
-    /// TranscriptFormatter.markdown の `## HH:MM:SS` (話者付きなら `## HH:MM:SS [話者]`)
+    /// TranscriptFormatter.markdown の `## HH:MM:SS` (話者付きなら `## HH:MM:SS 話者` —
+    /// エンジンが `clock + " " + speaker` を書くため、括弧は付かない)
     /// をセグメント見出しとして読む。`## 要約` (issue #163) は時刻が取れないため無視する
     private static func parseMarkdown(lines: [String]) -> [LibrarySegment]? {
         var starts: [TimeInterval] = []
         var texts: [String] = []
+        var speakers: [String?] = []
         var currentBody: [String] = []
         for line in lines {
             // .whitespacesAndNewlines: CRLF ファイルで行末の \r が本文に残るのを防ぐ (parseTimed と同じ理由)
@@ -184,11 +226,18 @@ enum LibraryTranscriptParser {
                     texts[texts.count - 1] = currentBody.joined(separator: " ")
                     currentBody = []
                 }
+                // 最初のトークンだけを時刻とし、**残り全体**を話者にする (issue #566) —
+                // 話者ラベル自体に空白が入っても切り捨てないため。
+                // maxSplits: 1 で «時刻以降» を 1 つの部分文字列として受け取る
                 let rest = trimmed.dropFirst(3).trimmingCharacters(in: .whitespaces)
-                let token = rest.split(whereSeparator: { $0.isWhitespace }).first ?? ""
-                guard let start = parseClock(token) else { continue }
+                let tokens = rest.split(maxSplits: 1, whereSeparator: { $0.isWhitespace })
+                guard let token = tokens.first, let start = parseClock(token) else { continue }
+                let speaker = tokens.count > 1
+                    ? tokens[1].trimmingCharacters(in: .whitespaces)
+                    : ""
                 starts.append(start)
                 texts.append("")
+                speakers.append(speaker.isEmpty ? nil : speaker)
             } else if !starts.isEmpty, !trimmed.isEmpty {
                 // 見出し前の前置き (「# 文字起こし: …」「- 録画日時: …」) は starts が空なので無視される
                 currentBody.append(trimmed)
@@ -198,7 +247,7 @@ enum LibraryTranscriptParser {
         guard !starts.isEmpty else { return nil }
         return zip(starts, texts).enumerated().map { offset, pair in
             let end = offset + 1 < starts.count ? starts[offset + 1] : pair.0
-            return LibrarySegment(start: pair.0, end: end, text: pair.1)
+            return LibrarySegment(start: pair.0, end: end, text: pair.1, speaker: speakers[offset])
         }
     }
 

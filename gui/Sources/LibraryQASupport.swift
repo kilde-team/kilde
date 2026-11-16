@@ -76,9 +76,10 @@ enum LibraryQASupport {
     /// 写像する。**«空白でない本文» を持つセグメントのある録画だけ**を渡す
     /// (上の hasNonEmptySegments と同じ判定 — ボタンの有効条件と写像が
     /// 満たす録画を揃えるため)。空 cue のセグメントは落とす (質問の文脈に
-    /// 空文字列を混ぜない)。ライブラリの索引 (LibrarySegment) は**話者を
-    /// 保持しない**ため speaker は nil (TranscriptQASheet と同じ制約 —
-    /// 話者の保持は索引の拡張で別 issue)
+    /// 空文字列を混ぜない)。索引が保持した話者 (issue #566) も渡す —
+    /// エンジンのプロンプト行は «[時刻] 話者: 本文» なので «誰が言ったか» を
+    /// 問う質問の精度が上がる。話者の無い従来録画は索引の speaker が nil の
+    /// ため従来どおり nil (後方互換)
     static func recordings(from entries: [LibraryEntry]) -> [LibraryRecording] {
         entries.compactMap { entry in
             guard let segments = entry.segments else { return nil }
@@ -91,7 +92,7 @@ enum LibraryQASupport {
                 recordedAt: entry.recordedAt,
                 segments: usable.map {
                     TranscriptSegment(
-                        start: $0.start, end: $0.end, text: $0.text, speaker: nil)
+                        start: $0.start, end: $0.end, text: $0.text, speaker: $0.speaker)
                 })
         }
     }

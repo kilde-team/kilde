@@ -136,6 +136,15 @@ enum SelfTestLibrarySearch {
         check(index.search("   ").isEmpty, "空白のみは 0 件")
         check(index.search("存在しないキーワード").isEmpty, "無関係語は 0 件")
 
+        // 話者の無い合成サイドカー (100 件) は従来どおり speaker nil (後方互換 — issue #566)
+        check(entries.allSatisfy { entry in
+            (entry.segments ?? []).allSatisfy { $0.speaker == nil }
+        }, "話者の無い合成サイドカーは speaker nil (後方互換)")
+
+        // 話者つき索引 (issue #566): 5 形式での話者復元は **別の臨時ディレクトリ** で
+        // 検証する — メインの合成 (100 件) の時間計測と件数検証の前提を壊さないため
+        runSpeakerIndexChecks()
+
         try? FileManager.default.removeItem(at: directory)
         print("selftest: library failures=\(failures)")
         exit(failures == 0 ? 0 : 1)
@@ -282,5 +291,145 @@ enum SelfTestLibrarySearch {
             failures += 1
             print("selftest: library FAIL: \(label)")
         }
+    }
+    // MARK: - 話者つき索引 (issue #566)
+
+    /// TranscriptFormatter が話者を書きうる 5 形式 (md / json / srt / vtt / txt) の
+    /// サイドカーを **話者つきで** 合成して検証する:
+    /// - «話者: » 接頭辞 (txt / srt / vtt の本文 1 行目) と «## 時刻 話者» 見出し (md)、
+    ///   `"speaker"` キー (json) のどれからも話者を復元する
+    /// - 復元した話者は本文から取り除く (エンジンのプロンプト行 «[時刻] 話者: 本文»
+    ///   でラベルが 2 重にならないようにするため)
+    /// - 話者の無いセグメントは従来どおり nil (後方互換)
+    /// 形式ごとに 1 録画 × 3 セグメント (話者 «自分» / «相手» / 話者なし) を合成する。
+    /// 実録画を伴わないため録画のスロットは占有しない (run() と同じ位置づけ)
+    private static func runSpeakerIndexChecks() {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("kilde-selftest-library-speaker-\(UUID().uuidString)")
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        } catch {
+            check(false, "話者つきサイドカーの一時ディレクトリを作成できる: \(error)")
+            return
+        }
+        // 合成の本文。形式の差を吸収して共有する (全形式で同じ 3 セグメント)
+        let speakerTexts = ["予算は100万円です", "締め切りは月末です", "話者の無い従来セグメント"]
+        let speakerLabels: [String?] = ["自分", "相手", nil]
+        // TranscriptFormatter の出力と同じ形 (サイドカー仕様) で合成する —
+        // 実データとの食い違いを残さないため (既存の合成と同じ流儀)
+        let sidecars: [String: String] = [
+            "md": """
+            # 文字起こし: kilde-20270101-000001
+
+            - 録画日時: 2027-01-01 00:00:01
+
+            - セグメント数: 3
+
+            ## 00:00:00 自分
+
+            予算は100万円です
+
+            ## 00:00:10 相手
+
+            締め切りは月末です
+
+            ## 00:00:20
+
+            話者の無い従来セグメント
+            """,
+            "json": """
+            [
+              {"end": 9, "speaker": "自分", "start": 0, "text": "予算は100万円です"},
+              {"end": 19, "speaker": "相手", "start": 10, "text": "締め切りは月末です"},
+              {"end": 29, "start": 20, "text": "話者の無い従来セグメント"}
+            ]
+            """,
+            "srt": """
+            1
+            00:00:00,000 --> 00:00:09,000
+            自分: 予算は100万円です
+
+            2
+            00:00:10,000 --> 00:00:19,000
+            相手: 締め切りは月末です
+
+            3
+            00:00:20,000 --> 00:00:29,000
+            話者の無い従来セグメント
+            """,
+            "vtt": """
+            WEBVTT
+
+            1
+            00:00:00.000 --> 00:00:09.000
+            自分: 予算は100万円です
+
+            2
+            00:00:10.000 --> 00:00:19.000
+            相手: 締め切りは月末です
+
+            3
+            00:00:20.000 --> 00:00:29.000
+            話者の無い従来セグメント
+            """,
+            "txt": """
+            [00:00:00] 自分: 予算は100万円です
+            [00:00:10] 相手: 締め切りは月末です
+            [00:00:20] 話者の無い従来セグメント
+            """,
+        ]
+        // 既定名 kilde-yyyyMMdd-HHmmss にしない — scan の新しい順ソートは
+        // recordedAt (既定名の解析 or 更新日時) に寄るため。stamp 付きの別名でも
+        // «走査とパース» は同じ経路を通る (更新日時で代用される)
+        // «kilde-» 接頭辞が無いと走査対象にならない (LibraryStore.scan の
+        // «kilde- 接頭辞 + 対応拡張子» の条件。既定名の timestamp は無いので
+        // 録画日時は更新日時で代用される — 走査とパースの経路は同じ)
+        let stems: [(format: String, stem: String)] = [
+            ("md", "kilde-speaker-md"), ("json", "kilde-speaker-json"),
+            ("srt", "kilde-speaker-srt"), ("vtt", "kilde-speaker-vtt"),
+            ("txt", "kilde-speaker-txt"),
+        ]
+        for item in stems {
+            FileManager.default.createFile(
+                atPath: directory.appendingPathComponent("\(item.stem).mov").path, contents: Data())
+            FileManager.default.createFile(
+                atPath: directory.appendingPathComponent("\(item.stem).\(item.format)").path,
+                contents: sidecars[item.format]?.data(using: .utf8))
+        }
+        let entries = LibraryStore.scan(directory: directory) ?? []
+        check(entries.count == stems.count,
+              "話者つきサイドカー \(stems.count) 形式を走査できる (実際 \(entries.count) 件)")
+        // キーは **サイドカーの拡張子** — entry.id は録画本体 (.mov など) を指すため
+        // 録画の拡張子をキーにすると全件が «mov» に潰れ、形式ごとの照合ができない
+        let byExtension = Dictionary(entries.compactMap { entry -> (String, LibraryEntry)? in
+            guard let sidecarExtension = entry.transcriptURL?.pathExtension.lowercased() else {
+                return nil
+            }
+            return (sidecarExtension, entry)
+        }, uniquingKeysWith: { first, _ in first })
+        for item in stems {
+            guard let entry = byExtension[item.format] else {
+                check(false, "話者つき索引 (\(item.format)) が走査で取れる")
+                continue
+            }
+            let segments = entry.segments ?? []
+            check(segments.count == speakerTexts.count,
+                  "話者つき索引 (\(item.format)) が \(speakerTexts.count) セグメント (実際 \(segments.count) 件)")
+            for (offset, segment) in segments.enumerated() where offset < speakerTexts.count {
+                check(segment.speaker == speakerLabels[offset],
+                      "話者つき索引 (\(item.format) seg \(offset)) の話者を復元する (実際 \(segment.speaker ?? "nil"))")
+                check(segment.text == speakerTexts[offset],
+                      "話者つき索引 (\(item.format) seg \(offset)) の本文から話者を取り除く (実際 «\(segment.text)»)")
+            }
+        }
+        // 検索: 話者は本文に混ざらないため «本文の語» のヒット数は形式数と
+        // 一致し、«話者ラベル» は本文検索に載らない
+        let speakerIndex = LibraryIndex(entries: entries)
+        let budget = speakerIndex.search("予算")
+        check(budget.count == stems.count,
+              "話者つき索引で «予算» が \(stems.count) 件ヒット (実際 \(budget.count) 件)")
+        check(speakerIndex.search("自分").isEmpty,
+              "話者ラベルは本文検索に載らない («自分» は 0 件)")
+        try? FileManager.default.removeItem(at: directory)
     }
 }
