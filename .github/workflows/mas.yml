@@ -73,7 +73,16 @@ jobs:
     # cli-swift の CI と同じ kilde-ci ラベルだが、あちらのランナーは別リポジトリ
     # スコープのためここには来ない
     runs-on: [self-hosted, macOS, ARM64, kilde-ci]
-    timeout-minutes: 60
+    # issue #589: 0.42.0 の upload (run 43987897190) が «アーカイブ → エクスポート →
+    # ASC アップロード» で 60 分を超え、ジョブ上限の 60 分で打ち切られた。所要は機体
+    # 負荷で変わる (0.39.0〜0.41.0 は m1 オフラインのためローカル経路で実施しており、
+    # m1 経路の所要実績が無かった) ので余裕を持って 120 に引き上げる。
+    # **upload モードだけ** 120 (他のモードは従来どおり 60): ジョブ上限はランナーの
+    # 占有時間の上限でもあるため、数分で終わる plan / status / apply / submit /
+    # submit-only を 120 分まで占有し続ける理由が無い (cubic レビュー指摘)。
+    # ジョブレベルの timeout-minutes は inputs を含む式をサポートする
+    # (GitHub docs «Contexts availability» の jobs.<job_id>.timeout-minutes 行)
+    timeout-minutes: ${{ inputs.mode == 'upload' && 120 || 60 }}
 
     steps:
       - name: Checkout kilde
