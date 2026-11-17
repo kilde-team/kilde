@@ -2,7 +2,7 @@ class Kilde < Formula
   desc "Command-line screen and audio recorder for macOS"
   homepage "https://github.com/kilde-team/kilde"
   url "https://github.com/kilde-team/kilde/releases/download/v0.42.0/kilde-0.42.0-macos.zip"
-  # v0.41.0 の実配布物のハッシュ (Release からダウンロードした zip で計算)。
+  # v0.42.0 の実配布物のハッシュ (Release からダウンロードした zip で計算)。
   # DMG や zip 名からハッシュを推測して書かないこと (#369 の事故注意)
   sha256 "25122f274cc198230aec462181296f38d6f869eb7ba630d2762b04217bf3cd42"
   # CLI バイナリは kilde-team/kilde-cli-swift (private) で開発されたプロプライエタリ
