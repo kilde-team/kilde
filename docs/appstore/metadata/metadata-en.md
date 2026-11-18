@@ -33,10 +33,13 @@ FOR MEETINGS
 Record online meetings with the other participants' voices (system audio) and your own voice (microphone) mixed into a single file. Keep the sources as separate tracks and the transcript labels each speaker (you / the other side). Meeting windows can even be detected and recorded automatically (off by default).
 
 TRANSCRIBE AND SUMMARIZE (MACOS 26 OR LATER)
-When a recording finishes, kilde transcribes it entirely on this Mac and writes a Markdown transcript next to the file. On Macs with Apple Intelligence enabled it can also draft a meeting summary. Audio and transcripts never leave your device.
+When a recording finishes, kilde transcribes it entirely on this Mac and writes a Markdown transcript next to the file. On Macs with Apple Intelligence enabled it can also draft a meeting summary (Pro). Audio and transcripts never leave your device.
 
 FIND ANY MOMENT
-Transcripts are searchable in the recording library: search the full text and jump straight to the moment it was said — no more scrubbing through hour-long recordings.
+Transcripts are searchable in the recording library: search the full text and jump straight to the moment it was said — no more scrubbing through hour-long recordings. Recordings are also searchable from Spotlight, and transcripts export as text, Markdown, or subtitles (SRT / WebVTT). Audio and video files recorded with other tools can be imported and transcribed too.
+
+MEETING NOTES, Q&A AND TRANSLATION (PRO, ONE-TIME PURCHASE)
+Turn recordings into meeting minutes with action items, draft follow-up messages, ask questions about a transcript (or across your whole library), and translate transcripts — all processed on this Mac with Apple Intelligence (macOS 26 or later). Pro is a one-time purchase, not a subscription. Recording and transcription remain free.
 
 FEATURES
 - Screen + system audio with zero setup (native ScreenCaptureKit)
@@ -50,7 +53,7 @@ PRIVACY
 Your recordings and transcripts never leave your Mac. The developer only receives aggregated usage statistics such as launch counts, and crash reports when the app crashes — never the content of your recordings. See PRIVACY.md at github.com/kilde-team/kilde.
 
 REQUIREMENTS
-macOS 14 or later (Apple Silicon); transcription and summaries require macOS 26 or later. Free, no ads, open source (MIT).
+macOS 14 or later (Apple Silicon); transcription and summaries require macOS 26 or later. Recording and transcription are free. No ads, open source (MIT).
 
 The GUI shares the same recording engine as the `kilde` command-line tool.
 Learn more at https://github.com/kilde-team/kilde
@@ -61,12 +64,13 @@ Learn more at https://github.com/kilde-team/kilde
 ## Keywords (≤100)
 
 ```text
-system audio,transcription,microphone,window capture,screen capture,video,minutes,summary,mp4
+system audio,speech to text,transcription,microphone,window capture,screen capture,minutes,summary
 ```
 
-(93 chars. "screen", "recorder", "record", "transcribe" and "meetings" are already
-indexed via the name and subtitle, so the keywords spend their budget on other
-terms. Dropped "Zoom" — third-party trademark (issue #160).)
+(98 chars. Issue #160 change 5 (0.43.0): swapped "video" and "mp4" — generic,
+low-intent terms — for "speech to text", the highest-intent phrase for the
+transcription use case. "screen", "record", "transcribe" and "meetings" are
+still covered by the name and subtitle. No third-party trademarks.)
 
 ## What's New (0.6.0)
 
@@ -603,4 +607,16 @@ A fix-and-improvement release (issues #566, #571-#575). Copy states only what sh
 
 ```text
 This release improves recording and the library. When summary generation fails, the transcription is now saved (previously, a failed summary also meant no transcript file. Cancelling the transcription still writes no transcript file, as before — the recording itself is kept). "Ask", "Translate", and "Ask the Library" now show speaker names in their results, so questions about who said what — and translations whose lines read against the original — come out clearer (speaker names appear for transcripts of recordings captured with the microphone and system audio on separate tracks). Also fixed around the library: the wording when used in languages other than Japanese (search field, count, empty state), spaces not being accepted in the "Ask" field, and the volume slider overlapping the "Rename" and "Move to Trash" buttons. Recording and transcription are currently free.
+```
+
+## What's New (0.43.0)
+
+A metadata-only maintenance release (issue #594 — issue #160 change 5, App Store
+product page optimization). No code change from 0.42.0; the description on the
+product page now reflects the current feature set (Pro features, library
+exports, Spotlight, file import). What's New follows the 0.8.2 / 0.23.0
+precedent: state plainly that the app itself is unchanged.
+
+```text
+This is a maintenance release. There are no changes to the recording or transcription features. The app description on the product page has been updated.
 ```

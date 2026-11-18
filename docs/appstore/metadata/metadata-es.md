@@ -40,13 +40,23 @@ empezar a grabar automáticamente (desactivado por defecto).
 TRANSCRIBE Y RESUME (MACOS 26 O POSTERIOR)
 Al terminar la grabación, kilde la transcribe por completo en este Mac y
 escribe la transcripción en Markdown junto al archivo. En Macs con Apple
-Intelligence activado también puede redactar un resumen de la reunión.
+Intelligence activado también puede redactar un resumen de la reunión (Pro).
 El audio y las transcripciones nunca salen de tu dispositivo.
 
 ENCUENTRA CUALQUIER MOMENTO
 Las transcripciones se pueden buscar a texto completo en la biblioteca de
 grabaciones: busca y salta directo al momento exacto en que se dijo, sin
-arrastrar la barra de una grabación de una hora.
+arrastrar la barra de una grabación de una hora. También puedes buscar las
+grabaciones desde Spotlight, exportar las transcripciones como texto,
+Markdown o subtítulos (SRT / WebVTT), e importar archivos de audio y vídeo
+grabados con otras herramientas para transcribirlos.
+
+ACTAS, PREGUNTAS Y TRADUCCIÓN (PRO, PAGO ÚNICO)
+Convierte las grabaciones en actas de reunión con tareas, redacta mensajes
+de seguimiento, pregunta sobre una transcripción (o en toda la biblioteca)
+y traduce transcripciones: todo se procesa en este Mac con Apple
+Intelligence (macOS 26 o posterior). Pro es un pago único, no una
+suscripción. La grabación y la transcripción siguen siendo gratis.
 
 CARACTERÍSTICAS
 - Pantalla + audio del sistema sin ninguna configuración (ScreenCaptureKit
@@ -68,7 +78,8 @@ github.com/kilde-team/kilde.
 
 REQUISITOS
 macOS 14 o posterior (Apple Silicon); la transcripción y los resúmenes
-requieren macOS 26 o posterior. Gratis, sin anuncios, código abierto (MIT).
+requieren macOS 26 o posterior. Grabar y transcribir es gratis. Sin
+anuncios, código abierto (MIT).
 
 La app comparte el mismo motor de grabación que la herramienta de línea de
 comandos `kilde`. Más información en https://github.com/kilde-team/kilde
@@ -77,14 +88,13 @@ comandos `kilde`. Más información en https://github.com/kilde-team/kilde
 ## Palabras clave (≤100)
 
 ```text
-grabadora de pantalla,audio del sistema,transcribir,transcripción,reunión,micrófono,acta
+grabadora de pantalla,audio del sistema,transcribir,transcripción,reunión,micrófono,acta,notas
 ```
 
-(87 caracteres / 88 bytes — las vocales acentuadas ocupan 2 bytes. El límite
-real del campo se cuenta en caracteres (ver el README de metadata); se
-mantiene también por debajo de 100 bytes. Se quitó «Zoom» (marca de
-terceros) y «grabar pantalla» (ya cubierto por «grabadora de pantalla») y
-se añadieron «transcribir», «transcripción» y «acta»)
+(94 caracteres / 97 bytes. Cambio 5 de #160 (0.43.0): se añadió «notas» —
+término de intención alta para el caso de uso de actas. «Zoom» (marca de
+terceros) sigue fuera y «grabar pantalla» sigue cubierto por
+«grabadora de pantalla».)
 
 ## Novedades (0.6.0)
 
@@ -608,4 +618,16 @@ Lanzamiento de correcciones y mejoras (issues #566, #571-#575). El texto dice so
 
 ```text
 Esta versión mejora la grabación y la biblioteca. Cuando falla la generación del resumen, ahora se guarda la transcripción (antes, un resumen fallido también dejaba la transcripción sin archivo. Al cancelar el proceso de transcripción, el archivo de transcripción sigue sin escribirse — la grabación se conserva). «Preguntar», «Traducir» y «Preguntar a la biblioteca» ahora muestran los nombres de los hablantes en el resultado, así que las preguntas sobre quién dijo qué —y las traducciones que se corresponden línea a línea con el original— se entienden mejor (los nombres de hablante aparecen en las transcripciones de grabaciones hechas con el micrófono y el audio del sistema en pistas separadas). También se corrigió la biblioteca: el texto al usarla en idiomas distintos del japonés (campo de búsqueda, contador, estado vacío), los espacios que no se podían escribir en el campo «Preguntar», y el deslizador de volumen que tapaba los botones «Renombrar» y «Mover a la papelera». La grabación y la transcripción son actualmente gratuitas.
+```
+
+## Novedades (0.43.0)
+
+Versión de mantenimiento solo de metadatos (issue #594 — cambio 5 de #160,
+optimización de la página de producto del App Store). Sin cambios de código
+respecto a 0.42.0; la descripción de la página de producto refleja ahora el
+conjunto actual de funciones. Las Novedades siguen el precedente de
+0.8.2 / 0.23.0: indicar con franqueza que la app no cambia.
+
+```text
+Esta es una versión de mantenimiento. No hay cambios en las funciones de grabación ni de transcripción. La descripción de la página de producto se ha actualizado.
 ```
