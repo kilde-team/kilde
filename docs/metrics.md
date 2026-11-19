@@ -135,6 +135,64 @@ OAuth クライアントはこのスコープについて Google の審査を通
 見合わない。将来やり直すときは独自クライアントの登録から始めること
 (cubic レビュー指摘でスコープ名の誤記 `analytics.admin` を `analytics.edit` に修正)。
 
+## IAP 販売数と DL の月次台帳 (エピック #174 の判定材料)
+
+Pro 転換率 «有料転換 2%» (issue #174 の出口条件) の正本は «ASC の IAP 販売数 ÷ DL»
+(指標 6 参照)。その転記先をここに新設した (issue #598、2026-11-19)。
+
+### 取得方法 (ASC API の Sales Report。手動エクスポート不要)
+
+**App Store Connect API** の Sales Report を使う (`asc-submit` リポジトリの
+`asc_submit.auth.make_token` で JWT を作り `salesReports` を呼ぶ):
+
+```
+GET https://api.appstoreconnect.apple.com/v1/salesReports
+  ?filter[frequency]=DAILY&filter[reportType]=SALES&filter[reportSubType]=SUMMARY
+  &filter[vendorNumber]=85006198&filter[reportDate]=YYYY-MM-DD
+Accept: application/a-gzip
+```
+
+- 日次 TSV (gzip) が返る。**kilde 関連の行だけを抜く**: SKU `kilde-mas` と
+  IAP の Product Type Identifier **IA1 / IA1-M / FI1** (SKU に `kilde.` が付く行のみを
+  対象にするため、同じベンダー番号の別アプリの行は混入しない。接尾辞 `-M` は Mac、
+  接尾辞無しの `IA1` は iOS — kilde は MAS のみなので現状観測されるのは `IA1-M`。
+  `FI1` も Mac の IAP 区分のひとつで、無料/有料を表すものではない — 現状の kilde では
+  未観測だが、フィルタに含めて将来の集計漏れを防ぐ)。DL 系で観測される区分は **F1 = 無料アプリの DL トランザクション**
+  (初回 DL の代理指標)、**F3 = 無料アプリの再 DL トランザクション** (kilde-mas の行で
+  実在を確認)、**F7 = 無料アプリのアップデート**。ASC 分析の
+  «初回ダウンロード (ユニークデバイス)» とは定義が異なる近似値 — トレンド用
+- IAP の行は `Units` (個数) と `Customer Price` / `Developer Proceeds` を持つ。
+  **`Developer Proceeds` の通貨は行の `Currency of Proceeds` で読む** (常に USD では
+  ない。USD 換算の合計が必要な場合は通貨ごとに分けてから明示的な変換を行う)。
+  レポートは **地域ごとに翌日 5am PT まで**
+  に配信される (JP はそのあと)。月次の転記は翌月初に «前月の末日分が揃ってから» 行う
+  (GA4 月次の手順と同じタイミングでよい)
+- 2026-11-19 時点で ASC 分析 (App Analytics) API のレポート生成を
+  `analyticsReportRequests` で開始済み — «表示 / ページ閲覧» 系の指標は生成後に
+  [appstore/metadata/metrics.md](appstore/metadata/metrics.md) の週次表へ転記する
+
+### 対象 IAP
+
+| Product ID | 種別 | 内容 |
+|---|---|---|
+| `kilde.pro` | 非消耗型 | kilde.pro (買い切り ¥2,800)。MAS 版のみ。2026-10-28 販売開始 |
+| `kilde.tip.small` / `kilde.tip.medium` / `kilde.tip.large` | 消耗型 | 応援チップ (issue #171)。2026-10-20 販売開始 |
+
+### 月次台帳
+
+販売列・F1 列・転換率は **すべて当月 (前月 1 日〜末日) の値**で揃える (販売だけを累計に
+すると転換率の分母と分子の窓がずれるため。累計を見たいときは気づき列に併記する)。
+
+| 月 | kilde.pro 販売 (当月) | チップ販売 (当月) | 初回 DL (F1, 当月) | 転換率 (pro ÷ F1, 当月) | 気づき |
+|---|---|---|---|---|---|
+| 2026-11 | 1 | 0 | 18 (11-01〜11-17。11-18 以降はレポート未配信) | 5.6% (1/18) | **初の有料転換** — kilde.pro が 2026-11-15 に米国ストアで 1 件 (Customer Price $17.99 / `Currency of Proceeds` USD の $15.29、Sales Report 実測 2026-11-19 取得)。チップは 0 件。転換率は #174 の出口条件 «2%» を上回るが **サンプル 18 件で統計的な判定は不可** — 判定できる母数 (数百件) になるまで率を追い続ける。Pro 販売開始日 (10-28) から 11-17 までの F1 は 20 件で、同じ窓の累計では 1/20 = 5.0% |
+
+**計測の注意**: F1 はトランザクション単位のため «MAS 初回 DL» の真の分母は
+ASC 分析側 («初回ダウンロード») で置き換える。GA4 の `pro_unlocked` と突合すると
+きは «pro_unlocked は権利の false→true 遷移のみ» (上の «送っているイベント» 参照)
+のため、再インストール分が Sales Report の F1 に乗っても pro_unlocked に乗らない
+ズレが生じる — 月次の気づきに併記する。
+
 ## 月次の振り返り手順 (毎月 1 回。月初の第 1 月曜を推奨)
 
 前月分のレポートが確定してから行う (ユーザー プロパティの反映は数時間〜
@@ -153,7 +211,9 @@ OAuth クライアントはこのスコープについて Google の審査を通
    `followup_complete` のユーザー数も) も記録する (指標 7。0.38.0 からは
    `qa_complete`、0.40.0 からは `qa_chat_complete`、0.41.0 からは
    `translation_complete` のユーザー数も)
-4. App Store Connect: 評価の累計件数と平均を記録する (指標 4)
+4. App Store Connect: 評価の累計件数と平均を記録する (指標 4)。あわせて
+   ASC API の Sales Report で前月の IAP 販売数と F1 を取得し、下の
+   «IAP 販売数と DL の月次台帳» に 1 行追記する (issue #598、2026-11-19 から)
 5. [appstore/metadata/metrics.md](appstore/metadata/metrics.md) の
    ASC 週次台帳が埋まっていれば、その月の初回 DL 合計を台帳の「気づき」に添える
    (#160 の計測と混ぜすぎない — リンクするだけでもよい)
@@ -166,6 +226,10 @@ OAuth クライアントはこのスコープについて Google の審査を通
 | 月 | 録画完了ユーザー (30 日) | 定着率 (3 回以上) | 文字起こし利用率 | 評価数 (累計) | mas / direct | 気づき |
 |---|---|---|---|---|---|---|
 | 2026-10 | 1 | 20% (1/5) | 100% (1/1) | 0 | mas 2 / direct 0 | 初回計上 (窓は 2026-09-03 〜 10-02、2026-10-03 集計)。`recording_complete` は 4 件 / 1 名で `channel=mas` のみ — 0.8.2 以降の配布ビルドから届いているが、現時点のサンプルは開発者端末とみられる規模。`recordings_bucket` の分布 0: 2 / 1: 1 / 2: 1 / 3_5: 1 は **ユーザー × 値の行数** で、bucket が進んだユーザーは複数行に現れる — 行合計 5 はユニークではなく、ユニークは 2 名 (`distribution_channel` の mas 2 名と一致、うち 3_5 以上が 1 名なのでユニーク基準の定着率は 1/2)。20% は «(not set) 行を除く全値の行合計を分母» というこのドキュメントの定義どおりの値 ((not set) 行を含めると分母 12 で 8.3%)。(not set) 列には窓内の全 7 名が現れる — プロパティ設定前のイベントも (not set) に計上されるためで、«旧バージョンのままのユーザー» 限定の値ではない。評価は 0 件 — ASC にログインできないため公開の iTunes Lookup API (ストア表示と同じ値) で主要 10 ストアを確認、すべて 0 (ASC 分析 UI との突合は次回月次で)。0.8.3 を 2026-09-29、0.8.4 を 2026-10-03 (JST) に公開 — 次回は 0.8.4 (録画の自停止修正入り) の効果を見る。ASC 週次台帳 ([appstore/metadata/metrics.md](appstore/metadata/metrics.md)) はまだ未記入 |
+| 2026-11 | 未取得 | 未取得 | 未取得 | 0 (iTunes Lookup jp / us で 2026-11-19 確認) | 未取得 | 台帳記入を 2026-11-19 に試みたが、**GA4 Data API への自動取得経路が閉じていた**ため断念 (issue #598)。①gcloud の共有 OAuth クライアントは `analytics.readonly` スコープが未登録で同意画面が 403 `restricted_client` («初回セットアップ» の `analytics.edit` 401 と同根の制約)、②GA4 Data API は `cloud-platform` スコープのトークンを `ACCESS_TOKEN_SCOPE_INSUFFICIENT` で拒否、③kawai@muse.ai に参照できる GCP プロジェクトが無くサービスアカウント経路も不通。**代替案**: GA4 コンソール (kawai@muse.ai、2026-11-19 に権限付与済み) から «月次の振り返り手順» の 1〜3 を手動で読み取り転記するか、GA4 プロパティ 555463514 にサービス アカウントを Viewer として追加すれば次回から自動化できる。参考: 同日の ASC Sales Report で **2026-11-01〜17 の MAS 初回 DL 相当 (F1) 18 件・kilde.pro 初販売 1 件** を確認 (下の «IAP 販売数と DL の月次台帳»)。なお同じ Sales Report の F1
+(初回 DL 代理) を月ごとに既知分だけで数えると 9 月 1 件 (9-25 のみ) / 10 月 17 件 /
+11 月 18 件 (11-17 まで、月末未確定) となる — **窓が未確定の暫定値**で、F1 はユニーク DL
+ではないため、増加の «方向» を読む以上のことはしない |
 
 ## 計測の限界と読み方の注意
 
