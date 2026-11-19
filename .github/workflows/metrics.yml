@@ -74,10 +74,12 @@ jobs:
           FROM_DATE: ${{ inputs.from-date }}
           TO_DATE: ${{ inputs.to-date }}
         run: |
-          # 日付の既定は «JST の前日» (日次レポートは翌日に配信されるため)。
-          # runner は UTC で動くため TZ を明示する — 20:00 UTC = JST 翌日 5:00 の
-          # 実行で «前日» がずれると取得対象日を間違える
-          FROM="${FROM_DATE:-$(TZ=Asia/Tokyo date -v-1d +%F)}"
+          # 日付の既定は «JST の前々日〜前日» (2 日分)。日次レポートは地域ごとに
+          # 翌日に配信され、App Analytics のレポート日は太平洋時間基準のため、
+          # JST 朝 5 時 (UTC 20:00) の実行では前々日の分が確定しているところ。
+          # **重複排除があるので取りすぎは安全** — 欠けより重複実行を選る。
+          # runner は UTC で動くため TZ を明示する (実行時刻では JST が既に翌日)
+          FROM="${FROM_DATE:-$(TZ=Asia/Tokyo date -v-2d +%F)}"
           TO="${TO_DATE:-$(TZ=Asia/Tokyo date -v-1d +%F)}"
           echo "from=$FROM to=$TO" | tee fetch-range.txt
           python3 scripts/metrics/fetch_asc_metrics.py \
@@ -116,7 +118,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add "$DATA_DIR"
-          FROM="${FROM_DATE:-$(TZ=Asia/Tokyo date -v-1d +%F)}"
+          FROM="${FROM_DATE:-$(TZ=Asia/Tokyo date -v-2d +%F)}"
           TO="${TO_DATE:-$(TZ=Asia/Tokyo date -v-1d +%F)}"
           git commit -m "metrics: record the ASC reports for $FROM..$TO"
           git push
@@ -124,47 +126,53 @@ jobs:
           echo "from=$FROM" >> "$GITHUB_OUTPUT"
           echo "to=$TO" >> "$GITHUB_OUTPUT"
 
-      - name: Open an issue when an IAP sale is detected
-        if: steps.commit.outputs.updated == 'true'
+      - name: Reconcile IAP sale notifications against the committed CSV
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # **コミット済みの CSV から IAP 行を再検査する** (実行中のメモリに依存しない)。
-          # issue 起票が失敗しても、次回の実行が同じ CSV 範囲を再検査して検知を回復できる
-          FROM="${FROM_DATE:-$(TZ=Asia/Tokyo date -v-1d +%F)}"
-          TO="${TO_DATE:-$(TZ=Asia/Tokyo date -v-1d +%F)}"
-          if [ -n "${{ inputs.from-date }}" ]; then FROM="${{ inputs.from-date }}"; fi
-          if [ -n "${{ inputs.to-date }}" ]; then TO="${{ inputs.to-date }}"; fi
-          ROWS=$(python3 - "$DATA_DIR/sales-daily.csv" "$FROM" "$TO" <<'PYEOF'
-          import csv, sys
-          rows = []
-          with open(sys.argv[1], newline="") as f:
+          # **コミット済み CSV 全体を IAP 行について再検査し、未起票の日だけ
+          # issue を起票する** (cubic / CodeRabbit レビュー指摘 2026-11-19)。
+          # «issue 起票が失敗した翌日に別の日を処理して検知を永久に失う» のを
+          # 防ぐため、起票はコミットの成否に依存させず、対象は常に CSV 全期間。
+          # 重複起票の防止は «日付入りタイトルの検索» (issue が状態保持の代替 —
+          # eyechecker の appstore-reviews.yml と同じ構成)
+          python3 - "$DATA_DIR/sales-daily.csv" > iap-days.txt <<'PYEOF'
+          import csv, sys, collections
+          days = collections.defaultdict(list)
+          try:
+              f = open(sys.argv[1], newline="")
+          except FileNotFoundError:
+              raise SystemExit
+          with f:
               for r in csv.DictReader(f):
-                  if r["product_type"].startswith(("IA1", "FI1")) and sys.argv[2] <= r["date"] <= sys.argv[3]:
-                      rows.append(",".join(r[c] for c in ["date", "sku", "product_type", "units",
-                                                          "customer_price", "customer_currency",
-                                                          "country", "proceeds", "proceeds_currency"]))
-          print("\n".join(rows))
+                  if r["product_type"].startswith(("IA1", "FI1")):
+                      cols = ["date", "sku", "product_type", "units", "customer_price",
+                              "customer_currency", "country", "proceeds", "proceeds_currency"]
+                      days[r["date"]].append(",".join(r[c] for c in cols))
+          for date in sorted(days):
+              print(date + "\t" + "\n".join(days[date]))
           PYEOF
-          )
-          if [ -z "$ROWS" ]; then
-            echo "対象範囲に IAP の販売は無し"
+          if [ ! -s iap-days.txt ]; then
+            echo "CSV に IAP の行は無し"
             exit 0
           fi
-          TITLE="計測: IAP の販売を検知しました (${FROM}〜${TO})"
-          if gh issue list --search "in:title \"$TITLE\"" --state all --limit 5 | grep -q .; then
-            echo "既に起票済み — スキップ"
-            exit 0
-          fi
-          {
-            echo "ASC Sales Report で IAP の販売を検知しました。docs/metrics.md の"
-            echo "«IAP 販売数と DL の月次台帳» への転記をお願いします。"
-            echo ""
-            echo '```'
-            echo "date,sku,product_type,units,customer_price,customer_currency,country,proceeds,proceeds_currency"
-            echo "$ROWS"
-            echo '```'
-            echo ""
-            echo "(この issue は metrics workflow が自動起票しました)"
-          } > body.md
-          gh issue create --title "$TITLE" --body-file body.md
+          while IFS=$'\t' read -r DATE ROWS; do
+            [ -z "$DATE" ] && continue
+            TITLE="計測: IAP の販売を検知しました ($DATE)"
+            if gh issue list --search "in:title \"$TITLE\"" --state all --limit 5 | grep -q .; then
+              echo "$DATE: 既に起票済み — スキップ"
+              continue
+            fi
+            {
+              echo "ASC Sales Report で IAP の販売を検知しました。docs/metrics.md の"
+              echo "«IAP 販売数と DL の月次台帳» への転記をお願いします。"
+              echo ""
+              echo '```'
+              echo "date,sku,product_type,units,customer_price,customer_currency,country,proceeds,proceeds_currency"
+              echo "$ROWS"
+              echo '```'
+              echo ""
+              echo "(この issue は metrics workflow が自動起票しました)"
+            } > body.md
+            gh issue create --title "$TITLE" --body-file body.md
+          done < iap-days.txt

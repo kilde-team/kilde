@@ -65,7 +65,9 @@ SALES_TYPES = {"F1", "F3", "F7", "IA1", "IA1-M", "FI1", "FI1-M"}
 SALES_COLUMNS = ["date", "sku", "product_type", "units", "customer_price",
                  "customer_currency", "country", "proceeds", "proceeds_currency"]
 # sales の重複排除キー。CSV 読み込み側と同じ集合を使う (順序は常に sorted で揃える)
-SALES_KEY_COLS = ("country", "date", "product_type", "sku")
+# 返金は負の units / price で同じ日・SKU・国に現れるため、units と customer_price も
+# キーに含める (CodeRabbit レビュー指摘 2026-11-19 — 含めないと返金行が捨てられる)
+SALES_KEY_COLS = ("country", "date", "product_type", "sku", "units", "customer_price")
 
 
 # ---------- 認証 (asc-submit の auth.py と同じ ES256 JWT) ----------
@@ -175,6 +177,16 @@ def _read_keys(csv_path: Path, key_cols: tuple[str, ...]) -> set[tuple]:
     return seen
 
 
+def _read_header(csv_path: Path) -> list[str]:
+    if not csv_path.exists() or csv_path.stat().st_size == 0:
+        return []
+    with csv_path.open(newline="") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            return row
+    return []
+
+
 # ---------- sales ----------
 
 
@@ -227,7 +239,7 @@ def cmd_sales(args: argparse.Namespace) -> None:
                     row.get("Developer Proceeds", ""),
                     row.get("Currency of Proceeds", ""),
                 ]
-                key = (rec[6], rec[0], rec[2], rec[1])  # SALES_KEY_COLS と同じ順序
+                key = (rec[6], rec[0], rec[2], rec[1], rec[3], rec[4])  # SALES_KEY_COLS と同じ順序
                 if key in seen:
                     continue
                 seen.add(key)
@@ -334,12 +346,26 @@ def _fetch_instances(token: str, rid: str, name: str, args: argparse.Namespace) 
             # セグメントに本文が無い日 (集計中) は記録しない — 次回の実行で
             # まだ seen に入っていないので再取得される
             continue
+        # 既存 CSV のヘッダと列名を突き合わせる (Apple は列の位置を変えることが
+        # あるため、位置合わせのまま追記すると値が別の列に入る — CodeRabbit
+        # レビュー指摘 2026-11-19)。新列は既存ヘッダの末尾に追加する
+        existing_header = _read_header(out_path)
+        header = ["date"] + columns
+        if existing_header and existing_header != header:
+            if not set(header) >= set(existing_header):
+                # 既存列が新データに無い (レポート定義の後退) — 安全のためこの日は
+                # スキップし、手動確認を促すログを出す
+                print(f"analytics: {name} {date} 列構成の後退を検知 — スキップ (手動確認が必要)")
+                continue
+            header = existing_header
+        idx = {c: i for i, c in enumerate(columns)}
         with out_path.open("a", newline="") as f:
             writer = csv.writer(f)
-            if out_path.stat().st_size == 0:
-                writer.writerow(["date"] + columns)
+            if out_path.stat().st_size == 0 or not existing_header:
+                writer.writerow(header)
             for row in rows:
-                writer.writerow([date] + row)
+                drow = dict(zip(columns, row))
+                writer.writerow([drow.get(c, "") for c in header])
                 new_rows += 1
         seen.add(date)
         fetched_days += 1
@@ -359,12 +385,20 @@ def _download_segment_rows(token: str, instance_id: str) -> tuple[list[list[str]
             if not dl:
                 continue
             rq = urllib.request.Request(dl)
-            with urllib.request.urlopen(rq) as resp:
-                raw = resp.read()
+            try:
+                with urllib.request.urlopen(rq) as resp:
+                    raw = resp.read()
+            except urllib.error.URLError as e:
+                # 署名 URL の期限切れ・一時障害 (403/404 など)。1 セグメントの
+                # 失敗で日次ジョブ全体が落ちないように、空の結果を返す
+                print(f"analytics: セグメントのダウンロード失敗 (スキップ): {e}")
+                return [], []
             if raw[:2] == b"\x1f\x8b":
                 raw = gzip.decompress(raw)
             text = raw.decode("utf-8-sig")
-            reader = csv.reader(io.StringIO(text))
+            # Analytics レポートのセグメントは **タブ区切り** (CodeRabbit レビュー
+            # 指摘 2026-11-19 — csv.reader の既定はカンマで、列が 1 つに潰れる)
+            reader = csv.reader(io.StringIO(text), delimiter="\t")
             seg_rows = [r for r in reader if r]
             if not seg_rows:
                 continue
@@ -404,12 +438,16 @@ def main() -> None:
         raise SystemExit("--key-id / --issuer-id (または ASC_KEY_ID / ASC_ISSUER 環境変数) は必須です")
     tmp_key = None
     try:
+        # 一時鍵はここで 1 回だけ生成する (サブコマンド内の _key_file が再生成しない
+        # よう key_b64 を空にして key_file へ差し替える — CodeRabbit レビュー指摘
+        # 2026-11-19: 2 回生成すると片方が tmp に残る)。--key-file が明示された
+        # 場合は呼び出し主の所有物なので消さない
         if args.key_b64 and not args.key_file:
             tmp_key = _key_file(args)
-            args.key_file = tmp_key  # サブコマンド側は --key-file を見る
+            args.key_file = tmp_key
+            args.key_b64 = ""
         args.func(args)
     finally:
-        # --key-b64 で作った一時鍵ファイルを必ず消す (ASC 秘密鍵を tmp に残さない)
         if tmp_key and os.path.exists(tmp_key):
             os.unlink(tmp_key)
 
