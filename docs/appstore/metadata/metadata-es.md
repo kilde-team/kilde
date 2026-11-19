@@ -91,7 +91,7 @@ comandos `kilde`. Más información en https://github.com/kilde-team/kilde
 audio del sistema,micrófono,acta,notas,conferencia,dictado,voz,clase,subtítulos,transcripción
 ```
 
-(79 caracteres / 96 bytes. Issue #605 (2026-11-19): se quitaron las palabras ya
+(93 caracteres / 96 bytes. Issue #605 (2026-11-19): se quitaron las palabras ya
 indexadas en otro campo — «grabadora de pantalla» (nombre), «transcribir» /
 «reunión» (subtítulo: «Graba y transcribe reuniones») — y se usó el espacio para
 «conferencia», «dictado», «voz», «clase» y «subtítulos» (formato de exportación).
