@@ -1,0 +1,186 @@
+name: ASC metrics ledger
+
+# ASC の計測データ (Sales Report と App Analytics API) を日次で取得して
+# data/metrics/ 以下の CSV に追記する (issue #601)。
+#
+# - 台帳 (docs/metrics.md / docs/appstore/metadata/metrics.md) への転記は人間と
+#   エージェントの月次作業だが、**一次データの取得はこの workflow が毎日行う**。
+#   日次 Sales Report は取得しないと取り逃す (リトライ可能だが未取得日の機会損失は
+#   戻らない) ため
+# - **スクリプトはアプリ固有値をハードコードしない** (scripts/metrics/fetch_asc_metrics.py)。
+#   env の APP_ID / VENDOR_NUMBER / SALES_SKUS を変えれば eyechecker など同じ
+#   ASC API キーで取得できる他アプリにそのまま流用できる (2026-11-19 に eyechecker
+#   側へも同様の仕組みを依頼中 — 実装時にこの workflow を雛形にすること)
+# - secrets は mas.yml と同じ ASC_CI_* (CI 専用 Admin 鍵) を再利用する。新規 secrets
+#   は追加しない。schedule は fork PR から触れないトリガなので secrets の扱いは安全
+#   (mas.yml のコメントと同じ方針)
+# - **IAP の検知は CSV から再検査する** (実行中のメモリに依存しない)。issue 起票が
+#   失敗しても次回の実行が CSV の対象範囲を再検査して検知を回復できる (cubic レビュー
+#   指摘 2026-11-19)。重複起票の防止は «タイトルに日付範囲を含める» + 起票前の検索
+
+on:
+  schedule:
+    # JST 5:00。Sales Report の日次分は地域ごとに「翌日 5am PT (米州)」「翌日
+    # 5am JST (日本・豪州・NZ)」までに配信されるため、日本側の配信完了後の時刻にする
+    - cron: "0 20 * * *"
+  workflow_dispatch:
+    inputs:
+      from-date:
+        description: "取得開始日 (YYYY-MM-DD。空なら JST 前々日)"
+        required: false
+        default: ""
+      to-date:
+        description: "取得終了日 (YYYY-MM-DD。空なら JST 前日)"
+        required: false
+        default: ""
+      skip-analytics:
+        description: "App Analytics の取得をスキップする (デバッグ用)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: asc-metrics-ledger
+  cancel-in-progress: false
+
+env:
+  # ★ アプリ固有の設定はここだけ (eyechecker への流用時に書き換える場所)。
+  #    SALES_SKUS には **アプリ本体と IAP (kilde.pro / チップ) の両方**を列挙する —
+  #    本体だけだと Sales Report の IAP 行がフィルタで落ちる
+  APP_ID: "6812783176" # com.takezou621.KildeGUI (MAS)
+  VENDOR_NUMBER: "85006198"
+  SALES_SKUS: "kilde-mas,kilde.pro,kilde.tip.small,kilde.tip.medium,kilde.tip.large"
+  ANALYTICS_REPORTS: "App Store Discovery and Engagement Detailed,App Downloads Detailed"
+  DATA_DIR: "data/metrics"
+
+jobs:
+  fetch:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      # PIN: 可変タグは ASC 秘密鍵を持つジョブでのタグ差し替え (任意コード実行) の
+      # リスクがあるため、mas.yml など既存 workflow と同じ検証済み SHA に固定する
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Fetch the daily sales report
+        id: sales
+        env:
+          ASC_KEY_B64: ${{ secrets.ASC_CI_KEY_B64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_CI_KEY_ID }}
+          ASC_ISSUER: ${{ secrets.ASC_CI_ISSUER }}
+          FROM_DATE: ${{ inputs.from-date }}
+          TO_DATE: ${{ inputs.to-date }}
+        run: |
+          # 日付の既定は «JST の前々日〜前日» (2 日分)。日次レポートは地域ごとに
+          # 翌日に配信され、App Analytics のレポート日は太平洋時間基準のため、
+          # JST 朝 5 時 (UTC 20:00) の実行では前々日の分が確定しているところ。
+          # **重複排除があるので取りすぎは安全** — 欠けより重複実行を選る。
+          # runner は UTC で動くため TZ を明示する (実行時刻では JST が既に翌日)
+          FROM="${FROM_DATE:-$(TZ=Asia/Tokyo date -v-2d +%F)}"
+          TO="${TO_DATE:-$(TZ=Asia/Tokyo date -v-1d +%F)}"
+          echo "from=$FROM to=$TO" | tee fetch-range.txt
+          python3 scripts/metrics/fetch_asc_metrics.py \
+            --key-id "$ASC_KEY_ID" --issuer-id "$ASC_ISSUER" \
+            --key-b64 "$ASC_KEY_B64" \
+            sales --vendor-number "$VENDOR_NUMBER" --skus "$SALES_SKUS" \
+            --from-date "$FROM" --to-date "$TO" \
+            --csv "$DATA_DIR/sales-daily.csv"
+
+      - name: Fetch the App Analytics daily instances
+        if: ${{ !inputs.skip-analytics }}
+        env:
+          ASC_KEY_B64: ${{ secrets.ASC_CI_KEY_B64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_CI_KEY_ID }}
+          ASC_ISSUER: ${{ secrets.ASC_CI_ISSUER }}
+        run: |
+          # インスタンス未生成の日は 0 件で正常終了する設計 (スクリプト側で処理)。
+          # レポート生成が始まれば翌日以降の実行で自動的に溜まり始める
+          python3 scripts/metrics/fetch_asc_metrics.py \
+            --key-id "$ASC_KEY_ID" --issuer-id "$ASC_ISSUER" \
+            --key-b64 "$ASC_KEY_B64" \
+            analytics --app-id "$APP_ID" --reports "$ANALYTICS_REPORTS" \
+            --csv-dir "$DATA_DIR"
+
+      - name: Commit the fetched data
+        id: commit
+        env:
+          FROM_DATE: ${{ inputs.from-date }}
+          TO_DATE: ${{ inputs.to-date }}
+        run: |
+          if [ -z "$(git status --porcelain $DATA_DIR)" ]; then
+            echo "updated=false" >> "$GITHUB_OUTPUT"
+            echo "新しい行は無し — コミットしない"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$DATA_DIR"
+          FROM="${FROM_DATE:-$(TZ=Asia/Tokyo date -v-2d +%F)}"
+          TO="${TO_DATE:-$(TZ=Asia/Tokyo date -v-1d +%F)}"
+          git commit -m "metrics: record the ASC reports for $FROM..$TO"
+          git push
+          echo "updated=true" >> "$GITHUB_OUTPUT"
+          echo "from=$FROM" >> "$GITHUB_OUTPUT"
+          echo "to=$TO" >> "$GITHUB_OUTPUT"
+
+      - name: Reconcile IAP sale notifications against the committed CSV
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # **コミット済み CSV 全体を IAP 行について再検査し、未起票の日だけ
+          # issue を起票する** (cubic / CodeRabbit レビュー指摘 2026-11-19)。
+          # «issue 起票が失敗した翌日に別の日を処理して検知を永久に失う» のを
+          # 防ぐため、起票はコミットの成否に依存させず、対象は常に CSV 全期間。
+          # 重複起票の防止は «日付入りタイトルの検索» (issue が状態保持の代替 —
+          # eyechecker の appstore-reviews.yml と同じ構成)
+          python3 - "$DATA_DIR/sales-daily.csv" > iap-days.txt <<'PYEOF'
+          import csv, sys, collections
+          days = collections.defaultdict(list)
+          try:
+              f = open(sys.argv[1], newline="")
+          except FileNotFoundError:
+              raise SystemExit
+          with f:
+              for r in csv.DictReader(f):
+                  if r["product_type"].startswith(("IA1", "FI1")):
+                      cols = ["date", "sku", "product_type", "units", "customer_price",
+                              "customer_currency", "country", "proceeds", "proceeds_currency"]
+                      days[r["date"]].append(",".join(r[c] for c in cols))
+          # 日付ごとに «1 行目 = 日付、2 行目以降 = 販売行» のブロックを作り、
+          # ブロック間を NUL で区切る (同日に複数行があるケース — 行を改行で
+          # 分割して read すると別の日付扱いになるため。cubic レビュー指摘 2026-11-19)
+          out = sys.stdout
+          for date in sorted(days):
+              block = date + "\n" + "\n".join(days[date]) + "\n"
+              out.write(block)
+              out.write("\0")
+          PYEOF
+          if [ ! -s iap-days.txt ]; then
+            echo "CSV に IAP の行は無し"
+            exit 0
+          fi
+          while IFS= read -rd '' BLOCK; do
+            DATE=$(printf '%s' "$BLOCK" | head -1)
+            ROWS=$(printf '%s' "$BLOCK" | tail -n +2)
+            [ -z "$DATE" ] && continue
+            TITLE="計測: IAP の販売を検知しました ($DATE)"
+            if gh issue list --search "in:title \"$TITLE\"" --state all --limit 5 | grep -q .; then
+              echo "$DATE: 既に起票済み — スキップ"
+              continue
+            fi
+            {
+              echo "ASC Sales Report で IAP の販売を検知しました。docs/metrics.md の"
+              echo "«IAP 販売数と DL の月次台帳» への転記をお願いします。"
+              echo ""
+              echo '```'
+              echo "date,sku,product_type,units,customer_price,customer_currency,country,proceeds,proceeds_currency"
+              echo "$ROWS"
+              echo '```'
+              echo ""
+              echo "(この issue は metrics workflow が自動起票しました)"
+            } > body.md
+            gh issue create --title "$TITLE" --body-file body.md
+          done < iap-days.txt
