@@ -64,14 +64,18 @@ Learn more at https://github.com/kilde-team/kilde
 ## Keywords (≤100)
 
 ```text
-system audio,speech to text,microphone,capture,window,minutes,transcript,dictation,lectures,srt
+system audio,speech to text,microphone,capture,window,summary,transcript,dictation,lecture,srt
 ```
 
-(95 chars. Issue #605 (2026-11-19): per Apple's keyword guidance, dropped words
-already indexed elsewhere — "transcription" (subtitle: "transcribe"),
-"screen" (name) and the redundant phrase "screen capture" / "window capture"
-(single "capture" and "window" combine with the name's "screen") — and used the
-freed space for "transcript", "dictation", "lectures" and "srt" (export format).
+(94 chars. Issue #605 (2026-11-19): per Apple's keyword guidance, dropped words
+already indexed elsewhere — "transcription" (the noun "transcript" stays in the
+field and the verb "transcribe" is indexed by the subtitle, so the variant adds
+nothing), "screen" (name) and the redundant phrase "screen capture" /
+"window capture" (single "capture" and "window" combine with the name's
+"screen") — and used the freed space for "transcript", "dictation", "lecture"
+(singular, per the no-plurals guidance) and "srt" (export format). Review fix
+(issue #607): "summary" was swapped back in for the pre-existing "minutes" —
+the summary is a Pro feature term and the subtitle indexes neither form.
 "system audio" and "speech to text" stay; spaces inside a phrase are allowed.)
 
 ## What's New (0.6.0)

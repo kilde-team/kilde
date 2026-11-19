@@ -88,14 +88,17 @@ comandos `kilde`. Más información en https://github.com/kilde-team/kilde
 ## Palabras clave (≤100)
 
 ```text
-audio del sistema,micrófono,acta,notas,conferencia,dictado,voz,clase,subtítulos
+audio del sistema,micrófono,acta,notas,conferencia,dictado,voz,clase,subtítulos,transcripción
 ```
 
-(79 caracteres / 81 bytes. Issue #605 (2026-11-19): se quitaron las palabras ya
+(79 caracteres / 96 bytes. Issue #605 (2026-11-19): se quitaron las palabras ya
 indexadas en otro campo — «grabadora de pantalla» (nombre), «transcribir» /
-«transcripción» / «reunión» (subtítulo: «Graba y transcribe reuniones») — y se
-usó el espacio para «conferencia», «dictado», «voz», «clase» y «subtítulos»
-(formato de exportación). El historial de #160 (0.43.0) queda en git.)
+«reunión» (subtítulo: «Graba y transcribe reuniones») — y se usó el espacio para
+«conferencia», «dictado», «voz», «clase» y «subtítulos» (formato de exportación).
+Revisión de #607: «transcripción» vuelve a la lista — es la forma nominal que los
+usuarios buscan y el subtítulo solo indexa el verbo «transcribe». «subtítulos» se
+queda en plural como excepción (es el término de búsqueda natural en español).
+El historial de #160 (0.43.0) queda en git.)
 
 ## Novedades (0.6.0)
 
