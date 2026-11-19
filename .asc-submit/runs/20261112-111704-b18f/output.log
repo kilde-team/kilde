@@ -1,0 +1,7 @@
+run 20261112-111704-b18f — follow live with 'asc-submit serve' (http://127.0.0.1:8756) or 'asc-submit logs 20261112-111704-b18f --follow'
+version 0.38.0 ready (967a9f3a-4cec-4ab1-ba7c-15bc0dec2306, PREPARE_FOR_SUBMISSION)
+build 42 attached
+localizations updated
+app-level metadata updated
+review notes updated
+version 0.38.0 submitted for review

@@ -1,0 +1,28 @@
+run 20261111-113350-2ac6 — follow live with 'asc-submit serve' (http://127.0.0.1:8756) or 'asc-submit logs 20261111-113350-2ac6 --follow'
+version 0.37.0 ready (d8ddcf7a-9b75-47c5-9f92-0be68a999939, PREPARE_FOR_SUBMISSION)
+build 41 attached
+localizations updated
+app-level metadata updated
+review notes updated
+  removed existing 01-meeting.png
+  removed existing 02-transcribe.png
+  removed existing 03-recording.png
+  removed existing 04-window-capture.png
+  removed existing 05-audio-only.png
+  removed existing 06-safe-finish.png
+  removed existing 07-settings.png
+uploading /Users/kawai/dev/kilde-proj/kilde/docs/appstore/screenshots/01-meeting.png
+  uploaded part 1/1 of 01-meeting.png
+uploading /Users/kawai/dev/kilde-proj/kilde/docs/appstore/screenshots/02-transcribe.png
+  uploaded part 1/1 of 02-transcribe.png
+uploading /Users/kawai/dev/kilde-proj/kilde/docs/appstore/screenshots/03-recording.png
+  uploaded part 1/1 of 03-recording.png
+uploading /Users/kawai/dev/kilde-proj/kilde/docs/appstore/screenshots/04-window-capture.png
+  uploaded part 1/1 of 04-window-capture.png
+uploading /Users/kawai/dev/kilde-proj/kilde/docs/appstore/screenshots/05-audio-only.png
+  uploaded part 1/1 of 05-audio-only.png
+uploading /Users/kawai/dev/kilde-proj/kilde/docs/appstore/screenshots/06-safe-finish.png
+  uploaded part 1/1 of 06-safe-finish.png
+uploading /Users/kawai/dev/kilde-proj/kilde/docs/appstore/screenshots/07-settings.png
+  uploaded part 1/1 of 07-settings.png
+screenshots for ja: 7 uploaded
