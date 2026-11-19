@@ -86,9 +86,10 @@ jobs:
             echo "metrics-data ブランチを新規作成しました"
           fi
           # ブランチを切替えると scripts/ がデータストア側の古い版になるため、
-          # 実行に使った revision (GITHUB_SHA) からスクリプトを復元する
-          # (CodeRabbit レビュー指摘 2026-11-19)
-          git checkout "$GITHUB_SHA" -- scripts/metrics/
+          # 実行に使った revision (GITHUB_SHA) から復元する。**--worktree のみ**
+          # (git checkout だと index に入り、CSV と一緒に main のスクリプトが
+          # データブランチに snapshot されてしまう — cubic レビュー指摘 2026-11-19)
+          git restore --source="$GITHUB_SHA" --worktree -- scripts/metrics/
 
       - name: Fetch the daily sales report
         id: sales
