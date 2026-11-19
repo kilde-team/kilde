@@ -88,13 +88,17 @@ comandos `kilde`. Más información en https://github.com/kilde-team/kilde
 ## Palabras clave (≤100)
 
 ```text
-grabadora de pantalla,audio del sistema,transcribir,transcripción,reunión,micrófono,acta,notas
+audio del sistema,micrófono,acta,notas,conferencia,dictado,voz,clase,subtítulos,transcripción
 ```
 
-(94 caracteres / 97 bytes. Cambio 5 de #160 (0.43.0): se añadió «notas» —
-término de intención alta para el caso de uso de actas. «Zoom» (marca de
-terceros) sigue fuera y «grabar pantalla» sigue cubierto por
-«grabadora de pantalla».)
+(93 caracteres / 96 bytes. Issue #605 (2026-11-19): se quitaron las palabras ya
+indexadas en otro campo — «grabadora de pantalla» (nombre), «transcribir» /
+«reunión» (subtítulo: «Graba y transcribe reuniones») — y se usó el espacio para
+«conferencia», «dictado», «voz», «clase» y «subtítulos» (formato de exportación).
+Revisión de #607: «transcripción» vuelve a la lista — es la forma nominal que los
+usuarios buscan y el subtítulo solo indexa el verbo «transcribe». «subtítulos» se
+queda en plural como excepción (es el término de búsqueda natural en español).
+El historial de #160 (0.43.0) queda en git.)
 
 ## Novedades (0.6.0)
 
@@ -630,4 +634,18 @@ conjunto actual de funciones. Las Novedades siguen el precedente de
 
 ```text
 Esta es una versión de mantenimiento. No hay cambios en las funciones de grabación ni de transcripción. La descripción de la página de producto se ha actualizado.
+```
+
+## Novedades (0.44.0)
+
+Versión de mantenimiento solo de metadatos (issue #605 — issue #607, optimización
+de las palabras clave de búsqueda del App Store). Sin cambios de código respecto
+a 0.43.0; las palabras clave de búsqueda de la página de producto se reajustaron
+según una investigación ASO (se eliminaron palabras ya indexadas por el nombre o
+el subtítulo y se añadieron términos de grabación, salida de texto y casos de
+uso). Las Novedades siguen el precedente de 0.43.0 / 0.8.2: indicar con franqueza
+que la app no cambia.
+
+```text
+Esta es una versión de mantenimiento. No hay cambios en las funciones de grabación ni de transcripción. Las palabras clave de búsqueda de la página de producto se han actualizado.
 ```

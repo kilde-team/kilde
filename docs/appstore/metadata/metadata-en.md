@@ -64,13 +64,19 @@ Learn more at https://github.com/kilde-team/kilde
 ## Keywords (≤100)
 
 ```text
-system audio,speech to text,transcription,microphone,window capture,screen capture,minutes,summary
+system audio,speech to text,microphone,capture,window,summary,transcript,dictation,lecture,srt
 ```
 
-(98 chars. Issue #160 change 5 (0.43.0): swapped "video" and "mp4" — generic,
-low-intent terms — for "speech to text", the highest-intent phrase for the
-transcription use case. "screen", "record", "transcribe" and "meetings" are
-still covered by the name and subtitle. No third-party trademarks.)
+(94 chars. Issue #605 (2026-11-19): per Apple's keyword guidance, dropped words
+already indexed elsewhere — "transcription" (the noun "transcript" stays in the
+field and the verb "transcribe" is indexed by the subtitle, so the variant adds
+nothing), "screen" (name) and the redundant phrase "screen capture" /
+"window capture" (single "capture" and "window" combine with the name's
+"screen") — and used the freed space for "transcript", "dictation", "lecture"
+(singular, per the no-plurals guidance) and "srt" (export format). Review fix
+(issue #607): "summary" was swapped back in for the pre-existing "minutes" —
+the summary is a Pro feature term and the subtitle indexes neither form.
+"system audio" and "speech to text" stay; spaces inside a phrase are allowed.)
 
 ## What's New (0.6.0)
 
@@ -619,4 +625,17 @@ precedent: state plainly that the app itself is unchanged.
 
 ```text
 This is a maintenance release. There are no changes to the recording or transcription features. The app description on the product page has been updated.
+```
+
+## What's New (0.44.0)
+
+A metadata-only maintenance release (issue #605 — issue #607, App Store search
+keyword optimization). No code change from 0.43.0; the search keywords on the
+product page were reworked based on ASO research (dropping words already
+indexed by the app name or subtitle, adding terms for recording, text output,
+and use cases). What's New follows the 0.43.0 / 0.8.2 precedent: state plainly
+that the app itself is unchanged.
+
+```text
+This is a maintenance release. There are no changes to the recording or transcription features. The search keywords on the product page have been updated.
 ```
