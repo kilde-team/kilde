@@ -64,13 +64,15 @@ Learn more at https://github.com/kilde-team/kilde
 ## Keywords (≤100)
 
 ```text
-system audio,speech to text,transcription,microphone,window capture,screen capture,minutes,summary
+system audio,speech to text,microphone,capture,window,minutes,transcript,dictation,lectures,srt
 ```
 
-(98 chars. Issue #160 change 5 (0.43.0): swapped "video" and "mp4" — generic,
-low-intent terms — for "speech to text", the highest-intent phrase for the
-transcription use case. "screen", "record", "transcribe" and "meetings" are
-still covered by the name and subtitle. No third-party trademarks.)
+(95 chars. Issue #605 (2026-11-19): per Apple's keyword guidance, dropped words
+already indexed elsewhere — "transcription" (subtitle: "transcribe"),
+"screen" (name) and the redundant phrase "screen capture" / "window capture"
+(single "capture" and "window" combine with the name's "screen") — and used the
+freed space for "transcript", "dictation", "lectures" and "srt" (export format).
+"system audio" and "speech to text" stay; spaces inside a phrase are allowed.)
 
 ## What's New (0.6.0)
 

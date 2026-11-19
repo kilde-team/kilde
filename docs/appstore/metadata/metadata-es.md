@@ -88,13 +88,14 @@ comandos `kilde`. Más información en https://github.com/kilde-team/kilde
 ## Palabras clave (≤100)
 
 ```text
-grabadora de pantalla,audio del sistema,transcribir,transcripción,reunión,micrófono,acta,notas
+audio del sistema,micrófono,acta,notas,conferencia,dictado,voz,clase,subtítulos
 ```
 
-(94 caracteres / 97 bytes. Cambio 5 de #160 (0.43.0): se añadió «notas» —
-término de intención alta para el caso de uso de actas. «Zoom» (marca de
-terceros) sigue fuera y «grabar pantalla» sigue cubierto por
-«grabadora de pantalla».)
+(79 caracteres / 81 bytes. Issue #605 (2026-11-19): se quitaron las palabras ya
+indexadas en otro campo — «grabadora de pantalla» (nombre), «transcribir» /
+«transcripción» / «reunión» (subtítulo: «Graba y transcribe reuniones») — y se
+usó el espacio para «conferencia», «dictado», «voz», «clase» y «subtítulos»
+(formato de exportación). El historial de #160 (0.43.0) queda en git.)
 
 ## Novedades (0.6.0)
 
