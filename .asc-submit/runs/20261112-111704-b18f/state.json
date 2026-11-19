@@ -1,0 +1,72 @@
+{
+ "id": "20261112-111704-b18f",
+ "command": "run",
+ "title": "6812783176 → 0.38.0",
+ "meta": {
+  "app": "6812783176",
+  "version": "0.38.0",
+  "build": "42",
+  "spec": "release-0.38.0.json",
+  "platform": "MAC_OS"
+ },
+ "status": "success",
+ "error": null,
+ "started_at": "2026-11-12T11:17:04.455390+09:00",
+ "finished_at": "2026-11-12T11:17:31.870450+09:00",
+ "steps": [
+  {
+   "name": "create/resolve version 0.38.0",
+   "status": "success",
+   "error": null,
+   "started_at": "2026-11-12T11:17:04.455750+09:00",
+   "finished_at": "2026-11-12T11:17:04.984177+09:00",
+   "log_start": 138,
+   "log_end": 222
+  },
+  {
+   "name": "attach build 42",
+   "status": "success",
+   "error": null,
+   "started_at": "2026-11-12T11:17:04.985391+09:00",
+   "finished_at": "2026-11-12T11:17:09.846546+09:00",
+   "log_start": 222,
+   "log_end": 240
+  },
+  {
+   "name": "update localizations (en-US, es-ES, ja, ko, zh-Hans)",
+   "status": "success",
+   "error": null,
+   "started_at": "2026-11-12T11:17:09.848168+09:00",
+   "finished_at": "2026-11-12T11:17:13.405449+09:00",
+   "log_start": 240,
+   "log_end": 262
+  },
+  {
+   "name": "set app-level metadata (subtitles)",
+   "status": "success",
+   "error": null,
+   "started_at": "2026-11-12T11:17:13.406747+09:00",
+   "finished_at": "2026-11-12T11:17:21.145203+09:00",
+   "log_start": 262,
+   "log_end": 289
+  },
+  {
+   "name": "update App Review notes",
+   "status": "success",
+   "error": null,
+   "started_at": "2026-11-12T11:17:21.146509+09:00",
+   "finished_at": "2026-11-12T11:17:22.182753+09:00",
+   "log_start": 289,
+   "log_end": 310
+  },
+  {
+   "name": "submit for review",
+   "status": "success",
+   "error": null,
+   "started_at": "2026-11-12T11:17:22.184085+09:00",
+   "finished_at": "2026-11-12T11:17:31.869095+09:00",
+   "log_start": 310,
+   "log_end": 346
+  }
+ ]
+}

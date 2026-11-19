@@ -54,7 +54,7 @@ grabados con otras herramientas para transcribirlos.
 ACTAS, PREGUNTAS Y TRADUCCIÓN (PRO, PAGO ÚNICO)
 Convierte las grabaciones en actas de reunión con tareas, redacta mensajes
 de seguimiento, pregunta sobre una transcripción (o en toda la biblioteca)
-y traduce transcripciones: todo se procesa en este Mac con Apple
+y traduce transcripciones: el procesamiento ocurre en este Mac con Apple
 Intelligence (macOS 26 o posterior). Pro es un pago único, no una
 suscripción. La grabación y la transcripción siguen siendo gratis.
 

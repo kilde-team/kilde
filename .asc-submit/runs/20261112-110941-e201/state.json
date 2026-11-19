@@ -1,0 +1,81 @@
+{
+ "id": "20261112-110941-e201",
+ "command": "run",
+ "title": "6812783176 → 0.38.0",
+ "meta": {
+  "app": "6812783176",
+  "version": "0.38.0",
+  "build": "42",
+  "spec": "release-0.38.0.json",
+  "platform": "MAC_OS"
+ },
+ "status": "failed",
+ "error": "ASC rejected this version for review:\n  - Asset is being processed.",
+ "started_at": "2026-11-12T11:09:41.336963+09:00",
+ "finished_at": "2026-11-12T11:10:40.730459+09:00",
+ "steps": [
+  {
+   "name": "create/resolve version 0.38.0",
+   "status": "success",
+   "error": null,
+   "started_at": "2026-11-12T11:09:41.337565+09:00",
+   "finished_at": "2026-11-12T11:09:41.855075+09:00",
+   "log_start": 138,
+   "log_end": 222
+  },
+  {
+   "name": "attach build 42",
+   "status": "success",
+   "error": null,
+   "started_at": "2026-11-12T11:09:41.856320+09:00",
+   "finished_at": "2026-11-12T11:09:46.652619+09:00",
+   "log_start": 222,
+   "log_end": 240
+  },
+  {
+   "name": "update localizations (en-US, es-ES, ja, ko, zh-Hans)",
+   "status": "success",
+   "error": null,
+   "started_at": "2026-11-12T11:09:46.654139+09:00",
+   "finished_at": "2026-11-12T11:09:50.274912+09:00",
+   "log_start": 240,
+   "log_end": 262
+  },
+  {
+   "name": "set app-level metadata (subtitles)",
+   "status": "success",
+   "error": null,
+   "started_at": "2026-11-12T11:09:50.276143+09:00",
+   "finished_at": "2026-11-12T11:09:58.415386+09:00",
+   "log_start": 262,
+   "log_end": 289
+  },
+  {
+   "name": "update App Review notes",
+   "status": "success",
+   "error": null,
+   "started_at": "2026-11-12T11:09:58.416622+09:00",
+   "finished_at": "2026-11-12T11:09:59.456978+09:00",
+   "log_start": 289,
+   "log_end": 310
+  },
+  {
+   "name": "screenshots ja (7 files)",
+   "status": "success",
+   "error": null,
+   "started_at": "2026-11-12T11:09:59.457763+09:00",
+   "finished_at": "2026-11-12T11:10:35.601949+09:00",
+   "log_start": 310,
+   "log_end": 1500
+  },
+  {
+   "name": "submit for review",
+   "status": "failed",
+   "error": "ASC rejected this version for review:\n  - Asset is being processed.",
+   "started_at": "2026-11-12T11:10:35.602614+09:00",
+   "finished_at": "2026-11-12T11:10:40.728827+09:00",
+   "log_start": 1500,
+   "log_end": 1500
+  }
+ ]
+}
