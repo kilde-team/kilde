@@ -632,3 +632,17 @@ conjunto actual de funciones. Las Novedades siguen el precedente de
 ```text
 Esta es una versión de mantenimiento. No hay cambios en las funciones de grabación ni de transcripción. La descripción de la página de producto se ha actualizado.
 ```
+
+## Novedades (0.44.0)
+
+Versión de mantenimiento solo de metadatos (issue #605 — issue #607, optimización
+de las palabras clave de búsqueda del App Store). Sin cambios de código respecto
+a 0.43.0; las palabras clave de búsqueda de la página de producto se reajustaron
+según una investigación ASO (se eliminaron palabras ya indexadas por el nombre o
+el subtítulo y se añadieron términos de grabación, salida de texto y casos de
+uso). Las Novedades siguen el precedente de 0.43.0 / 0.8.2: indicar con franqueza
+que la app no cambia.
+
+```text
+Esta es una versión de mantenimiento. No hay cambios en las funciones de grabación ni de transcripción. Las palabras clave de búsqueda de la página de producto se han actualizado.
+```

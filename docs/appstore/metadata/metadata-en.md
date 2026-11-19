@@ -622,3 +622,16 @@ precedent: state plainly that the app itself is unchanged.
 ```text
 This is a maintenance release. There are no changes to the recording or transcription features. The app description on the product page has been updated.
 ```
+
+## What's New (0.44.0)
+
+A metadata-only maintenance release (issue #605 — issue #607, App Store search
+keyword optimization). No code change from 0.43.0; the search keywords on the
+product page were reworked based on ASO research (dropping words already
+indexed by the app name or subtitle, adding terms for recording, text output,
+and use cases). What's New follows the 0.43.0 / 0.8.2 precedent: state plainly
+that the app itself is unchanged.
+
+```text
+This is a maintenance release. There are no changes to the recording or transcription features. The search keywords on the product page have been updated.
+```
