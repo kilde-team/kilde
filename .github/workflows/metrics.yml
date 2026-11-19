@@ -14,6 +14,14 @@ name: ASC metrics ledger
 # - secrets は mas.yml と同じ ASC_CI_* (CI 専用 Admin 鍵) を再利用する。新規 secrets
 #   は追加しない。schedule は fork PR から触れないトリガなので secrets の扱いは安全
 #   (mas.yml のコメントと同じ方針)
+# - **データの保存先は専用ブランチ `metrics-data`** (issue #601、2026-11-19 の
+#   実機テストで判明)。main は ruleset («Changes must be made through a pull
+#   request») で GITHUB_TOKEN の直接 push が拒否されるため、日次データの蓄積先を
+#   ruleset の対象外である非 default ブランチにした。台帳への転記時は
+#   `git fetch origin metrics-data` のうえ
+#   `git show FETCH_HEAD:data/metrics/sales-daily.csv` のように読む
+#   (main 作業コピーに data/metrics/ は現れない — CodeRabbit レビュー指摘 2026-11-19)
+#   **ブランチはデータストアであり main にはマージしない**
 # - **IAP の検知は CSV から再検査する** (実行中のメモリに依存しない)。issue 起票が
 #   失敗しても次回の実行が CSV の対象範囲を再検査して検知を回復できる (cubic レビュー
 #   指摘 2026-11-19)。重複起票の防止は «タイトルに日付範囲を含める» + 起票前の検索
@@ -64,6 +72,24 @@ jobs:
       # PIN: 可変タグは ASC 秘密鍵を持つジョブでのタグ差し替え (任意コード実行) の
       # リスクがあるため、mas.yml など既存 workflow と同じ検証済み SHA に固定する
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Switch to the metrics-data branch
+        run: |
+          # データの蓄積先 (上のヘッダコメント参照)。初回は main から作成する
+          if git ls-remote --exit-code --heads origin metrics-data > /dev/null; then
+            git fetch origin metrics-data
+            git switch metrics-data
+          else
+            git switch -c metrics-data
+            echo "metrics-data ブランチを新規作成しました"
+          fi
+          # ブランチを切替えると scripts/ がデータストア側の古い版になるため、
+          # 実行に使った revision (GITHUB_SHA) から復元する。**--worktree のみ**
+          # (git checkout だと index に入り、CSV と一緒に main のスクリプトが
+          # データブランチに snapshot されてしまう — cubic レビュー指摘 2026-11-19)
+          git restore --source="$GITHUB_SHA" --worktree -- scripts/metrics/
 
       - name: Fetch the daily sales report
         id: sales
@@ -121,7 +147,9 @@ jobs:
           FROM="${FROM_DATE:-$(TZ=Asia/Tokyo date -v-2d +%F)}"
           TO="${TO_DATE:-$(TZ=Asia/Tokyo date -v-1d +%F)}"
           git commit -m "metrics: record the ASC reports for $FROM..$TO"
-          git push
+          # 明示宛先: 初回作成の metrics-data には upstream が無い
+          # (push.default=simple の裸 push は失敗する — CodeRabbit レビュー指摘)
+          git push origin metrics-data
           echo "updated=true" >> "$GITHUB_OUTPUT"
           echo "from=$FROM" >> "$GITHUB_OUTPUT"
           echo "to=$TO" >> "$GITHUB_OUTPUT"
