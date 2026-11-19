@@ -355,17 +355,20 @@ def _fetch_instances(token: str, rid: str, name: str, args: argparse.Namespace) 
             # 集合ではなく **順序を含めて** 比較する (同じ列集合が別順序で来た日に
             # 検知しないと、以降の追記が既存の列にずれて一次データを壊す — cubic
             # レビュー指摘 2026-11-19)
-            if set(header) < set(existing_header):
-                # 既存列が新データに無い (レポート定義の後退) — 安全のためこの日は
-                # スキップし、手動確認を促すログを出す
-                print(f"analytics: {name} {date} 列構成の後退を検知 — スキップ (手動確認が必要)")
-                continue
             if set(header) == set(existing_header):
                 # 列順だけの変化: 既存ヘッダを維持し、名前で対応付けて追記する
                 header = existing_header
+            elif not set(existing_header) < set(header):
+                # 既存列が新データに無い場合 (レポート定義の後退や、削除と追加の
+                # 同時発生 — cubic レビュー指摘 2026-11-19: これを «追加» 扱いに
+                # すると削除された列の履歴が消える) は安全のためスキップし、
+                # 手動確認を促す
+                print(f"analytics: {name} {date} 列構成の後退を検知 — スキップ (手動確認が必要)")
+                continue
             else:
-                # 新列の追加: 既存行を新ヘッダに合わせて書き直し (旧分の新列は
-                # 空欄) — 捨てずにヘッダを拡張する (cubic レビュー指摘 2026-11-19)
+                # 新列の追加 (既存列はすべて維持): 既存行を新ヘッダに合わせて
+                # 書き直し (旧分の新列は空欄) — 捨てずにヘッダを拡張する
+                # (cubic レビュー指摘 2026-11-19)
                 with out_path.open(newline="") as f:
                     old_rows = list(csv.reader(f))
                 with out_path.open("w", newline="") as f:
