@@ -26,11 +26,11 @@ on:
   workflow_dispatch:
     inputs:
       from-date:
-        description: "取得開始日 (YYYY-MM-DD。空なら前日のみ)"
+        description: "取得開始日 (YYYY-MM-DD。空なら JST 前々日)"
         required: false
         default: ""
       to-date:
-        description: "取得終了日 (YYYY-MM-DD。空なら前日のみ)"
+        description: "取得終了日 (YYYY-MM-DD。空なら JST 前日)"
         required: false
         default: ""
       skip-analytics:
@@ -149,14 +149,22 @@ jobs:
                       cols = ["date", "sku", "product_type", "units", "customer_price",
                               "customer_currency", "country", "proceeds", "proceeds_currency"]
                       days[r["date"]].append(",".join(r[c] for c in cols))
+          # 日付ごとに «1 行目 = 日付、2 行目以降 = 販売行» のブロックを作り、
+          # ブロック間を NUL で区切る (同日に複数行があるケース — 行を改行で
+          # 分割して read すると別の日付扱いになるため。cubic レビュー指摘 2026-11-19)
+          out = sys.stdout
           for date in sorted(days):
-              print(date + "\t" + "\n".join(days[date]))
+              block = date + "\n" + "\n".join(days[date]) + "\n"
+              out.write(block)
+              out.write("\0")
           PYEOF
           if [ ! -s iap-days.txt ]; then
             echo "CSV に IAP の行は無し"
             exit 0
           fi
-          while IFS=$'\t' read -r DATE ROWS; do
+          while IFS= read -rd '' BLOCK; do
+            DATE=$(printf '%s' "$BLOCK" | head -1)
+            ROWS=$(printf '%s' "$BLOCK" | tail -n +2)
             [ -z "$DATE" ] && continue
             TITLE="計測: IAP の販売を検知しました ($DATE)"
             if gh issue list --search "in:title \"$TITLE\"" --state all --limit 5 | grep -q .; then

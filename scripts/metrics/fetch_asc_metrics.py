@@ -346,18 +346,29 @@ def _fetch_instances(token: str, rid: str, name: str, args: argparse.Namespace) 
             # セグメントに本文が無い日 (集計中) は記録しない — 次回の実行で
             # まだ seen に入っていないので再取得される
             continue
-        # 既存 CSV のヘッダと列名を突き合わせる (Apple は列の位置を変えることが
-        # あるため、位置合わせのまま追記すると値が別の列に入る — CodeRabbit
-        # レビュー指摘 2026-11-19)。新列は既存ヘッダの末尾に追加する
+        # 既存 CSV のヘッダと列名を突き合わせる (Apple は列の位置・集合を変えることが
+        # あるため、位置合わせのまま追記すると値が別の列に入る — CodeRabbit /
+        # cubic レビュー指摘 2026-11-19)
         existing_header = _read_header(out_path)
         header = ["date"] + columns
-        if existing_header and existing_header != header:
+        if existing_header and set(header) != set(existing_header):
             if not set(header) >= set(existing_header):
                 # 既存列が新データに無い (レポート定義の後退) — 安全のためこの日は
                 # スキップし、手動確認を促すログを出す
                 print(f"analytics: {name} {date} 列構成の後退を検知 — スキップ (手動確認が必要)")
                 continue
-            header = existing_header
+            # 新列の追加: 既存行を新ヘッダに合わせて書き直し (旧分の新列は空欄) —
+            # 捨てずにヘッダを拡張する (cubic レビュー指摘 2026-11-19)
+            with out_path.open(newline="") as f:
+                old_rows = list(csv.reader(f))
+            with out_path.open("w", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(header)
+                for orow in old_rows[1:]:
+                    orowd = dict(zip(existing_header, orow))
+                    writer.writerow([orowd.get(c, "") for c in header])
+            print(f"analytics: {name} 列構成の変化を検知 — 既存 {len(old_rows) - 1} 行を新ヘッダに書き直した")
+            existing_header = header
         idx = {c: i for i, c in enumerate(columns)}
         with out_path.open("a", newline="") as f:
             writer = csv.writer(f)
