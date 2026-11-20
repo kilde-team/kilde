@@ -454,27 +454,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .store(in: &cancellables)
 
         // 録画の成功完了 → 評価依頼の判定 (issue #156、窓口の分担は issue #612)。
-        // «成功した録画の完了 3 回目» を数える。文字起こしが絡む録画 (完了時点で
-        // ジョブが enqueue 済み) では、依頼は **文字起こしの正常完了側**
+        // «成功した録画の完了 3 回目» を数える。この録画の文字起こしが投入済み
+        // (transcriptionPending) なら、依頼は **文字起こしの正常完了側**
         // (transcription.onCompletion → noteTranscriptionCompleted) が担う —
         // «録って文字起こしまで終わった» 直後が依頼に値する瞬間で、以前のように
-        // «次の録画完了» まで持ち越さない。文字起こしが絡まない録画 (トグルオフ)
-        // はこの場で依頼を試みる (録画の完了自体が成功体験)。判定は次の MainActor
-        // ひと仕事で行う — @Published は willSet で流れるのでこの場で isActive を
-        // 読むとまだ .finalizing («録画中») になる (下の updateStatusItem の sink
-        // と同じ落とし穴)。長さは elapsed ではなく lastRecordedDuration —
-        // elapsed は 0.5 秒周期の刻みなので、閾値ぎりぎりの録画で最後の更新が
-        // 14.5 秒のまま «15 秒以上録ったのに数えられない» ことがある
+        // «次の録画完了» まで持ち越さない。絡まない録画 (トグルオフ) はこの場で
+        // 依頼を試みる (録画の完了自体が成功体験) が、**ほかの文字起こしが走って
+        // いるときは割り込み防止で見送る** (transcriptionBusy — «この録画の投入» と
+        // «キュー全体» を分けて渡すのは cubic レビュー指摘。見送り分はその完了の
+        // 窓口で拾われる)。判定は次の MainActor ひと仕事で行う — @Published は
+        // willSet で流れるのでこの場で isActive を読むとまだ .finalizing
+        // («録画中») になる (下の updateStatusItem の sink と同じ落とし穴)。
+        // 長さは elapsed ではなく lastRecordedDuration — elapsed は 0.5 秒周期の
+        // 刻みなので、閾値ぎりぎりの録画で最後の更新が 14.5 秒のまま «15 秒以上
+        // 録ったのに数えられない» ことがある
         recording.$phase
             .sink { [weak self] phase in
-                guard let self, case .finished = phase else { return }
+                guard let self, case .finished(let url) = phase else { return }
                 let duration = self.recording.lastRecordedDuration
                 Task { @MainActor in
                     self.reviewPrompt.noteRecordingCompleted(
                         duration: duration,
                         recordingActive: self.recording.isActive,
-                        // 文字起こしは直前の sink で既に enqueue 済みなので
-                        // isBusy に反映されている
+                        transcriptionPending: self.transcription.isQueuedOrRunning(url),
                         transcriptionBusy: self.transcription.isBusy)
                 }
             }
