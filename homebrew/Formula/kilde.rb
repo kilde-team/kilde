@@ -1,11 +1,11 @@
 class Kilde < Formula
   desc "Command-line screen and audio recorder for macOS"
   homepage "https://github.com/kilde-team/kilde"
-  url "https://github.com/kilde-team/kilde/releases/download/v0.44.0/kilde-0.44.0-macos.zip"
+  url "https://github.com/kilde-team/kilde/releases/download/v0.45.0/kilde-0.45.0-macos.zip"
   # v0.42.0 の実配布物のハッシュ (Release からダウンロードした zip で計算)。
   # DMG や zip 名からハッシュを推測して書かないこと (#369 の事故注意)
-  # v0.44.0 の実配布物のハッシュ (Release からダウンロードした zip で計算)。
-  sha256 "d0eeb1ae4f84a4afce760ad95c79ac08017cd13ca2622c962e8091051b5819a0"
+  # v0.45.0 の実配布物のハッシュ (Release からダウンロードした zip で計算)。
+  sha256 "7de24970c6d19d5db51c5a199e7e4f0978cbcfef7c64c3095f826040eb074cd6"
   # CLI バイナリは kilde-team/kilde-cli-swift (private) で開発されたプロプライエタリ
   # のため MIT ではない (README の License 節 — takezou621/kilde#377 で実態に合わせた)。
   # Homebrew の license 構文でプロプライエタリを表す値は :cannot_represent
