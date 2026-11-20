@@ -649,3 +649,11 @@ que la app no cambia.
 ```text
 Esta es una versión de mantenimiento. No hay cambios en las funciones de grabación ni de transcripción. Las palabras clave de búsqueda de la página de producto se han actualizado.
 ```
+
+## Novedades (0.45.0)
+
+Refuerzo del flujo de valoraciones y reseñas (issue #612 — una medida sobre el hallazgo principal 3 de la investigación issue #597, «cero reseñas en el MAS dejan sin prueba social»). El texto dice solo lo que se publica (misma política que versiones anteriores). «Pide una reseña justo después de que la transcripción o el resumen termina correctamente» es el nuevo gancho sobre la finalización correcta de la transcripción (transcription.onCompletion → noteTranscriptionCompleted) — antes solo se valoraba justo al terminar la grabación, así que se aplazaba a una grabación posterior mientras la transcripción seguía en marcha; las grabaciones sin transcripción se valoran justo al terminar la grabación, como antes. «No se vuelve a mostrar durante al menos 90 días» es ReviewPromptPolicy.minimumDaysBetweenRequests; «los límites de frecuencia del sistema» es el tope de visualización de StoreKit (AppStore.requestReview). «Valorar en el App Store» es la entrada permanente en Ajustes → «Apoya esta app» (SettingsPaneView.reviewSection, la URL write-review de macappstore:// que se abre con un toque del propio usuario). Solo en la compilación MAS. «La grabación y la transcripción son actualmente gratuitas» es la expresión establecida de la línea gratuita/Pro.
+
+```text
+Dejar una reseña es ahora más fácil. Cuando la transcripción o el resumen (acta) de una grabación termina correctamente, kilde pide una reseña en el App Store si el momento es adecuado (antes solo se valoraba justo al terminar la grabación, así que se aplazaba a una grabación posterior mientras la transcripción seguía en marcha). Las solicitudes no se vuelven a mostrar durante al menos 90 días y respetan los límites de frecuencia del sistema. En Ajustes → «Apoya esta app» se ha añadido «Valorar en el App Store», que abre la página de reseñas en cualquier momento. La grabación y la transcripción son actualmente gratuitas.
+```
