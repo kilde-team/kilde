@@ -351,10 +351,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             // «録って文字起こしまで終わった» 直後が依頼に値する瞬間 — 録画完了時点では
             // 文字起こしが走っていて見送られた依頼をここで拾う。失敗 (lastFailure) の
             // 側からは呼ばない — «うまくいった» 体験の直後にしか頼らない。
+            // «録画中・文字起こし中には出さない» はこの窓口でも同じ — 完了の瞬間に
+            // 次の録画が既に走っている (連続使用) や、次のジョブが待機中 (複数
+            // ファイルの取り込み) であることがあるため、状態をそのまま渡す。
             // ライブラリの «後から文字起こし» やファイル取り込みの成功も同じ窓口に
             // 入る (価値を実感した直後という点で同質。規則は共通の ReviewPromptPolicy
             // が張るので、頻度が増えることはない)
-            self.reviewPrompt.noteTranscriptionCompleted()
+            self.reviewPrompt.noteTranscriptionCompleted(
+                recordingActive: self.recording.isActive,
+                transcriptionBusy: self.transcription.isBusy)
         }
 
         // 録画中は経過時間を横に出すので可変幅にする
