@@ -127,14 +127,28 @@ def render_markdown(md_text: str) -> str:
     code_fence_length = 0
     code_lines: list[str] = []
     para: list[str] = []
+    # 開いたまま (</li> をまだ出していない) の箇条書き項目の本文。**折り返しの
+    # 継続行を同じ <li> に結合する** — 結合しないと継続行が <ul> の中に裸の
+    # <p> として出力され、Sparkle の更新ダイアログで箇条書きの表示が崩れる
+    # (0.45.0 実測 — cubic レビュー指摘)。段落と同じく "\n" で結合する (HTML は
+    # 空白文字として描画する。太字 `**…**` が行をまたぐ場合も inline の正規表現
+    # は [^*] で改行を含むため、結合後のテキストで正しく効く)
+    li_text: list[str] | None = None
 
     def flush_para() -> None:
         if para:
             out.append("<p>" + inline("\n".join(para)) + "</p>")
             para.clear()
 
+    def flush_li() -> None:
+        nonlocal li_text
+        if li_text is not None:
+            out.append("<li>" + inline("\n".join(li_text)) + "</li>")
+            li_text = None
+
     def close_list() -> None:
         nonlocal in_list
+        flush_li()
         if in_list:
             out.append("</ul>")
             in_list = False
@@ -176,10 +190,13 @@ def render_markdown(md_text: str) -> str:
         item = re.match(r"^[-*]\s+(.*)$", line)
         if item:
             flush_para()
+            flush_li()
             if not in_list:
                 out.append("<ul>")
                 in_list = True
-            out.append("<li>" + inline(item.group(1)) + "</li>")
+            # </li> はまだ出さない — 継続行をこの項目に結合する (close_list /
+            # 次の項目 / 見出し / 水平線 のいずれかで flush_li が閉じる)
+            li_text = [item.group(1)]
             continue
         if re.match(r"^-{3,}$", line):
             flush_para()
@@ -190,7 +207,11 @@ def render_markdown(md_text: str) -> str:
             flush_para()
             close_list()
             continue
-        para.append(line)
+        if li_text is not None:
+            # 箇条書き項目の継続行 (折り返し) — 同じ <li> に結合する
+            li_text.append(line)
+        else:
+            para.append(line)
     close_code()
     flush_para()
     close_list()

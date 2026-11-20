@@ -639,3 +639,11 @@ that the app itself is unchanged.
 ```text
 This is a maintenance release. There are no changes to the recording or transcription features. The search keywords on the product page have been updated.
 ```
+
+## What's New (0.45.0)
+
+Review-and-rating flow improvements (issue #612 — a step on investigation issue #597's top finding 3, "zero MAS reviews leave no social proof"). Copy states only what ships (same policy as previous releases). "Asks right after the transcription finishes successfully" is the new hook on successful transcription completion (transcription.onCompletion → noteTranscriptionCompleted) — previously the request was only considered right after the recording ended, so it was carried over to a later recording whenever transcription was still running; recordings without transcription are judged right after the recording ends, as before. "Never shown again within 90 days" is ReviewPromptPolicy.minimumDaysBetweenRequests; "the system's frequency limits" is the StoreKit (AppStore.requestReview) display cap. "Rate kilde on the App Store" is the permanent entry in Settings → "Support this app" (SettingsPaneView.reviewSection, the macappstore:// write-review URL opened by the user's own tap). MAS build only. "Recording and transcription are currently free" is the established free/Pro line-up statement.
+
+```text
+It is now easier to leave a review. When a recording's transcription finishes successfully, kilde now asks for an App Store review when the timing is right — recordings made without transcription are judged right after the recording ends, and with summaries enabled, right after the summary is generated. Previously the request was only considered right after the recording ended, so it was carried over to a later recording whenever transcription was still running. Requests are never shown again within 90 days and follow the system's frequency limits. Settings → "Support this app" now includes "Rate kilde on the App Store", which opens the review page any time. Recording and transcription are currently free.
+```

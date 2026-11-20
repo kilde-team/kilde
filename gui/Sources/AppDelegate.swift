@@ -347,6 +347,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 let directory = self.setup.request.outputDirectory
                 Task { await SpotlightExporter.shared.sync(directory: directory) }
             }
+            // 文字起こし (と要約) の正常完了 → 評価依頼の判定 (issue #612)。
+            // «録って文字起こしまで終わった» 直後が依頼に値する瞬間 — 録画完了時点では
+            // 文字起こしが走っていて見送られた依頼をここで拾う。失敗 (lastFailure) の
+            // 側からは呼ばない — «うまくいった» 体験の直後にしか頼らない。
+            // «録画中・文字起こし中には出さない» はこの窓口でも同じ — 完了の瞬間に
+            // 次の録画が既に走っている (連続使用) や、次のジョブが待機中 (複数
+            // ファイルの取り込み) であることがあるため、状態をそのまま渡す。
+            // ライブラリの «後から文字起こし» やファイル取り込みの成功も同じ窓口に
+            // 入る (価値を実感した直後という点で同質。規則は共通の ReviewPromptPolicy
+            // が張るので、頻度が増えることはない)
+            self.reviewPrompt.noteTranscriptionCompleted(
+                recordingActive: self.recording.isActive,
+                transcriptionBusy: self.transcription.isBusy)
         }
 
         // 録画中は経過時間を横に出すので可変幅にする
@@ -440,22 +453,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
             .store(in: &cancellables)
 
-        // 録画の成功完了 → 評価依頼の判定 (issue #156)。«成功した録画の完了 3 回目»
-        // を数える。判定は次の MainActor ひと仕事で行う — @Published は willSet で
-        // 流れるのでこの場で isActive を読むとまだ .finalizing («録画中») になる
-        // (下の updateStatusItem の sink と同じ落とし穴)。長さは elapsed ではなく
-        // lastRecordedDuration — elapsed は 0.5 秒周期の刻みなので、閾値ぎりぎりの
-        // 録画で最後の更新が 14.5 秒のまま «15 秒以上録ったのに数えられない» ことがある
+        // 録画の成功完了 → 評価依頼の判定 (issue #156、窓口の分担は issue #612)。
+        // «成功した録画の完了 3 回目» を数える。この録画の文字起こしが投入済み
+        // (transcriptionPending) なら、依頼は **文字起こしの正常完了側**
+        // (transcription.onCompletion → noteTranscriptionCompleted) が担う —
+        // «録って文字起こしまで終わった» 直後が依頼に値する瞬間で、以前のように
+        // «次の録画完了» まで持ち越さない。絡まない録画 (トグルオフ) はこの場で
+        // 依頼を試みる (録画の完了自体が成功体験) が、**ほかの文字起こしが走って
+        // いるときは割り込み防止で見送る** (transcriptionBusy — «この録画の投入» と
+        // «キュー全体» を分けて渡すのは cubic レビュー指摘。見送り分はその完了の
+        // 窓口で拾われる)。判定は次の MainActor ひと仕事で行う — @Published は
+        // willSet で流れるのでこの場で isActive を読むとまだ .finalizing
+        // («録画中») になる (下の updateStatusItem の sink と同じ落とし穴)。
+        // 長さは elapsed ではなく lastRecordedDuration — elapsed は 0.5 秒周期の
+        // 刻みなので、閾値ぎりぎりの録画で最後の更新が 14.5 秒のまま «15 秒以上
+        // 録ったのに数えられない» ことがある
         recording.$phase
             .sink { [weak self] phase in
-                guard let self, case .finished = phase else { return }
+                guard let self, case .finished(let url) = phase else { return }
                 let duration = self.recording.lastRecordedDuration
                 Task { @MainActor in
                     self.reviewPrompt.noteRecordingCompleted(
                         duration: duration,
                         recordingActive: self.recording.isActive,
-                        // 文字起こしは直前の sink で既に enqueue 済みなので
-                        // isBusy に反映されている
+                        transcriptionPending: self.transcription.isQueuedOrRunning(url),
                         transcriptionBusy: self.transcription.isBusy)
                 }
             }
