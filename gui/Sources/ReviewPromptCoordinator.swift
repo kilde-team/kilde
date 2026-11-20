@@ -311,7 +311,10 @@ extension SelfTest {
         defaults.set(dateAfterRequest!.addingTimeInterval(-91 * 86400), forKey: dateKey)
         let shiftedForOther = defaults.object(forKey: dateKey) as? Date
         submitted = false
-        coordinator.presenterProvider = { nil }
+        // presenter は **生かす** — nil だと «窓が無い» だけでも見送りのままになり
+        // busy ガードの有無を検証できない (セルフレビュー 2 回目の指摘)。busy を
+        // 唯一の見送り原因にする
+        coordinator.presenterProvider = { NSViewController() }
         let deferredByOther = coordinator.noteRecordingCompleted(
             duration: 60, recordingActive: false,
             transcriptionPending: false, transcriptionBusy: true)
@@ -350,7 +353,7 @@ extension SelfTest {
         // 再試行» — 窓が無かったことを 90 日に束縛しない)。**先に 90 日のゲートを
         // 通しておく** — 直前の依頼直後だと判定が日付側で打ち切られ、presenter が
         // 取れないことによる見送り経路 (この検証の対象) に届かない
-        defaults.set(dateAfterPickup!.addingTimeInterval(-91 * 86400), forKey: dateKey)
+        defaults.set((dateAfterPickup ?? Date()).addingTimeInterval(-91 * 86400), forKey: dateKey)
         let shiftedDate = defaults.object(forKey: dateKey) as? Date
         coordinator.presenterProvider = { nil }
         let skipped = coordinator.noteTranscriptionCompleted(recordingActive: false,
