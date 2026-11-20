@@ -18,3 +18,9 @@ date,sku,product_type,units,customer_price,customer_currency,country,proceeds,pr
 2026-11-16,kilde-mas,F7,2,0.00,USD,US,0.00,USD
 2026-11-16,kilde-mas,F1,1,0.00,USD,US,0.00, 
 2026-11-16,kilde-mas,F7,1,0.00,CNY,CN,0.00,CNY
+2026-11-18,kilde-mas,F1,1,0.00,HKD,HK,0.00, 
+2026-11-18,kilde-mas,F7,2,0.00,JPY,JP,0.00,JPY
+2026-11-18,kilde-mas,F1,1,0.00,USD,AR,0.00, 
+2026-11-18,kilde-mas,F7,2,0.00,USD,US,0.00,USD
+2026-11-18,kilde-mas,F7,1,0.00,NGN,NG,0.00,NGN
+2026-11-18,kilde-mas,F7,1,0.00,USD,UA,0.00,USD
