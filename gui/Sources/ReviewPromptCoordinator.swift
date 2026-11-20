@@ -4,7 +4,8 @@ import AppKit
 import StoreKit
 #endif
 
-/// App Store の評価依頼 (issue #156) の判定規則。**この enum が規則の唯一の正本。**
+/// App Store の評価依頼 (issue #156、発火タイミングは issue #612 で成功体験の直後へ
+/// 寄せた) の判定規則。**この enum が規則の唯一の正本。**
 /// 状態の保持 (UserDefaults) と依頼の実行 (StoreKit) は ReviewPromptCoordinator が
 /// 担い、規則そのものはここに置かない。時刻と回数を引数で受け取る純関数にしてあるので、
 /// セルフテスト (KILDE_GUI_SELFTEST_REVIEW=1) が実データに頼らず全分岐を検証できる
@@ -79,10 +80,18 @@ final class ReviewPromptCoordinator {
     var presenterProvider: @MainActor () -> NSViewController? = { ReviewPromptCoordinator.reviewPresenter() }
     var submitReviewRequest: @MainActor (NSViewController) -> Void = { AppStore.requestReview(in: $0) }
 
-    /// 録画の成功完了を記録し、規則を満たしていれば評価を依頼する。
+    /// 録画の成功完了を記録し、文字起こしが絡まない録画ならその場で依頼を試みる。
     /// **«録画中・文字起こし中には出さない» の判定材料は呼び出し側 (AppDelegate) が
     /// 渡す** — @Published は willSet で流れるので、確定値を見るには次の MainActor
     /// ひと仕事が要る (呼び出し側のコメント参照)
+    ///
+    /// 依頼の窓口は 2 つに分かれた (issue #612 — «成功体験の直後» への寄せ):
+    /// - **文字起こしが絡む録画** (transcriptionBusy == true — ジョブが既に
+    ///   enqueue 済み): ここでは数えるだけ。依頼は **文字起こしの正常完了側**
+    ///   (noteTranscriptionCompleted) が担う — «録って文字起こし (や要約) まで
+    ///   終わった» のが依頼に値する瞬間。以前は «次の録画完了» まで持ち越されていた
+    /// - **絡まない録画** (トグルオフ): 録画の完了自体が成功体験なので、
+    ///   以前と同じくこの場で依頼を試みる
     /// - Returns: 実際に依頼を出したか。セルフテストが «窓が無ければ見送り» を
     ///   検証するのに使う
     @discardableResult
@@ -90,19 +99,34 @@ final class ReviewPromptCoordinator {
                                 recordingActive: Bool,
                                 transcriptionBusy: Bool) -> Bool {
         // «数える» と «依頼する» を分けて考える。**忙しいときも数えた上で見送る** —
-        // 文字起こしが常時走る使い方でも回数が進み、次の完了で依頼できる
+        // 文字起こしが常時走る使い方でも回数が進み、文字起こしの完了で依頼できる
         guard ReviewPromptPolicy.isCountable(duration: duration) else { return false }
         let count = defaults.integer(forKey: Keys.successfulRecordings) + 1
         defaults.set(count, forKey: Keys.successfulRecordings)
         guard !recordingActive, !transcriptionBusy else { return false }
+        return requestIfEligible()
+    }
+
+    /// 文字起こし (と要約) の **正常完了** — «成功体験の直後» の本体 (issue #612)。
+    /// 録画完了時点では文字起こしが走っていて見送られた依頼をここで拾う。
+    /// **カウントはしない** — 数えるのは «録画の完了» で、規則 (15 秒以上・
+    /// 3 回目以降) の単位は録画のまま。失敗 (lastFailure) の側からは呼ばない —
+    /// «うまくいった» 体験の直後にしか頼らない
+    @discardableResult
+    func noteTranscriptionCompleted() -> Bool {
+        requestIfEligible()
+    }
+
+    /// 規則を満たしていれば依頼を出す。窓が無ければ見送る — **このとき日付を
+    /// 記録しない** — 記録すると «90 日の再依頼禁止» が «窓が無かった» ことまで
+    /// 束縛してしまい、次の完了で再試行できなくなる。LSUIElement のアプリは
+    /// popover を閉じている間窓を持たないので、«次の成功体験 (録画完了 /
+    /// 文字起こし完了) の時にパネルが開いていれば依頼» が自然な再試行になる
+    private func requestIfEligible() -> Bool {
         guard ReviewPromptPolicy.shouldRequest(
-            successfulRecordings: count,
+            successfulRecordings: defaults.integer(forKey: Keys.successfulRecordings),
             lastRequestDate: defaults.object(forKey: Keys.lastRequestDate) as? Date,
             now: Date()) else { return false }
-        // 依頼を出す窓が無ければ見送る。**このとき日付を記録しない** — 記録すると
-        // «90 日の再依頼禁止» が «窓が無かった» ことまで束縛してしまい、次の完了で
-        // 再試行できなくなる。LSUIElement のアプリは popover を閉じている間窓を
-        // 持たないので、«次の録画完了時にパネルが開いていれば依頼» が自然な再試行になる
         guard let presenter = presenterProvider() else { return false }
         submitReviewRequest(presenter)
         defaults.set(Date(), forKey: Keys.lastRequestDate)
@@ -133,6 +157,8 @@ final class ReviewPromptCoordinator {
     func noteRecordingCompleted(duration: TimeInterval,
                                 recordingActive: Bool,
                                 transcriptionBusy: Bool) -> Bool { false }
+    @discardableResult
+    func noteTranscriptionCompleted() -> Bool { false }
 }
 #endif
 
@@ -198,6 +224,13 @@ extension SelfTest {
         var submitted = false
         coordinator.submitReviewRequest = { _ in submitted = true }
 
+        // «3 回未満では依頼しない» は文字起こしの完了の窓口でも同じ (issue #612 —
+        // 数えるのは «録画の完了» で、文字起こしの完了は回数を進めない)
+        coordinator.presenterProvider = { NSViewController() }
+        check("配線: 3 回未満では文字起こしの完了でも依頼しない",
+              !coordinator.noteTranscriptionCompleted() && !submitted)
+        coordinator.presenterProvider = { nil }
+
         // 極端に短い録画は数えない
         coordinator.noteRecordingCompleted(duration: 5, recordingActive: false,
                                            transcriptionBusy: false)
@@ -244,6 +277,39 @@ extension SelfTest {
         let reRequested = coordinator.noteRecordingCompleted(
             duration: 60, recordingActive: false, transcriptionBusy: false)
         check("配線: 90 日を越えたら再依頼する", reRequested && submitted)
+
+        // «文字起こしの完了» の窓口 (issue #612)。録画完了時に文字起こしが走って
+        // いて見送られた依頼を、成功体験 (文字起こし・要約の正常完了) の直後で拾う
+        let dateAfterRequest = defaults.object(forKey: dateKey) as? Date
+        submitted = false
+        let gated = coordinator.noteTranscriptionCompleted()
+        check("配線: 文字起こしの完了も 90 日の規則に従う", !gated && !submitted)
+        check("配線: 見送りのとき日付を書き替えない",
+              (defaults.object(forKey: dateKey) as? Date) == dateAfterRequest)
+
+        // 窓が無いときの文字起こし完了は見送りで日付を書かない («次の成功体験で
+        // 再試行» — 窓が無かったことを 90 日に束縛しない)
+        coordinator.presenterProvider = { nil }
+        let savedDate = defaults.object(forKey: dateKey) as? Date
+        let skipped = coordinator.noteTranscriptionCompleted()
+        check("配線: 窓が無い文字起こし完了は見送る", !skipped && !submitted)
+        check("配線: 見送りのときは日付を書かない",
+              (defaults.object(forKey: dateKey) as? Date) == savedDate)
+
+        // 90 日を越えていれば、窓の無かった分を文字起こしの完了で拾う
+        defaults.set(savedDate!.addingTimeInterval(-91 * 86400), forKey: dateKey)
+        coordinator.presenterProvider = { NSViewController() }
+        submitted = false
+        let pickedUp = coordinator.noteTranscriptionCompleted()
+        check("配線: 窓があれば文字起こしの完了で依頼する", pickedUp && submitted)
+        check("配線: 文字起こしの完了の依頼でも日付を記録する",
+              (defaults.object(forKey: dateKey) as? Date) != savedDate)
+
+        // 文字起こしの完了は回数を進めない (規則の単位は «録画の完了» のまま)
+        let countBeforeTranscriptionHook = defaults.integer(forKey: countKey)
+        _ = coordinator.noteTranscriptionCompleted()
+        check("配線: 文字起こしの完了は回数を進めない (count=\(countBeforeTranscriptionHook))",
+              defaults.integer(forKey: countKey) == countBeforeTranscriptionHook)
 
         UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName)
 #endif

@@ -1,6 +1,64 @@
 {
   "sourceLanguage": "ja",
   "strings": {
+      "App Store で評価する": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Rate kilde on the App Store"
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Valorar en el App Store"
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "App Store에서 평가하기"
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "在 App Store 评分"
+            }
+          }
+        }
+      },
+      "kilde が役に立ったら、App Store での評価で教えてください": {
+        "extractionState": "manual",
+        "localizations": {
+          "en": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "If kilde is useful to you, a rating on the App Store helps us a lot."
+            }
+          },
+          "es": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "Si kilde te resulta útil, una valoración en el App Store nos ayuda mucho."
+            }
+          },
+          "ko": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "kilde가 유용하다면 App Store 평가로 알려주세요."
+            }
+          },
+          "zh-Hans": {
+            "stringUnit": {
+              "state": "translated",
+              "value": "如果 kilde 对你有帮助，欢迎在 App Store 评分告诉我们。"
+            }
+          }
+        }
+      },
       "翻訳": {
         "extractionState": "manual",
         "localizations": {

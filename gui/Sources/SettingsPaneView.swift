@@ -91,10 +91,14 @@ struct SettingsPaneView: View {
                 // チップ (issue #171)。«控えめに置く» 方針は維持 — パネル最下部から
                 // Settings へ移しただけで、目立たせ方は変えない
 #if APPSTORE
-                if !tips.isUnavailable {
-                    section("アプリを応援") {
+                // 評価ページへの常設導線 (issue #612) はチップの商品が読めない環境
+                // でも出す — «いつでも評価できる口» が StoreKit の可用性に依存する
+                // のは、依頼の窓口として不適切なため
+                section("アプリを応援") {
+                    if !tips.isUnavailable {
                         tipSection
                     }
+                    reviewSection
                 }
 #else
                 section("アプリを応援") {
@@ -595,6 +599,36 @@ struct SettingsPaneView: View {
     }
 
     // MARK: - アプリを応援 (issue #171)
+
+#if APPSTORE
+    /// App Store の評価ページへの常設導線 (issue #612)。«評価依頼のダイアログ»
+    /// (StoreKit requestReview) はこちらの規則 (90 日) とシステムの頻度制御で
+    /// «出るかどうか» が決まるため、«今すぐ評価したい» 利用者に確実な口が無かった。
+    /// このボタンは **利用者の手動操作** で App Store の書き込み画面を直接開く
+    /// (Apple が公式に案内している `macappstore://` の write-review URL)。頻度制御の
+    /// 対象外だが利用者の自発的操作なので nag には当たらず、評価の強要でもない
+    /// (押さなければ何も起きない)。直接配布版には出さない — App Store のライブラリに
+    /// 無い利用者がほとんどで、そちらの支援口は既存の GitHub Sponsors (`#else` 側)
+    private var reviewSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("kilde が役に立ったら、App Store での評価で教えてください")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Button("App Store で評価する") {
+                if let url = URL(string: Self.appStoreReviewURLString) {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+            .controlSize(.small)
+        }
+    }
+
+    /// App ID 6812783176 (mas.yml と scripts/release/appstore-spec.py の APP_ID と同じ)。
+    /// `action=write-review` で評価の書き込み画面を直接開く
+    private static let appStoreReviewURLString =
+        "macappstore://apps.apple.com/app/id6812783176?action=write-review"
+#endif
 
 #if APPSTORE
     private var tipSection: some View {
