@@ -416,7 +416,9 @@ jobs:
             for spec in "${markers[@]}"; do
               re="${spec%%|*}"
               label="${spec#*|}"
-              hit=$(grep -n -E "$re" "$LOG" 2>/dev/null | tail -n 1 | cut -d: -f1)
+              # grep が 1 件も一致しないと pipefail で終了コード 1 になるため || true
+              # (無一致は «このマーカーは無い» ので hit は空のままで正しい)
+              hit=$(grep -n -E "$re" "$LOG" 2>/dev/null | tail -n 1 | cut -d: -f1 || true)
               if [ -n "$hit" ] && [ "$hit" -gt "$best_n" ]; then
                 best_n=$hit
                 best_label="$label"
@@ -442,7 +444,7 @@ jobs:
             SIZE=$(stat -f %z "$LOG" 2>/dev/null || echo 0)
             if [ "$SIZE" != "$LAST_SIZE" ]; then LAST_CHANGE=$NOW; LAST_SIZE=$SIZE; fi
             echo "[watchdog] 経過 $(( (NOW - START) / 60 )) 分 / 無出力 $(( (NOW - LAST_CHANGE) / 60 )) 分 / ログ $SIZE バイト | 段階: $(stall_phase)"
-            echo "[watchdog] 最終行: $(tail -n 1 "$LOG" 2>/dev/null | cut -c1-160)"
+            echo "[watchdog] 最終行: $(tail -n 1 "$LOG" 2>/dev/null | cut -c1-160 || true)"
             if [ $(( (NOW - LAST_CHANGE) / 60 )) -ge "$MAS_UPLOAD_IDLE_LIMIT_MIN" ]; then
               KILLED="idle (無出力 ${MAS_UPLOAD_IDLE_LIMIT_MIN} 分)"
               break
@@ -470,7 +472,12 @@ jobs:
             echo ">>> [keychain] 既定キーチェーン: $(security default-keychain 2>/dev/null || echo 不明)"
             for kc in "$HOME/Library/Keychains/login.keychain-db" "$HOME/Library/Keychains/login.keychain"; do
               [ -f "$kc" ] || continue
-              security show-keychain-info "$kc" 2>&1 | sed "s|^|>>> [keychain] $(basename "$kc"): |"
+              # || true は必須 — shell: bash は -e -o pipefail で走るため、
+              # show-keychain-info が 0 以外で終わると (ロック状態の出力有無にかかわらず)
+              # パイプラインごと失敗になり、この後の kill に到達しないで停滞した
+              # アーカイブを残したまま step が落ちる (ocr レビュー指摘)
+              security show-keychain-info "$kc" 2>&1 \
+                | sed "s|^|>>> [keychain] $(basename "$kc"): |" || true
               break
             done
             echo ">>> [identity] codesigning identity の可視性 (-v = private key ありのみ):"
