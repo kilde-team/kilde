@@ -514,6 +514,10 @@ jobs:
               w=$!
               wait "$p" 2>/dev/null || true
               kill "$w" 2>/dev/null || true
+              # kill "$w" はタイマーの子シェルだけを止め、その子の sleep は残る —
+              # 診断が即時終了するたびに最大 15 秒の sleep 孤児を残さないため
+              # 子 (sleep) も殺してから待ち合わせる (cubic レビュー指摘)
+              pkill -P "$w" 2>/dev/null || true
               wait "$w" 2>/dev/null || true
               cat "$out"
               return 0
