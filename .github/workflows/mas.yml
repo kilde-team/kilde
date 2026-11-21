@@ -261,8 +261,12 @@ jobs:
           echo "version $VERSION は既に $STATE (提出済み以降で編集不可) — apply をスキップして success で終わります"
           echo "(冪等スキップ — 提出済み版への再 dispatch で 409 の failure を作らないため。issue #615)"
 
+      # submit のゲートは version_editable ではなく version_submittable を見る:
+      # READY_FOR_REVIEW («草稿に載せたが未提出») は編集できないが提出の確定は
+      # 必要 — «提出済み» と誤認してスキップすると提出が永遠に完了しない
+      # (CodeRabbit レビュー指摘)
       - name: Apply metadata and submit for review (skip when already submitted)
-        if: (inputs.mode == 'submit' || inputs.mode == 'submit-only') && steps.preflight.outputs.version_editable == 'true'
+        if: (inputs.mode == 'submit' || inputs.mode == 'submit-only') && steps.preflight.outputs.version_submittable == 'true'
         env:
           MODE: ${{ inputs.mode }}
           PYTHONPATH: asc-submit
@@ -277,7 +281,7 @@ jobs:
           python3 -m asc_submit run "$APP_ID" --spec "$spec_path" --submit --yes
 
       - name: Skip the submission (version already submitted)
-        if: (inputs.mode == 'submit' || inputs.mode == 'submit-only') && steps.preflight.outputs.version_editable != 'true'
+        if: (inputs.mode == 'submit' || inputs.mode == 'submit-only') && steps.preflight.outputs.version_submittable != 'true'
         env:
           VERSION: ${{ inputs.version }}
           STATE: ${{ steps.preflight.outputs.version_state }}

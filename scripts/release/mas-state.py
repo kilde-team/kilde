@@ -31,6 +31,7 @@ GitHub Actions の step outputs 形式 (``key=value`` 行) で出力する。
                                            # 場合と、見つかったが別版の build の場合は false。
                                            # build 番号は app 全体で一意なため、番号だけの一致は
                                            # 別版の build を拾いうる — 再利用ゲートはこの一致を見る)
+    version_submittable=true               # 審査提出 (または未提出草稿の確定) を実行してよいか
 
 ``version_editable`` の集合 (Apple の AppStoreVersionState のうち編集可能なもの):
 PREPARE_FOR_SUBMISSION / REJECTED / DEVELOPER_REJECTED / METADATA_REJECTED /
@@ -38,6 +39,13 @@ INVALID_BINARY。それ以外 (WAITING_FOR_REVIEW・IN_REVIEW・PENDING_DEVELOPE
 READY_FOR_SALE・RELEASED などの終端) は編集不可 — 編集可能集合に無い状態への
 PATCH は 409 で拒否される (0.45.0 の実測。再 dispatch を «失敗» にしないために
 この判定でスキップする)。«absent» は editable 扱い — apply が版を作る経路。
+
+**READY_FOR_REVIEW は別扱い** (Apple の定義では «提出草稿に載せたが未提出»):
+メタデータ・asset の編集はできないが、**審査提出 (草稿の submitted: true への
+確定) は可能で、むしろ必要**。編集可否 (``version_editable``) と提出可否
+(``version_submittable``) を分けて出す — この状態を «提出済み» と誤認して
+スキップすると、submit-only が緑で終わるのに提出が永遠に完了しない
+(CodeRabbit レビュー指摘)。
 """
 
 from __future__ import annotations
@@ -96,6 +104,9 @@ def _read_state(client, flows, app: str, version: str, build: str):
     else:
         version_state = found.get("attributes", {}).get("appStoreState", "unknown")
         version_editable = version_state in EDITABLE_VERSION_STATES
+    # READY_FOR_REVIEW は «草稿に載せたが未提出» — 編集はできないが提出 (草稿の
+    # 確定) は可能で必要 (docstring の説明どおり)
+    version_submittable = version_editable or version_state == "READY_FOR_REVIEW"
 
     # build の実状態。build は版ごとではなく app 全体の一覧で扱う
     # (ASC API に version→builds の include が無いため — asc-submit の実装と同じ)。
@@ -133,7 +144,7 @@ def _read_state(client, flows, app: str, version: str, build: str):
             # 再利用ゲートは build_present も見るため、この false で «別版 build» の
             # 失敗 step が誤発火することはない)
             build_version_match = "false"
-    return version_state, version_editable, build_state, build_present, build_version_match
+    return version_state, version_editable, version_submittable, build_state, build_present, build_version_match
 
 
 def _collect_state(client, flows, ApiError, TransportError, app: str, version: str, build: str):
@@ -190,6 +201,7 @@ def main() -> int:
     (
         version_state,
         version_editable,
+        version_submittable,
         build_state,
         build_present,
         build_version_match,
@@ -198,6 +210,7 @@ def main() -> int:
     result = {
         "version_state": version_state,
         "version_editable": "true" if version_editable else "false",
+        "version_submittable": "true" if version_submittable else "false",
         "build_state": build_state,
         "build_present": "true" if build_present else "false",
         "build_version_match": build_version_match,
@@ -212,7 +225,13 @@ def main() -> int:
             f"version_match={build_version_match}",
             file=sys.stderr,
         )
-    if version_state not in ("absent",) and not version_editable:
+    if version_state == "READY_FOR_REVIEW":
+        print(
+            f"mas-state: version {args.version} は提出草稿に載っているが未提出 (READY_FOR_REVIEW) — "
+            "submit モードで草稿を確定してください (apply / メタデータ編集は実行できません)",
+            file=sys.stderr,
+        )
+    elif version_state not in ("absent",) and not version_editable:
         print(
             f"mas-state: version {args.version} は提出済み以降の状態 ({version_state}) のため、"
             "メタデータ・build 割当て・再提出は実行しても 409 で拒否されます (冪等スキップの対象)",
