@@ -132,7 +132,10 @@ packages:
     # GUI の note と CLI の ⚠ 行の 1 行契約を崩しうるのを防ぐ。GUI 側の同種修正
     # (TranscriptionCoordinator.summaryFailureNote) は kilde#585 で済んでおり、
     # GUI のコード変更は無い — pin 更新のみ)
-    exactVersion: 0.27.1
+    # v0.27.2: summaryFailureReason まわりのコメントの機序説明を実際の split の
+    # 挙動 («split できず全体が残る») に合わせて整理 (kilde-cli-swift#156 —
+    # コメントのみ。挙動・テストは v0.27.1 から不変。GUI のコード変更は無い)
+    exactVersion: 0.27.2
   # GUI の自動更新 (issue #122)。Sparkle 2 のバイナリターゲット (macOS 12+) で、
   # リンクすると Sparkle.framework が Contents/Frameworks に埋め込まれる。
   # バージョンを固定する理由は kilde-cli-swift と同じ: 浮動参照だと上流の push が
