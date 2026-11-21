@@ -389,6 +389,12 @@ jobs:
           #     打ち切り後の事後調査を可能にする
           # 打ち切りの判定 (無出力時間 / 上限) と打ち切り後の案内は #615 から変えない
           LOG="$RUNNER_TEMP/mas-upload-$VERSION-build$BUILD.log"
+          # 前回停滞ランが置き忘れた codesign の孤児を掃除してから始める。停滞の
+          # 打ち切り漏れで残った codesign (PPID 1) は蓄積し、同じ DerivedData を
+          # 触り続ける (run 44960844989 の [proc] 診断で «経過 22 時間超» の孤児を
+          # 検出 — この掃除が無いと次のアーカイブと干渉しうる)。スコープは打ち切り時の
+          # pkill と同じく workspace の DerivedData 配下のみ
+          pkill -f "codesign.*${GITHUB_WORKSPACE}/dist/appstore/derived" 2>/dev/null || true
           # ログ中のマーカーから «いまどの段階か» を推定する (最後に一致した行を採る)。
           # bash 3.2 (macOS 標準) 向けに連想配列は使わない。マーカーは 0.47.0 の実ログ
           # (run 44935370555 — nanopb_nanopb.bundle の CodeSign で沈黙) を含む実績のある
@@ -482,22 +488,49 @@ jobs:
             sleep 3
             kill -9 "$PID" 2>/dev/null || true
             pkill -f "xcodebuild.*${GITHUB_WORKSPACE}/dist/appstore/derived" 2>/dev/null || true
+            # codesign も殺す — 上の pkill -P は孫 (xcodebuild のビルドシステムが
+            # 起きる codesign) を取りこぼし、パターンも xcodebuild にしか一致しない。
+            # 実測: 0.48.0 upload (run 44960844989) の打ち切り時の [proc] 診断で
+            # «PPID 1・経過 22 時間超» の codesign 孤児が残っていた (前ランの打ち切り
+            # 漏れ)。パスを workspace の DerivedData に限定するのは xcodebuild 側と同じ
+            pkill -f "codesign.*${GITHUB_WORKSPACE}/dist/appstore/derived" 2>/dev/null || true
             echo ">>> watchdog が Archive and upload を打ち切りました: $KILLED"
             echo ">>> 0.42.0 以降この経路は «CodeSign あたりで沈黙 → job 上限まで停滞» を繰り返しています (issue #470 / #615)。"
             echo ">>> ローカル経路へ切り替えてください: scripts/release/appstore-archive.sh --version $VERSION --build $BUILD --upload (この Mac、Admin 鍵のクラウド署名)"
             # ここから下は kill **後**の診断 — security 系が仮説どおり応答しなくても
             # 打ち切り自体は上で完了している (cubic レビュー指摘の順序)。
-            # || true は必須 — shell: bash は -e -o pipefail で走るため、診断の失敗で
-            # この後の tail と exit 1 を飛ばさないため
-            echo ">>> [keychain] 既定キーチェーン: $(security default-keychain 2>/dev/null || echo 不明)"
+            # ただし `|| true` は **終了コード非ゼロ** には効いても **ハング** には
+            # 効かない — ロック状態のキーチェーンで unlock ダイアログ待ちに沈黙する
+            # こと (issue #470 の仮説そのもの) を想定し、security 系は 1 回 15 秒で
+            # 打ち切る (ocr レビュー指摘)。打ち切らないと、この後の [log] と
+            # tail -30 / exit 1 がジョブ上限まで飛び、#615 の «打ち切り後も停滞» に戻る
+            run_bounded() {
+              # $RUNNER_TEMP は step 間で消えるが同一 step 内では有効。出力は
+              # ファイル経由 (パイプ直受けだと kill 後のバッファが消えるため)
+              local out="$RUNNER_TEMP/bounded-diag.txt" p w
+              "$@" >"$out" 2>&1 &
+              p=$!
+              ( sleep 15; kill -9 "$p" 2>/dev/null ) &
+              w=$!
+              wait "$p" 2>/dev/null || true
+              kill "$w" 2>/dev/null || true
+              # kill "$w" はタイマーの子シェルだけを止め、その子の sleep は残る —
+              # 診断が即時終了するたびに最大 15 秒の sleep 孤児を残さないため
+              # 子 (sleep) も殺してから待ち合わせる (cubic レビュー指摘)
+              pkill -P "$w" 2>/dev/null || true
+              wait "$w" 2>/dev/null || true
+              cat "$out"
+              return 0
+            }
+            echo ">>> [keychain] 既定キーチェーン: $(run_bounded security default-keychain || echo 不明)"
             for kc in "$HOME/Library/Keychains/login.keychain-db" "$HOME/Library/Keychains/login.keychain"; do
               [ -f "$kc" ] || continue
-              security show-keychain-info "$kc" 2>&1 \
-                | sed "s|^|>>> [keychain] $(basename "$kc"): |" || true
+              run_bounded security show-keychain-info "$kc" \
+                | sed "s|^|>>> [keychain] $(basename "$kc"): |"
               break
             done
             echo ">>> [identity] codesigning identity の可視性 (-v = private key ありのみ):"
-            security find-identity -v -p codesigning 2>&1 | sed 's/^/>>> [identity] /' || true
+            run_bounded security find-identity -v -p codesigning | sed 's/^/>>> [identity] /'
             # 全文ログをランナーの永続ディレクトリへも退ける。RUNNER_TEMP はジョブ後に
             # 消えるため、0.47.0 までは «停滞ログの事後調査» が run ログの tail しか
             # 手掛かり無しでできなかった (issue #623)。失敗したら run ログの tail のみ
