@@ -463,7 +463,7 @@ jobs:
             # までの停滞に戻るため (cubic レビュー指摘)。打ち切りの動作は #615 から
             # 変えない。[keychain]/[identity] は «codesign が署名鍵へのアクセス待ちで
             # 沈黙» 仮説 (issue #470) の検証材料
-            echo ">>> --- 打ち切り時の診断 (issue #623 の観渾性改善) ---"
+            echo ">>> --- 打ち切り時の診断 (issue #623 の観測性改善) ---"
             echo ">>> [phase] 段階: $(stall_phase)"
             echo ">>> [proc] xcodebuild / codesign 系の滞留 (kill 前):"
             ps -o pid,ppid,stat,etime,command -ax 2>/dev/null \
