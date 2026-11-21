@@ -389,6 +389,12 @@ jobs:
           #     打ち切り後の事後調査を可能にする
           # 打ち切りの判定 (無出力時間 / 上限) と打ち切り後の案内は #615 から変えない
           LOG="$RUNNER_TEMP/mas-upload-$VERSION-build$BUILD.log"
+          # 前回停滞ランが置き忘れた codesign の孤児を掃除してから始める。停滞の
+          # 打ち切り漏れで残った codesign (PPID 1) は蓄積し、同じ DerivedData を
+          # 触り続ける (run 44960844989 の [proc] 診断で «経過 22 時間超» の孤児を
+          # 検出 — この掃除が無いと次のアーカイブと干渉しうる)。スコープは打ち切り時の
+          # pkill と同じく workspace の DerivedData 配下のみ
+          pkill -f "codesign.*${GITHUB_WORKSPACE}/dist/appstore/derived" 2>/dev/null || true
           # ログ中のマーカーから «いまどの段階か» を推定する (最後に一致した行を採る)。
           # bash 3.2 (macOS 標準) 向けに連想配列は使わない。マーカーは 0.47.0 の実ログ
           # (run 44935370555 — nanopb_nanopb.bundle の CodeSign で沈黙) を含む実績のある
@@ -482,6 +488,12 @@ jobs:
             sleep 3
             kill -9 "$PID" 2>/dev/null || true
             pkill -f "xcodebuild.*${GITHUB_WORKSPACE}/dist/appstore/derived" 2>/dev/null || true
+            # codesign も殺す — 上の pkill -P は孫 (xcodebuild のビルドシステムが
+            # 起きる codesign) を取りこぼし、パターンも xcodebuild にしか一致しない。
+            # 実測: 0.48.0 upload (run 44960844989) の打ち切り時の [proc] 診断で
+            # «PPID 1・経過 22 時間超» の codesign 孤児が残っていた (前ランの打ち切り
+            # 漏れ)。パスを workspace の DerivedData に限定するのは xcodebuild 側と同じ
+            pkill -f "codesign.*${GITHUB_WORKSPACE}/dist/appstore/derived" 2>/dev/null || true
             echo ">>> watchdog が Archive and upload を打ち切りました: $KILLED"
             echo ">>> 0.42.0 以降この経路は «CodeSign あたりで沈黙 → job 上限まで停滞» を繰り返しています (issue #470 / #615)。"
             echo ">>> ローカル経路へ切り替えてください: scripts/release/appstore-archive.sh --version $VERSION --build $BUILD --upload (この Mac、Admin 鍵のクラウド署名)"
