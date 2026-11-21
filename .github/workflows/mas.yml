@@ -258,7 +258,14 @@ jobs:
           STATE: ${{ steps.preflight.outputs.version_state }}
         shell: bash
         run: |
-          echo "version $VERSION は既に $STATE (提出済み以降で編集不可) — apply をスキップして success で終わります"
+          # READY_FOR_REVIEW は «提出草稿に載せたが未提出» — «既に提出済み» と
+          # 読ませない (submit / submit-only で草稿を確定する必要がある。
+          # セルフレビュー指摘 — この誤認はこの PR が提出側で潰したものと同じ)
+          if [ "$STATE" = "READY_FOR_REVIEW" ]; then
+            echo "version $VERSION は $STATE (未提出草稿 — 編集不可だが提出は可能) — apply をスキップします。提出は submit / submit-only で草稿を確定してください"
+          else
+            echo "version $VERSION は既に $STATE (提出済み以降で編集不可) — apply をスキップして success で終わります"
+          fi
           echo "(冪等スキップ — 提出済み版への再 dispatch で 409 の failure を作らないため。issue #615)"
 
       # submit のゲートは version_editable ではなく version_submittable を見る:
