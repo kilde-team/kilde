@@ -27,9 +27,10 @@ GitHub Actions の step outputs 形式 (``key=value`` 行) で出力する。
     build_state=VALID                      # build の processingState。--build 未指定 / 未登録は absent
     build_present=true                     # 指定した build 番号が ASC に存在するか
     build_version_match=true               # その build の cfBundleShortVersionString が --version と一致するか
-                                           # (--build 未指定は absent。build 番号は app 全体で一意なため、
-                                           # 番号だけの一致は別版の build を拾いうる — 再利用ゲートは
-                                           # この一致を見る)
+                                           # (--build 未指定は absent。--build 指定で build が見つからない
+                                           # 場合と、見つかったが別版の build の場合は false。
+                                           # build 番号は app 全体で一意なため、番号だけの一致は
+                                           # 別版の build を拾いうる — 再利用ゲートはこの一致を見る)
 
 ``version_editable`` の集合 (Apple の AppStoreVersionState のうち編集可能なもの):
 PREPARE_FOR_SUBMISSION / REJECTED / DEVELOPER_REJECTED / METADATA_REJECTED /
@@ -44,6 +45,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import time
 
 # Apple の AppStoreVersionState のうち、メタデータと build 関係を編集できる状態。
 # WAITING_FOR_REVIEW 以降はロックされる — ここに無い状態は «編集不可» として扱う
@@ -67,7 +69,7 @@ def _load_asc_submit():
     """Import asc-submit's public API, with a clear error when missing."""
     try:
         from asc_submit import auth, flows  # noqa: PLC0415 — 実行時に PYTHONPATH を見るため
-        from asc_submit.client import ApiError, Client  # noqa: PLC0415
+        from asc_submit.client import ApiError, Client, TransportError  # noqa: PLC0415
     except ImportError as err:
         print(
             "asc-submit を import できません: "
@@ -77,7 +79,88 @@ def _load_asc_submit():
             file=sys.stderr,
         )
         raise SystemExit(2)
-    return auth, flows, ApiError, Client
+    return auth, flows, ApiError, Client, TransportError
+
+
+def _read_state(client, flows, app: str, version: str, build: str):
+    """Read the version/build state with GET calls only, and return the tuple.
+
+    «版が無い» は upload / apply の初回に普通に起こる状態で、エラーではなく
+    «これから作る» 判定の材料 (resolve_version は None を返す)。
+    """
+    found = flows.resolve_version(client, app, version)
+    if found is None:
+        version_state = "absent"
+        # 版が無い状態は apply (版の作成) が可能 — editable 扱いにする
+        version_editable = True
+    else:
+        version_state = found.get("attributes", {}).get("appStoreState", "unknown")
+        version_editable = version_state in EDITABLE_VERSION_STATES
+
+    # build の実状態。build は版ごとではなく app 全体の一覧で扱う
+    # (ASC API に version→builds の include が無いため — asc-submit の実装と同じ)。
+    # «同じ番号の build が既に載っている» なら upload は再アーカイブせず再利用する
+    build_state = "absent"
+    build_present = False
+    build_version_match = "absent"  # --build 未指定
+    if build:
+        # «この番号の build がどの配布バージョンで焼かれたか» は builds の fields
+        # では取れない (cfBundleShortVersionString / appVersion は fields に渡すと
+        # HTTP 400 — asc-submit の実測メモ «fields[builds] は version +
+        # processingState» どおり)。build 番号は app 全体で一意なため «番号が一致
+        # する build» を見つけた後で、その build の preReleaseVersion リレーション
+        # (attributes.version = CFBundleShortVersionString) を個別に照会して
+        # 対象バージョンと一致するかを見る。番号だけの一致は、別バージョンで
+        # 焼かれた build (番号の打ち間違い・旧コマンドの再実行) を誤って
+        # 再利用しうる
+        builds = client.get_all(
+            f"/v1/apps/{app}/builds",
+            {"fields[builds]": "version,processingState"},
+        )
+        for candidate in builds:
+            attrs = candidate.get("attributes", {})
+            if str(attrs.get("version")) != str(build):
+                continue
+            build_state = attrs.get("processingState", "unknown")
+            build_present = True
+            pre = client.get(f"/v1/builds/{candidate['id']}/preReleaseVersion")
+            pre_version = (pre.get("data", {}).get("attributes") or {}).get("version")
+            build_version_match = "true" if pre_version == version else "false"
+            break
+        if build and not build_present:
+            # --build 指定だが該当する build が無い — «未指定» の absent と区別する。
+            # 存在しない build は一致しえないため false («一致しない» が契約。
+            # 再利用ゲートは build_present も見るため、この false で «別版 build» の
+            # 失敗 step が誤発火することはない)
+            build_version_match = "false"
+    return version_state, version_editable, build_state, build_present, build_version_match
+
+
+def _collect_state(client, flows, ApiError, TransportError, app: str, version: str, build: str):
+    """Wrap _read_state in a short retry for transient ASC API errors.
+
+    このスクリプトは poll step から 1 分ごとに呼ばれるため、«1 回の瞬断で
+    job を落とす» のではなく冪等な GET を短いリトライで包む (レビュー指摘)。
+    認証エラー (401 / 403) はリトライで治らないため即座に失敗させる
+    """
+    attempts = 3
+    wait_seconds = 20
+    last: Exception | None = None
+    for attempt in range(attempts):
+        try:
+            return _read_state(client, flows, app, version, build)
+        except (ApiError, TransportError) as err:
+            if isinstance(err, ApiError) and err.status in (401, 403):
+                raise
+            last = err
+            if attempt + 1 < attempts:
+                print(
+                    f"mas-state: ASC API エラー ({err}) — {wait_seconds} 秒後に再試行 ({attempt + 2}/{attempts})",
+                    file=sys.stderr,
+                )
+                time.sleep(wait_seconds)
+    assert last is not None  # ループが return せずに抜けた場合の型保証
+    raise last
 
 
 def main() -> int:
@@ -88,7 +171,7 @@ def main() -> int:
     parser.add_argument("--output-file", default="", help="key=value を追記するファイル (省略可)")
     args = parser.parse_args()
 
-    auth, flows, ApiError, Client = _load_asc_submit()
+    auth, flows, ApiError, Client, TransportError = _load_asc_submit()
 
     # asc-submit と同じ 3 つの環境変数を使う (mas.yml の decode step が展開する)
     key_path = os.environ.get("ASC_KEY_PATH", "")
@@ -104,47 +187,13 @@ def main() -> int:
 
     client = Client(token=auth.make_token(key_id, issuer, key_path))
 
-    # 版の実状態。resolve_version は存在しなければ None を返す (SystemExit しない)。
-    # «版が無い» は upload / apply の初回に普通に起こる状態で、エラーではなく
-    # «これから作る» 判定の材料
-    version = flows.resolve_version(client, args.app, args.version)
-    if version is None:
-        version_state = "absent"
-        # 版が無い状態は apply (版の作成) が可能 — editable 扱いにする
-        version_editable = True
-    else:
-        version_state = version.get("attributes", {}).get("appStoreState", "unknown")
-        version_editable = version_state in EDITABLE_VERSION_STATES
-
-    # build の実状態。build は版ごとではなく app 全体の一覧で扱う
-    # (ASC API に version→builds の include が無いため — asc-submit の実装と同じ)。
-    # «同じ番号の build が既に載っている» なら upload は再アーカイブせず再利用する
-    build_state = "absent"
-    build_present = False
-    build_version_match = "absent"  # --build 未指定
-    if args.build:
-        # «この番号の build がどの配布バージョンで焼かれたか» は builds の fields
-        # では取れない (cfBundleShortVersionString / appVersion は fields に渡すと
-        # HTTP 400 — asc-submit の実測メモ «fields[builds] は version +
-        # processingState» どおり)。build 番号は app 全体で一意なため «番号が一致
-        # する build» を見つけた後で、その build の preReleaseVersion リレーション
-        # (attributes.version = CFBundleShortVersionString) を個別に照会して
-        # --version と一致するかを見る。番号だけの一致は、別バージョンで焼かれた
-        # build (番号の打ち間違い・旧コマンドの再実行) を誤って再利用しうる
-        builds = client.get_all(
-            f"/v1/apps/{args.app}/builds",
-            {"fields[builds]": "version,processingState"},
-        )
-        for build in builds:
-            attrs = build.get("attributes", {})
-            if str(attrs.get("version")) != str(args.build):
-                continue
-            build_state = attrs.get("processingState", "unknown")
-            build_present = True
-            pre = client.get(f"/v1/builds/{build['id']}/preReleaseVersion")
-            pre_version = (pre.get("data", {}).get("attributes") or {}).get("version")
-            build_version_match = "true" if pre_version == args.version else "false"
-            break
+    (
+        version_state,
+        version_editable,
+        build_state,
+        build_present,
+        build_version_match,
+    ) = _collect_state(client, flows, ApiError, TransportError, args.app, args.version, args.build)
 
     result = {
         "version_state": version_state,

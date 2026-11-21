@@ -223,22 +223,17 @@ jobs:
           PYTHONPATH: asc-submit
         shell: bash
         run: |
-          ARGS=(--app "$APP_ID" --version "$VERSION")
-          if [ -n "$BUILD" ]; then
-            # key=value をファイルへ書いて GITHUB_OUTPUT に載せる (self-hosted の
-            # RUNNER_TEMP はジョブごとに掃われるが、前ジョブの残留があっても
-            # 誤らないよう毎回消す)
-            rm -f "$RUNNER_TEMP/mas-state-outputs.txt"
-            ARGS+=(--build "$BUILD" --output-file "$RUNNER_TEMP/mas-state-outputs.txt")
-          fi
+          # key=value は --output-file 経由で GITHUB_OUTPUT へ載せる。**--build の
+          # 有無にかかわらず version_* の出力も必要** (apply / submit は build 無しで
+          # 実行するモードで、version_editable が欠けると «編集可能な版なのにスキップ»
+          # の誤判定になる — cubic P1 / CodeRabbit Major 指摘)。条件付きなのは
+          # --build だけ。self-hosted の RUNNER_TEMP はジョブごとに掃われるが、
+          # 前ジョブの残留があっても誤らないよう毎回消す
+          rm -f "$RUNNER_TEMP/mas-state-outputs.txt"
+          ARGS=(--app "$APP_ID" --version "$VERSION" --output-file "$RUNNER_TEMP/mas-state-outputs.txt")
+          [ -n "$BUILD" ] && ARGS+=(--build "$BUILD")
           python3 scripts/release/mas-state.py "${ARGS[@]}"
-          if [ -n "$BUILD" ]; then
-            cat "$RUNNER_TEMP/mas-state-outputs.txt" >> "$GITHUB_OUTPUT"
-          else
-            # build 未指定のモード: 欠落した出力は if 条件で空文字になるため
-            # «存在しない» を明示しておく
-            { echo "build_state=absent"; echo "build_present=false"; echo "build_version_match=absent"; } >> "$GITHUB_OUTPUT"
-          fi
+          cat "$RUNNER_TEMP/mas-state-outputs.txt" >> "$GITHUB_OUTPUT"
 
       # 冪等ゲート: 提出済み以降の版 (WAITING_FOR_REVIEW など編集不可の状態) に対する
       # apply / submit は何もせず success で終わる。0.45.0 では WAITING_FOR_REVIEW の
@@ -292,12 +287,13 @@ jobs:
           echo "(冪等スキップ — 二重提出や 409 の failure を作らないため。issue #615)"
 
       # build 番号は app 全体で一意。番号が一致しても別バージョンで焼かれた build
-      # (番号の打ち間違い・旧コマンドの再実行) なら再利用できない — 配布バージョン
-      # (cfBundleShortVersionString) の一致まで見て、食い違いは «番号を増やす» 案内と
-      # ともに明示的に失敗させる (レビュー指摘。黙って別版の binary を再利用すると
-      # その後の apply で結局 409 系の不透明なエラーに戻る)
+      # (番号の打ち間違い・旧コマンドの再実行) なら再利用・割当てできない — 配布
+      # バージョン (preReleaseVersion) の一致まで見て、食い違いは «番号を増やす»
+      # 案内とともに明示的に失敗させる (レビュー指摘。黙って別版の binary を
+      # 再利用・割当てすると、その後の apply で結局 409 系の不透明なエラーに戻る)。
+      # upload 以外に build を指定しうる apply / submit / submit-only も対象
       - name: Fail on a build from another version (cannot be reused)
-        if: inputs.mode == 'upload' && steps.preflight.outputs.build_present == 'true' && steps.preflight.outputs.build_version_match == 'false'
+        if: (inputs.mode == 'upload' || inputs.mode == 'apply' || inputs.mode == 'submit' || inputs.mode == 'submit-only') && steps.preflight.outputs.build_present == 'true' && steps.preflight.outputs.build_version_match == 'false'
         env:
           VERSION: ${{ inputs.version }}
           BUILD: ${{ inputs.build }}
@@ -311,11 +307,12 @@ jobs:
       # FAILED / INVALID の build は同じ番号では再アップロードできない (ASC の契約)。
       # «build が既に在るから再利用» の対象から外し、番号を増やすよう明示して失敗させる
       - name: Fail on a dead build number (cannot be re-uploaded)
-        if: inputs.mode == 'upload' && steps.preflight.outputs.build_present == 'true' && steps.preflight.outputs.build_version_match == 'true' && contains(fromJSON('["FAILED", "INVALID"]'), steps.preflight.outputs.build_state)
+        if: (inputs.mode == 'upload' || inputs.mode == 'apply' || inputs.mode == 'submit' || inputs.mode == 'submit-only') && steps.preflight.outputs.build_present == 'true' && steps.preflight.outputs.build_version_match == 'true' && contains(fromJSON('["FAILED", "INVALID"]'), steps.preflight.outputs.build_state)
         env:
           VERSION: ${{ inputs.version }}
           BUILD: ${{ inputs.build }}
           STATE: ${{ steps.preflight.outputs.build_state }}
+        shell: bash
         run: |
           echo "build $BUILD は ASC に存在しますが state=$STATE — 同じ番号での再アップロードはできません"
           echo "build 番号を 1 つ増やして upload をやり直してください (mas.yml mode=upload version=$VERSION build=<N+1>)"
@@ -374,8 +371,14 @@ jobs:
           LAST_SIZE=0
           LAST_CHANGE=$SECONDS
           KILLED=""
-          while kill -0 "$PID" 2>/dev/null; do
+          while :; do
             sleep 60
+            # sleep から戻ったらまず生存を確認する — 子がこの間に正常終了していた
+            # ときに budget / idle の判定だけで «失敗» にしないため (レビュー指摘)。
+            # 判定は子が生きている間だけ行う
+            if ! kill -0 "$PID" 2>/dev/null; then
+              break
+            fi
             NOW=$SECONDS
             SIZE=$(stat -f %z "$LOG" 2>/dev/null || echo 0)
             if [ "$SIZE" != "$LAST_SIZE" ]; then LAST_CHANGE=$NOW; LAST_SIZE=$SIZE; fi
@@ -391,17 +394,18 @@ jobs:
           done
           RC=0
           if [ -n "$KILLED" ]; then
-            # xcodebuild の残滓も含めて止める (SWBBuildService など孫プロセスは
-            # DerivedData のパスで拾う。取り逃しは runner の orphan 掃除が受ける)
+            # xcodebuild の残滓も含めて止める。孫プロセス (SWBBuildService など) は
+            # «この run の workspace にある DerivedData を触る xcodebuild 系» だけを
+            # 拾う — 素の dist/appstore/derived 一致だと、既定の同パスを使う別の
+            # xcodebuild やログを tail しているだけのプロセスまで巻き込む (レビュー指摘)。
+            # GITHUB_WORKSPACE (ランナーの checkout パス) まで含めるのがポイント —
+            # この Mac 上の別 checkout (ローカル実行など) は一致させない。
+            # 取り逃しは runner の orphan 掃除が受ける
             kill "$PID" 2>/dev/null || true
             pkill -P "$PID" 2>/dev/null || true
             sleep 3
             kill -9 "$PID" 2>/dev/null || true
-            # 孫プロセス (SWBBuildService など) は «この run が作った DerivedData を
-            # 触る xcodebuild 系» だけで拾う。素のパス一致だと人間の作業や
-            # ログの tail など無関係なプロセスまで巻き込む (レビュー指摘)。
-            # 取り逃しは runner の orphan 掃除が受ける
-            pkill -f "xcodebuild.*dist/appstore/derived" 2>/dev/null || true
+            pkill -f "xcodebuild.*${GITHUB_WORKSPACE}/dist/appstore/derived" 2>/dev/null || true
             echo ">>> watchdog が Archive and upload を打ち切りました: $KILLED"
             echo ">>> 0.42.0 以降この経路は «CodeSign あたりで沈黙 → job 上限まで停滞» を繰り返しています (issue #470 / #615)。"
             echo ">>> ローカル経路へ切り替えてください: scripts/release/appstore-archive.sh --version $VERSION --build $BUILD --upload (この Mac、Admin 鍵のクラウド署名)"
@@ -432,10 +436,12 @@ jobs:
       # upload が終わっても ASC 側の処理で build が見えるまで数十秒〜数分かかる。
       # «アップロードできたか» の判定をこの run の終了コードではなく ASC 実状態
       # (build の存在と processingState) で行う — 0.45.0 の教訓 (conclusion と
-      # 実状態の食い違い) の機械化。upload をスキップした (再利用) 場合も
-      # ここで現在の状態を確認して記録に残す (issue #615)
+      # 実状態の食い違い) の機械化。**upload step が失敗したあとも実行する**
+      # (always() — エクスポートが失敗に見えても ASC が build を受理している
+      # ことがあり、その判定をこの run 内で済ませるため。レビュー指摘)。
+      # upload をスキップした (再利用) 場合もここで現在の状態を確認する (issue #615)
       - name: Confirm the build in ASC (read-only poll)
-        if: inputs.mode == 'upload'
+        if: ${{ always() && inputs.mode == 'upload' }}
         env:
           VERSION: ${{ inputs.version }}
           BUILD: ${{ inputs.build }}
@@ -444,7 +450,13 @@ jobs:
         run: |
           DEADLINE=$((SECONDS + 20 * 60))
           while :; do
-            OUT="$(python3 scripts/release/mas-state.py --app "$APP_ID" --version "$VERSION" --build "$BUILD")"
+            # mas-state.py 自体が短いリトライを持つが、それでも失敗した (レート制限・
+            # 5xx が続く) ときに 1 回の例外で poll を中断しない — «状態不明» として
+            # poll を続け、期限だけが結果を決める (レビュー指摘)
+            if ! OUT="$(python3 scripts/release/mas-state.py --app "$APP_ID" --version "$VERSION" --build "$BUILD")"; then
+              echo "[poll] mas-state.py が一時エラー (レート制限・5xx など) — 60 秒後に再試行します"
+              OUT=""
+            fi
             echo "$OUT"
             STATE="$(sed -n 's/^build_state=//p' <<<"$OUT")"
             MATCH="$(sed -n 's/^build_version_match=//p' <<<"$OUT")"

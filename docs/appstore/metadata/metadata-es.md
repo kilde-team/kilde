@@ -660,12 +660,11 @@ Dejar una reseña es ahora más fácil. Cuando la transcripción de una grabaci�
 
 ## Novedades (0.46.0)
 
-Flujo de envío al MAS idempotente y más fiable (issue #615). **Sin cambios de
-código de la app respecto a 0.45.0** — esta versión solo toca la infraestructura
-de publicación (idempotencia del workflow, vigilancia de estancamiento,
-verificar el estado real de ASC) y el binario distribuido no cambia. Las
-Novedades siguen el precedente de 0.43.0 / 0.44.0: indicar con franqueza que la
-app no cambia.
+Flujo de envío al MAS idempotente y más fiable (issue #615). **Las funciones y
+el código de la app no cambian respecto a 0.45.0** — esta versión solo toca la
+infraestructura de publicación (idempotencia del workflow, vigilancia de
+estancamiento, verificar el estado real de ASC). Las Novedades siguen el
+precedente de 0.43.0 / 0.44.0: indicar con franqueza que la app no cambia.
 
 ```text
 Esta es una versión de mantenimiento. No hay cambios en las funciones de grabación ni de transcripción.

@@ -650,11 +650,11 @@ It is now easier to leave a review. When a recording's transcription finishes su
 
 ## What's New (0.46.0)
 
-Idempotent and more reliable MAS submission workflow (issue #615). **No app code
-change from 0.45.0** — this release only touches the release infrastructure
-(workflow idempotency, a stall watchdog, judging by the actual ASC state), and
-the shipped binary is unchanged. What's New follows the 0.43.0 / 0.44.0
-precedent: state plainly that the app itself is unchanged.
+Idempotent and more reliable MAS submission workflow (issue #615). **The app
+features and code are unchanged from 0.45.0** — this release only touches the
+release infrastructure (workflow idempotency, a stall watchdog, judging by the
+actual ASC state). What's New follows the 0.43.0 / 0.44.0 precedent: state
+plainly that the app itself is unchanged.
 
 ```text
 This is a maintenance release. There are no changes to the recording or transcription features.
