@@ -26,6 +26,10 @@ GitHub Actions の step outputs 形式 (``key=value`` 行) で出力する。
     version_editable=true                  # メタデータ・build 割当てが可能な状態か
     build_state=VALID                      # build の processingState。--build 未指定 / 未登録は absent
     build_present=true                     # 指定した build 番号が ASC に存在するか
+    build_version_match=true               # その build の cfBundleShortVersionString が --version と一致するか
+                                           # (--build 未指定は absent。build 番号は app 全体で一意なため、
+                                           # 番号だけの一致は別版の build を拾いうる — 再利用ゲートは
+                                           # この一致を見る)
 
 ``version_editable`` の集合 (Apple の AppStoreVersionState のうち編集可能なもの):
 PREPARE_FOR_SUBMISSION / REJECTED / DEVELOPER_REJECTED / METADATA_REJECTED /
@@ -117,29 +121,58 @@ def main() -> int:
     # «同じ番号の build が既に載っている» なら upload は再アーカイブせず再利用する
     build_state = "absent"
     build_present = False
+    build_version_match = "absent"  # --build 未指定
     if args.build:
-        for build in flows.list_builds(client, args.app):
-            if str(build.get("attributes", {}).get("version")) == str(args.build):
-                build_state = build.get("attributes", {}).get("processingState", "unknown")
-                build_present = True
-                break
+        # «この番号の build がどの配布バージョンで焼かれたか» は builds の fields
+        # では取れない (cfBundleShortVersionString / appVersion は fields に渡すと
+        # HTTP 400 — asc-submit の実測メモ «fields[builds] は version +
+        # processingState» どおり)。build 番号は app 全体で一意なため «番号が一致
+        # する build» を見つけた後で、その build の preReleaseVersion リレーション
+        # (attributes.version = CFBundleShortVersionString) を個別に照会して
+        # --version と一致するかを見る。番号だけの一致は、別バージョンで焼かれた
+        # build (番号の打ち間違い・旧コマンドの再実行) を誤って再利用しうる
+        builds = client.get_all(
+            f"/v1/apps/{args.app}/builds",
+            {"fields[builds]": "version,processingState"},
+        )
+        for build in builds:
+            attrs = build.get("attributes", {})
+            if str(attrs.get("version")) != str(args.build):
+                continue
+            build_state = attrs.get("processingState", "unknown")
+            build_present = True
+            pre = client.get(f"/v1/builds/{build['id']}/preReleaseVersion")
+            pre_version = (pre.get("data", {}).get("attributes") or {}).get("version")
+            build_version_match = "true" if pre_version == args.version else "false"
+            break
 
     result = {
         "version_state": version_state,
         "version_editable": "true" if version_editable else "false",
         "build_state": build_state,
         "build_present": "true" if build_present else "false",
+        "build_version_match": build_version_match,
     }
 
-    # 人間向けの説明は stderr へ (--quiet のときも)。key=value の stdout は
+    # 人間向けの説明は stderr へ。key=value の stdout は
     # GITHUB_OUTPUT / poll step の解析に使う
     print(f"mas-state: version {args.version} state={version_state} editable={'yes' if version_editable else 'no'}", file=sys.stderr)
     if args.build:
-        print(f"mas-state: build {args.build} state={build_state} present={'yes' if build_present else 'no'}", file=sys.stderr)
+        print(
+            f"mas-state: build {args.build} state={build_state} present={'yes' if build_present else 'no'} "
+            f"version_match={build_version_match}",
+            file=sys.stderr,
+        )
     if version_state not in ("absent",) and not version_editable:
         print(
             f"mas-state: version {args.version} は提出済み以降の状態 ({version_state}) のため、"
             "メタデータ・build 割当て・再提出は実行しても 409 で拒否されます (冪等スキップの対象)",
+            file=sys.stderr,
+        )
+    if build_present and build_version_match == "false":
+        print(
+            f"mas-state: build {args.build} はバージョン {args.version} とは別の版の build です "
+            "(preReleaseVersion の version が不一致) — この番号は再利用できません。build 番号を増やしてください",
             file=sys.stderr,
         )
     if build_present and build_state in DEAD_BUILD_STATES:
