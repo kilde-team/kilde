@@ -487,17 +487,34 @@ jobs:
             echo ">>> ローカル経路へ切り替えてください: scripts/release/appstore-archive.sh --version $VERSION --build $BUILD --upload (この Mac、Admin 鍵のクラウド署名)"
             # ここから下は kill **後**の診断 — security 系が仮説どおり応答しなくても
             # 打ち切り自体は上で完了している (cubic レビュー指摘の順序)。
-            # || true は必須 — shell: bash は -e -o pipefail で走るため、診断の失敗で
-            # この後の tail と exit 1 を飛ばさないため
-            echo ">>> [keychain] 既定キーチェーン: $(security default-keychain 2>/dev/null || echo 不明)"
+            # ただし `|| true` は **終了コード非ゼロ** には効いても **ハング** には
+            # 効かない — ロック状態のキーチェーンで unlock ダイアログ待ちに沈黙する
+            # こと (issue #470 の仮説そのもの) を想定し、security 系は 1 回 15 秒で
+            # 打ち切る (ocr レビュー指摘)。打ち切らないと、この後の [log] と
+            # tail -30 / exit 1 がジョブ上限まで飛び、#615 の «打ち切り後も停滞» に戻る
+            run_bounded() {
+              # $RUNNER_TEMP は step 間で消えるが同一 step 内では有効。出力は
+              # ファイル経由 (パイプ直受けだと kill 後のバッファが消えるため)
+              local out="$RUNNER_TEMP/bounded-diag.txt" p w
+              "$@" >"$out" 2>&1 &
+              p=$!
+              ( sleep 15; kill -9 "$p" 2>/dev/null ) &
+              w=$!
+              wait "$p" 2>/dev/null || true
+              kill "$w" 2>/dev/null || true
+              wait "$w" 2>/dev/null || true
+              cat "$out"
+              return 0
+            }
+            echo ">>> [keychain] 既定キーチェーン: $(run_bounded security default-keychain || echo 不明)"
             for kc in "$HOME/Library/Keychains/login.keychain-db" "$HOME/Library/Keychains/login.keychain"; do
               [ -f "$kc" ] || continue
-              security show-keychain-info "$kc" 2>&1 \
-                | sed "s|^|>>> [keychain] $(basename "$kc"): |" || true
+              run_bounded security show-keychain-info "$kc" \
+                | sed "s|^|>>> [keychain] $(basename "$kc"): |"
               break
             done
             echo ">>> [identity] codesigning identity の可視性 (-v = private key ありのみ):"
-            security find-identity -v -p codesigning 2>&1 | sed 's/^/>>> [identity] /' || true
+            run_bounded security find-identity -v -p codesigning | sed 's/^/>>> [identity] /'
             # 全文ログをランナーの永続ディレクトリへも退ける。RUNNER_TEMP はジョブ後に
             # 消えるため、0.47.0 までは «停滞ログの事後調査» が run ログの tail しか
             # 手掛かり無しでできなかった (issue #623)。失敗したら run ログの tail のみ
