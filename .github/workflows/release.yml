@@ -82,7 +82,10 @@ jobs:
           # TranscriptionRun.Outcome.completed の summaryFailure)
           # v0.27.1: summaryFailureReason の改行整形を isNewline ベースに修正
           # (kilde-cli-swift#154 — CRLF 対応。gui/project.yml と同じ pin)
-          ref: v0.27.1
+          # v0.27.2: summaryFailureReason まわりのコメントの機序説明を整理
+          # (kilde-cli-swift#156 — コメントのみ・挙動は v0.27.1 から不変。
+          # gui/project.yml と同じ pin)
+          ref: v0.27.2
           # private リポジトリ: GITHUB_TOKEN は他リポジトリを読めないため
           # fine-grained PAT (contents:read) を使う
           token: ${{ secrets.KILDE_CLI_SWIFT_TOKEN }}

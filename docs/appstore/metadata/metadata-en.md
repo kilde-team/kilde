@@ -675,3 +675,16 @@ and does not use the internal term CRLF in the user-facing text.
 ```text
 The reason shown when summary generation fails is now trimmed to one line more reliably. Depending on the line-break style of the error description, the description could previously appear across multiple lines. Recording, transcription, and summary generation are unchanged.
 ```
+
+## What's New (0.48.0)
+
+Maintenance release (kilde#623). **Features and code are unchanged from
+0.47.0** — the engine (kilde-cli-swift v0.27.2) only rewords two code
+comments to match the actual split behavior (kilde-cli-swift#156 — behavior
+and tests unchanged), and the recording, transcription, and summary
+implementations are unchanged. What's New follows the 0.46.0 precedent:
+state plainly that the app itself is unchanged.
+
+```text
+This is a maintenance release. There are no changes to the recording or transcription features.
+```
