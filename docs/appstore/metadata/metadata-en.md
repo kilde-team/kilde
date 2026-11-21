@@ -659,3 +659,19 @@ plainly that the app itself is unchanged.
 ```text
 This is a maintenance release. There are no changes to the recording or transcription features.
 ```
+
+## What's New (0.47.0)
+
+Engine-side display fix (kilde-cli-swift#154 — the GUI counterpart shipped in
+kilde#585). `TranscriptionRun.summaryFailureReason(of:)` now splits on
+`isNewline`. The previous `split(separator: "\n")` could not split CRLF
+(`\r\n`) error descriptions (e.g. Windows-originated), so the whole
+multi-line description could reach the GUI note and the CLI warning line.
+The GUI note ("The summary could not be generated (…)", per
+Localizable.xcstrings) stays on one line. Recording, transcription, and
+summary generation are unchanged — the copy states only what is implemented
+and does not use the internal term CRLF in the user-facing text.
+
+```text
+The reason shown when summary generation fails is now trimmed to one line more reliably. Depending on the line-break style of the error description, the description could previously appear across multiple lines. Recording, transcription, and summary generation are unchanged.
+```

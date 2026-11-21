@@ -669,3 +669,20 @@ precedente de 0.43.0 / 0.44.0: indicar con franqueza que la app no cambia.
 ```text
 Esta es una versión de mantenimiento. No hay cambios en las funciones de grabación ni de transcripción.
 ```
+
+## Novedades (0.47.0)
+
+Corrección de visualización en el motor (kilde-cli-swift#154 — el arreglo
+equivalente del lado de la GUI se hizo en kilde#585).
+`TranscriptionRun.summaryFailureReason(of:)` ahora divide por `isNewline`.
+El `split(separator: "\n")` anterior no podía dividir descripciones de error
+con CRLF (`\r\n`, p. ej. de origen Windows), y la descripción completa podía
+llegar con sus saltos de línea a la note de la GUI y a la línea ⚠ del CLI.
+La note de la GUI y la línea ⚠ quedan en una sola línea. La grabación, la
+transcripción y la generación del resumen no cambian — el texto solo afirma
+lo que está implementado y no usa el término interno CRLF en el texto para
+usuarios.
+
+```text
+El motivo que se muestra cuando falla la generación del resumen ahora se ajusta a una sola línea con más fiabilidad. Según el estilo de salto de línea de la descripción del error, la descripción completa podía aparecer en varias líneas. La grabación, la transcripción y la generación del resumen no cambian.
+```
