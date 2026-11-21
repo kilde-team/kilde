@@ -456,41 +456,20 @@ jobs:
           done
           RC=0
           if [ -n "$KILLED" ]; then
-            # 診断は kill の**前**に採る — プロセスツリーは kill で消える (issue #623)。
-            # 出力はすべて読み取りのみで、打ち切りの動作は #615 から変えない。
-            # [keychain]/[identity] は «codesign が署名鍵へのアクセス待ちで沈黙» 仮説
-            # (issue #470) の検証材料 — キーチェーンのロック状態と、クラウド作成の
-            # Apple Development identity がこのセッションから見えるか。どちらも
-            # プロンプトを出さない読み取り系のコマンド
-            echo ">>> --- 打ち切り時の診断 (kill 前。issue #623 の観測性改善) ---"
+            # kill の**前**に採るのは、kill で消えるものだけ (プロセスツリー)。
+            # [keychain]/[identity] の診断と全文ログの複製は kill の**後**に回す —
+            # security 系はキーチェーンがロック state のときに応答しない可能性があり
+            # (調査中の仮説そのもの)、kill 前に置くと watchdog が打ち切れず job 上限
+            # までの停滞に戻るため (cubic レビュー指摘)。打ち切りの動作は #615 から
+            # 変えない。[keychain]/[identity] は «codesign が署名鍵へのアクセス待ちで
+            # 沈黙» 仮説 (issue #470) の検証材料
+            echo ">>> --- 打ち切り時の診断 (issue #623 の観渾性改善) ---"
             echo ">>> [phase] 段階: $(stall_phase)"
-            echo ">>> [proc] xcodebuild / codesign 系の滞留:"
+            echo ">>> [proc] xcodebuild / codesign 系の滞留 (kill 前):"
             ps -o pid,ppid,stat,etime,command -ax 2>/dev/null \
               | grep -E "xcodebuild|codesign|appstore-archive|SWBBuildService" \
               | grep -v grep \
               || echo ">>> [proc] 対応するプロセスは見つかりません"
-            echo ">>> [keychain] 既定キーチェーン: $(security default-keychain 2>/dev/null || echo 不明)"
-            for kc in "$HOME/Library/Keychains/login.keychain-db" "$HOME/Library/Keychains/login.keychain"; do
-              [ -f "$kc" ] || continue
-              # || true は必須 — shell: bash は -e -o pipefail で走るため、
-              # show-keychain-info が 0 以外で終わると (ロック状態の出力有無にかかわらず)
-              # パイプラインごと失敗になり、この後の kill に到達しないで停滞した
-              # アーカイブを残したまま step が落ちる (ocr レビュー指摘)
-              security show-keychain-info "$kc" 2>&1 \
-                | sed "s|^|>>> [keychain] $(basename "$kc"): |" || true
-              break
-            done
-            echo ">>> [identity] codesigning identity の可視性 (-v = private key ありのみ):"
-            security find-identity -v -p codesigning 2>&1 | sed 's/^/>>> [identity] /' || true
-            # 全文ログをランナーの永続ディレクトリへも退ける。RUNNER_TEMP はジョブ後に
-            # 消えるため、0.47.0 までは «停滞ログの事後調査» が run ログの tail しか
-            # 手掛かり無しでできなかった (issue #623)。失敗したら run ログの tail のみ
-            STALL_LOG_DIR="${ASC_SUBMIT_RUNS_DIR:-$RUNNER_TEMP}/stall"
-            mkdir -p "$STALL_LOG_DIR" 2>/dev/null || STALL_LOG_DIR="$RUNNER_TEMP"
-            STALL_LOG="$STALL_LOG_DIR/mas-upload-$VERSION-build$BUILD-$(date +%Y%m%d-%H%M%S).log"
-            cp "$LOG" "$STALL_LOG" 2>/dev/null || STALL_LOG="(保存できませんでした — run ログの tail のみ)"
-            echo ">>> [log] 停滞時点のログ位置: $(wc -l < "$LOG" 2>/dev/null || echo '?') 行 / $(stat -f %z "$LOG" 2>/dev/null || echo '?') バイト — $KILLED"
-            echo ">>> [log] 全文の保存先 (事後調査用): $STALL_LOG"
             # xcodebuild の残滓も含めて止める。孫プロセス (SWBBuildService など) は
             # «この run の workspace にある DerivedData を触る xcodebuild 系» だけを
             # 拾う — 素の dist/appstore/derived 一致だと、既定の同パスを使う別の
@@ -506,6 +485,28 @@ jobs:
             echo ">>> watchdog が Archive and upload を打ち切りました: $KILLED"
             echo ">>> 0.42.0 以降この経路は «CodeSign あたりで沈黙 → job 上限まで停滞» を繰り返しています (issue #470 / #615)。"
             echo ">>> ローカル経路へ切り替えてください: scripts/release/appstore-archive.sh --version $VERSION --build $BUILD --upload (この Mac、Admin 鍵のクラウド署名)"
+            # ここから下は kill **後**の診断 — security 系が仮説どおり応答しなくても
+            # 打ち切り自体は上で完了している (cubic レビュー指摘の順序)。
+            # || true は必須 — shell: bash は -e -o pipefail で走るため、診断の失敗で
+            # この後の tail と exit 1 を飛ばさないため
+            echo ">>> [keychain] 既定キーチェーン: $(security default-keychain 2>/dev/null || echo 不明)"
+            for kc in "$HOME/Library/Keychains/login.keychain-db" "$HOME/Library/Keychains/login.keychain"; do
+              [ -f "$kc" ] || continue
+              security show-keychain-info "$kc" 2>&1 \
+                | sed "s|^|>>> [keychain] $(basename "$kc"): |" || true
+              break
+            done
+            echo ">>> [identity] codesigning identity の可視性 (-v = private key ありのみ):"
+            security find-identity -v -p codesigning 2>&1 | sed 's/^/>>> [identity] /' || true
+            # 全文ログをランナーの永続ディレクトリへも退ける。RUNNER_TEMP はジョブ後に
+            # 消えるため、0.47.0 までは «停滞ログの事後調査» が run ログの tail しか
+            # 手掛かり無しでできなかった (issue #623)。失敗したら run ログの tail のみ
+            STALL_LOG_DIR="${ASC_SUBMIT_RUNS_DIR:-$RUNNER_TEMP}/stall"
+            mkdir -p "$STALL_LOG_DIR" 2>/dev/null || STALL_LOG_DIR="$RUNNER_TEMP"
+            STALL_LOG="$STALL_LOG_DIR/mas-upload-$VERSION-build$BUILD-$(date +%Y%m%d-%H%M%S).log"
+            cp "$LOG" "$STALL_LOG" 2>/dev/null || STALL_LOG="(保存できませんでした — run ログの tail のみ)"
+            echo ">>> [log] 停滞時点のログ位置: $(wc -l < "$LOG" 2>/dev/null || echo '?') 行 / $(stat -f %z "$LOG" 2>/dev/null || echo '?') バイト — $KILLED"
+            echo ">>> [log] 全文の保存先 (事後調査用): $STALL_LOG"
             echo ">>> --- 最後の 30 行 ---"
             tail -30 "$LOG"
             exit 1
