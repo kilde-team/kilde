@@ -266,7 +266,7 @@ jobs:
           else
             echo "version $VERSION は既に $STATE (提出済み以降で編集不可) — apply をスキップして success で終わります"
           fi
-          echo "(冪等スキップ — 提出済み版への再 dispatch で 409 の failure を作らないため。issue #615)"
+          echo "(冪等スキップ — version_editable が false のため apply を実行しません。issue #615)"
 
       # submit のゲートは version_editable ではなく version_submittable を見る:
       # READY_FOR_REVIEW («草稿に載せたが未提出») は編集できないが提出の確定は
