@@ -98,8 +98,8 @@ docs/                          DEVELOPMENT.md / RELEASE.md / DESIGN.md / SPIKE-N
 
 - **GUI と release workflow の pin は必ず揃える**: `gui/project.yml` の依存 revision と
   `release.yml` の `ref:` は同じコミットを指す (現在はエンジンのタグ
-  `v0.27.0` — `gui/project.yml` は exactVersion `0.27.0`、`release.yml` は `ref: v0.27.0`。
-  issue #577 で更新。以後の pin 更新履歴は `gui/project.yml` のコメントに積む)。
+  `v0.27.1` — `gui/project.yml` は exactVersion `0.27.1`、`release.yml` は `ref: v0.27.1`。
+  issue #577 で v0.27.0 に、issue #619 で v0.27.1 に更新。以後の pin 更新履歴は `gui/project.yml` のコメントに積む)。
   片方だけ更新すると、GUI と配布 CLI が**別のエンジン revision** でビルドされる。
   更新は必ず同じ PR で行い、手順は docs/RELEASE.md「CLI ソースの pin の更新」
 - **`KILDE_CLI_SWIFT_TOKEN` が無いと release が作れない**: GITHUB_TOKEN は他リポジトリを
