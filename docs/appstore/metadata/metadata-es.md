@@ -686,3 +686,17 @@ usuarios.
 ```text
 El motivo que se muestra cuando falla la generación del resumen ahora se ajusta a una sola línea con más fiabilidad. Según el estilo de salto de línea de la descripción del error, la descripción completa podía aparecer en varias líneas. La grabación, la transcripción y la generación del resumen no cambian.
 ```
+
+## Novedades (0.48.0)
+
+Versión de mantenimiento (kilde#623). **Las funciones y el código de la app
+no cambian respecto a 0.47.0** — el motor (kilde-cli-swift v0.27.2) solo
+reescribe la explicación del mecanismo en dos comentarios de código para
+que coincida con el comportamiento real del split (kilde-cli-swift#156 —
+el comportamiento y las pruebas no cambian), y la grabación, la transcripción
+y el resumen no cambian. Las Novedades siguen el precedente de 0.46.0:
+indicar con franqueza que la app no cambia.
+
+```text
+Esta es una versión de mantenimiento. No hay cambios en las funciones de grabación ni de transcripción.
+```

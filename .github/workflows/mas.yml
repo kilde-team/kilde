@@ -375,7 +375,55 @@ jobs:
           # 打ち切り後の経路は 0.43.0 / 0.44.0 / 0.45.0 の前例どおりローカルの
           # appstore-archive.sh への切り替え (issue #470 のキーチェーン/証明書まわりの
           # 調査が正本。ここでは «ハングを 2 時間観察しない» ことだけを担う)
+          #
+          # 観測性の追加 (issue #623 — #470 の根本調査の一環)。0.47.0 (run 44935370555)
+          # でも watchdog は効いたが、«どの段階で沈黙したか» は tail の最終行から人間が
+          # 推測するしかなく、書き出したログは RUNNER_TEMP ごとに消えて事後調査が
+          # できなかった。そこへ:
+          #   - ハートビートに «停滞している段階» (ログ中の最後のマーカー行から推定) と
+          #     ログのバイト数を出す
+          #   - 打ち切り時に、kill 前のプロセスツリー (codesign の滞留) と、キーチェーンの
+          #     ロック状態・署名 identity の可視性 (すべて読み取りのみの診断) を出す —
+          #     «codesign が署名鍵へのアクセス待ちで沈黙» 仮説 (issue #470) の検証材料
+          #   - 全文ログを ASC_SUBMIT_RUNS_DIR (ランナーのホーム直下・永続) にも退け、
+          #     打ち切り後の事後調査を可能にする
+          # 打ち切りの判定 (無出力時間 / 上限) と打ち切り後の案内は #615 から変えない
           LOG="$RUNNER_TEMP/mas-upload-$VERSION-build$BUILD.log"
+          # ログ中のマーカーから «いまどの段階か» を推定する (最後に一致した行を採る)。
+          # bash 3.2 (macOS 標準) 向けに連想配列は使わない。マーカーは 0.47.0 の実ログ
+          # (run 44935370555 — nanopb_nanopb.bundle の CodeSign で沈黙) を含む実績のある
+          # 区切り。出力は job ログの監査用で、打ち切りの判定には使わない
+          # (判定は無出力時間のまま — #615 から不変)
+          stall_phase() {
+            if [ ! -f "$LOG" ]; then
+              echo "ログ未作成 (起動直後)"
+              return
+            fi
+            local best_n=0 best_label="ログ先頭 (起動直後)" spec re label hit
+            # YAML のブロックスカラー内では heredoc の行をインデントできないため
+            # 配列で持つ (| は «正規表現|ラベル» の区切り。ラベル側に | は無い)
+            local markers=(
+              "appstore: xcodegen|プロジェクト生成 (xcodegen)"
+              "Resolve Package Graphs|パッケージ依存の解決"
+              "appstore: アーカイブを開始|アーカイブ開始 (xcodebuild archive)"
+              "CodeSign |アーカイブ中 (CodeSign — ネスト署名)"
+              "Signing Identity:|署名 identity の選択"
+              "Build description signature|Build description signature"
+              "ARCHIVE SUCCEEDED|アーカイブ完了 → エクスポート/アップロード"
+              "ARCHIVE FAILED|アーカイブ失敗"
+              "EXPORT SUCCEEDED|エクスポート/アップロード完了"
+            )
+            for spec in "${markers[@]}"; do
+              re="${spec%%|*}"
+              label="${spec#*|}"
+              hit=$(grep -n -E "$re" "$LOG" 2>/dev/null | tail -n 1 | cut -d: -f1)
+              if [ -n "$hit" ] && [ "$hit" -gt "$best_n" ]; then
+                best_n=$hit
+                best_label="$label"
+              fi
+            done
+            echo "$best_label (最後のマーカー: 行 $best_n)"
+          }
           scripts/release/appstore-archive.sh --version "$VERSION" --build "$BUILD" --upload >"$LOG" 2>&1 &
           PID=$!
           START=$SECONDS
@@ -393,7 +441,8 @@ jobs:
             NOW=$SECONDS
             SIZE=$(stat -f %z "$LOG" 2>/dev/null || echo 0)
             if [ "$SIZE" != "$LAST_SIZE" ]; then LAST_CHANGE=$NOW; LAST_SIZE=$SIZE; fi
-            echo "[watchdog] 経過 $(( (NOW - START) / 60 )) 分 / 無出力 $(( (NOW - LAST_CHANGE) / 60 )) 分 | $(tail -n 1 "$LOG" | cut -c1-160)"
+            echo "[watchdog] 経過 $(( (NOW - START) / 60 )) 分 / 無出力 $(( (NOW - LAST_CHANGE) / 60 )) 分 / ログ $SIZE バイト | 段階: $(stall_phase)"
+            echo "[watchdog] 最終行: $(tail -n 1 "$LOG" 2>/dev/null | cut -c1-160)"
             if [ $(( (NOW - LAST_CHANGE) / 60 )) -ge "$MAS_UPLOAD_IDLE_LIMIT_MIN" ]; then
               KILLED="idle (無出力 ${MAS_UPLOAD_IDLE_LIMIT_MIN} 分)"
               break
@@ -405,6 +454,36 @@ jobs:
           done
           RC=0
           if [ -n "$KILLED" ]; then
+            # 診断は kill の**前**に採る — プロセスツリーは kill で消える (issue #623)。
+            # 出力はすべて読み取りのみで、打ち切りの動作は #615 から変えない。
+            # [keychain]/[identity] は «codesign が署名鍵へのアクセス待ちで沈黙» 仮説
+            # (issue #470) の検証材料 — キーチェーンのロック状態と、クラウド作成の
+            # Apple Development identity がこのセッションから見えるか。どちらも
+            # プロンプトを出さない読み取り系のコマンド
+            echo ">>> --- 打ち切り時の診断 (kill 前。issue #623 の観測性改善) ---"
+            echo ">>> [phase] 段階: $(stall_phase)"
+            echo ">>> [proc] xcodebuild / codesign 系の滞留:"
+            ps -o pid,ppid,stat,etime,command -ax 2>/dev/null \
+              | grep -E "xcodebuild|codesign|appstore-archive|SWBBuildService" \
+              | grep -v grep \
+              || echo ">>> [proc] 対応するプロセスは見つかりません"
+            echo ">>> [keychain] 既定キーチェーン: $(security default-keychain 2>/dev/null || echo 不明)"
+            for kc in "$HOME/Library/Keychains/login.keychain-db" "$HOME/Library/Keychains/login.keychain"; do
+              [ -f "$kc" ] || continue
+              security show-keychain-info "$kc" 2>&1 | sed "s|^|>>> [keychain] $(basename "$kc"): |"
+              break
+            done
+            echo ">>> [identity] codesigning identity の可視性 (-v = private key ありのみ):"
+            security find-identity -v -p codesigning 2>&1 | sed 's/^/>>> [identity] /' || true
+            # 全文ログをランナーの永続ディレクトリへも退ける。RUNNER_TEMP はジョブ後に
+            # 消えるため、0.47.0 までは «停滞ログの事後調査» が run ログの tail しか
+            # 手掛かり無しでできなかった (issue #623)。失敗したら run ログの tail のみ
+            STALL_LOG_DIR="${ASC_SUBMIT_RUNS_DIR:-$RUNNER_TEMP}/stall"
+            mkdir -p "$STALL_LOG_DIR" 2>/dev/null || STALL_LOG_DIR="$RUNNER_TEMP"
+            STALL_LOG="$STALL_LOG_DIR/mas-upload-$VERSION-build$BUILD-$(date +%Y%m%d-%H%M%S).log"
+            cp "$LOG" "$STALL_LOG" 2>/dev/null || STALL_LOG="(保存できませんでした — run ログの tail のみ)"
+            echo ">>> [log] 停滞時点のログ位置: $(wc -l < "$LOG" 2>/dev/null || echo '?') 行 / $(stat -f %z "$LOG" 2>/dev/null || echo '?') バイト — $KILLED"
+            echo ">>> [log] 全文の保存先 (事後調査用): $STALL_LOG"
             # xcodebuild の残滓も含めて止める。孫プロセス (SWBBuildService など) は
             # «この run の workspace にある DerivedData を触る xcodebuild 系» だけを
             # 拾う — 素の dist/appstore/derived 一致だと、既定の同パスを使う別の
