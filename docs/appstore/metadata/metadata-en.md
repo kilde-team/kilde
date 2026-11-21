@@ -647,3 +647,15 @@ Review-and-rating flow improvements (issue #612 — a step on investigation issu
 ```text
 It is now easier to leave a review. When a recording's transcription finishes successfully, kilde now asks for an App Store review when the timing is right — recordings made without transcription are judged right after the recording ends, and with summaries enabled, right after the summary is generated. Previously the request was only considered right after the recording ended, so it was carried over to a later recording whenever transcription was still running. Requests are never shown again within 90 days and follow the system's frequency limits. Settings → "Support this app" now includes "Rate kilde on the App Store", which opens the review page any time. Recording and transcription are currently free.
 ```
+
+## What's New (0.46.0)
+
+Idempotent and more reliable MAS submission workflow (issue #615). **No app code
+change from 0.45.0** — this release only touches the release infrastructure
+(workflow idempotency, a stall watchdog, judging by the actual ASC state), and
+the shipped binary is unchanged. What's New follows the 0.43.0 / 0.44.0
+precedent: state plainly that the app itself is unchanged.
+
+```text
+This is a maintenance release. There are no changes to the recording or transcription features.
+```

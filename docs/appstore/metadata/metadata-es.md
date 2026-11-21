@@ -657,3 +657,16 @@ Refuerzo del flujo de valoraciones y reseñas (issue #612 — una medida sobre e
 ```text
 Dejar una reseña es ahora más fácil. Cuando la transcripción de una grabación termina correctamente, kilde pide una reseña en el App Store si el momento es adecuado. En las grabaciones hechas sin transcripción, se valora justo al terminar la grabación; con el resumen (acta) activado, justo después de generarlo. Antes solo se valoraba justo al terminar la grabación, así que se aplazaba a una grabación posterior mientras la transcripción seguía en marcha). Las solicitudes no se vuelven a mostrar durante al menos 90 días y respetan los límites de frecuencia del sistema. En Ajustes → «Apoya esta app» se ha añadido «Valorar en el App Store», que abre la página de reseñas en cualquier momento. La grabación y la transcripción son actualmente gratuitas.
 ```
+
+## Novedades (0.46.0)
+
+Flujo de envío al MAS idempotente y más fiable (issue #615). **Sin cambios de
+código de la app respecto a 0.45.0** — esta versión solo toca la infraestructura
+de publicación (idempotencia del workflow, vigilancia de estancamiento,
+verificar el estado real de ASC) y el binario distribuido no cambia. Las
+Novedades siguen el precedente de 0.43.0 / 0.44.0: indicar con franqueza que la
+app no cambia.
+
+```text
+Esta es una versión de mantenimiento. No hay cambios en las funciones de grabación ni de transcripción.
+```
