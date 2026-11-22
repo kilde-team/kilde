@@ -175,3 +175,47 @@ if command -v actionlint >/dev/null; then actionlint .github/workflows/release.y
   キーの現況・実行手順・審査中ビルドの差し替え手順は docs/RELEASE.md §7
 - 検証に使う音声・録画ファイルはリポジトリにコミットしない
   (セルフテストは `KILDE_GUI_SELFTEST_OUTPUT` で一時ディレクトリへ出せる)
+
+## 7. 単一の真実 (SSoT)
+
+以下を重複定義せず、必ず正本 1 箇所を編集・参照する (実在するものだけを載せる):
+
+| 対象 | 正本 |
+|---|---|
+| プロダクトの地図と地雷 (§3〜§5) | `CLAUDE.md` (**変更しない** — 地図と地雷の正本) |
+| リリース手順 (直接配布 / MAS / tap / pin) | `docs/RELEASE.md` |
+| リリースノートの本文 | `docs/release-notes/v<VERSION>.md` (issue #283 — Release 本文と appcast を 1 ファイルで供給) |
+| KPI の定義・月次台帳・IAP 台帳 | `docs/metrics.md` (issue #159 / #598) |
+| ASC メタデータ変更前後の計測台帳 | `docs/appstore/metadata/metrics.md` (issue #160) |
+| MAS メタデータの文面 (説明 / キーワード / サブタイトル) | `docs/appstore/metadata/` (`metadata-*.md`) |
+| エンジン pin | `gui/project.yml` の `exactVersion` と `.github/workflows/release.yml` の `ref:` の **対** (§4 — 同じ PR で揃える) |
+| Homebrew formula | `homebrew/Formula/kilde.rb` (正本) ⇔ tap kilde-team/homebrew-kilde |
+| Xcode プロジェクトのビルド設定 | `gui/project.yml` (XcodeGen — `.xcodeproj` は生成物) |
+
+## 8. ワークスペーススキル (`.agents/skills/`)
+
+タスク内容に応じて、**着手前に該当スキルを読んでから始める** (段階開示 —
+普段はこの索引だけ読み、詳細は作業時に読む):
+
+- `orchestrator-delegation` — ドメイン分割 (GUI / 配布 / エンジン pin / 計測・運用)、
+  委任ブリーフの必須要素、最終統合ゲート
+- `mas-release-gate` — MAS 提出のランブック (2 段階提出、キー混線禁止、商標、ASC 実状態判定)
+- `direct-distribution-gate` — 直接配布のランブック (Developer ID / notarization /
+  Sparkle / Homebrew tap、MAS 経路との差分)
+- `metrics-ledger-ops` — 計測台帳の運用 (変更 N の期間固定、Sales Report 確定、
+  «データなし・判定不可» の明記)
+
+`.agents/hooks.json` の PreToolUse ガード (`.agents/hooks/safety_guard.py`) は、
+main への直接 push・シークレット出力・エンジン pin の単独編集・配布 workflow
+(`mas.yml` / `release.yml`) の編集に確認 (force_ask) を挟む。**禁止ではなく確認** —
+意図した操作なら理由を確認して進めてよい。`--self-test` でガード自身の
+動作確認ができる。
+
+## 9. Orchestrator の最終責任
+
+ワーカー (サブエージェント / 委任先) の成果物を**そのまま完了扱いにしない**。
+統括側が `git diff` の確認 (意図しないファイルの混入チェック)、層間の整合
+(§4 と §7 の SSoT 突合)、§3 の検証実行を必ず自分で行う。手順の詳細は
+`.agents/skills/orchestrator-delegation/SKILL.md` の最終統合ゲートを参照。
+この節は §2 の worktree 分担・並行開発のルールを変えない — ワーカーも同じく
+1 issue = 1 worktree = 1 ブランチで作業し、完了判定だけが統括側にある。
