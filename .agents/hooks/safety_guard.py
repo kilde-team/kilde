@@ -129,7 +129,9 @@ def _read_repo_file(rel_path: str) -> str | None:
             try:
                 with open(rel_path, "r", encoding="utf-8") as handle:
                     return handle.read()
-            except OSError:
+            except (OSError, UnicodeDecodeError):
+                # 非 UTF-8 でも None を返して呼び出し側の保守的確認に倒す
+                # (ValueError を main() の fail-open に渡さない)
                 return None
         return None
     candidate = os.getcwd()
@@ -139,7 +141,7 @@ def _read_repo_file(rel_path: str) -> str | None:
             try:
                 with open(probe, "r", encoding="utf-8") as handle:
                     return handle.read()
-            except OSError:
+            except (OSError, UnicodeDecodeError):
                 return None
         parent = os.path.dirname(candidate)
         if parent == candidate:
