@@ -34,11 +34,13 @@ kilde は次の 4 ドメインで構成される。ワーカーごとに**担当
 | **エンジン pin** | `gui/project.yml` の kilde-cli-swift `exactVersion` **行** + `release.yml` の `ref:` **行** (2 行だけの所有。pin を変えないリリース作業は配布ドメイン) | 必ず同じ PR で揃える (AGENTS.md §4)。**エンジン本体の変更は本リポジトリでしない** — kilde-team/kilde-cli-swift 側の issue へ切り出す (AGENTS.md §1) |
 | **計測・運用** | `docs/metrics.md`、`docs/appstore/metadata/metrics.md`、`docs/release-notes/`、`docs/launch/` | 台帳運用は `.agents/skills/metrics-ledger-ops/`。数字の捏造禁止 |
 
-**pin 対象行の所有は 1 ワーカーに限定する**: `exactVersion` 行と `ref:` 行は
-«エンジン pin» ドメインのワーカーだけが編集する。GUI ワーカー (`project.yml` の
-他の部分) と配布ワーカー (`release.yml` の他の部分) は pin の行を触らない —
-同一 PR で pin を上げるときは pin ワーカーが両行を一緒に持ち、片側だけの
-更新 (AGENTS.md §4 の差し戻し対象) を構造的に防ぐ。
+**pin 対象のファイルは 1 ワーカーが全体を持つ**: `gui/project.yml` と
+`release.yml` は、pin を更新する PR では «エンジン pin» ドメインのワーカー
+(または順次のハンドオフ) が**ファイル全体**を担当する — «pin の行だけ別ワーカー»
+という同じファイル内の分担は同時編集の衝突を作るためしない。GUI ワーカー
+(`project.yml`) と配布ワーカー (`release.yml`) は、pin 更新の間その 2 ファイルに
+触らない。片側だけの pin 更新 (AGENTS.md §4 の差し戻し対象) はこの方法で
+構造的に防ぐ。
 
 ## 3. 委任ブリーフの必須要素
 
@@ -57,7 +59,10 @@ kilde は次の 4 ドメインで構成される。ワーカーごとに**担当
    worktree とブランチは **issue ごとに 1 つ** (最初の着手者が作成する) —
    同じ issue に複数ワーカーが付くとき、2 人目以降は既存の worktree で作業し
    (`worktree add` を再実行して失敗しない)、担当パスの非重複で衝突を避ける。
-   作成者はブリーフに明記する (既定は Orchestrator)
+   作成者はブリーフに明記する (既定は Orchestrator)。
+   **委任できるのは Orchestrator 自身がその issue の着手者である場合だけ** —
+   他セッションが着手宣言した issue には手を出さない (AGENTS.md §2.1)。着手者
+   である Orchestrator が自分の worktree で作業させる形はこの例外に当たらない
 4. **該当する拘束ルール** — GUI 変更なら CLAUDE.md §5、配布なら docs/RELEASE.md と
    該当スキル、計測なら docs/metrics.md の定義、ドキュメントは日本語で
    «なぜそうしたか» を書くこと (AGENTS.md §2.2)

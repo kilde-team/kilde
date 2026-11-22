@@ -38,12 +38,15 @@ description: >-
    appcast 生成の前で失敗する
 5. **成果物の検証** — Release に upload した後、**ダウンロードした** DMG でも
    docs/RELEASE.md §6 と同じ 3 検査を繰り返す (issue #216 — upload で staple が
-   失われる事故の再発防止。期待値は `accepted source=Notarized Developer ID`):
+   失われる事故の再発防止。期待値は `accepted source=Notarized Developer ID`)。
+   **Release 資産は専用のディレクトリへダウンロードし、そのパスを 3 コマンドに
+   渡す** — `dist/` のローカルビルド物を検査しても upload 後の staple 欠落は
+   検出できない:
 
    ```sh
-   codesign --verify --strict --verbose=2 "dist/KildeGUI-<VERSION>.dmg"
-   spctl --assess --type open --context context:primary-signature -vv "dist/KildeGUI-<VERSION>.dmg"
-   xcrun stapler validate "dist/KildeGUI-<VERSION>.dmg"
+   codesign --verify --strict --verbose=2 <ダウンロードした KildeGUI-<VERSION>.dmg>
+   spctl --assess --type open --context context:primary-signature -vv <同じ DMG>
+   xcrun stapler validate <同じ DMG>
    ```
 
    CLI zip も展開して `codesign --verify --strict --verbose=2 kilde` と

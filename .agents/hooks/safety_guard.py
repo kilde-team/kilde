@@ -62,11 +62,11 @@ SECRET_PRINT_PATTERNS = [
     r"(?:cat|head|tail|less|more)\s[^;\n|&]*\.env\b",
     # API キー変数の値の echo / printf
     r"(?:echo|printf)\s[^;\n|&]*\$\{?" + SECRET_VAR_RE,
-    # printenv (キー名指定 / 引数なしの全環境ダンプの両方)。$(...) の中も
-    # 対象にするため終端に ) も許す
-    r"printenv(?:\s[^;\n|&]*" + SECRET_VAR_RE + r")?\s*(?:$|[;&|)])",
+    # printenv (キー名指定 / 引数なしの全環境ダンプの両方)。$(...) や `...` の
+    # 中も対象にするため終端に ) と ` も許す
+    r"printenv(?:\s[^;\n|&]*" + SECRET_VAR_RE + r")?\s*(?:$|[;&|)`])",
     # env 単体 (全環境変数のダンプ)。$(env) / `env` のようなコマンド置換内も対象
-    r"(?:^|[;&|(]|`)\s*env\s*(?:$|[;&|)])",
+    r"(?:^|[;&|(]|`)\s*env\s*(?:$|[;&|)`])",
     # env を grep 系に流してキー変数を抜く (env | grep AC_API_KEY 等)
     r"(?:^|[;&|(]|`)\s*env\s[^;\n|&]*\|\s*(?:grep|egrep|fgrep|rg|awk|sed)\b"
     r"[^;\n|&]*" + SECRET_VAR_RE,
@@ -179,17 +179,27 @@ def check_run_command(cmd: str) -> tuple[str, str | None]:
         )
 
     # 1b. refspec 未指定の git push — «現在のブランチ → その上流» で、main で
-    # 実行すると main への push になるため確認する
-    if re.search(
-        r"\bgit\s+(?:(?:-[A-Za-z]\s+\S+|--[\w-]+(?:=\S+)?)\s+)*push\s*(?:$|[;&|])",
-        cmd,
+    # 実行すると main への push になるため確認する。push の後がオプションと
+    # remote 名だけ (git push origin / git push --force origin) の形も
+    # refspec 無しとして扱う
+    for push_match in re.finditer(
+        r"\bgit\s+(?:(?:-[A-Za-z]\s+\S+|--[\w-]+(?:=\S+)?)\s+)*push\b", cmd
     ):
-        return (
-            "force_ask",
-            "refspec 未指定の git push は «現在のブランチ → その上流» で、"
-            "main で実行すると main への push になります (AGENTS.md §2)。"
-            "本当に実行しますか？",
-        )
+        tail = re.split(r"[;&|\n]", cmd[push_match.end():], maxsplit=1)[0]
+        tokens = [
+            token
+            for token in tail.split()
+            if not token.startswith("-")
+        ]
+        # 最初の非オプション引数は remote 名、2 個目以降が refspec。
+        # remote までしか無ければ refspec 未指定
+        if len(tokens) <= 1:
+            return (
+                "force_ask",
+                "refspec 未指定の git push は «現在のブランチ → その上流» で、"
+                "main で実行すると main への push になります (AGENTS.md §2)。"
+                "本当に実行しますか？",
+            )
 
     # 2. シークレットの出力
     for pattern in SECRET_PRINT_PATTERNS:
@@ -435,6 +445,9 @@ def self_test() -> int:
         ("ask: コマンド置換内の printenv", "force_ask", run("run_command", {"CommandLine": 'echo "$(printenv AC_API_KEY)"'})),
         ("ask: コマンド置換内の env | grep", "force_ask", run("run_command", {"CommandLine": 'echo "$(env | grep KILDE_ASC_API_KEY)"'})),
         ("ask: refspec 未指定の git push", "force_ask", run("run_command", {"CommandLine": "git push"})),
+        ("ask: remote だけ指定の git push", "force_ask", run("run_command", {"CommandLine": "git push origin"})),
+        ("ask: オプションだけの git push (--force)", "force_ask", run("run_command", {"CommandLine": "git push --force"})),
+        ("ask: バッククォート置換の env", "force_ask", run("run_command", {"CommandLine": "echo `env`"})),
         ("allow: env はコマンド実行の前置として使用", "allow", run("run_command", {"CommandLine": "env FOO=bar xcodebuild -version"})),
         ("allow: 上流つきのブランチ push (-u)", "allow", run("run_command", {"CommandLine": "git push -u origin feature/628-agents-orchestrator"})),
         # --- force_ask: エンジン pin の単独編集 ---
