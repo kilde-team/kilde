@@ -34,12 +34,12 @@ import sys
 
 # --- main への直接 push ----------------------------------------------------
 # 「main」はトークンとして厳密に見る (feature/main-fix や main2 を誤検知しない)。
-# 直前が行頭・空白・コロン (HEAD:main)・force 記号の + (refspec の +main) か
-# refs/heads/ のみを対象にする。git と push の間のグローバルオプション
-# (git -C <path> push など) も許容する — オプションを挟むだけで検知を逃がさない
+# 直前が空白・コロン (HEAD:main)・force 記号の + (refspec の +main) か refs/heads/
+# のみを対象にする。git と push の間のグローバルオプション (git -C <path> push など)
+# も許容する — オプションを挟むだけで検知を逃がさない
 MAIN_PUSH_RE = re.compile(
     r"\bgit\s+(?:(?:-[A-Za-z]\s+\S+|--[\w-]+(?:=\S+)?)\s+)*push\b"
-    r"[^\n;|&]*(?:(?:^|[\s:+])|refs/heads/)main(?![\w-])"
+    r"[^\n;|&]*(?:[\s:+]|refs/heads/)main(?![\w-])"
 )
 
 # --- シークレット -----------------------------------------------------------
@@ -58,17 +58,19 @@ SECRET_PRINT_PATTERNS = [
     # 秘密変数から展開する**形 (cat "$KILDE_ASC_API_KEY") も対象
     r"(?:cat|head|tail|less|more|base64|xxd|od|openssl)\s[^;\n|&]*"
     r"(?:\.p8\b|\$\{?" + SECRET_VAR_RE + r")",
-    # .env の表示
-    r"(?:cat|head|tail|less|more)\s[^;\n|&]*\.env\b",
+    # .env の表示 (.p8 と同様にエンコード出力も対象)
+    r"(?:cat|head|tail|less|more|base64|xxd|od|openssl)\s[^;\n|&]*\.env\b",
     # API キー変数の値の echo / printf
     r"(?:echo|printf)\s[^;\n|&]*\$\{?" + SECRET_VAR_RE,
-    # printenv (キー名指定 / 引数なしの全環境ダンプの両方)。$(...) や `...` の
-    # 中も対象にするため終端に ) と ` も許す
-    r"printenv(?:\s[^;\n|&]*" + SECRET_VAR_RE + r")?\s*(?:$|[;&|)`])",
+    # printenv (キー名指定 / 引数なしの全環境ダンプの両方)。$(...) や `...` の中も
+    # 対象にするため終端に ) と ` も許す。境界に改行も含める — 複数行コマンド
+    # («cmd \n printenv» / «printenv \n cmd») も拾う ($ は re.MULTILINE 無しでは
+    # 文字列末しか見ないため \n を明示する)
+    r"printenv(?:\s[^;\n|&]*" + SECRET_VAR_RE + r")?\s*(?:$|[;&|)`\n])",
     # env 単体 (全環境変数のダンプ)。$(env) / `env` のようなコマンド置換内も対象
-    r"(?:^|[;&|(]|`)\s*env\s*(?:$|[;&|)`])",
+    r"(?:^|[;&|(]|\n|`)\s*env\s*(?:$|[;&|)`\n])",
     # env を grep 系に流してキー変数を抜く (env | grep AC_API_KEY 等)
-    r"(?:^|[;&|(]|`)\s*env\s[^;\n|&]*\|\s*(?:grep|egrep|fgrep|rg|awk|sed)\b"
+    r"(?:^|[;&|(]|\n|`)\s*env\s[^;\n|&]*\|\s*(?:grep|egrep|fgrep|rg|awk|sed)\b"
     r"[^;\n|&]*" + SECRET_VAR_RE,
 ]
 
@@ -128,7 +130,9 @@ def _first_str(args: dict, keys: tuple[str, ...]) -> str | None:
     lowered = {k.lower(): v for k, v in args.items() if isinstance(v, str)}
     for key in keys:
         value = lowered.get(key.lower())
-        if value:
+        if value is not None:
+            # 空文字列は «引数が無い» ではなく «空を明示した» (edit_file での
+            # 行削除は new_string: "") ので、None 判定だけにする
             return value
     return None
 
@@ -192,8 +196,11 @@ def check_run_command(cmd: str) -> tuple[str, str | None]:
             if not token.startswith("-")
         ]
         # 最初の非オプション引数は remote 名、2 個目以降が refspec。
-        # remote までしか無ければ refspec 未指定
-        if len(tokens) <= 1:
+        # remote までしか無ければ refspec 未指定。HEAD / @ / @{u} / @{push} は
+        # «現在のブランチ → その上流» の明示 remote 版なので同じく確認する
+        if len(tokens) <= 1 or any(
+            token in ("HEAD", "@", "@{u}", "@{push}") for token in tokens[1:]
+        ):
             return (
                 "force_ask",
                 "refspec 未指定の git push は «現在のブランチ → その上流» で、"
@@ -412,7 +419,8 @@ def self_test() -> int:
         ("allow: main を含まない push (main-site)", "allow", run("run_command", {"CommandLine": "git push origin feature/main-site"})),
         ("allow: キー変数への設定 (出力ではない)", "allow", run("run_command", {"CommandLine": "export KILDE_ASC_API_KEY=~/private/AuthKey_ABC123.p8"})),
         ("allow: GUI ビルド", "allow", run("run_command", {"CommandLine": "(cd gui && xcodegen && xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI build CODE_SIGNING_ALLOWED=NO)"})),
-        ("allow: project.yml のコメント編集 (pin 行外)", "allow", run("edit_file", {"Path": "gui/project.yml", "old_string": "# GUI の自動更新 (issue #122)", "new_string": "# GUI の自動更新 (issue #122、コメントを整形)"})),
+        ("allow: project.yml のコメント編集 (pin 行外)", "allow", run("edit_file", {"Path": "gui/project.yml", "old_string": "# GUI の自動更新 (issue #122)", "new_string": "# GUI の自動更新 (issue #122、コメントを整形)"}, disk=engine_yml_disk)),
+        ("allow: project.yml の行削除 (new_string 空文字)", "allow", run("edit_file", {"Path": "gui/project.yml", "old_string": "    url: https://github.com/sparkle-project/Sparkle.git\n", "new_string": ""}, disk=engine_yml_disk)),
         ("allow: pin と同値を含む旧コメント行の削除", "allow", run("edit_file", {"Path": "gui/project.yml", "old_string": "# v0.27.2 の注記", "new_string": "# 注記は削除済み"}, disk=engine_yml_disk)),
         ("allow: grep による project.yml の読み取り", "allow", run("run_command", {"CommandLine": "grep exactVersion gui/project.yml"})),
         ("ask: pin の値だけの置換 (トークン無し)", "force_ask", run("edit_file", {"Path": "gui/project.yml", "old_string": ": 0.27.2", "new_string": ": 0.28.0"}, disk=engine_yml_disk)),
@@ -448,6 +456,11 @@ def self_test() -> int:
         ("ask: remote だけ指定の git push", "force_ask", run("run_command", {"CommandLine": "git push origin"})),
         ("ask: オプションだけの git push (--force)", "force_ask", run("run_command", {"CommandLine": "git push --force"})),
         ("ask: バッククォート置換の env", "force_ask", run("run_command", {"CommandLine": "echo `env`"})),
+        ("ask: 上流参照 refspec (git push origin HEAD)", "force_ask", run("run_command", {"CommandLine": "git push origin HEAD"})),
+        ("ask: 複数行コマンドの後段にある env", "force_ask", run("run_command", {"CommandLine": "xcodebuild -version\nenv"})),
+        ("ask: 複数行コマンドの前段にある printenv", "force_ask", run("run_command", {"CommandLine": "printenv SPARKLE_ED25519_PRIVATE_KEY\nswift build"})),
+        ("allow: 秘密を含まない複数行コマンド", "allow", run("run_command", {"CommandLine": "xcodebuild -version\nswift build"})),
+        ("ask: .env の base64 出力", "force_ask", run("run_command", {"CommandLine": "base64 .env"})),
         ("allow: env はコマンド実行の前置として使用", "allow", run("run_command", {"CommandLine": "env FOO=bar xcodebuild -version"})),
         ("allow: 上流つきのブランチ push (-u)", "allow", run("run_command", {"CommandLine": "git push -u origin feature/628-agents-orchestrator"})),
         # --- force_ask: エンジン pin の単独編集 ---
