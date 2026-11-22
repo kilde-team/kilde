@@ -688,3 +688,24 @@ state plainly that the app itself is unchanged.
 ```text
 This is a maintenance release. There are no changes to the recording or transcription features.
 ```
+
+## What's New (0.49.0)
+
+Reliability improvement (kilde#629 — adopting the engine's TranscriptStash,
+kilde-cli-swift#153, in the GUI summary path). Summary generation (the
+on-device LLM map-reduce) is the longest stretch between "transcription
+finished" and "sidecar written"; if the app quit inside that stretch, the
+finished transcript was nowhere to be found. The GUI summary path
+(TranscriptionCoordinator) does not go through the engine's TranscriptionRun,
+so it had the same window — this release adopts the engine's TranscriptStash
+to close it. The finished transcript is written to a hidden stash file
+before the summary starts, and a stash left behind by a crash is recovered
+the next time the summary runs for the same recording. The "cancel writes
+no final file" contract is unchanged (a cancellation leaves neither stash
+nor final). Recording, transcription, and summary generation themselves are
+unchanged. Write only what the implementation does (house style). Keep
+"stash" and "sidecar" out of the customer-facing text.
+
+```text
+If the app quits while a summary is being generated, the completed transcript is no longer lost. It is recovered automatically the next time you run the summary for the same recording. Recording, transcription, and summary generation themselves are unchanged.
+```

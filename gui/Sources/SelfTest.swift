@@ -338,6 +338,20 @@ enum SelfTest {
         if env["KILDE_GUI_SELFTEST_SUMMARY_NOTE"] == "1" {
             reportSummaryNoteRules()
         }
+        // KILDE_GUI_SELFTEST_TRANSCRIPT_STASH=1: 要約経路の退避書き出し (kilde#629 —
+        // エンジン kilde-cli-swift#153 の TranscriptStash の GUI 適用)。
+        // **実録画・実文字起こしを伴わない** (SelfTestTranscriptStash.swift)。
+        // 要約ステップをスタブに差し替えて «要約の道中で退避が在る» «中止時は退避も
+        // 確定も残らない» «孤児退避の回復» «既存確定の上書き禁止» «退避失敗の
+        // fail loud» を決定的に確かめる
+        if env["KILDE_GUI_SELFTEST_TRANSCRIPT_STASH"] == "1" {
+            runTranscriptStash()
+            // runTranscriptStash は検査を Task で非同期に回すため即座に戻る。
+            // このモードを排他的にする — 後続のセルフテスト (UPDATE の
+            // exit(0) など) を走らせると検査の完了を待たずにプロセスが
+            // 終わり、スタッシュの検査結果が失われる
+            return
+        }
         // KILDE_GUI_SELFTEST_UPDATE=1: Sparkle 自動更新の配線と設定を確かめる (issue #122)。
         // 終了は reportUpdateSetup の中 (canCheckForUpdates の待ちがあるため)。
         // App Store ビルドには Sparkle が無い (issue #126) のでこの検証は対象外

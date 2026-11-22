@@ -420,129 +420,316 @@ final class TranscriptionCoordinator: ObservableObject {
                 // «中止» したのにサイドカーが書かれる経路を write の直前で閉じる
                 try Task.checkCancellation()
 
-                // 要約の生成 (issue #163)。文字起こしの後に、サイドカーの**書き出しの前**に
-                // 行う (エンジンの TranscriptionRun と同じ順序)。要約の生成に**失敗**しても
-                // ジョブは失敗にしない — «要約が失敗しても文字起こしは残るべき» (kilde#575) を
-                // エンジン (kilde-cli-swift#151 — TranscriptionRun.Outcome.completed の
-                // summaryFailure) と同じ契約として GUI 側でも実装する。失敗の事実は
-                // 既存の summaryNote 経路 («要約は生成できませんでした (…)» 案内) で伝える。
-                // **中止したときだけ**従来どおりサイドカーを書かない («中止時は出力
-                // ファイルを書かない» 契約 — issue #577 でも変えない)
-                var summary: MeetingSummary?
-                var summaryNote: String?
-                if let template = job.summaryTemplate {
-                    // Apple Intelligence 無効などの環境では録画・文字起こしを成功させたまま
-                    // 要約だけをスキップし、理由を案内として運ぶ (issue #163 «無効な環境での案内»)
-                    if let reason = MeetingSummarizer.unsupportedReason {
-                        // String(localized:) を明示する — 生文字列の代入は xcstrings を
-                        // 引かず、en などの UI でも ja 文がそのまま通知に載るため (issue #571)
-                        summaryNote = String(localized: "要約は生成できませんでした (\(reason))")
-                        UsageAnalytics.summarySkipped(
-                            .unsupportedEnvironment, recordingDuration: job.recordingDuration)
-                    } else {
-                        // Pro の権利 (issue #169/#170 — 要約は第一弾 Pro 機能)。
-                        // UI のロックで要約を選べるのは購入後だけなので、ここに来るのは
-                        // 返金で権利を失った・購入前に有効化していた設定が残っている
-                        // 場合など。文字起こしは成功させたまま要約だけスキップし、
-                        // 案内で伝える (Apple Intelligence 不可の案内と同じ扱い)。
-                        // エンジンのゲート (licenseRequired) はこの前段判定の最終防護
-                        let license = self.licenseProvider()
-                        if !license.allows(.summary) {
-                            summaryNote = String(localized: "要約は生成できませんでした (kilde Pro の購入または購入の復元が必要です)")
-                            UsageAnalytics.summarySkipped(
-                                .proRequired, recordingDuration: job.recordingDuration)
-                        } else if let instructions = job.summaryInstructions,
-                                  !instructions.isEmpty,
-                                  !license.allows(.customInstructions) {
-                            // カスタム指示 (issue #472) は要約に加えて
-                            // customInstructions の権利を要求する (エンジンの 2 段目
-                            // ゲートの前段判定 — 要約自体は権利があれば続行できるが、
-                            // «指示したのに指示なしで生成される» は誤変換より質が悪い
-                            // ので、要約ごとスキップして案内する方針に揃える)
-                            summaryNote = String(localized: "カスタム指示は使えませんでした (kilde Pro の購入または購入の復元が必要です)")
-                            UsageAnalytics.summarySkipped(
-                                .proRequired, recordingDuration: job.recordingDuration)
-                        } else {
-                            // 要約の開始・完了・失敗 (issue #456)。録画長は文字起こしの
-                            // イベントと同じ区分で載せる
-                            UsageAnalytics.summaryStarted(recordingDuration: job.recordingDuration)
-                            self.setPhase(.summarizing(progress: 0), for: job)
-                            try Task.checkCancellation()
-                            let summaryStartedAt = Date()
-                            do {
-                                summary = try await MeetingSummarizer.summarize(
-                                    transcript: segments,
-                                    template: template,
-                                    license: license,
-                                    instructions: job.summaryInstructions,
-                                    onProgress: { progress in
-                                        Task { @MainActor in
-                                            self.setPhase(.summarizing(progress: progress), for: job)
-                                        }
-                                    })
-                            } catch {
-                                // «中止» だけは従来どおり投げ直す — «中止時は出力ファイルを
-                                // 書かない» 契約 (issue #577 でも変えない)。fail は
-                                // CancellationError と TranscriptionError.cancelled の両方を
-                                // «中止» とみなす (cancelled 判定と同じ表現) ので、ここでも
-                                // 両方を握りつぶさない — 片方だけだと «中止したのにサイドカー
-                                // が残る» になりうる (cubic レビュー指摘 — PR #585)。
-                                // summarize が TranscriptionError.cancelled を投げる経路は
-                                // 現状無いはずだが、fail 側の判定と同じ構造で閉じておく
-                                if error is CancellationError { throw error }
-                                if let transcriptionError = error as? TranscriptionError,
-                                   case .cancelled = transcriptionError {
-                                    throw error
-                                }
-                                // 要約だけの失敗はジョブを失敗にしない (issue #577 —
-                                // «要約が失敗しても文字起こしは残るべき» (kilde#575)。
-                                // エンジン kilde-cli-swift#151 と同じ契約)。文字起こしは
-                                // 完了しているのでサイドカーを要約なしで保存し、事実は
-                                // 既存の summaryNote 経路 («要約は生成できませんでした (…)»
-                                // 案内) で伝える。理由の整形はエンジンと同じ優先順位
-                                // (summaryFailureNote(of:)) — 同じ事実を CLI と GUI で
-                                // 同じ文言にするため
-                                summaryNote = "要約は生成できませんでした (\(Self.summaryFailureNote(of: error)))"
-                                // 失敗はここで要約のイベントとして数える。throw しないので
-                                // 先の fail は transcription_fail を送らない — 文字起こし
-                                // 自体の成功と二重計上にならない (従来の«再送出» 指摘と同じ方針)
-                                UsageAnalytics.summaryFailed(
-                                    error, recordingDuration: job.recordingDuration,
-                                    processingTime: Date().timeIntervalSince(summaryStartedAt))
-                            }
-                            if summary != nil {
-                                UsageAnalytics.summaryCompleted(
-                                    recordingDuration: job.recordingDuration,
-                                    processingTime: Date().timeIntervalSince(summaryStartedAt))
-                            }
-                        }
-                    }
-                }
-
-                // 書き出しの直前にも«中止»を確認する (エンジンの PR kilde-cli-swift#57 と
-                // 同じ指摘 — cubic レビュー指摘 PR #585)。要約の長い道中で届いた«中止»を
-                // ここで拾わないと «中止したのにサイドカーが残る» になる («中止時は出力
-                // ファイルを書かない» 契約)。要約の失敗 → 保存 と 中止 が重なったときは
-                // 中止を優先する
-                try Task.checkCancellation()
-
-                // TranscriptWriter.write は **最後に 1 回だけ原子的に書く**
-                // (一時ファイル + rename)。キャンセルでここへ届かなければサイドカーは
-                // 残らない — «キャンセルで出力ファイルが残らない» の根拠。
-                // 要約ありのときは出力を .md に強制する (要約は Markdown の先頭側に載る)。
-                // 見出しの題名 (issue #393) は録画ファイル名から復元する — サイドカーの
-                // 名前も見出しも同じ stem 由来なので、経路 (パネル・通知・ライブラリ) に
-                // 依らずファイル名だけで決まる
-                let outputFormat = job.summaryTemplate != nil ? .markdown : job.format
-                let writtenURL = try TranscriptWriter.write(
-                    segments, as: outputFormat, besideRecording: job.recordingURL,
-                    title: Self.meetingTitle(fromRecordingName: job.recordingURL),
-                    summary: summary)
-                self.finish(job: job, sidecarURL: writtenURL,
-                            summary: summary, summaryNote: summaryNote)
+                // 要約つきの後半処理 (退避 → 要約 → 確定書き出し) は summarizeAndWrite
+                // へ抜き出した (kilde#629 — エンジン kilde-cli-swift#153 の
+                // TranscriptStash を GUI の要約経路へ適用する)。抜き出しの目的は 2 つ:
+                // execute の本体を «録画と文字起こし» に保ち、後半の «ファイルの保全»
+                // を 1 つのメソッドで完結させることと、要約ステップを注入できるように
+                // して «要約の道中の異常終了でも退避が残る» «中止時は退避も確定も
+                // 残らない» をセルフテスト (SelfTestTranscriptStash) で決定的に
+                // 確かめられることにすること (エンジンの TranscriptionRun.summarizeAndWrite
+                // と同じ検証方式)
+                let completion = try await self.summarizeAndWrite(segments, job: job)
+                self.finish(job: job, sidecarURL: completion.sidecarURL,
+                            summary: completion.summary, summaryNote: completion.summaryNote)
             } catch {
                 self.fail(job: job, error: error)
             }
+        }
+    }
+
+    /// 要約 1 ステップのシグネチャ (MeetingSummarizer.summarize と同じ形)。
+    /// summarizeAndWrite の `summarize` 引数の注入口 — 検証時はモデルに依らない
+    /// スタブを渡す (エンジンの TranscriptionRun.summarize と同じ方式)
+    typealias SummaryStep = (
+        _ segments: [TranscriptSegment],
+        _ template: MeetingTemplate,
+        _ license: LicenseContext,
+        _ instructions: ComposerInstructions?,
+        _ onProgress: @escaping @Sendable (Double) -> Void
+    ) async throws -> MeetingSummary
+
+    /// 文字起こしが成功した後の後半処理: 退避書き出し → 要約 → 中止確認 →
+    /// 確定サイドカー書き出し → Completion の構築 (kilde#629 — エンジン
+    /// kilde-cli-swift#153 の TranscriptStash を GUI の要約経路へ適用する)。
+    ///
+    /// 要約 (オンデバイス LLM の map-reduce) は «文字起こし完了 → サイドカー
+    /// 書き出し» の間で最も長い区間で、この道中のクラッシュ・SIGKILL・電源断は
+    /// 完走済みの文字起こしをどこにも残さない。`summarize` が要求されているときは
+    /// **要約の開始前に**完走済みセグメントを退避ファイル (隠しファイル
+    /// `.<確定サイドカー名>.stash-<UUID>`) へ書き、後段の経路ごとに扱う:
+    /// - 要約の**成功** → 確定サイドカー (要約つき) を既存の TranscriptWriter.write
+    ///   (no-replace) で書いて退避を削除
+    /// - 要約の**失敗** (kilde-cli-swift#151 と同じ契約 — 下の summaryNote) →
+    ///   要約なしの確定を書いて退避を削除
+    /// - **中止** (要約ステップの await / 書き出し直前の Task.checkCancellation() —
+    ///   ともに isCancellation で集約) → 退避を削除して投げ直す。確定サイドカーも
+    ///   書かれない («中止時は**確定ファイル**を書かない» — kilde-cli-swift 側
+    ///   DESIGN.md §4 の新契約の維持)
+    /// - **異常終了** (クラッシュ / SIGKILL / 電源断) → 削除コードが走らず退避が
+    ///   残る (データ保全として意図した挙動)。次回の要約つき実行の冒頭
+    ///   (TranscriptStash.recoverOrphans) が連番候補へ回復する
+    ///
+    /// «確定ファイルの上書き禁止» (kilde-cli-swift#36) は退避によっても壊れない —
+    /// 確定は常に TranscriptWriter.write の no-replace 配置で書かれ、退避の確定への
+    /// 切替は «確定を書く + 退避を削除する» の組み合わせで実現する (上書きモードは
+    /// 使わない — エンジンの PR #158 と同じ判断)。
+    ///
+    /// `summarize` を注入できるようにしているのは、«要約の失敗 → 保存»
+    /// «中止 → 退避も確定も残らない» をモデル・Apple Intelligence に依らない
+    /// セルフテスト (SelfTestTranscriptStash) で決定的に検証するため
+    func summarizeAndWrite(
+        _ segments: [TranscriptSegment],
+        job: Job,
+        summarize: SummaryStep? = nil
+    ) async throws -> Completion {
+        // 要約ありのときは出力を .md に強制する (要約は Markdown の先頭側に載る)。
+        // 退避も**同じ形式**で書く — 退避の名前は «確定サイドカーの名前» 由来で、
+        // 形式をずらすと回復時の候補名が確定名と食い違う (エンジンの
+        // TranscriptionRun も request.outputFormat の 1 つに揃えている)。
+        // 見出しの題名 (issue #393) は録画ファイル名から復元する — サイドカーの
+        // 名前も見出しも同じ stem 由来なので、経路 (パネル・通知・ライブラリ) に
+        // 依らずファイル名だけで決まる
+        let outputFormat = job.summaryTemplate != nil ? .markdown : job.format
+        let title = Self.meetingTitle(fromRecordingName: job.recordingURL)
+
+        // 退避書き出し (kilde#629 — エンジン kilde-cli-swift#153)。
+        var stashURL: URL?
+        if job.summaryTemplate != nil {
+            // 前回の異常終了で残った退避があれば、今回の退避を作る前に回復する
+            // (エンジンの TranscriptionRun.summarizeAndWrite と同じ順序。作成日時順に
+            // 確定サイドカーの連番候補へ no-replace 配置 — 既存の確定は上書きしない)。
+            // 回復はベストエフォートで、失敗しても実行は続行する
+            TranscriptStash.recoverOrphans(
+                besideRecording: job.recordingURL, format: outputFormat)
+            do {
+                stashURL = try TranscriptStash.write(
+                    segments, as: outputFormat, besideRecording: job.recordingURL,
+                    title: title)
+            } catch {
+                // 退避の書き出しに失敗した場合は要約に進まず失敗させる
+                // (fail loud — エンジンと同じ。退避なしで要約に進むと、この変更が
+                // 塞いだはずの窓が黙って再開するため)
+                throw error
+            }
+        }
+        do {
+            // 要約の生成 (issue #163)。文字起こしの後に、サイドカーの**書き出しの前**に
+            // 行う (エンジンの TranscriptionRun と同じ順序)。要約の生成に**失敗**しても
+            // ジョブは失敗にしない — «要約が失敗しても文字起こしは残るべき» (kilde#575) を
+            // エンジン (kilde-cli-swift#151 — TranscriptionRun.Outcome.completed の
+            // summaryFailure) と同じ契約として GUI 側でも実装する。失敗の事実は
+            // 既存の summaryNote 経路 («要約は生成できませんでした (…)» 案内) で伝える。
+            // **中止したときだけ**サイドカーを書かない («中止時は確定ファイルを
+            // 書かない» 契約 — issue #577 でも変えない)
+            var summary: MeetingSummary?
+            var summaryNote: String?
+            if let template = job.summaryTemplate {
+                // Apple Intelligence 無効などの環境では録画・文字起こしを成功させたまま
+                // 要約だけをスキップし、理由を案内として運ぶ (issue #163 «無効な環境での案内»)
+                if let reason = MeetingSummarizer.unsupportedReason {
+                    // String(localized:) を明示する — 生文字列の代入は xcstrings を
+                    // 引かず、en などの UI でも ja 文がそのまま通知に載るため (issue #571)
+                    summaryNote = String(localized: "要約は生成できませんでした (\(reason))")
+                    UsageAnalytics.summarySkipped(
+                        .unsupportedEnvironment, recordingDuration: job.recordingDuration)
+                } else {
+                    // Pro の権利 (issue #169/#170 — 要約は第一弾 Pro 機能)。
+                    // UI のロックで要約を選べるのは購入後だけなので、ここに来るのは
+                    // 返金で権利を失った・購入前に有効化していた設定が残っている
+                    // 場合など。文字起こしは成功させたまま要約だけスキップし、
+                    // 案内で伝える (Apple Intelligence 不可の案内と同じ扱い)。
+                    // エンジンのゲート (licenseRequired) はこの前段判定の最終防護
+                    let license = licenseProvider()
+                    if !license.allows(.summary) {
+                        summaryNote = String(localized: "要約は生成できませんでした (kilde Pro の購入または購入の復元が必要です)")
+                        UsageAnalytics.summarySkipped(
+                            .proRequired, recordingDuration: job.recordingDuration)
+                    } else if let instructions = job.summaryInstructions,
+                              !instructions.isEmpty,
+                              !license.allows(.customInstructions) {
+                        // カスタム指示 (issue #472) は要約に加えて
+                        // customInstructions の権利を要求する (エンジンの 2 段目
+                        // ゲートの前段判定 — 要約自体は権利があれば続行できるが、
+                        // «指示したのに指示なしで生成される» は誤変換より質が悪い
+                        // ので、要約ごとスキップして案内する方針に揃える)
+                        summaryNote = String(localized: "カスタム指示は使えませんでした (kilde Pro の購入または購入の復元が必要です)")
+                        UsageAnalytics.summarySkipped(
+                            .proRequired, recordingDuration: job.recordingDuration)
+                    } else {
+                        // 要約の開始・完了・失敗 (issue #456)。録画長は文字起こしの
+                        // イベントと同じ区分で載せる
+                        UsageAnalytics.summaryStarted(recordingDuration: job.recordingDuration)
+                        setPhase(.summarizing(progress: 0), for: job)
+                        try Task.checkCancellation()
+                        let summaryStartedAt = Date()
+                        // 要約ステップの決定 (注入があればスタブ、無ければ実物)
+                        let step: SummaryStep
+                        if let summarize {
+                            step = summarize
+                        } else {
+                            step = { segs, tmpl, lic, inst, onProgress in
+                                try await MeetingSummarizer.summarize(
+                                    transcript: segs, template: tmpl,
+                                    license: lic, instructions: inst,
+                                    onProgress: onProgress)
+                            }
+                        }
+                        do {
+                            summary = try await step(
+                                segments, template, license, job.summaryInstructions,
+                                { progress in
+                                    Task { @MainActor in
+                                        self.setPhase(.summarizing(progress: progress), for: job)
+                                    }
+                                })
+                        } catch {
+                            // «中止» だけは従来どおり投げ直す — «中止時は確定ファイルを
+                            // 書かない» 契約 (issue #577 でも変えない)。fail は
+                            // CancellationError と TranscriptionError.cancelled の両方を
+                            // «中止» とみなす (isCancellation と同じ表現) ので、ここでも
+                            // 両方を握りつぶさない — 片方だけだと «中止したのにサイドカー
+                            // が残る» になりうる (cubic レビュー指摘 — PR #585)。
+                            // summarize が TranscriptionError.cancelled を投げる経路は
+                            // 現状無いはずだが、fail 側の判定と同じ構造で閉じておく
+                            if error is CancellationError { throw error }
+                            if let transcriptionError = error as? TranscriptionError,
+                               case .cancelled = transcriptionError {
+                                throw error
+                            }
+                            // 要約だけの失敗はジョブを失敗にしない (issue #577 —
+                            // «要約が失敗しても文字起こしは残るべき» (kilde#575)。
+                            // エンジン kilde-cli-swift#151 と同じ契約)。文字起こしは
+                            // 完了しているのでサイドカーを要約なしで保存し、事実は
+                            // 既存の summaryNote 経路 («要約は生成できませんでした (…)»
+                            // 案内) で伝える。理由の整形はエンジンと同じ優先順位
+                            // (summaryFailureNote(of:)) — 同じ事実を CLI と GUI で
+                            // 同じ文言にするため
+                            summaryNote = "要約は生成できませんでした (\(Self.summaryFailureNote(of: error)))"
+                            // 失敗はここで要約のイベントとして数える。throw しないので
+                            // 先の fail は transcription_fail を送らない — 文字起こし
+                            // 自体の成功と二重計上にならない (従来の«再送出» 指摘と同じ方針)
+                            UsageAnalytics.summaryFailed(
+                                error, recordingDuration: job.recordingDuration,
+                                processingTime: Date().timeIntervalSince(summaryStartedAt))
+                        }
+                        if summary != nil {
+                            UsageAnalytics.summaryCompleted(
+                                recordingDuration: job.recordingDuration,
+                                processingTime: Date().timeIntervalSince(summaryStartedAt))
+                        }
+                    }
+                }
+            }
+
+            // 書き出しの直前にも«中止»を確認する (エンジンの PR kilde-cli-swift#57 と
+            // 同じ指摘 — cubic レビュー指摘 PR #585)。要約の長い道中で届いた«中止»を
+            // ここで拾わないと «中止したのにサイドカーが残る» になる («中止時は確定
+            // ファイルを書かない» 契約)。要約の失敗 → 保存 と 中止 が重なったときは
+            // 中止を優先する
+            try Task.checkCancellation()
+
+            // TranscriptWriter.write は **最後に 1 回だけ原子的に書く**
+            // (一時ファイル + rename)。キャンセルでここへ届かなければサイドカーは
+            // 残らない — «キャンセルで出力ファイルが残らない» の根拠
+            let writtenURL = try TranscriptWriter.write(
+                segments, as: outputFormat, besideRecording: job.recordingURL,
+                title: title, summary: summary)
+            if let stashURL {
+                // 退避を消す**前に**確定サイドカーを耐久化する (エンジンの
+                // TranscriptionRun と同じ順序 — fsync は synchronizeSidecarForDurability)。
+                // 耐久化できないまま退避を消すと、電源断のタイミングによっては
+                // «確定も退避も無い» になりうるため、fsync 失敗時は退避を**残して**
+                // 失敗にする (確定サイドカーは書けているので可視だが、退避は隠し
+                // ファイルとしてバックアップに残る)
+                try Self.synchronizeSidecarForDurability(at: writtenURL)
+                // 確定サイドカーの書き出しに成功したので退避は用済み (kilde#629)。
+                // ここで削除に失敗しても確定は残っているため、残った退避は次回の
+                // 要約つき実行時に回復 (連番へ配置) されるだけにとどまる
+                TranscriptStash.remove(stashURL)
+            }
+            return Completion(
+                job: job, sidecarURL: writtenURL, summary: summary,
+                summaryNote: summaryNote)
+        } catch {
+            // «中止» (要約ステップの await で飛んだ中止と、書き出し直前の
+            // Task.checkCancellation() の両方がここに集まる)。«中止時は**確定**ファイル
+            // を書かない» 契約 (kilde-cli-swift 側 DESIGN.md §4) により確定は
+            // 書かれていない — **退避も削除する** (退避は «削除保証つきの一時ファイル»
+            // で、残ってよいのは異常終了で削除コードが走らなかった場合だけ —
+            // オーナー決定 2026-11-22)。Ctrl+C / SIGTERM / SIGHUP は
+            // RecordingController / cancelAll 経由でこの Task キャンセルに集約される。
+            // 中止でない例外 (確定書き出しの失敗など) では退避を**残す** — 異常終了と
+            // 同じ «次回の要約つき実行時に回復» に委ねる (エンジンの TranscriptionRun
+            // と同じ扱い)
+            if let stashURL, Self.isCancellation(error) {
+                TranscriptStash.remove(stashURL)
+            }
+            throw error
+        }
+    }
+
+    /// «中止» の判定 — CancellationError と TranscriptionError.cancelled の両方を
+    /// «中止» とみなす (fail の «中止は失敗に数えない» と summarizeAndWrite の
+    /// «中止時は退避も削除» で同じ表現を使う。片方だけだと «中止したのに退避が
+    /// 残る» になりうる — cubic レビュー指摘 PR #585 と同じ構造)
+    static func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        if let transcriptionError = error as? TranscriptionError,
+           case .cancelled = transcriptionError {
+            return true
+        }
+        return false
+    }
+
+    /// 確定サイドカーとその親ディレクトリをディスクへ押し込む (fsync)。
+    /// エンジンの TranscriptWriter.synchronizeFileForDurability と同じ処理の GUI 側の
+    /// 写し — エンジン側は kilde-cli-swift#153 で internal のまま (モジュール外の
+    /// GUI からは呼べない) なので、«退避を消す前に確定を耐久化する» 契約だけを
+    /// こちらで満たす。エンジンの API を public に広げるより、fsync の部品を
+    /// API 面に晒さない方を取った。
+    /// **エンジンとの一致を壊さない** — エンジンの実装 (kilde-cli-swift v0.28.0 の
+    /// TranscriptWriter.swift) は `FileHandle.synchronize()` + 親ディレクトリの
+    /// fsync であり、この写しも同じ構成にする。片側だけ `fcntl(F_FULLFSYNC)` に
+    /// 強めたり弱めたりすると «同じ契約の 2 実装が別の耐久性を持つ» になり、
+    /// どちらかを直すときにもう片方が黙って古くなる。耐久化の方式を変えるときは
+    /// エンジン側の PR で先に変え、この写しを追従させる
+    /// sync できない場合は transcriptSidecarWriteFailed で失敗させる
+    /// (エンジンと同じ — 呼び出し側は退避を残して失敗にする)
+    private static func synchronizeSidecarForDurability(at fileURL: URL) throws {
+        do {
+            let handle = try FileHandle(forWritingTo: fileURL)
+            defer { try? handle.close() }
+            try handle.synchronize()
+        } catch {
+            throw KilError.failure(
+                .transcriptSidecarWriteFailed,
+                "ファイルをディスクへ反映できません: \(fileURL.path) (\(error))",
+                ["path": fileURL.path])
+        }
+        // 親ディレクトリも fsync する — rename によるディレクトリエントリの変更は、
+        // ディレクトリ自体を sync しないと電源断で消えうる
+        let directoryURL = fileURL.deletingLastPathComponent()
+        let descriptor = directoryURL.withUnsafeFileSystemRepresentation { path -> Int32 in
+            guard let path else { return -1 }
+            // 3 引数形式で C の open(2) を呼ぶ (2 引数は Foundation の使えない
+            // 可変長オーバーロードに解決される — エンジンの TranscriptWriter と同じ構造)
+            return open(path, O_RDONLY, 0)
+        }
+        guard descriptor >= 0 else {
+            throw KilError.failure(
+                .transcriptSidecarWriteFailed,
+                "ディレクトリを開けません: \(directoryURL.path)",
+                ["path": directoryURL.path])
+        }
+        defer { close(descriptor) }
+        if fsync(descriptor) != 0 {
+            let code = errno
+            throw KilError.failure(
+                .transcriptSidecarWriteFailed,
+                "ディレクトリをディスクへ反映できません: \(directoryURL.path) "
+                    + "(\(String(cString: strerror(code))))",
+                ["path": directoryURL.path])
         }
     }
 
@@ -898,15 +1085,8 @@ final class TranscriptionCoordinator: ObservableObject {
         // キャンセル («中止» / Task.cancel()) は失敗に数えない — ユーザーが意図して
         // 止めた正規の経路であり、«失敗しました» と見せると誤報になる。
         // 中途半端なサイドカーは TranscriptWriter が原子的に書くため残らない
-        var cancelled = false
-        switch error {
-        case is CancellationError:
-            cancelled = true
-        case let transcriptionError as TranscriptionError:
-            if case .cancelled = transcriptionError { cancelled = true }
-        default:
-            break
-        }
+        // («中止» の判定は isCancellation — summarizeAndWrite の退避削除と同じ表現)
+        let cancelled = Self.isCancellation(error)
         if !cancelled {
             let detail = Self.diagnosticDetail(error, includeUserInfo: true)
             if let detail {
