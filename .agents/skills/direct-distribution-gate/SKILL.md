@@ -44,9 +44,10 @@ description: >-
    検出できない:
 
    ```sh
-   codesign --verify --strict --verbose=2 <ダウンロードした KildeGUI-<VERSION>.dmg>
-   spctl --assess --type open --context context:primary-signature -vv <同じ DMG>
-   xcrun stapler validate <同じ DMG>
+   DMG="$HOME/Downloads/kilde-release/KildeGUI-0.48.0.dmg"   # ← ダウンロードした DMG の実パスに置き換える
+   codesign --verify --strict --verbose=2 "$DMG"
+   spctl --assess --type open --context context:primary-signature -vv "$DMG"
+   xcrun stapler validate "$DMG"
    ```
 
    CLI zip も展開して `codesign --verify --strict --verbose=2 kilde` と
