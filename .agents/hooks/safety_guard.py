@@ -35,9 +35,11 @@ import sys
 # --- main への直接 push ----------------------------------------------------
 # 「main」はトークンとして厳密に見る (feature/main-fix や main2 を誤検知しない)。
 # 直前が行頭・空白・コロン (HEAD:main)・force 記号の + (refspec の +main) か
-# refs/heads/ のみを対象にする
+# refs/heads/ のみを対象にする。git と push の間のグローバルオプション
+# (git -C <path> push など) も許容する — オプションを挟むだけで検知を逃がさない
 MAIN_PUSH_RE = re.compile(
-    r"\bgit\s+push\b[^\n;|&]*(?:(?:^|[\s:+])|refs/heads/)main(?![\w-])"
+    r"\bgit\s+(?:(?:-[A-Za-z]\s+\S+|--[\w-]+(?:=\S+)?)\s+)*push\b"
+    r"[^\n;|&]*(?:(?:^|[\s:+])|refs/heads/)main(?![\w-])"
 )
 
 # --- シークレット -----------------------------------------------------------
@@ -47,33 +49,49 @@ MAIN_PUSH_RE = re.compile(
 SECRET_VAR_RE = (
     r"(?:AC_API_KEY_ID|AC_API_ISSUER|AC_API_KEY"
     r"|KILDE_ASC_API_KEY_ID|KILDE_ASC_API_ISSUER|KILDE_ASC_API_KEY"
-    r"|ASC_CI_KEY_ID|ASC_CI_ISSUER|ASC_CI_KEY"
+    r"|ASC_CI_KEY_B64|ASC_CI_KEY_ID|ASC_CI_ISSUER|ASC_CI_KEY"
     r"|SPARKLE_ED25519_PRIVATE_KEY|KILDE_CLI_SWIFT_TOKEN"
     r"|DEVELOPER_ID_CERTIFICATE_BASE64|DEVELOPER_ID_CERTIFICATE_PASSWORD)"
 )
 SECRET_PRINT_PATTERNS = [
-    # .p8 キーファイルの中身を表示・エンコードで出す (cat 等)
-    r"(?:cat|head|tail|less|more|base64|xxd|od|openssl)\s[^;\n|&]*\.p8\b",
+    # .p8 キーファイルの中身を表示・エンコードで出す (cat 等)。キーの**パスを
+    # 秘密変数から展開する**形 (cat "$KILDE_ASC_API_KEY") も対象
+    r"(?:cat|head|tail|less|more|base64|xxd|od|openssl)\s[^;\n|&]*"
+    r"(?:\.p8\b|\$\{?" + SECRET_VAR_RE + r")",
     # .env の表示
     r"(?:cat|head|tail|less|more)\s[^;\n|&]*\.env\b",
     # API キー変数の値の echo / printf
     r"(?:echo|printf)\s[^;\n|&]*\$\{?" + SECRET_VAR_RE,
     # printenv (キー名指定 / 引数なしの全環境ダンプの両方)
     r"printenv(?:\s[^;\n|&]*" + SECRET_VAR_RE + r")?\s*(?:$|[;&|])",
+    # env 単体 (全環境変数のダンプ)
+    r"(?:^|[;&|])\s*env\s*(?:$|[;&|])",
+    # env を grep 系に流してキー変数を抜く (env | grep AC_API_KEY 等)
+    r"(?:^|[;&|])\s*env\s[^;\n|&]*\|\s*(?:grep|egrep|fgrep|rg|awk|sed)\b"
+    r"[^;\n|&]*" + SECRET_VAR_RE,
 ]
 
+# --- ファイル書き込みの合図 -------------------------------------------------
+# シェルからファイルへ書き込む操作の合図 (リダイレクト / in-place 編集 /
+# plutil による置換 / cp・mv 等のファイル操作)。スクリプト内からの書き込み
+# (python -c の中の open() 等) までは拾えない — その場合は対象ファイルを
+# edit/write ツールで変えたときの検知が担う
+SHELL_WRITE_INTENT_RE = re.compile(
+    r"(?:>>?"
+    r"|sed\s+-i"
+    r"|perl\s+-\w*i"
+    r"|tee\s"
+    r"|plutil\s+-replace"
+    r"|(?:cp|mv|install|ln|dd|rsync|touch)\s)"
+)
 # --- 配布 workflow ----------------------------------------------------------
 WORKFLOW_FILE_RE = re.compile(r"(?:^|/)\.github/workflows/(?:mas|release)\.yml$")
-WORKFLOW_SHELL_WRITE_RE = re.compile(
-    r"(?:>>?|sed\s+-i|perl\s+-\w*i|tee\s)"  # リダイレクト / in-place 編集の合図
-)
 
 # --- エンジン pin -----------------------------------------------------------
 PIN_FILE_RE = re.compile(r"(?:^|/)gui/project\.yml$")
-# gui/project.yml へのシェル経由の書き込みの合図 (リダイレクト / in-place 編集 /
-# plutil による値の置換)。«値だけ» の pin 書き換え (sed 's/0.27.2/0.28.0/') も
-# 拾うため exactVersion トークンは要求しない。読み取り (grep 等) は対象外
-PIN_SHELL_WRITE_RE = re.compile(r"(?:>>?|sed\s+-i|perl\s+-\w*i|tee\s|plutil\s+-replace)")
+# «値だけ» の pin 書き換え (sed 's/0.27.2/0.28.0/' のような exactVersion トークンの
+# 無い書き換え) も拾うため exactVersion トークンは要求しない。読み取り (grep 等)
+# は対象外
 PACKAGE_KEY_RE = re.compile(r"^  ([A-Za-z][\w-]*):\s*(?:#.*)?$")
 EXACT_VERSION_RE = re.compile(r"^\s*exactVersion:\s*([\w.-]+)\s*(?:#.*)?$", re.MULTILINE)
 ENGINE_PACKAGE_HINT = "kilde-cli-swift"
@@ -172,7 +190,7 @@ def check_run_command(cmd: str) -> tuple[str, str | None]:
     # (sed 's/0.27.2/0.28.0/' のような exactVersion トークンの無い書き換え) も
     # 拾う。grep などの読み取りは妨げない
     normalized_cmd = cmd.replace("\\", "/")
-    if "gui/project.yml" in normalized_cmd and PIN_SHELL_WRITE_RE.search(cmd):
+    if "gui/project.yml" in normalized_cmd and SHELL_WRITE_INTENT_RE.search(cmd):
         return (
             "force_ask",
             "エンジン pin (gui/project.yml の exactVersion) への変更の可能性が"
@@ -182,7 +200,7 @@ def check_run_command(cmd: str) -> tuple[str, str | None]:
 
     # 4. 配布 workflow の書き込み系コマンド (grep などの読み取りは allow)
     if re.search(r"\.github/workflows/(?:mas|release)\.yml", normalized_cmd) and (
-        WORKFLOW_SHELL_WRITE_RE.search(cmd)
+        SHELL_WRITE_INTENT_RE.search(cmd)
     ):
         return (
             "force_ask",
@@ -385,6 +403,8 @@ def self_test() -> int:
         ("ask: HEAD:main への push", "force_ask", run("run_command", {"CommandLine": "git push origin HEAD:main"})),
         ("ask: refs/heads/main への push", "force_ask", run("run_command", {"CommandLine": "git push origin refs/heads/main"})),
         ("ask: force 記号つき refspec (+main) への push", "force_ask", run("run_command", {"CommandLine": "git push origin +main"})),
+        ("ask: グローバルオプション挟みの main push", "force_ask", run("run_command", {"CommandLine": "git -C /path/to/repo push origin main"})),
+        ("allow: コミットメッセージ中の push 表記", "allow", run("run_command", {"CommandLine": 'git commit -m "push origin main と書いたメッセージ"'})),
         # --- force_ask: シークレット出力 ---
         ("ask: .p8 キーの cat", "force_ask", run("run_command", {"CommandLine": "cat ~/Downloads/AuthKey_2DB7ZRS4N4.p8"})),
         ("ask: .p8 キーの base64", "force_ask", run("run_command", {"CommandLine": "base64 -i ~/.klide-asc/AuthKey_G9C3BAFJDQ.p8"})),
@@ -393,6 +413,12 @@ def self_test() -> int:
         ("ask: notarization キー変数の echo", "force_ask", run("run_command", {"CommandLine": 'echo "key: $AC_API_KEY"'})),
         ("ask: Sparkle 秘密鍵の printenv", "force_ask", run("run_command", {"CommandLine": "printenv SPARKLE_ED25519_PRIVATE_KEY"})),
         ("ask: 引数なし printenv (全環境ダンプ)", "force_ask", run("run_command", {"CommandLine": "printenv"})),
+        ("ask: 引数つき printenv の複数キー", "force_ask", run("run_command", {"CommandLine": "printenv PATH ASC_CI_KEY_B64"})),
+        ("ask: ASC_CI_KEY_B64 の echo", "force_ask", run("run_command", {"CommandLine": 'echo "$ASC_CI_KEY_B64"'})),
+        ("ask: 秘密変数に展開したキーの cat", "force_ask", run("run_command", {"CommandLine": 'cat "$KILDE_ASC_API_KEY"'})),
+        ("ask: env 単体 (全環境ダンプ)", "force_ask", run("run_command", {"CommandLine": "env"})),
+        ("ask: env を grep に流してキーを抜く", "force_ask", run("run_command", {"CommandLine": "env | grep AC_API_KEY"})),
+        ("allow: env はコマンド実行の前置として使用", "allow", run("run_command", {"CommandLine": "env FOO=bar xcodebuild -version"})),
         # --- force_ask: エンジン pin の単独編集 ---
         ("ask: sed による exactVersion 書き換え", "force_ask", run("run_command", {"CommandLine": "sed -i '' 's/exactVersion: 0.27.2/exactVersion: 0.28.0/' gui/project.yml"})),
         ("ask: project.yml の pin 編集 (差分のみ)", "force_ask", run("edit_file", {"Path": "gui/project.yml", "old_string": "exactVersion: 0.27.2", "new_string": "exactVersion: 0.28.0"}, disk=engine_yml_disk)),
@@ -402,6 +428,7 @@ def self_test() -> int:
         # --- force_ask: 配布 workflow の編集 ---
         ("ask: release.yml のシェルからの in-place 編集", "force_ask", run("run_command", {"CommandLine": "sed -i '' 's/ref: v0.27.2/ref: v0.28.0/' .github/workflows/release.yml"})),
         ("ask: mas.yml へのリダイレクト書き込み", "force_ask", run("run_command", {"CommandLine": "echo foo > .github/workflows/mas.yml"})),
+        ("ask: mas.yml の cp による上書き", "force_ask", run("run_command", {"CommandLine": "cp /tmp/mas.yml .github/workflows/mas.yml"})),
         ("ask: release.yml の write_file", "force_ask", run("write_file", {"Path": ".github/workflows/release.yml", "content": "name: Release\n"})),
         ("ask: mas.yml の edit_file", "force_ask", run("edit_file", {"Path": ".github/workflows/mas.yml", "old_string": "mode:\n", "new_string": "mode2:\n"})),
         # --- 枝葉: 判定不能入力は保守側で allow (hook で作業を止めない) ---

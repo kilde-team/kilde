@@ -29,8 +29,10 @@ App Store の計測台帳の記入・確定手順。正本は 2 つ:
 
 台帳に新しい変更を書くときは、次の 3 点を**その行に明記**する (先例: 変更 1〜6):
 
-1. **反映日** = バージョンの承認・公開日 (JST)。iTunes Lookup の
-   `currentVersionReleaseDate` で裏取りできる
+1. **反映日** = バージョンの承認・公開日。**JST の日付に加えて時刻も記録する**
+   (iTunes Lookup の `currentVersionReleaseDate` の UTC ISO 表記。
+   例: `2026-11-19T22:10:58Z` = JST 11-20 07:10)。公開日の日次値は**公開前後が
+   混在する日**なので、週次表に含めるときは «気づき» にその旨を注記する
 2. **基準期間** = «前の計測対象変更の反映日» 〜 «今回の反映日前日»
    (今回より前の最後の計測対象変更。What's New のみの版は計測対象外なので飛ばす)。
    **前の変更と同じ JST 日に反映された場合は基準期間が成立しない**
@@ -49,9 +51,12 @@ What's New のみ更新の版は**計測期間を設けない** (計測対象 = 
 
 前月分の確定は**翌月月初**に行う (地域ごとに翌日 5am PT まで配信。JP はその後)。
 
-1. ASC API の Sales Report を呼ぶ (docs/metrics.md「取得方法」):
-   `frequency=DAILY / reportType=SALES / reportSubType=SUMMARY /
-   vendorNumber=85006198 / reportDate=YYYY-MM-DD`
+1. ASC API の Sales Report を呼ぶ (docs/metrics.md「取得方法」)。クエリは
+   **`filter[...]` 形式** (docs/metrics.md と同じ):
+   `GET https://api.appstoreconnect.apple.com/v1/salesReports?filter[frequency]=DAILY&filter[reportType]=SALES&filter[reportSubType]=SUMMARY&filter[vendorNumber]=85006198&filter[reportDate]=YYYY-MM-DD`
+2. **月次の値は前月 1 日〜末日の各日付で `reportDate` を変えて呼び、
+   日次 TSV を集計して作る** (API は 1 回で 1 日分)。末日分が揃ってから台帳に
+   記入する
 2. kilde の行だけを抜く — **2 つのフィルタを併用する** (docs/metrics.md「取得方法」):
    **アプリ本体**は SKU `kilde-mas`、**IAP** は SKU が `kilde.` で始まる行
    (Product Type Identifier **IA1 / IA1-M / FI1**)。IAP 行を `kilde-mas` だけで
@@ -90,7 +95,10 @@ What's New のみ更新の版は**計測期間を設けない** (計測対象 = 
 - 記入した行は**取得方法・取得日・窓**が他の人が追試できる形になっていること
   (どの画面 / どの API を見たかを書く)
 - ASC 分析 (App Analytics) の値は CSV エクスポートか API
-  (`analyticsReportRequests` — 2026-11-19 に生成開始済み) で取る
+  (`analyticsReportRequests` — 2026-11-19 に生成開始済み) で取る。
+  **API は生成設定 以降の日にしか値が無い** — それより前の窓 (変更 1〜3 など) は
+  ASC 分析の CSV エクスポートで取得する (API で過去窓を取れると誤解して
+  日次データの欠けた台帳を確定しない)
 - 台帳の編集は PR で行い、数値の出所 (issue / run / レポート名) を PR 本文に書く
 
 ## 6. 禁止事項

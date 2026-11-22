@@ -188,7 +188,7 @@ if command -v actionlint >/dev/null; then actionlint .github/workflows/release.y
 | KPI の定義・月次台帳・IAP 台帳 | `docs/metrics.md` (issue #159 / #598) |
 | ASC メタデータ変更前後の計測台帳 | `docs/appstore/metadata/metrics.md` (issue #160) |
 | MAS メタデータの文面 (説明 / キーワード / サブタイトル) | `docs/appstore/metadata/` (`metadata-*.md`) |
-| エンジン pin | `gui/project.yml` の `exactVersion` と `.github/workflows/release.yml` の `ref:` の **対** (§4 — 同じ PR で揃える) |
+| エンジン pin | `gui/project.yml` の `exactVersion` と `.github/workflows/release.yml` の `ref:` の **対** (§4 — 同じ PR で揃える)。pin 更新の際は `CLAUDE.md` §4 と `docs/RELEASE.md` の現在タグの記載も同じ PR で更新する (stale 防止) |
 | Homebrew formula | `homebrew/Formula/kilde.rb` (正本) ⇔ tap kilde-team/homebrew-kilde |
 | Xcode プロジェクトのビルド設定 | `gui/project.yml` (XcodeGen — `.xcodeproj` は生成物) |
 
@@ -207,9 +207,12 @@ if command -v actionlint >/dev/null; then actionlint .github/workflows/release.y
 
 `.agents/hooks.json` の PreToolUse ガード (`.agents/hooks/safety_guard.py`) は、
 main への直接 push・シークレット出力・エンジン pin の単独編集・配布 workflow
-(`mas.yml` / `release.yml`) の編集に確認 (force_ask) を挟む。**禁止ではなく確認** —
-意図した操作なら理由を確認して進めてよい。`--self-test` でガード自身の
-動作確認ができる。
+(`mas.yml` / `release.yml`) の編集に確認 (force_ask) を挟む。**main への直接 push
+だけは例外的に常に禁止** (§2 — 確認が出ても進めず PR 経由でマージする)。
+他の対象は**禁止ではなく確認** — 意図した操作なら確認の上で進めてよい。
+検知は標準的なシェル経路 (`echo` / `printenv` / `env` / `cat` / リダイレクト /
+in-place 編集など) が対象 — スクリプト内部からの出力などは網羅しないため、
+`--self-test` の範囲と合わせて過信しない。
 
 ## 9. Orchestrator の最終責任
 

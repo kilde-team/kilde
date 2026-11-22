@@ -29,10 +29,16 @@ kilde は次の 4 ドメインで構成される。ワーカーごとに**担当
 
 | ドメイン | 主な対象パス | 専門領域と正本 |
 |---|---|---|
-| **GUI** | `gui/Sources/`、`gui/Resources/`、`gui/project.yml` (pin 以外の設定) | SwiftUI/AppKit の地雷は CLAUDE.md §5 (NSStatusItem + NSPopover の手動管理、`AppDelegate.shared`、録画モデルの持ち主、Debug バンドル ID 分離など) |
-| **配布 (直接 + MAS)** | `scripts/release/`、`.github/workflows/release.yml` + `mas.yml`、`homebrew/Formula/kilde.rb`、`docs/RELEASE.md`、`docs/appstore/` | 手順の正本は docs/RELEASE.md。配布経路のランブックは `.agents/skills/direct-distribution-gate/` と `.agents/skills/mas-release-gate/` |
-| **エンジン pin** | `gui/project.yml` の kilde-cli-swift `exactVersion` + `release.yml` の `ref:` の **対** | 必ず同じ PR で揃える (AGENTS.md §4)。**エンジン本体の変更は本リポジトリでしない** — kilde-team/kilde-cli-swift 側の issue へ切り出す (AGENTS.md §1) |
+| **GUI** | `gui/Sources/`、`gui/Resources/`、`gui/project.yml` (pin の行を除く) | SwiftUI/AppKit の地雷は CLAUDE.md §5 (NSStatusItem + NSPopover の手動管理、`AppDelegate.shared`、録画モデルの持ち主、Debug バンドル ID 分離など) |
+| **配布 (直接 + MAS)** | `scripts/release/`、`.github/workflows/release.yml` + `mas.yml` (pin の行を除く)、`homebrew/Formula/kilde.rb`、`docs/RELEASE.md`、`docs/appstore/` | 手順の正本は docs/RELEASE.md。配布経路のランブックは `.agents/skills/direct-distribution-gate/` と `.agents/skills/mas-release-gate/` |
+| **エンジン pin** | `gui/project.yml` の kilde-cli-swift `exactVersion` **行** + `release.yml` の `ref:` **行** (2 行だけの所有。pin を変えないリリース作業は配布ドメイン) | 必ず同じ PR で揃える (AGENTS.md §4)。**エンジン本体の変更は本リポジトリでしない** — kilde-team/kilde-cli-swift 側の issue へ切り出す (AGENTS.md §1) |
 | **計測・運用** | `docs/metrics.md`、`docs/appstore/metadata/metrics.md`、`docs/release-notes/`、`docs/launch/` | 台帳運用は `.agents/skills/metrics-ledger-ops/`。数字の捏造禁止 |
+
+**pin 対象行の所有は 1 ワーカーに限定する**: `exactVersion` 行と `ref:` 行は
+«エンジン pin» ドメインのワーカーだけが編集する。GUI ワーカー (`project.yml` の
+他の部分) と配布ワーカー (`release.yml` の他の部分) は pin の行を触らない —
+同一 PR で pin を上げるときは pin ワーカーが両行を一緒に持ち、片側だけの
+更新 (AGENTS.md §4 の差し戻し対象) を構造的に防ぐ。
 
 ## 3. 委任ブリーフの必須要素
 
@@ -45,8 +51,9 @@ kilde は次の 4 ドメインで構成される。ワーカーごとに**担当
    `CLAUDE.md`・`AGENTS.md`・workflow 定義・`gui/Sources/` を触ってよいかも明示する
    (本リポジトリではドキュメント運用上 CLAUDE.md は変更しないのが原則)
 3. **作業場所と開始手順** — AGENTS.md §2 どおり:
-   着手宣言 → `git worktree add ../kilde-<N> -b feature/<N>-<slug> origin/main` →
-   worktree 内で実装。**メイン作業コピーでは実装しない**。main への直接 push も禁止。
+   着手宣言 → `git fetch origin` → `git worktree add ../kilde-<N> -b feature/<N>-<slug> origin/main` →
+   worktree 内で実装 (fetch を省くと古い `origin/main` から切って最新変更を
+   含まないブランチになる)。**メイン作業コピーでは実装しない**。main への直接 push も禁止。
    worktree とブランチは **issue ごとに 1 つ** (最初の着手者が作成する) —
    同じ issue に複数ワーカーが付くとき、2 人目以降は既存の worktree で作業し
    (`worktree add` を再実行して失敗しない)、担当パスの非重複で衝突を避ける。

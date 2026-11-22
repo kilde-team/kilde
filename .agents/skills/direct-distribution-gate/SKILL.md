@@ -37,10 +37,18 @@ description: >-
    (unsigned フォールバックは廃止)。`SPARKLE_ED25519_PRIVATE_KEY` 無しでも
    appcast 生成の前で失敗する
 5. **成果物の検証** — Release に upload した後、**ダウンロードした** DMG でも
-   `codesign --verify --strict` / `spctl --type open` (期待値: `accepted source=
-   Notarized Developer ID`) / `xcrun stapler validate` の 3 検査を繰り返す
-   (issue #216 — upload で staple が失われる事故の再発防止)。CLI zip も
-   別 macOS ユーザー環境で Gatekeeper / TCC を確認
+   docs/RELEASE.md §6 と同じ 3 検査を繰り返す (issue #216 — upload で staple が
+   失われる事故の再発防止。期待値は `accepted source=Notarized Developer ID`):
+
+   ```sh
+   codesign --verify --strict --verbose=2 "dist/KildeGUI-<VERSION>.dmg"
+   spctl --assess --type open --context context:primary-signature -vv "dist/KildeGUI-<VERSION>.dmg"
+   xcrun stapler validate "dist/KildeGUI-<VERSION>.dmg"
+   ```
+
+   CLI zip も展開して `codesign --verify --strict --verbose=2 kilde` と
+   `codesign -d --entitlements :- kilde` を確認し、別 macOS ユーザー環境で
+   Gatekeeper / TCC を確認
 6. **Homebrew tap の更新** — `homebrew/Formula/kilde.rb` (正本) の `url` と
    `sha256` を `shasum -a 256 kilde-<version>-macos.zip` で更新し、同じ内容を
    kilde-team/homebrew-kilde の PR として反映。反映後

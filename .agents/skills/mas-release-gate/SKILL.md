@@ -37,8 +37,10 @@ Mac App Store 版 (KildeGUI-AppStore ターゲット) のアーカイブ → ア
    同一 build が既にあれば再利用、`VALID` 化を poll で確認)。アップロードできたかは
    **ASC の実状態**で判定する
 4. **メタデータ反映** — `mode=apply`。**提出はしない**
-5. **数分待つ** — ASC 側のスクショ asset の処理と build の `VALID` を確認
-   (`mode=status`)
+5. **数分待つ** — **スクショ asset の処理状態は ASC のバージョン画面
+   (バージョン > App Store のスクリーンショット) で目視確認する**
+   (`mode=status` はバージョン・build・提出の状態を見るもので、スクショ asset の
+   «処理中» は見えない)。build の `VALID` 化は `mode=status` で確認
 6. **提出** — `mode=submit-only` (**スクリーンショットを触らずに**提出)。
    `apply` → 数分待つ → `submit-only` の **2 段階**が正解。`submit` モードの
    «再アップロード → その場で提出» は asset が «処理中» の間
@@ -61,11 +63,16 @@ Mac App Store 版 (KildeGUI-AppStore ターゲット) のアーカイブ → ア
 - **MAS 版に Sparkle を混ぜない** — ストア外自己更新の仕組みとして審査で拒否される。
   `import Sparkle` は `#if !APPSTORE` の内側 (CLAUDE.md §5-15)。
   MAS ビルドの DerivedData は必ず分離
-- **キーの混線をしない** — notarization 用 `AC_API_KEY*` (sign.sh) と
+- **キーの変数名を混ぜない** — notarization 用 `AC_API_KEY*` (sign.sh) と
   App Store 用 `KILDE_ASC_API_KEY*` (appstore-archive.sh) / `ASC_CI_KEY*` (mas.yml
-  の secrets) は別物。appstore-archive.sh に `AC_API_KEY*` を export したままの
-  シェルで渡すとクラウド署名の権限の無いキーが黙って使われ、
-  "Cloud signing permission error" で落ちる (0.5.0 build 6 実測 — CLAUDE.md §5-19)
+  の secrets) は別物。同名 (`AC_API_KEY*`) を appstore-archive.sh も読んでいた頃は
+  notarization 用キーが黙って使われ、アーカイブ後のエクスポートが
+  "Cloud signing permission error" で落ちた (0.5.0 build 6 実測 — CLAUDE.md §5-19)。
+  **現行の appstore-archive.sh は `AC_API_KEY*` を読まず、設定されていれば
+  «使わない» 注意ログを出す** — エクスポートが失敗したときの原因候補は
+  キーの権限 (クラウド署名は Admin) と Xcode の Apple ID サインイン切れで、
+  «混線» は現行では起きない。だからといって変数名を sign.sh と «揃える» 方向に
+  戻さない (事故の再現になる)
 - **メタデータに他社商標を入れない** (Zoom 等の会議サービス名・BlackHole 等の製品名)。
   Guideline 2.3.7 のリスク — docs/appstore/metadata/README.md §「他社の商標を使わない」
 - **審査中 (WAITING_FOR_REVIEW) の版に触らない** — 提出取り下げ (cancel-submission)
