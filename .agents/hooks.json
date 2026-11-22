@@ -1,0 +1,17 @@
+{
+  "kilde-safety-guard": {
+    "enabled": true,
+    "PreToolUse": [
+      {
+        "matcher": "run_command|write_file|edit_file",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ./hooks/safety_guard.py",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
