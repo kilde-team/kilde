@@ -62,12 +62,13 @@ SECRET_PRINT_PATTERNS = [
     r"(?:cat|head|tail|less|more)\s[^;\n|&]*\.env\b",
     # API キー変数の値の echo / printf
     r"(?:echo|printf)\s[^;\n|&]*\$\{?" + SECRET_VAR_RE,
-    # printenv (キー名指定 / 引数なしの全環境ダンプの両方)
-    r"printenv(?:\s[^;\n|&]*" + SECRET_VAR_RE + r")?\s*(?:$|[;&|])",
-    # env 単体 (全環境変数のダンプ)
-    r"(?:^|[;&|])\s*env\s*(?:$|[;&|])",
+    # printenv (キー名指定 / 引数なしの全環境ダンプの両方)。$(...) の中も
+    # 対象にするため終端に ) も許す
+    r"printenv(?:\s[^;\n|&]*" + SECRET_VAR_RE + r")?\s*(?:$|[;&|)])",
+    # env 単体 (全環境変数のダンプ)。$(env) / `env` のようなコマンド置換内も対象
+    r"(?:^|[;&|(]|`)\s*env\s*(?:$|[;&|)])",
     # env を grep 系に流してキー変数を抜く (env | grep AC_API_KEY 等)
-    r"(?:^|[;&|])\s*env\s[^;\n|&]*\|\s*(?:grep|egrep|fgrep|rg|awk|sed)\b"
+    r"(?:^|[;&|(]|`)\s*env\s[^;\n|&]*\|\s*(?:grep|egrep|fgrep|rg|awk|sed)\b"
     r"[^;\n|&]*" + SECRET_VAR_RE,
 ]
 
@@ -175,6 +176,19 @@ def check_run_command(cmd: str) -> tuple[str, str | None]:
             "force_ask",
             "main ブランチへの直接 push は AGENTS.md §2 で禁止されています "
             "(PR 経由でマージしてください)。本当に実行しますか？",
+        )
+
+    # 1b. refspec 未指定の git push — «現在のブランチ → その上流» で、main で
+    # 実行すると main への push になるため確認する
+    if re.search(
+        r"\bgit\s+(?:(?:-[A-Za-z]\s+\S+|--[\w-]+(?:=\S+)?)\s+)*push\s*(?:$|[;&|])",
+        cmd,
+    ):
+        return (
+            "force_ask",
+            "refspec 未指定の git push は «現在のブランチ → その上流» で、"
+            "main で実行すると main への push になります (AGENTS.md §2)。"
+            "本当に実行しますか？",
         )
 
     # 2. シークレットの出力
@@ -418,7 +432,11 @@ def self_test() -> int:
         ("ask: 秘密変数に展開したキーの cat", "force_ask", run("run_command", {"CommandLine": 'cat "$KILDE_ASC_API_KEY"'})),
         ("ask: env 単体 (全環境ダンプ)", "force_ask", run("run_command", {"CommandLine": "env"})),
         ("ask: env を grep に流してキーを抜く", "force_ask", run("run_command", {"CommandLine": "env | grep AC_API_KEY"})),
+        ("ask: コマンド置換内の printenv", "force_ask", run("run_command", {"CommandLine": 'echo "$(printenv AC_API_KEY)"'})),
+        ("ask: コマンド置換内の env | grep", "force_ask", run("run_command", {"CommandLine": 'echo "$(env | grep KILDE_ASC_API_KEY)"'})),
+        ("ask: refspec 未指定の git push", "force_ask", run("run_command", {"CommandLine": "git push"})),
         ("allow: env はコマンド実行の前置として使用", "allow", run("run_command", {"CommandLine": "env FOO=bar xcodebuild -version"})),
+        ("allow: 上流つきのブランチ push (-u)", "allow", run("run_command", {"CommandLine": "git push -u origin feature/628-agents-orchestrator"})),
         # --- force_ask: エンジン pin の単独編集 ---
         ("ask: sed による exactVersion 書き換え", "force_ask", run("run_command", {"CommandLine": "sed -i '' 's/exactVersion: 0.27.2/exactVersion: 0.28.0/' gui/project.yml"})),
         ("ask: project.yml の pin 編集 (差分のみ)", "force_ask", run("edit_file", {"Path": "gui/project.yml", "old_string": "exactVersion: 0.27.2", "new_string": "exactVersion: 0.28.0"}, disk=engine_yml_disk)),
