@@ -42,6 +42,18 @@ private func stashTestWaitForCancellation() async {
     }
 }
 
+/// スタブ開始の信号を待つ (上限 10 秒)。スタブに届かない失敗 (退避の書き出しの
+/// 失敗・ゲートの早期分岐など) のときもハングさせず、後続の断言で失敗を見せる
+/// (信号の待ちに上限が無いと «失敗を報告できないセルフテストのハング» になる)
+private func stashTestWaitForStart(_ started: AsyncStream<Void>) async {
+    await withTaskGroup(of: Void.self) { group in
+        group.addTask { for await _ in started {} }
+        group.addTask { try? await Task.sleep(nanoseconds: 10_000_000_000) }
+        await group.next()
+        group.cancelAll()
+    }
+}
+
 extension SelfTest {
     /// MainActor の実行を止めずに非同期で検証を回し、終わったら終了する
     /// (SelfTestFollowup / SelfTestPro と同じ — セマフォ待ちで固めない)。
@@ -150,7 +162,7 @@ extension SelfTest {
                 try await coordinator.summarizeAndWrite(
                     segments, job: job(recording: recording, template: .standard), summarize: step)
             }
-            for await _ in started {}  // スタブが開始 (退避を観測) するまで待つ
+            await stashTestWaitForStart(started)  // スタブが開始 (退避を観測) するまで待つ
             task.cancel()
             var thrown: Error?
             do {
@@ -161,6 +173,9 @@ extension SelfTest {
             mark(!box.stashNamesDuringSummary.isEmpty, "要約の道中で退避 (隠しファイル .*.stash-*) が存在する",
                  "observed: \(box.stashNamesDuringSummary)")
             mark(thrown != nil, "道中の中止は summarizeAndWrite を投げ出す", "thrown: \(String(describing: thrown))")
+            mark(thrown != nil && TranscriptionCoordinator.isCancellation(thrown!),
+                 "道中の中止は «中止» として分類される (isCancellation — fail の «中止は失敗に数えない» と同じ表現)",
+                 "thrown: \(String(describing: thrown))")
             mark(stashNames(in: directory).isEmpty, "中止後に退避が残らない",
                  "remaining: \(stashNames(in: directory))")
             let nonRecording = visibleNames(in: directory).filter { $0 != recording.lastPathComponent }
@@ -194,7 +209,7 @@ extension SelfTest {
                 try await coordinator.summarizeAndWrite(
                     segments, job: job(recording: recording, template: .standard), summarize: step)
             }
-            for await _ in started {}  // スタブが開始するまで待つ
+            await stashTestWaitForStart(started)  // スタブが開始するまで待つ (上限あり)
             task.cancel()
             var thrown: Error?
             do {
@@ -203,6 +218,9 @@ extension SelfTest {
                 thrown = error
             }
             mark(thrown != nil, "書き出し直前の中止も summarizeAndWrite を投げ出す", "thrown: \(String(describing: thrown))")
+            mark(thrown != nil && TranscriptionCoordinator.isCancellation(thrown!),
+                 "書き出し直前の中止も «中止» として分類される (isCancellation)",
+                 "thrown: \(String(describing: thrown))")
             mark(stashNames(in: directory).isEmpty, "書き出し直前の中止でも退避が残らない",
                  "remaining: \(stashNames(in: directory))")
             let nonRecording = visibleNames(in: directory).filter { $0 != recording.lastPathComponent }
