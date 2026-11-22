@@ -687,8 +687,15 @@ final class TranscriptionCoordinator: ObservableObject {
     /// 写し — エンジン側は kilde-cli-swift#153 で internal のまま (モジュール外の
     /// GUI からは呼べない) なので、«退避を消す前に確定を耐久化する» 契約だけを
     /// こちらで満たす。エンジンの API を public に広げるより、fsync の部品を
-    /// API 面に晒さない方を取った。sync できない場合は transcriptSidecarWriteFailed
-    /// で失敗させる (エンジンと同じ — 呼び出し側は退避を残して失敗にする)
+    /// API 面に晒さない方を取った。
+    /// **エンジンとの一致を壊さない** — エンジンの実装 (kilde-cli-swift v0.28.0 の
+    /// TranscriptWriter.swift) は `FileHandle.synchronize()` + 親ディレクトリの
+    /// fsync であり、この写しも同じ構成にする。片側だけ `fcntl(F_FULLFSYNC)` に
+    /// 強めたり弱めたりすると «同じ契約の 2 実装が別の耐久性を持つ» になり、
+    /// どちらかを直すときにもう片方が黙って古くなる。耐久化の方式を変えるときは
+    /// エンジン側の PR で先に変え、この写しを追従させる
+    /// sync できない場合は transcriptSidecarWriteFailed で失敗させる
+    /// (エンジンと同じ — 呼び出し側は退避を残して失敗にする)
     private static func synchronizeSidecarForDurability(at fileURL: URL) throws {
         do {
             let handle = try FileHandle(forWritingTo: fileURL)

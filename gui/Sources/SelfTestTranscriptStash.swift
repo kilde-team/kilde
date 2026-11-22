@@ -114,7 +114,11 @@ extension SelfTest {
         // 1. 要約の道中で退避が存在し、道中の«中止»で退避も確定も残らない
         //    («中止時は確定ファイルを書かない» 契約の本体。エンジンの
         //    testSummaryCancellationStillAbortsSidecar と同じ検証)
-        do {
+        //    **要約ステップに入るケース** — スタブに届くのは
+        //    MeetingSummarizer.unsupportedReason が nil の環境だけ (ゲートが
+        //    unsupported の案内に倒すとスタブは呼ばれない) ので、非対応環境では
+        //    スキップする (ヘッダの注記どおり)
+        if canRunSummaryStep {
             let (directory, recording) = makeWorkspace("stash-cancel-during-summary")
             let parentPath = directory.path
             let coordinator = TranscriptionCoordinator()
@@ -126,12 +130,19 @@ extension SelfTest {
                 var stashNamesDuringSummary: [String] = []
             }
             let box = Box()
+            // スタブの開始を待つための信号 (固定スリープの競合を避ける)。
+            // スタブが退避の観測を終えたことを親に知らせてから cancel する —
+            // sleep だと MainActor の遅れで cancel がスタブ開始前に着地し、
+            // «道中の中止» を再現できずに断言が外れうる
+            let (started, startedContinuation) = AsyncStream.makeStream(of: Void.self)
             let step: TranscriptionCoordinator.SummaryStep = { _, _, _, _, _ in
                 // 要約の開始時点で退避が在ること («窓が塞がっている» の証拠)。
                 // 退避は隠しファイルの命名規約 (. 接頭辞 + .stash- マーカー) に従う
                 let names = ((try? FileManager.default.contentsOfDirectory(atPath: parentPath)) ?? [])
                     .filter { $0.hasPrefix(".") && $0.contains(".stash-") }
                 box.stashNamesDuringSummary = names
+                startedContinuation.yield()
+                startedContinuation.finish()
                 await stashTestWaitForCancellation()
                 return stubSummary
             }
@@ -139,7 +150,7 @@ extension SelfTest {
                 try await coordinator.summarizeAndWrite(
                     segments, job: job(recording: recording, template: .standard), summarize: step)
             }
-            try? await Task.sleep(nanoseconds: 300_000_000)
+            for await _ in started {}  // スタブが開始 (退避を観測) するまで待つ
             task.cancel()
             var thrown: Error?
             do {
@@ -156,18 +167,26 @@ extension SelfTest {
             mark(nonRecording.isEmpty, "中止後に確定サイドカーも残らない (全皆無)",
                  "remaining: \(nonRecording)")
             cleanup(directory)
+        } else {
+            skipped += 1
+            print("selftest: transcript-stash[skip] 道中の中止のケース (MeetingSummarizer 非対応環境: \(MeetingSummarizer.unsupportedReason ?? "-"))")
         }
 
         // 2. 書き出し直前の«中止»でも退避を削除する (エンジンの
         //    testCancellationBeforeSidecarWriteRemovesStash と同じ検証 — スタブは
-        //    要約を返しきるが、そのあとの checkCancellation が拾う)
-        do {
+        //    要約を返しきるが、そのあとの checkCancellation が拾う)。
+        //    ケース同心の «スタブに届くのは要約ステップに入る環境だけ» のため
+        //    非対応環境ではスキップする
+        if canRunSummaryStep {
             let (directory, recording) = makeWorkspace("stash-cancel-before-write")
             let coordinator = TranscriptionCoordinator()
             coordinator.licenseProvider = { LicenseContext(entitlement: .macAppStore) }
+            let (started, startedContinuation) = AsyncStream.makeStream(of: Void.self)
             let step: TranscriptionCoordinator.SummaryStep = { _, _, _, _, _ in
                 // cancel が届くまで待ってから正常に返す — «要約は成功したが
-                // そのあとで中止» の経路
+                // そのあとで中止» の経路。開始だけは親に知らせる (上と同じ理由)
+                startedContinuation.yield()
+                startedContinuation.finish()
                 await stashTestWaitForCancellation()
                 return stubSummary
             }
@@ -175,7 +194,7 @@ extension SelfTest {
                 try await coordinator.summarizeAndWrite(
                     segments, job: job(recording: recording, template: .standard), summarize: step)
             }
-            try? await Task.sleep(nanoseconds: 300_000_000)
+            for await _ in started {}  // スタブが開始するまで待つ
             task.cancel()
             var thrown: Error?
             do {
@@ -190,6 +209,9 @@ extension SelfTest {
             mark(nonRecording.isEmpty, "書き出し直前の中止でも確定サイドカーが残らない",
                  "remaining: \(nonRecording)")
             cleanup(directory)
+        } else {
+            skipped += 1
+            print("selftest: transcript-stash[skip] 書き出し直前の中止のケース (MeetingSummarizer 非対応環境)")
         }
 
         // 3. 要約の成功 → 確定 (要約つき) が残り、退避は消える
