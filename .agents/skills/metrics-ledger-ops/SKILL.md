@@ -52,23 +52,28 @@ What's New のみ更新の版は**計測期間を設けない** (計測対象 = 
 前月分の確定は**翌月月初**に行う (地域ごとに翌日 5am PT まで配信。JP はその後)。
 
 1. ASC API の Sales Report を呼ぶ (docs/metrics.md「取得方法」)。クエリは
-   **`filter[...]` 形式** (docs/metrics.md と同じ):
-   `GET https://api.appstoreconnect.apple.com/v1/salesReports?filter[frequency]=DAILY&filter[reportType]=SALES&filter[reportSubType]=SUMMARY&filter[vendorNumber]=85006198&filter[reportDate]=YYYY-MM-DD`
+   **`filter[...]` 形式** (docs/metrics.md と同じ) で、
+   **`Accept: application/a-gzip` ヘッダーが必須** (無いと API が拒否する):
+
+   ```
+   GET https://api.appstoreconnect.apple.com/v1/salesReports?filter[frequency]=DAILY&filter[reportType]=SALES&filter[reportSubType]=SUMMARY&filter[vendorNumber]=85006198&filter[reportDate]=YYYY-MM-DD
+   Accept: application/a-gzip
+   ```
 2. **月次の値は前月 1 日〜末日の各日付で `reportDate` を変えて呼び、
    日次 TSV を集計して作る** (API は 1 回で 1 日分)。末日分が揃ってから台帳に
    記入する
-2. kilde の行だけを抜く — **2 つのフィルタを併用する** (docs/metrics.md「取得方法」):
+3. kilde の行だけを抜く — **2 つのフィルタを併用する** (docs/metrics.md「取得方法」):
    **アプリ本体**は SKU `kilde-mas`、**IAP** は SKU が `kilde.` で始まる行
    (Product Type Identifier **IA1 / IA1-M / FI1**)。IAP 行を `kilde-mas` だけで
    絞ると、購入があった月も販売 0 と記録してしまう。DL 系は **F1 / F3 / F7**
    (F1 = 初回 DL の代理指標 — ASC 分析の «初回ダウンロード» とは定義が異なる
    近似値。トレンド用)
-3. `Developer Proceeds` の通貨は行ごとの `Currency of Proceeds` で読む
+4. `Developer Proceeds` の通貨は行ごとの `Currency of Proceeds` で読む
    (常に USD ではない。換算が必要なら通貨ごとに分けて明示的に変換)
-4. 台帳の 1 行として追記: 販売列・F1 列・転換率は**すべて当月の値**で揃える
+5. 台帳の 1 行として追記: 販売列・F1 列・転換率は**すべて当月の値**で揃える
    (分子と分母の窓をずらさない)。取得日と未配信区間を«気づき»に併記する
    (2026-11 行の前例: «11-18 以降はレポート未配信»)
-5. 母数が小さいときは率で判断しない — «サンプル N 件で統計的な判定は不可» と書き、
+6. 母数が小さいときは率で判断しない — «サンプル N 件で統計的な判定は不可» と書き、
    判定できる母数になるまで追う。**«2%» 出口条件の判定に使う分母は ASC 分析
    (App Analytics) の «初回ダウンロード»** (正本 — docs/metrics.md 指標 6)。
    Sales Report の F1 は定義の異なる代理指標のため、F1 比は**トレンド値**として
