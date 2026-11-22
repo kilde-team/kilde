@@ -182,7 +182,7 @@ if command -v actionlint >/dev/null; then actionlint .github/workflows/release.y
 
 | 対象 | 正本 |
 |---|---|
-| プロダクトの地図と地雷 (§3〜§5) | `CLAUDE.md` (**変更しない** — 地図と地雷の正本) |
+| プロダクトの地図と地雷 (§3〜§5) | `CLAUDE.md` (正本 — 無関係な編集をしない。§4 の例外: 地雷を変える変更ではその理由を CLAUDE.md と docs/DEVELOPMENT.md に追記する) |
 | リリース手順 (直接配布 / MAS / tap / pin) | `docs/RELEASE.md` |
 | リリースノートの本文 | `docs/release-notes/v<VERSION>.md` (issue #283 — Release 本文と appcast を 1 ファイルで供給) |
 | KPI の定義・月次台帳・IAP 台帳 | `docs/metrics.md` (issue #159 / #598) |

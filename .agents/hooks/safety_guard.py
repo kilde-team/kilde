@@ -12,11 +12,16 @@ PreToolUse ガード (.agents/hooks.json から呼ばれる)。判定は allow /
 3. エンジン pin (gui/project.yml の kilde-cli-swift パッケージの exactVersion) の
    単独編集 — release.yml の ref: と同じ PR で揃える契約 (AGENTS.md §4 /
    docs/RELEASE.md「CLI ソースの pin の更新」) のため、単独変更に確認を挟む。
-   他パッケージ (Sparkle / firebase-ios-sdk) の exactVersion 更新は確認しない
+   他パッケージ (Sparkle / firebase-ios-sdk) の exactVersion 更新は確認しない。
+   edit_file は適用後の内容で pin を比較し (トークンやコメントによる値の保持を
+   不変の証拠にしない)、シェル経由の書き込み (値だけの置換を含む) も確認する。
+   読み取りは妨げない
 4. 配布 workflow (.github/workflows/mas.yml / release.yml) の編集 — 配布経路の
    要所のため一律に確認を挟む (シェルからの読み取りは妨げない)
 
-Python 標準ライブラリのみで動く (依存追加しない)。--self-test で通常操作が
+Python 標準ライブラリのみで動く (依存追加しない)。hooks のカレントディレクトリが
+リポジトリルートと hooks.json の置かれた .agents/ のどちらでも動くように、
+リポジトリファイルの参照は cwd から親へ辿って解決する。--self-test で通常操作が
 allow、上記パターン各々が force_ask になることを確認できる。
 """
 
@@ -29,9 +34,10 @@ import sys
 
 # --- main への直接 push ----------------------------------------------------
 # 「main」はトークンとして厳密に見る (feature/main-fix や main2 を誤検知しない)。
-# 直前が行頭・空白・コロン (HEAD:main) か refs/heads/ のみを対象にする
+# 直前が行頭・空白・コロン (HEAD:main)・force 記号の + (refspec の +main) か
+# refs/heads/ のみを対象にする
 MAIN_PUSH_RE = re.compile(
-    r"\bgit\s+push\b[^\n;|&]*(?:(?:^|[\s:])|refs/heads/)main(?![\w-])"
+    r"\bgit\s+push\b[^\n;|&]*(?:(?:^|[\s:+])|refs/heads/)main(?![\w-])"
 )
 
 # --- シークレット -----------------------------------------------------------
@@ -64,6 +70,10 @@ WORKFLOW_SHELL_WRITE_RE = re.compile(
 
 # --- エンジン pin -----------------------------------------------------------
 PIN_FILE_RE = re.compile(r"(?:^|/)gui/project\.yml$")
+# gui/project.yml へのシェル経由の書き込みの合図 (リダイレクト / in-place 編集 /
+# plutil による値の置換)。«値だけ» の pin 書き換え (sed 's/0.27.2/0.28.0/') も
+# 拾うため exactVersion トークンは要求しない。読み取り (grep 等) は対象外
+PIN_SHELL_WRITE_RE = re.compile(r"(?:>>?|sed\s+-i|perl\s+-\w*i|tee\s|plutil\s+-replace)")
 PACKAGE_KEY_RE = re.compile(r"^  ([A-Za-z][\w-]*):\s*(?:#.*)?$")
 EXACT_VERSION_RE = re.compile(r"^\s*exactVersion:\s*([\w.-]+)\s*(?:#.*)?$", re.MULTILINE)
 ENGINE_PACKAGE_HINT = "kilde-cli-swift"
@@ -105,11 +115,22 @@ def _first_str(args: dict, keys: tuple[str, ...]) -> str | None:
 
 
 def _read_repo_file(rel_path: str) -> str | None:
-    """リポジトリルート起点でファイルを読む (hooks は cwd = リポジトリルート前提)。
+    """リポジトリルート起点で対象ファイルを読む。
 
-    cwd から親へ最大 4 段階探す。読めなければ None (呼び出し側が保守的に扱う)。
+    相対パスは cwd から親へ最大 4 段階探す — hooks のカレントがリポジトリルートと
+    hooks.json の置かれた .agents/ のどちらでも同じファイルに解決する。
+    絶対パスは同マシンの実ファイルとしてそのまま読む。
+    読めなければ None (呼び出し側が保守的に扱う)。
     """
-    if not rel_path or rel_path.startswith("/"):
+    if not rel_path:
+        return None
+    if os.path.isabs(rel_path):
+        if os.path.isfile(rel_path):
+            try:
+                with open(rel_path, "r", encoding="utf-8") as handle:
+                    return handle.read()
+            except OSError:
+                return None
         return None
     candidate = os.getcwd()
     for _ in range(5):
@@ -145,9 +166,11 @@ def check_run_command(cmd: str) -> tuple[str, str | None]:
                 "あります (docs/RELEASE.md §2 / §4)。本当に実行しますか？",
             )
 
-    # 3. エンジン pin の変更をシェルで行う (sed / plutil など)。読み取りは含まれない
+    # 3. エンジン pin ファイルへの書き込み系コマンド。«値だけ» の置換
+    # (sed 's/0.27.2/0.28.0/' のような exactVersion トークンの無い書き換え) も
+    # 拾う。grep などの読み取りは妨げない
     normalized_cmd = cmd.replace("\\", "/")
-    if "gui/project.yml" in normalized_cmd and "exactVersion" in cmd:
+    if "gui/project.yml" in normalized_cmd and PIN_SHELL_WRITE_RE.search(cmd):
         return (
             "force_ask",
             "エンジン pin (gui/project.yml の exactVersion) への変更の可能性が"
@@ -188,21 +211,42 @@ def check_file_write(
     # 3. エンジン pin (gui/project.yml) の編集
     if PIN_FILE_RE.search(normalized):
         if old_text is not None and new_text is not None:
-            # edit_file: «exactVersion» トークンが両辺に無くても、pin 行の
-            # «値だけ» の置換 (old ": 0.27.2" → new ": 0.28.0") はあり得る。
-            # 古い辺から消えた値がエンジン pin の現在値と一致するなら確認する —
-            # コメントだけの整形は消えた値が pin と一致しないため通る
+            disk_pin = _pin_values(disk_text)
+            # 第一判断: ディスクの現在内容に差分を適用した**結果**で pin を比較する。
+            # トークンの有無・«値だけ» の置換・«# previously …» によるトークンの保持は
+            # いずれも適用後の pin を見れば判定できる (トークンの保持を pin 不変の
+            # 証拠にはしない)。複数箇所で一致したら全部を適用して見る — 誤検知は
+            # 確認に倒れる安全側の方向
+            if disk_text is not None and old_text in disk_text:
+                result_pin = _pin_values(disk_text.replace(old_text, new_text))
+                if result_pin != disk_pin:
+                    return (
+                        "force_ask",
+                        "エンジン pin (gui/project.yml の exactVersion) が "
+                        f"{'+'.join(disk_pin or ())} → {'+'.join(result_pin or ())} "
+                        "に変わります。release.yml の ref: を同じ PR で揃えていますか "
+                        "(docs/RELEASE.md「CLI ソースの pin の更新」)？",
+                    )
+                return ("allow", None)
+            # フォールバック: ディスクから適用結果を再現できない (未読・不一致) ときは
+            # 文字列ベースで判定し、pin に触れる可能性のある編集は確認に倒す
             if "exactVersion" not in old_text and "exactVersion" not in new_text:
-                disk_pin = _pin_values(disk_text) or ()
                 removed = (set(re.findall(r"[\w.-]+", old_text))
                            - set(re.findall(r"[\w.-]+", new_text)))
-                if any(value in disk_pin for value in removed):
+                if any(value in (disk_pin or ()) for value in removed):
                     return (
                         "force_ask",
                         "gui/project.yml の値の置換がエンジン pin "
-                        f"({'+'.join(disk_pin)}) に一致します。exactVersion を"
+                        f"({'+'.join(disk_pin or ())}) に一致します。exactVersion を"
                         "単独で変えていないか確認します — release.yml の ref: と"
                         "同じ PR で揃える契約があります。本当に変更しますか？",
+                    )
+                if disk_text is None:
+                    return (
+                        "force_ask",
+                        "gui/project.yml の現在値を読めず pin を検証できません。"
+                        "エンジン pin を単独で変えていないか確認します。"
+                        "本当に変更しますか？",
                     )
                 return ("allow", None)
             old_pin = _pin_values(old_text)
@@ -216,12 +260,6 @@ def check_file_write(
                         "release.yml の ref: を同じ PR で揃えていますか "
                         "(docs/RELEASE.md「CLI ソースの pin の更新」)？",
                     )
-                return ("allow", None)
-            # 差分文字列が短く帰属できない → ディスクの現在値と照合して
-            # «エンジン pin の現在値ではない行» (他パッケージの bump) なら通す
-            disk_pin = _pin_values(disk_text)
-            edited_values = re.findall(EXACT_VERSION_RE.pattern, old_text)
-            if disk_pin and edited_values and all(v not in disk_pin for v in edited_values):
                 return ("allow", None)
             return (
                 "force_ask",
@@ -331,7 +369,11 @@ def self_test() -> int:
         ("allow: キー変数への設定 (出力ではない)", "allow", run("run_command", {"CommandLine": "export KILDE_ASC_API_KEY=~/private/AuthKey_ABC123.p8"})),
         ("allow: GUI ビルド", "allow", run("run_command", {"CommandLine": "(cd gui && xcodegen && xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI build CODE_SIGNING_ALLOWED=NO)"})),
         ("allow: project.yml のコメント編集 (pin 行外)", "allow", run("edit_file", {"Path": "gui/project.yml", "old_string": "# GUI の自動更新 (issue #122)", "new_string": "# GUI の自動更新 (issue #122、コメントを整形)"})),
+        ("allow: pin と同値を含む旧コメント行の削除", "allow", run("edit_file", {"Path": "gui/project.yml", "old_string": "# v0.27.2 の注記", "new_string": "# 注記は削除済み"}, disk=engine_yml_disk)),
+        ("allow: grep による project.yml の読み取り", "allow", run("run_command", {"CommandLine": "grep exactVersion gui/project.yml"})),
         ("ask: pin の値だけの置換 (トークン無し)", "force_ask", run("edit_file", {"Path": "gui/project.yml", "old_string": ": 0.27.2", "new_string": ": 0.28.0"}, disk=engine_yml_disk)),
+        ("ask: 値だけの pin 書き換えをシェルで実行", "force_ask", run("run_command", {"CommandLine": "sed -i '' 's/0.27.2/0.28.0/' gui/project.yml"})),
+        ("ask: トークンを保持した値の置換 («# previously»)", "force_ask", run("edit_file", {"Path": "gui/project.yml", "old_string": ": 0.27.2", "new_string": ": 0.28.0 # previously 0.27.2"}, disk=engine_yml_disk)),
         ("allow: 他パッケージの値だけの置換 (Sparkle)", "allow", run("edit_file", {"Path": "gui/project.yml", "old_string": ": 2.10.0", "new_string": ": 2.11.0"}, disk=engine_yml_disk)),
         ("allow: Sparkle の exactVersion bump (エンジン pin 外)", "allow", run("edit_file", {"Path": "gui/project.yml", "old_string": "exactVersion: 2.10.0", "new_string": "exactVersion: 2.11.0"}, disk=engine_yml_disk)),
         ("allow: project.yml 全体再書き込み (pin 不変)", "allow", run("write_file", {"Path": "gui/project.yml", "content": engine_yml_disk}, disk=engine_yml_disk)),
@@ -340,6 +382,7 @@ def self_test() -> int:
         ("ask: main への直接 push", "force_ask", run("run_command", {"CommandLine": "git push origin main"})),
         ("ask: HEAD:main への push", "force_ask", run("run_command", {"CommandLine": "git push origin HEAD:main"})),
         ("ask: refs/heads/main への push", "force_ask", run("run_command", {"CommandLine": "git push origin refs/heads/main"})),
+        ("ask: force 記号つき refspec (+main) への push", "force_ask", run("run_command", {"CommandLine": "git push origin +main"})),
         # --- force_ask: シークレット出力 ---
         ("ask: .p8 キーの cat", "force_ask", run("run_command", {"CommandLine": "cat ~/Downloads/AuthKey_2DB7ZRS4N4.p8"})),
         ("ask: .p8 キーの base64", "force_ask", run("run_command", {"CommandLine": "base64 -i ~/.klide-asc/AuthKey_G9C3BAFJDQ.p8"})),
@@ -371,7 +414,20 @@ def self_test() -> int:
             failures += 1
         print(f"[{status}] {label}: expected={expected} actual={decision}")
 
-    print(f"\n{len(cases) - failures}/{len(cases)} cases PASS")
+    # 絶対パスのファイルが disk として読めること (hooks の cwd に依存しない解決)
+    import tempfile
+    probe_handle = tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False)
+    probe_handle.write("pin-probe")
+    probe_handle.close()
+    abs_ok = _read_repo_file(probe_handle.name) == "pin-probe"
+    os.unlink(probe_handle.name)
+    status = "PASS" if abs_ok else "FAIL"
+    if not abs_ok:
+        failures += 1
+    print(f"[{status}] meta: 絶対パスのファイルを disk として読める")
+
+    total = len(cases) + 1
+    print(f"\n{total - failures}/{total} cases PASS")
     if failures:
         print("SELF-TEST FAILED")
     else:

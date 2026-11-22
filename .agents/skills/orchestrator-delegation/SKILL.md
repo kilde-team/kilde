@@ -46,7 +46,11 @@ kilde は次の 4 ドメインで構成される。ワーカーごとに**担当
    (本リポジトリではドキュメント運用上 CLAUDE.md は変更しないのが原則)
 3. **作業場所と開始手順** — AGENTS.md §2 どおり:
    着手宣言 → `git worktree add ../kilde-<N> -b feature/<N>-<slug> origin/main` →
-   worktree 内で実装。**メイン作業コピーでは実装しない**。main への直接 push も禁止
+   worktree 内で実装。**メイン作業コピーでは実装しない**。main への直接 push も禁止。
+   worktree とブランチは **issue ごとに 1 つ** (最初の着手者が作成する) —
+   同じ issue に複数ワーカーが付くとき、2 人目以降は既存の worktree で作業し
+   (`worktree add` を再実行して失敗しない)、担当パスの非重複で衝突を避ける。
+   作成者はブリーフに明記する (既定は Orchestrator)
 4. **該当する拘束ルール** — GUI 変更なら CLAUDE.md §5、配布なら docs/RELEASE.md と
    該当スキル、計測なら docs/metrics.md の定義、ドキュメントは日本語で
    «なぜそうしたか» を書くこと (AGENTS.md §2.2)
