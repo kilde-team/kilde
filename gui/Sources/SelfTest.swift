@@ -346,6 +346,11 @@ enum SelfTest {
         // fail loud» を決定的に確かめる
         if env["KILDE_GUI_SELFTEST_TRANSCRIPT_STASH"] == "1" {
             runTranscriptStash()
+            // runTranscriptStash は検査を Task で非同期に回すため即座に戻る。
+            // このモードを排他的にする — 後続のセルフテスト (UPDATE の
+            // exit(0) など) を走らせると検査の完了を待たずにプロセスが
+            // 終わり、スタッシュの検査結果が失われる
+            return
         }
         // KILDE_GUI_SELFTEST_UPDATE=1: Sparkle 自動更新の配線と設定を確かめる (issue #122)。
         // 終了は reportUpdateSetup の中 (canCheckForUpdates の待ちがあるため)。

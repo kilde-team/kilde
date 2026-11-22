@@ -712,7 +712,7 @@ resumen de la GUI (TranscriptionCoordinator) no pasa por el TranscriptionRun
 del motor, así que tenía la misma ventana — esta versión adopta el
 TranscriptStash del motor para cerrarla. La transcripción completada se
 escribe en un archivo oculto de reserva antes de iniciar el resumen, y el
-archivo que deje un cierre inesperado se recupera la próxima vez que se
+archivo que quede tras un cierre inesperado se recupera la próxima vez que se
 genere el resumen de la misma grabación. El contrato «al cancelar no se
 escribe el archivo final» no cambia (una cancelación no deja ni reserva ni
 final). La grabación, la transcripción y la generación de resúmenes no
