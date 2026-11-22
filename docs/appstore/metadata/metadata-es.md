@@ -700,3 +700,26 @@ indicar con franqueza que la app no cambia.
 ```text
 Esta es una versión de mantenimiento. No hay cambios en las funciones de grabación ni de transcripción.
 ```
+
+## Novedades (0.49.0)
+
+Mejora de fiabilidad (kilde#629 — adopción del TranscriptStash del motor,
+kilde-cli-swift#153, en la ruta de resumen de la GUI). La generación del
+resumen (map-reduce del LLM en el dispositivo) es el tramo más largo entre
+«transcripción terminada» y «escritura del sidecar»; si la app moría en ese
+tramo, la transcripción completada no quedaba en ningún sitio. La ruta de
+resumen de la GUI (TranscriptionCoordinator) no pasa por el TranscriptionRun
+del motor, así que tenía la misma ventana — esta versión adopta el
+TranscriptStash del motor para cerrarla. La transcripción completada se
+escribe en un archivo oculto de reserva antes de iniciar el resumen, y el
+archivo que deje un cierre inesperado se recupera la próxima vez que se
+genere el resumen de la misma grabación. El contrato «al cancelar no se
+escribe el archivo final» no cambia (una cancelación no deja ni reserva ni
+final). La grabación, la transcripción y la generación de resúmenes no
+cambian. Escribir solo lo que hace la implementación (estilo de la casa).
+No mencionar en el texto de la tienda los términos internos (reserva,
+sidecar).
+
+```text
+Si la app se cierra mientras se genera el resumen, la transcripción completada ya no se pierde. Se recupera automáticamente la próxima vez que generes el resumen de la misma grabación. La grabación, la transcripción y la generación de resúmenes no cambian.
+```

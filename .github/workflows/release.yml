@@ -85,7 +85,9 @@ jobs:
           # v0.27.2: summaryFailureReason まわりのコメントの機序説明を整理
           # (kilde-cli-swift#156 — コメントのみ・挙動は v0.27.1 から不変。
           # gui/project.yml と同じ pin)
-          ref: v0.27.2
+          # v0.28.0: 退避書き出し (TranscriptStash — kilde-cli-swift#153)。
+          # gui/project.yml と同じ pin (kilde#629)
+          ref: v0.28.0
           # private リポジトリ: GITHUB_TOKEN は他リポジトリを読めないため
           # fine-grained PAT (contents:read) を使う
           token: ${{ secrets.KILDE_CLI_SWIFT_TOKEN }}
