@@ -188,9 +188,22 @@ def check_file_write(
     # 3. エンジン pin (gui/project.yml) の編集
     if PIN_FILE_RE.search(normalized):
         if old_text is not None and new_text is not None:
-            # edit_file: 差分文字列のどちらにも exactVersion が無ければ
-            # pin 行はレンジ外 — 確認せず通す (コメント編集等の通常操作)
+            # edit_file: «exactVersion» トークンが両辺に無くても、pin 行の
+            # «値だけ» の置換 (old ": 0.27.2" → new ": 0.28.0") はあり得る。
+            # 古い辺から消えた値がエンジン pin の現在値と一致するなら確認する —
+            # コメントだけの整形は消えた値が pin と一致しないため通る
             if "exactVersion" not in old_text and "exactVersion" not in new_text:
+                disk_pin = _pin_values(disk_text) or ()
+                removed = (set(re.findall(r"[\w.-]+", old_text))
+                           - set(re.findall(r"[\w.-]+", new_text)))
+                if any(value in disk_pin for value in removed):
+                    return (
+                        "force_ask",
+                        "gui/project.yml の値の置換がエンジン pin "
+                        f"({'+'.join(disk_pin)}) に一致します。exactVersion を"
+                        "単独で変えていないか確認します — release.yml の ref: と"
+                        "同じ PR で揃える契約があります。本当に変更しますか？",
+                    )
                 return ("allow", None)
             old_pin = _pin_values(old_text)
             new_pin = _pin_values(new_text)
@@ -318,6 +331,8 @@ def self_test() -> int:
         ("allow: キー変数への設定 (出力ではない)", "allow", run("run_command", {"CommandLine": "export KILDE_ASC_API_KEY=~/private/AuthKey_ABC123.p8"})),
         ("allow: GUI ビルド", "allow", run("run_command", {"CommandLine": "(cd gui && xcodegen && xcodebuild -project KildeGUI.xcodeproj -scheme KildeGUI build CODE_SIGNING_ALLOWED=NO)"})),
         ("allow: project.yml のコメント編集 (pin 行外)", "allow", run("edit_file", {"Path": "gui/project.yml", "old_string": "# GUI の自動更新 (issue #122)", "new_string": "# GUI の自動更新 (issue #122、コメントを整形)"})),
+        ("ask: pin の値だけの置換 (トークン無し)", "force_ask", run("edit_file", {"Path": "gui/project.yml", "old_string": ": 0.27.2", "new_string": ": 0.28.0"}, disk=engine_yml_disk)),
+        ("allow: 他パッケージの値だけの置換 (Sparkle)", "allow", run("edit_file", {"Path": "gui/project.yml", "old_string": ": 2.10.0", "new_string": ": 2.11.0"}, disk=engine_yml_disk)),
         ("allow: Sparkle の exactVersion bump (エンジン pin 外)", "allow", run("edit_file", {"Path": "gui/project.yml", "old_string": "exactVersion: 2.10.0", "new_string": "exactVersion: 2.11.0"}, disk=engine_yml_disk)),
         ("allow: project.yml 全体再書き込み (pin 不変)", "allow", run("write_file", {"Path": "gui/project.yml", "content": engine_yml_disk}, disk=engine_yml_disk)),
         ("allow: 他ファイルの書き込み", "allow", run("write_file", {"Path": "docs/RELEASE.md", "content": "# リリース署名と notarization\n"})),
