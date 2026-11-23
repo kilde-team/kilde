@@ -350,6 +350,7 @@ jobs:
       # 鍵素材・partition-list の変更はしない (m1 の恒久対処はオーナー判断 — #470)。
       # 沈黙が 1 件でもあれば即失敗 (rc=2)、identity が 1 件も無い / 全滅も失敗 (rc=1)
       - name: Codesign key preflight (bounded, fail-fast)
+        id: codesign_preflight
         if: inputs.mode == 'upload' && steps.preflight.outputs.build_present != 'true'
         env:
           PREFLIGHT_PROBE_SEC: "90"
@@ -599,7 +600,13 @@ jobs:
       # ことがあり、その判定をこの run 内で済ませるため。レビュー指摘)。
       # upload をスキップした (再利用) 場合もここで現在の状態を確認する (issue #615)
       - name: Confirm the build in ASC (read-only poll)
-        if: ${{ always() && inputs.mode == 'upload' }}
+        # preflight が失敗した (かつアーカイブが実行されない = build 未存在) ときは
+        # poll を省略する — アップロードが始まっていないため ASC に build が現れる
+        # ことは無く、20 分の poll を消化するだけ (CodeRabbit レビュー指摘)。
+        # アーカイブが実行された (preflight 通過 or スキップ=再利用) あとの失敗は
+        # «エクスポートが失敗に見えても ASC が build を受理していることがある» ので
+        # 従来どおり poll する
+        if: ${{ always() && inputs.mode == 'upload' && !(steps.codesign_preflight.outcome == 'failure' && steps.preflight.outputs.build_present != 'true') }}
         env:
           VERSION: ${{ inputs.version }}
           BUILD: ${{ inputs.build }}

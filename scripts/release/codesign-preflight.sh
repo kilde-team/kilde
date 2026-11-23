@@ -21,9 +21,11 @@
 # probe ファイルは mktemp -d の一時ディレクトリに作り、終了時に必ず消す。
 #
 # 終了コード:
-#   0  正常 (少なくとも 1 個の identity で署名が完了)
-#   1  失敗 (有効な identity が無い / すべての identity で即時エラー — アーカイブも
-#      失敗するため早めに落とす)
+#   0  続行 («Apple Development» 系の identity で署名が完了 / identity が無い場合も
+#      アーカイブのクラウド署名 (ASC API キー) が identity を用意できるため続行 —
+#      その場合は沈黙検知の対象鍵が無いことを warning ログに残す)
+#   1  失敗 (identity の列挙そのものが沈黙・エラー — キーチェーンアクセスの異常。
+#      アーカイブの identity 選択も沈黙するため早期に落とす)
 #   2  失敗 (署名が沈黙し上限で打ち切り — issue #470 の ACL 待ちの兆候。
 #      アーカイブに進めても同位置で沈黙するため fail-fast する)
 #
@@ -110,8 +112,11 @@ esac
 # 有効な codesigning identity (-v = private key 付きのみ)。security 自体が
 # 沈黙する可能性 (ロック状態のキーチェーン) に備え、こちらも bounded で出す
 ID_TMP="$(mktemp)"
-if ! bounded "$SEC_SEC" "$ID_TMP" security find-identity -v -p codesigning; then
-  RC=$?
+# `!` で包まず直接受け取る — `if ! cmd` の分岐内の $? は否定の結果 (0) になり、
+# bounded の終了コードを失う (CodeRabbit レビュー指摘)
+bounded "$SEC_SEC" "$ID_TMP" security find-identity -v -p codesigning
+RC=$?
+if [ "$RC" -ne 0 ]; then
   if [ "$RC" -eq 124 ]; then
     echo "[preflight] 失敗: security find-identity が ${SEC_SEC} 秒で応答せず (キーチェーンアクセスの沈黙)"
     echo "[preflight] この状態ではアーカイブの署名も沈黙するため、Archive に進めず失敗させます"
@@ -129,12 +134,39 @@ echo "$IDENT_RAW" | sed 's/^/[preflight]   /'
 
 # ハッシュ (40 桁の 16 進) を抽出する。find-identity の集計行 («N valid identities
 # found») にはハッシュが無いため自然に除外される
-IDENTS="$(echo "$IDENT_RAW" | grep -Eo '[0-9A-F]{40}' | sort -u || true)"
+IDENTS_ALL="$(echo "$IDENT_RAW" | grep -Eo '[0-9A-F]{40}' | sort -u || true)"
+
+# アーカイブ (appstore-archive.sh の xcodebuild) が CODE_SIGN_IDENTITY="Apple
+# Development" で選ぶのは、名前が «Apple Development» で**始まる** identity だけ
+# (prefix マッチ)。それ以外の種類 (Developer ID など) は選ばれないため probe 対象から
+# 外す — 関係の無い identity が沈黙しただけで fail-fast しないため (CodeRabbit 指摘)
+IDENTS=""
+SKIPPED=""
+for HASH in $IDENTS_ALL; do
+  LINE="$(echo "$IDENT_RAW" | grep "$HASH" | head -n 1 || true)"
+  # find-identity の行: «  1) <hash> "Name" (状態注記)» — ハッシュを挟んで名前が来る
+  NAME="$(printf '%s' "$LINE" | sed -n 's/^[[:space:]]*[0-9]*) [0-9A-F][0-9A-F]* "\(.*\)"/\1/p')"
+  case "$NAME" in
+    "Apple Development"*) IDENTS="$IDENTS $HASH" ;;
+    *) SKIPPED="$SKIPPED $HASH(${NAME:-名称不明})" ;;
+  esac
+done
+[ -n "$SKIPPED" ] && echo "[preflight] probe 対象外 (名前が «Apple Development» で始まらない):$SKIPPED"
+
 if [ -z "$IDENTS" ]; then
-  echo "[preflight] 失敗: private key 付きの有効な codesigning identity が 1 件も無い"
-  echo "[preflight] アーカイブのクラウド署名 (ASC API キー) が identity を作る可能性はあるが、"
-  echo "[preflight] 既存鍵が見えない状態は #470 の別系統の異常として続行しない"
-  exit 1
+  # identity が無くてもアーカイブは ASC API キーのクラウド署名で identity を
+  # 用意できる (-allowProvisioningUpdates)。«鍵が無い» は沈黙の兆候ではないため
+  # 失敗させず続行する — 沈黙検知の対象鍵が無いことを warning として残す
+  # (cubic P1 指摘: クラウド署名経路での過剰ゲート)
+  if [ -n "$IDENTS_ALL" ]; then
+    echo "[preflight] 警告: «Apple Development» で始まる有効な identity が無い"
+  else
+    echo "[preflight] 警告: private key 付きの有効な codesigning identity が 1 件も見えない"
+  fi
+  echo "[preflight] アーカイブはクラウド署名 (ASC API キー) で identity を用意できるため、"
+  echo "[preflight] ここでは失敗させず続行します (沈黙検知の対象鍵が無いだけ)"
+  echo "[preflight] 続行: Archive and upload に進みます (沈黙時は watchdog が打ち切り診断を出します)"
+  exit 0
 fi
 
 # --- probe ファイルの準備 ------------------------------------------------------
@@ -228,10 +260,15 @@ if [ -n "$TIMEOUT_HASHES" ]; then
 fi
 
 if [ "$OK_COUNT" -eq 0 ]; then
-  echo "[preflight] 判定: 失敗 — 有効な identity がすべて即時エラーで使えない:$ERR_HASHES"
-  echo "[preflight] (沈黙は無く、鍵アクセス待ちの兆候は無い。アーカイブも同理由で失敗するため"
-  echo "[preflight]  ここで落とす。エラー内容は上の probe 出力を参照)"
-  exit 1
+  # 沈黙ではなく即時エラー (失効・不一致など) は «鍵アクセス待ち» の兆候ではない。
+  # アーカイブはクラウド署名で失効証明書を作り直せるため、失敗させず続行する
+  # (cubic P1 指摘 — クラウド署名経路での過剰ゲート)。新規 identity の初回署名が
+  # 対話承認を要するリスクは残るが、その場合は watchdog が打ち切り診断を出す
+  echo "[preflight] 警告: «Apple Development» 系の identity がすべて即時エラーで使えなかった:${ERR_HASHES}"
+  echo "[preflight] 沈黙 (鍵アクセス待ち) は無い。アーカイブはクラウド署名で identity を"
+  echo "[preflight] 作り直せるため、ここでは失敗させず続行します (エラー内容は上の probe 出力を参照)"
+  echo "[preflight] Archive and upload に進みます"
+  exit 0
 fi
 
 echo "[preflight] 判定: OK — ${OK_COUNT} 個の identity が非対話で使える (経過 $((SECONDS - OVERALL_START)) 秒)。"
