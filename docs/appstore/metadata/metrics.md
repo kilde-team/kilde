@@ -184,6 +184,7 @@ ASC 分析の指標を使う (Apple の
 | 0.47.0 審査承認・公開日 | **2026-11-22** (JST。iTunes Lookup (jp / us) の currentVersionReleaseDate **2026-11-21T22:00:00Z = JST 11-22 07:00:00** で確認 (0.46.0 の 02:51 から 4 時間 9 分後)。このラウンドの MAS watch による自動起票 **issue #622** («MAS: 0.47.0 が承認されました (metrics 記入と計測開始)») の記入を issue #623 (0.48.0 実施) が行った。What's New のみの更新 (メンテナンス版 — 要約失敗理由の表示整形、kilde-cli-swift#154) のため計測期間は設けない) |
 | 0.48.0 審査承認・公開日 | **2026-11-23** (JST。iTunes Lookup (jp / us) の currentVersionReleaseDate **2026-11-22T15:16:19Z = JST 11-23 00:16:19** で確認 (0.47.0 の 07:00 から 17 時間 16 分後)。このラウンドの MAS watch による自動起票 (承認 issue) は無く、記入は issue #629 (0.49.0 実施) が行った。What's New のみの更新 (メンテナンス版 — kilde#623) のため計測期間は設けない) |
 | 0.49.0 審査承認・公開日 | **2026-11-24** (JST。iTunes Lookup (jp) の currentVersionReleaseDate **2026-11-23T17:35:40Z = JST 11-24 02:35:40** で確認 (0.48.0 の 00:16 から 26 時間 19 分後)。このラウンドの MAS watch による自動起票 (承認 issue) は無く、記入は issue #633 (0.50.0 実施) が行った。What's New のみの更新 (メンテナンス版 — kilde#629) のため計測期間は設けない) |
+| 0.50.0 審査承認・公開日 | **2026-11-24** (JST。iTunes Lookup (us) の currentVersionReleaseDate **2026-11-23T20:29:27Z = JST 11-24 05:29:27** で確認 (0.49.0 の 02:35 から 2 時間 54 分後。country=jp は同時刻の確認時点で CDN キャッシュ遅延によりまだ 0.49.0 を返したため us で裏取り — 0.17.0 の前例どおり)。このラウンドの MAS watch による自動起票 (承認 issue) は無く、記入は issue #635 (0.51.0 実施) が行った。What's New のみの更新 (メンテナンス版 — MAS 提出経路の preflight、kilde#633。アプリ本体は不変) のため計測期間は設けない) |
 
 ## 変更前の ASC 登録内容 (2026-09-26 に ASC API で取得)
 
