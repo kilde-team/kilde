@@ -738,5 +738,5 @@ not do — listing fixes would be false since the app itself did not change
 (house style).
 
 ```text
-This update refreshes the App Store product page. Recording, transcription, and other app features are unchanged.
+This update refreshes the product page. Recording, transcription, and other app features are unchanged.
 ```

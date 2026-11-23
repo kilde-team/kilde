@@ -598,5 +598,5 @@ GUI 的摘要路径 (TranscriptionCoordinator) 不经过引擎的 TranscriptionR
 变化，写 «已修复» 就会成为虚假描述 (一贯的校对方针)。
 
 ```text
-本次更新仅刷新 App Store 产品页面。录制、转写等应用功能没有任何变化。
+本次更新仅刷新产品页面。录制、转写等应用功能没有任何变化。
 ```

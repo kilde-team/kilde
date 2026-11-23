@@ -752,5 +752,5 @@ texto de la tienda se queda en «solo renovación de la página del producto»
 enumerar correcciones sería falso porque la app no cambia (estilo de la casa).
 
 ```text
-Esta actualización solo renueva la página del producto en el App Store. La grabación, la transcripción y el resto de funciones de la app no cambian.
+Esta actualización solo renueva la página del producto. La grabación, la transcripción y el resto de funciones de la app no cambian.
 ```
