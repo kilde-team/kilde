@@ -709,3 +709,19 @@ unchanged. Write only what the implementation does (house style). Keep
 ```text
 If the app quits while a summary is being generated, the completed transcript is no longer lost. It is recovered automatically the next time you run the summary for the same recording. Recording, transcription, and summary generation themselves are unchanged.
 ```
+
+## What's New (0.50.0)
+
+Maintenance release (kilde#633 — reliability work on the MAS submission
+pipeline, related to issue #470). What changes in this version is the
+**submission infrastructure only** (a preflight step before archiving in
+the release workflow); the MAS app itself (recording, transcription,
+summary, settings) has no behavior change and no new features. Because
+there is no user-visible change, the store copy stays at "maintenance for
+stability". Do not advertise anything the implementation does not do —
+listing fixes would be false since the app itself did not change (house
+style).
+
+```text
+A maintenance release for stability and reliability. Recording, transcription, and other app features are unchanged.
+```

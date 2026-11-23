@@ -723,3 +723,19 @@ sidecar).
 ```text
 Si la app se cierra mientras se genera el resumen, la transcripción completada ya no se pierde. Se recupera automáticamente la próxima vez que generes el resumen de la misma grabación. La grabación, la transcripción y la generación de resúmenes no cambian.
 ```
+
+## Novedades (0.50.0)
+
+Versión de mantenimiento (kilde#633 — mejoras de fiabilidad en el conducto
+de envío a MAS, relacionado con el issue #470). Lo que cambia en esta
+versión es solo la **infraestructura de envío** (un paso de preflight antes
+de archivar en el workflow de release); la app de MAS en sí (grabación,
+transcripción, resumen, ajustes) no cambia de comportamiento ni añade
+funciones. Como no hay cambio visible para el usuario, el texto de la
+tienda se queda en «mantenimiento para la estabilidad». No anunciar nada
+que la implementación no haga — enumerar correcciones sería falso porque la
+app no cambia (estilo de la casa).
+
+```text
+Una versión de mantenimiento para la estabilidad y la fiabilidad. La grabación, la transcripción y el resto de funciones de la app no cambian.
+```

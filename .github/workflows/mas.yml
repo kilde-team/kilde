@@ -64,9 +64,7 @@ on:
       mode:
         description: "What to do"
         type: choice
-        # probe は一時モード (issue #633 の #470 検証用) — m1 で codesign preflight を
-        # 単独実行して残仮説を再現する。**PR マージ前に削除する**
-        options: [plan, status, apply, submit, submit-only, upload, probe]
+        options: [plan, status, apply, submit, submit-only, upload]
         default: plan
       version:
         description: "MAS version (e.g. 0.8.1)"
@@ -140,7 +138,7 @@ jobs:
           persist-credentials: false
 
       - name: Generate the spec from the metadata files
-        if: inputs.mode != 'status' && inputs.mode != 'probe'
+        if: inputs.mode != 'status'
         # 全モード共通 (status を除く): docs/appstore/metadata から spec.json を作る。
         # メタデータの上限 (キーワード 100 文字 / ロケール別バイト、サブタイトル 30 文字) は
         # この生成が機械検証する (appstore-spec.py)。spec に secrets は含まれないため
@@ -183,9 +181,8 @@ jobs:
 
       - name: Decode the App Store Connect API key
         # upload も含める: アーカイブ〜アップロードのクラウド署名を ASC API キーで
-        # 行う (下の upload step 参照)。plan は書き込まないので鍵不要。
-        # probe (一時モード — issue #633) も鍵不要
-        if: inputs.mode != 'plan' && inputs.mode != 'probe'
+        # 行う (下の upload step 参照)。plan は書き込まないので鍵不要
+        if: inputs.mode != 'plan'
         env:
           ASC_CI_KEY_B64: ${{ secrets.ASC_CI_KEY_B64 }}
           ASC_CI_KEY_ID: ${{ secrets.ASC_CI_KEY_ID }}
@@ -211,16 +208,6 @@ jobs:
           echo "ASC_KEY_PATH=$RUNNER_TEMP/asc/AuthKey.p8" >> "$GITHUB_ENV"
           echo "ASC_KEY_ID=$ASC_CI_KEY_ID" >> "$GITHUB_ENV"
           echo "ASC_ISSUER=$ASC_CI_ISSUER" >> "$GITHUB_ENV"
-
-      # 一時モード probe (issue #633 / #470 検証用): codesign preflight を m1 上で
-      # 単独実行して残仮説 («鍵使用時の ACL 認証待ちで沈黙») を bounded に再現する。
-      # 鍵・secrets は不要。**PR マージ前にこの step と mode 選択肢の probe を削除する**
-      - name: Codesign key preflight (probe — temporary, issue #633)
-        if: inputs.mode == 'probe'
-        env:
-          PREFLIGHT_PROBE_SEC: "90"
-        shell: bash
-        run: scripts/release/codesign-preflight.sh
 
       - name: Show the version status (read-only)
         if: inputs.mode == 'status'
