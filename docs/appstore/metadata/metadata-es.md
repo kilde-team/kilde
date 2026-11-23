@@ -739,3 +739,18 @@ app no cambia (estilo de la casa).
 ```text
 Una versión de mantenimiento para la estabilidad y la fiabilidad. La grabación, la transcripción y el resto de funciones de la app no cambian.
 ```
+
+## Novedades (0.51.0)
+
+Versión de mantenimiento (kilde#635 — trabajo en el libro de registro de
+ingresos). Lo que cambia en esta versión es solo el **libro de registro de
+medición en el repositorio** (el libro mensual de ventas de IAP en
+docs/metrics.md); la app en sí (grabación, transcripción, resumen, ajustes,
+Pro) es idéntica a la 0.50.0. Como no hay cambio visible para el usuario, el
+texto de la tienda se queda en «solo renovación de la página del producto»
+(precedente de la 0.8.2). No anunciar nada que la implementación no haga —
+enumerar correcciones sería falso porque la app no cambia (estilo de la casa).
+
+```text
+Esta actualización solo renueva la página del producto en el App Store. La grabación, la transcripción y el resto de funciones de la app no cambian.
+```

@@ -725,3 +725,18 @@ style).
 ```text
 A maintenance release for stability and reliability. Recording, transcription, and other app features are unchanged.
 ```
+
+## What's New (0.51.0)
+
+Maintenance release (kilde#635 — revenue measurement ledger work). What changes
+in this version is the **measurement ledger in the repository only**
+(the monthly IAP sales ledger in docs/metrics.md); the app itself (recording,
+transcription, summary, settings, Pro) is identical to 0.50.0. Because there
+is no user-visible change, the store copy stays at "product page refresh
+only" (0.8.2 precedent). Do not advertise anything the implementation does
+not do — listing fixes would be false since the app itself did not change
+(house style).
+
+```text
+This update refreshes the App Store product page. Recording, transcription, and other app features are unchanged.
+```
