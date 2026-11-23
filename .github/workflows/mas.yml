@@ -47,6 +47,16 @@ name: MAS (App Store)
 #   - upload step には停滞検知の watchdog がある (無出力 12 分 / 上限 70 分で打ち切り)。
 #     0.42.0 以降 «Archive and upload» が CodeSign あたりで沈黙し job 上限まで
 #     費やす事故 (#470 関連) が続いたため、timeout-minutes の延長 (#589) の次の一手
+#   - upload では Archive and upload の **前** に codesign preflight
+#     (scripts/release/codesign-preflight.sh — issue #633) を走らせる。キーチェーンの
+#     有効な codesigning identity で実際に bounded (90 秒/identity) に署名を試し、
+#     «鍵の使用時» の沈黙 (ACL / partition-list の対話認証待ち — #470 の残仮説、
+#     0.48.0 の診断で «鍵の可視性 OK・キーチェーン no-timeout» 済み) を検出したら
+#     «鍵アクセス起因» と分かる診断を出して即失敗する。watchdog の無出力 12 分を
+#     消す前に数分で合否が出るため、失敗時は docs/RELEASE.md §7 «停滞時の
+#     即時フォールバック» のとおり、watchdog の打ち切りを待たずローカル経路
+#     (appstore-archive.sh) へ即切り替えする。preflight は読み取りと一時ファイルへの
+#     署名のみで、証明書の失効・作成や鍵素材・partition-list は変更しない
 
 on:
   workflow_dispatch:
@@ -329,6 +339,24 @@ jobs:
           echo "build 番号を 1 つ増やして upload をやり直してください (mas.yml mode=upload version=$VERSION build=<N+1>)"
           exit 1
 
+      # fail-fast preflight (issue #633 — #470 の恒久対策)。Archive and upload の
+      # 直前に、キーチェーンの有効な codesigning identity で実際に bounded に署名を
+      # 試す。0.42.0 以降の沈黙は «鍵の使用時» に起きる (0.48.0 の診断で «鍵の
+      # 可視性 OK・キーチェーン no-timeout» 済み — #623) ので、ここで沈黙すれば
+      # アーカイブも同位置で沈黙する。watchdog の無出力 12 分と job 上限を消す前に
+      # 数分で合否を出して落とすことで、docs/RELEASE.md §7 «停滞時の即時フォールバック»
+      # どおりの即切り替え (ローカル appstore-archive.sh) を可能にする。
+      # スクリプトは読み取りと一時ファイルへの署名のみ — 証明書の失効・新規作成、
+      # 鍵素材・partition-list の変更はしない (m1 の恒久対処はオーナー判断 — #470)。
+      # 沈黙が 1 件でもあれば即失敗 (rc=2)、identity が 1 件も無い / 全滅も失敗 (rc=1)
+      - name: Codesign key preflight (bounded, fail-fast)
+        id: codesign_preflight
+        if: inputs.mode == 'upload' && steps.preflight.outputs.build_present != 'true'
+        env:
+          PREFLIGHT_PROBE_SEC: "90"
+        shell: bash
+        run: scripts/release/codesign-preflight.sh
+
       - name: Archive and upload the MAS build (with stall watchdog)
         if: inputs.mode == 'upload' && steps.preflight.outputs.build_present != 'true'
         env:
@@ -572,7 +600,13 @@ jobs:
       # ことがあり、その判定をこの run 内で済ませるため。レビュー指摘)。
       # upload をスキップした (再利用) 場合もここで現在の状態を確認する (issue #615)
       - name: Confirm the build in ASC (read-only poll)
-        if: ${{ always() && inputs.mode == 'upload' }}
+        # preflight が失敗した (かつアーカイブが実行されない = build 未存在) ときは
+        # poll を省略する — アップロードが始まっていないため ASC に build が現れる
+        # ことは無く、20 分の poll を消化するだけ (CodeRabbit レビュー指摘)。
+        # アーカイブが実行された (preflight 通過 or スキップ=再利用) あとの失敗は
+        # «エクスポートが失敗に見えても ASC が build を受理していることがある» ので
+        # 従来どおり poll する
+        if: ${{ always() && inputs.mode == 'upload' && !(steps.codesign_preflight.outcome == 'failure' && steps.preflight.outputs.build_present != 'true') }}
         env:
           VERSION: ${{ inputs.version }}
           BUILD: ${{ inputs.build }}

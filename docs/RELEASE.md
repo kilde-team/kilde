@@ -311,6 +311,49 @@ scripts/release/appstore-archive.sh --version 0.4.0 --build 42
   「提出の自動化」) を実行する。**アーカイブから提出までは実行者 (エージェントを含む)
   自身が行い、依頼者へ依頼しない**
 
+### 停滞時の即時フォールバック (issue #633 — mas.yml の upload 経路)
+
+m1 ランナーでは 0.42.0 以降、`Archive and upload` の CodeSign が «鍵の使用時の
+ACL / partition-list の対話認証待ち» で沈黙し、watchdog (無出力 12 分) の打ち切りや
+job 上限までの停滞を繰り返してきた (issue #470)。3 時間ルールの提出リードタイムを
+守るため、**watchdog の打ち切りを待たずに**次の基準でローカル代替
+(macmini-m4 での `appstore-archive.sh`) へ切り替える:
+
+1. **codesign preflight の失敗 — 即切り替え**。mas.yml の upload は Archive の直前に
+   `scripts/release/codesign-preflight.sh` を走らせ、有効な identity で実際に bounded
+   (90 秒/identity) に署名を試す。合否の上限は **対象 identity 数 × 90 秒**
+   (m1 の実構成は対象 identity 1 個なので最大 90 秒 + 診断数秒 — 0.49.0 の停滞は
+   12 分超だったのに対し、ここまでで確定する)。**沈黙した場合 (rc=2)** はアーカイブを
+   始めずに終了し、`[preflight] 判定: 失敗 (fail-fast)` と `[keychain]` / `[identity]` /
+   `[proc]` の診断ブロックが «鍵アクセス起因» の証跡になる (診断ブロックは沈黙時の
+   み出力する — identity が見えない・すべて即時エラーの場合は warning ログのみで
+   続行する (クラウド署名が identity を用意できるため)。identity の列挙そのものが
+   沈黙した場合は診断ブロック無しで rc=1 で失敗する)。恒久対処
+   (`security set-key-partition-list …` や GUI セッションでの承認) は m1 実機の
+   オーナー操作が必要で、エージェント側では実施しない (#470 に記録)
+2. **Archive 開始後の無出力 6 分 — 打ち切りを待たず切り替え**。preflight を通っても
+   アーカイブ中に沈黙が再発する可能性は残る。job ログの `[watchdog]` ハートビートが
+   «無出力 6 分» (watchdog の打ち切り閾値 12 分の半分) を示したら、その打ち切りを
+   待たずに次の順で切り替える:
+   - **まず m1 側の run をキャンセルする** (`gh run cancel <run-id>`) — ローカルと
+     m1 が同時に upload に到達する競合の芽を摘む。後始末 (孫の codesign を含む
+     プロセス停止) は watchdog の診断・pkill と、次のアーカイブ step 冒頭の
+     孤児スイープが担う (#625)
+   - キャンセルと並行して、ハートビートの停滞位置の推定が **CodeSign 沈黙**
+     («アーカイブ中 (CodeSign)» か «署名 identity の選択») ならローカル代替を
+     開始してよい — m1 が upload に到達しないことが確実なため。それ以外の段階
+     (エクスポート付近など upload が近い位置) ではキャンセルの完了を確認してから
+     ローカルを開始する (同一 build 番号の二重アップロードは ASC が拒否するが、
+     競合そのものを作らないのが原則)
+   - 切り替え後の ASC 実状態 (build の VALID) は mas.yml の «Confirm the build in
+     ASC» poll か `mode=status` で確認する
+3. **切り替え先はローカル (macmini-m4) の Admin 鍵クラウド署名**:
+   `scripts/release/appstore-archive.sh --version <VERSION> --build <BUILD> --upload`
+   (キーの現況は本節の上にある «ASC API キーを使う場合» と #470 の記録を参照)。
+   アップロード後は `mode=apply` → 数分待つ → `mode=submit-only` の 2 段階で提出し、
+   完了の判定は **ASC 実状態 (WAITING_FOR_REVIEW)** で行う (ワークフローの
+   conclusion ではない)
+
 ### ASC の画面でしかできないこと (初回のみ・いずれも実施済み)
 
 アーカイブ、アップロード、メタデータ反映、**審査への提出**はすべて自動化済み
