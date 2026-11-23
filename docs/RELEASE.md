@@ -321,14 +321,16 @@ job 上限までの停滞を繰り返してきた (issue #470)。3 時間ルー�
 
 1. **codesign preflight の失敗 — 即切り替え**。mas.yml の upload は Archive の直前に
    `scripts/release/codesign-preflight.sh` を走らせ、有効な identity で実際に bounded
-   (90 秒/identity) に署名を試す。**沈黙した場合 (rc=2)** はアーカイブを始めずに
-   終了し、`[preflight] 判定: 失敗 (fail-fast)` と `[keychain]` / `[identity]` /
+   (90 秒/identity) に署名を試す。合否の上限は **対象 identity 数 × 90 秒**
+   (m1 の実構成は対象 identity 1 個なので最大 90 秒 + 診断数秒 — 0.49.0 の停滞は
+   12 分超だったのに対し、ここまでで確定する)。**沈黙した場合 (rc=2)** はアーカイブを
+   始めずに終了し、`[preflight] 判定: 失敗 (fail-fast)` と `[keychain]` / `[identity]` /
    `[proc]` の診断ブロックが «鍵アクセス起因» の証跡になる (診断ブロックは沈黙時の
    み出力する — identity が見えない・すべて即時エラーの場合は warning ログのみで
    続行する (クラウド署名が identity を用意できるため)。identity の列挙そのものが
-   沈黙した場合は rc=1 で失敗する)。恒久対処 (`security set-key-partition-list …`
-   や GUI セッションでの承認) は m1 実機のオーナー操作が必要で、エージェント側では
-   実施しない (#470 に記録)
+   沈黙した場合は診断ブロック無しで rc=1 で失敗する)。恒久対処
+   (`security set-key-partition-list …` や GUI セッションでの承認) は m1 実機の
+   オーナー操作が必要で、エージェント側では実施しない (#470 に記録)
 2. **Archive 開始後の無出力 6 分 — 打ち切りを待たず切り替え**。preflight を通っても
    アーカイブ中に沈黙が再発する可能性は残る。job ログの `[watchdog]` ハートビートが
    «無出力 6 分» (watchdog の打ち切り閾値 12 分の半分) を示したら、その打ち切りを

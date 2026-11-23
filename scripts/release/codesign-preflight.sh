@@ -59,7 +59,23 @@ SEC_SEC="${PREFLIGHT_SECURITY_SEC:-15}"
 TMP_FILES=""
 PROBE_DIR=""
 PROBE_FILE=""
+# bounded() がいま走らせている子 (コマンド本体とタイマー) の PID。cleanup では
+# «自分の生きている子» だけを殺す — PPID が自分 ($$) であることを確認するのは、
+# 終了済み PID が再利用されていたときに無関係なプロセスを kill -9 しないため
+# (cubic レビュー指摘)
+BC_PIDS=""
+kill_bg_child() {
+  local pid="$1"
+  [ -n "$pid" ] || return 0
+  [ "$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')" = "$$" ] || return 0
+  kill -9 "$pid" 2>/dev/null
+  return 0
+}
 cleanup() {
+  local pid
+  for pid in $BC_PIDS; do
+    kill_bg_child "$pid"
+  done
   for f in $TMP_FILES; do
     rm -f "$f" 2>/dev/null
   done
@@ -80,8 +96,10 @@ bounded() {
   shift 2
   "$@" >"$out" 2>&1 &
   p=$!
+  BC_PIDS="$BC_PIDS $p"
   ( sleep "$limit"; kill -9 "$p" 2>/dev/null ) &
   w=$!
+  BC_PIDS="$BC_PIDS $w"
   wait "$p" 2>/dev/null
   rc=$?
   kill "$w" 2>/dev/null
