@@ -321,19 +321,30 @@ job 上限までの停滞を繰り返してきた (issue #470)。3 時間ルー�
 
 1. **codesign preflight の失敗 — 即切り替え**。mas.yml の upload は Archive の直前に
    `scripts/release/codesign-preflight.sh` を走らせ、有効な identity で実際に bounded
-   (90 秒/identity) に署名を試す。ここで沈黙・失敗したら (rc=1/2) アーカイブは
-   始めずに終了する — 鍵が使えない状態のアーカイブは同位置で沈黙するため。
-   ログの `[preflight] 判定: 失敗` と `[keychain]` / `[identity]` / `[proc]` の診断が
-   «鍵アクセス起因» の証跡になる。恒久対処 (`security set-key-partition-list …` や
-   GUI セッションでの承認) は m1 実機のオーナー操作が必要で、エージェント側では
+   (90 秒/identity) に署名を試す。**沈黙した場合 (rc=2)** はアーカイブを始めずに
+   終了し、`[preflight] 判定: 失敗 (fail-fast)` と `[keychain]` / `[identity]` /
+   `[proc]` の診断ブロックが «鍵アクセス起因» の証跡になる (診断ブロックは沈黙時の
+   み出力する — identity が見えない・すべて即時エラーの場合は warning ログのみで
+   続行する (クラウド署名が identity を用意できるため)。identity の列挙そのものが
+   沈黙した場合は rc=1 で失敗する)。恒久対処 (`security set-key-partition-list …`
+   や GUI セッションでの承認) は m1 実機のオーナー操作が必要で、エージェント側では
    実施しない (#470 に記録)
 2. **Archive 開始後の無出力 6 分 — 打ち切りを待たず切り替え**。preflight を通っても
    アーカイブ中に沈黙が再発する可能性は残る。job ログの `[watchdog]` ハートビートが
    «無出力 6 分» (watchdog の打ち切り閾値 12 分の半分) を示したら、その打ち切りを
-   待たずにローカル代替を開始してよい。同じ build 番号の二重アップロードは ASC が
-   拒否するため競合せず、後から mas.yml の «Confirm the build in ASC» poll か
-   `mode=status` で ASC 実状態 (VALID) を確認する。m1 側の後始末 (プロセス停止) は
-   watchdog の診断・pkill が担う
+   待たずに次の順で切り替える:
+   - **まず m1 側の run をキャンセルする** (`gh run cancel <run-id>`) — ローカルと
+     m1 が同時に upload に到達する競合の芽を摘む。後始末 (孫の codesign を含む
+     プロセス停止) は watchdog の診断・pkill と、次のアーカイブ step 冒頭の
+     孤児スイープが担う (#625)
+   - キャンセルと並行して、ハートビートの停滞位置の推定が **CodeSign 沈黙**
+     («アーカイブ中 (CodeSign)» か «署名 identity の選択») ならローカル代替を
+     開始してよい — m1 が upload に到達しないことが確実なため。それ以外の段階
+     (エクスポート付近など upload が近い位置) ではキャンセルの完了を確認してから
+     ローカルを開始する (同一 build 番号の二重アップロードは ASC が拒否するが、
+     競合そのものを作らないのが原則)
+   - 切り替え後の ASC 実状態 (build の VALID) は mas.yml の «Confirm the build in
+     ASC» poll か `mode=status` で確認する
 3. **切り替え先はローカル (macmini-m4) の Admin 鍵クラウド署名**:
    `scripts/release/appstore-archive.sh --version <VERSION> --build <BUILD> --upload`
    (キーの現況は本節の上にある «ASC API キーを使う場合» と #470 の記録を参照)。

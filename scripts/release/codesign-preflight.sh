@@ -52,6 +52,29 @@ SEC_SEC="${PREFLIGHT_SECURITY_SEC:-15}"
 # 出し、上限秒で kill する。タイムアウト時は 124 を返す (timeout(1) の規約に合わせる)。
 # SIGKILL (137) で死んだものは打ち切りとみなす — «kill -9 された» 以外の 137 は
 # codesign の通常の終了コードに無い (実害は打ち切り誤認のみ)
+# --- 一時ファイルの後始末 ( trap は最初の mktemp の前に登録する) ---------------
+# SIGINT/SIGTERM で中断されても一時ファイルを残さない (cubic レビュー指摘 —
+# self-hosted ランナーはジョブ間でディレクトリが残る)。INT/TERM は exit で抜け、
+# EXIT trap が掃除する。TMP_FILES に mktemp の結果を積んでいく
+TMP_FILES=""
+PROBE_DIR=""
+PROBE_FILE=""
+cleanup() {
+  for f in $TMP_FILES; do
+    rm -f "$f" 2>/dev/null
+  done
+  [ -n "$PROBE_DIR" ] && rm -rf "$PROBE_DIR" 2>/dev/null
+  # 沈黙した probe の codesign は必ず殺す (打ち切り漏れの孤児を作らない —
+  # 0.48.0 の [proc] 診断で «PPID 1 の孤児が蓄積» が実測されている)。
+  # スコープはこのスクリプトの probe ファイルのみ — ランナー上の他の
+  # codesign (eyechecker ランナー由来の孤児など) には触れない
+  [ -n "$PROBE_FILE" ] && pkill -f "codesign .*$PROBE_FILE" 2>/dev/null
+  return 0
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
 bounded() {
   local limit="$1" out="$2" p w rc
   shift 2
@@ -112,6 +135,7 @@ esac
 # 有効な codesigning identity (-v = private key 付きのみ)。security 自体が
 # 沈黙する可能性 (ロック状態のキーチェーン) に備え、こちらも bounded で出す
 ID_TMP="$(mktemp)"
+TMP_FILES="$TMP_FILES $ID_TMP"
 # `!` で包まず直接受け取る — `if ! cmd` の分岐内の $? は否定の結果 (0) になり、
 # bounded の終了コードを失う (CodeRabbit レビュー指摘)
 bounded "$SEC_SEC" "$ID_TMP" security find-identity -v -p codesigning
@@ -176,18 +200,6 @@ fi
 # «鍵の使用» の経路を実アーカイブに揃える
 PROBE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/codesign-preflight.XXXXXX")"
 PROBE_FILE="$PROBE_DIR/probe-macho"
-cleanup() {
-  # 一時ディレクトリは必ず消す («中止時は確定ファイルを書かない» 契約の準拠 —
-  # このスクリプトは確定ファイルを一切書かない)
-  rm -rf "$PROBE_DIR" 2>/dev/null
-  # 沈黙した probe の codesign は必ず殺す (打ち切り漏れの孤児を作らない —
-  # 0.48.0 の [proc] 診断で «PPID 1 の孤児が蓄積» が実測されている)。
-  # スコープはこのスクリプトの probe ファイルのみ — ランナー上の他の
-  # codesign (eyechecker ランナー由来の孤児など) には触れない
-  pkill -f "codesign .*$PROBE_FILE" 2>/dev/null
-  return 0
-}
-trap cleanup EXIT
 cp /bin/echo "$PROBE_FILE" 2>/dev/null || {
   echo "[preflight] 失敗: probe ファイル (/bin/echo のコピー) を作れません"
   exit 1
@@ -202,6 +214,7 @@ ERR_HASHES=""
 for HASH in $IDENTS; do
   echo "[preflight] probe: codesign --force --sign $HASH --generate-entitlement-der --strip-disallowed-xattrs <probe> (上限 ${PROBE_SEC} 秒)"
   OUT_TMP="$(mktemp)"
+  TMP_FILES="$TMP_FILES $OUT_TMP"
   bounded "$PROBE_SEC" "$OUT_TMP" \
     codesign --force --sign "$HASH" --generate-entitlement-der \
     --strip-disallowed-xattrs "$PROBE_FILE"
@@ -238,6 +251,7 @@ if [ -n "$TIMEOUT_HASHES" ]; then
   echo "[preflight] ${MAS_UPLOAD_IDLE_LIMIT_MIN:-12} 分を消してから失敗になるため、ここで即失敗させる"
   # --- 診断 (読み取りのみ・それぞれ bounded) — «鍵アクセス起因» をログだけで追えるように
   KC_TMP="$(mktemp)"
+  TMP_FILES="$TMP_FILES $KC_TMP"
   for kc in "$HOME/Library/Keychains/login.keychain-db" "$HOME/Library/Keychains/login.keychain"; do
     [ -f "$kc" ] || continue
     bounded "$SEC_SEC" "$KC_TMP" security show-keychain-info "$kc" >/dev/null 2>&1
