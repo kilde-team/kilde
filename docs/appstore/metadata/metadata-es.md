@@ -754,3 +754,19 @@ enumerar correcciones sería falso porque la app no cambia (estilo de la casa).
 ```text
 Esta actualización solo renueva la página del producto. La grabación, la transcripción y el resto de funciones de la app no cambian.
 ```
+
+## Novedades (0.52.0)
+
+Versión de mantenimiento (kilde#639 — nueva lista de verificación de cierre
+mensual). Lo que cambia en esta versión es solo el **trabajo en el libro de
+registro de medición en el repositorio** (la lista de verificación de cierre
+mensual y la plantilla del apartado de decisión #161 en docs/metrics.md); la
+app en sí (grabación, transcripción, resumen, ajustes, Pro) es idéntica a la
+0.51.0. Como no hay cambio visible para el usuario, el texto de la tienda se
+queda en «solo renovación de la página del producto» (precedente de la
+0.51.0). No anunciar nada que la implementación no haga — enumerar
+correcciones sería falso porque la app no cambia (estilo de la casa).
+
+```text
+Esta actualización solo renueva la página del producto. La grabación, la transcripción y el resto de funciones de la app no cambian.
+```

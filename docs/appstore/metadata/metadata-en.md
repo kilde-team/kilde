@@ -740,3 +740,19 @@ not do — listing fixes would be false since the app itself did not change
 ```text
 This update refreshes the product page. Recording, transcription, and other app features are unchanged.
 ```
+
+## What's New (0.52.0)
+
+Maintenance release (kilde#639 — new monthly close checklist). What changes
+in this version is the **measurement ledger work in the repository only**
+(the monthly close checklist and the #161 decision-entry template in
+docs/metrics.md); the app itself (recording, transcription, summary,
+settings, Pro) is identical to 0.51.0. Because there is no user-visible
+change, the store copy stays at "product page refresh only" (0.51.0
+precedent). Do not advertise anything the implementation does not do —
+listing fixes would be false since the app itself did not change (house
+style).
+
+```text
+This update refreshes the product page. Recording, transcription, and other app features are unchanged.
+```
