@@ -770,3 +770,17 @@ correcciones sería falso porque la app no cambia (estilo de la casa).
 ```text
 Esta actualización solo renueva la página del producto. La grabación, la transcripción y el resto de funciones de la app no cambian.
 ```
+
+## Novedades (0.53.0)
+
+Versión de mantenimiento (kilde#642 — filas mensuales 2026-11 en los libros
+de registro de medición). Lo que cambia en esta versión es solo el
+**trabajo en los libros de registro del repositorio** (las filas 2026-11 y
+las plantillas de los apartados de decisión #161 / #174); la app en sí es
+idéntica a la 0.52.0. Como en 0.51.0 / 0.52.0 no hay cambio visible para el
+usuario, el texto de la tienda se queda en «solo renovación de la página
+del producto». No anunciar nada que la implementación no haga.
+
+```text
+Esta actualización solo renueva la página del producto. La grabación, la transcripción y el resto de funciones de la app no cambian.
+```
