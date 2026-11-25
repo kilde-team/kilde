@@ -756,3 +756,18 @@ style).
 ```text
 This update refreshes the product page. Recording, transcription, and other app features are unchanged.
 ```
+
+## What's New (0.53.0)
+
+Maintenance release (kilde#642 — 2026-11 monthly rows in the metric
+ledgers). What changes in this version is the **measurement ledger work in
+the repository only** (the 2026-11 rows and entry templates in
+docs/metrics.md and docs/appstore/metadata/metrics.md, plus the concretized
+#161 / #174 decision columns); the app itself is identical to 0.52.0. As in
+0.51.0 / 0.52.0, there is no user-visible change, so the store copy stays at
+"product page refresh only". Do not advertise anything the implementation
+does not do.
+
+```text
+This update refreshes the product page. Recording, transcription, and other app features are unchanged.
+```
